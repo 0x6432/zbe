@@ -319,7 +319,7 @@ var ntyp: uint = 0;
 fn verr(s: [*c]const u8, ...) callconv(.c) noreturn {
     var ap = @cVaStart();
     _ = C.fprintf(C.stderr, "qbe:%s:%d: ", inpath, lnum);
-    _ = C.vfprintf(C.stderr, s, ap);
+    _ = C.vfprintf(C.stderr, s, C.vaarg(&ap));
     _ = C.fprintf(C.stderr, "\n");
     @cVaEnd(&ap);
     C.exit(1);

@@ -75,7 +75,7 @@ pub inline fn CON(x: anytype) Ref {
     return .{ .type = RCon, .val = @intCast(x) };
 }
 pub inline fn SLOT(x: anytype) Ref {
-    return .{ .type = RSlot, .val = @truncate(@as(u64, @bitCast(@as(i64, x))) & 0x1fffffff) };
+    return .{ .type = RSlot, .val = @truncate(@as(u128, @bitCast(@as(i128, x))) & 0x1fffffff) };
 }
 pub inline fn TYPE(x: anytype) Ref {
     return .{ .type = RType, .val = @intCast(x) };
@@ -87,7 +87,7 @@ pub inline fn MEM(x: anytype) Ref {
     return .{ .type = RMem, .val = @intCast(x) };
 }
 pub inline fn INT(x: anytype) Ref {
-    return .{ .type = RInt, .val = @truncate(@as(u64, @bitCast(@as(i64, x))) & 0x1fffffff) };
+    return .{ .type = RInt, .val = @truncate(@as(u128, @bitCast(@as(i128, x))) & 0x1fffffff) };
 }
 
 pub inline fn req(a: Ref, b: Ref) bool {

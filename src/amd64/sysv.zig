@@ -260,7 +260,7 @@ fn selret(b: [*c]Blk, f: [*c]Fn) void {
     b.*.jmp.arg = CALL(ca);
 }
 
-fn argsclass(i0: [*c]Ins, i1: [*c]Ins, ac: [*c]AClass, op: i32, aret: [*c]AClass, env: *Ref) i32 {
+fn argsclass(i_0: [*c]Ins, i_1: [*c]Ins, ac: [*c]AClass, op: i32, aret: [*c]AClass, env: *Ref) i32 {
     var nint: i32 = undefined;
     if (aret != null and aret.*.inmem != 0)
         nint = 5 // hidden argument
@@ -269,9 +269,9 @@ fn argsclass(i0: [*c]Ins, i1: [*c]Ins, ac: [*c]AClass, op: i32, aret: [*c]AClass
     var nsse: i32 = 8;
     var varc: i32 = 0;
     var envc: i32 = 0;
-    var i = i0;
+    var i = i_0;
     var a = ac;
-    while (i < i1) : ({
+    while (i < i_1) : ({
         i += 1;
         a += 1;
     }) {
@@ -397,7 +397,7 @@ fn rarg(ty: i32, ni: *i32, ns: *i32) Ref {
     }
 }
 
-fn selcall(f: [*c]Fn, i0: [*c]Ins, i1: [*c]Ins, rap: *[*c]RAlloc) void {
+fn selcall(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins, rap: *[*c]RAlloc) void {
     var aret: AClass = undefined;
     var reg: [2]Ref = undefined;
     var ca: i32 = undefined;
@@ -406,14 +406,14 @@ fn selcall(f: [*c]Fn, i0: [*c]Ins, i1: [*c]Ins, rap: *[*c]RAlloc) void {
     var ra: [*c]RAlloc = undefined;
 
     var env = R;
-    const nac: usize = @intCast(ptrdiff(i1, i0));
+    const nac: usize = @intCast(ptrdiff(i_1, i_0));
     const ac: [*c]AClass = @ptrCast(@alignCast(alloc(nac * @sizeOf(AClass))));
 
-    if (!req(i1.*.arg[1], R)) {
-        assert(rtype(i1.*.arg[1]) == RType);
-        typclass(&aret, &all.typ[i1.*.arg[1].val]);
-        ca = argsclass(i0, i1, ac, Oarg, &aret, &env);
-    } else ca = argsclass(i0, i1, ac, Oarg, null, &env);
+    if (!req(i_1.*.arg[1], R)) {
+        assert(rtype(i_1.*.arg[1]) == RType);
+        typclass(&aret, &all.typ[i_1.*.arg[1].val]);
+        ca = argsclass(i_0, i_1, ac, Oarg, &aret, &env);
+    } else ca = argsclass(i_0, i_1, ac, Oarg, null, &env);
 
     var stk: uint = 0;
     var a = ac + nac;
@@ -433,12 +433,12 @@ fn selcall(f: [*c]Fn, i0: [*c]Ins, i1: [*c]Ins, rap: *[*c]RAlloc) void {
         emit(Osalloc, Kl, R, r, R);
     }
 
-    if (!req(i1.*.arg[1], R)) {
+    if (!req(i_1.*.arg[1], R)) {
         if (aret.inmem != 0) {
             // get the return location from eax
             // it saves one callee-save reg
             r1 = newtmp("abi", Kl, f);
-            emit(Ocopy, Kl, i1.*.to, TMP(RAX), R);
+            emit(Ocopy, Kl, i_1.*.to, TMP(RAX), R);
             ca += 1;
         } else {
             // todo, may read out of bounds.
@@ -448,15 +448,15 @@ fn selcall(f: [*c]Fn, i0: [*c]Ins, i1: [*c]Ins, rap: *[*c]RAlloc) void {
                 r = newtmp("abi", Kl, f);
                 aret.ref[1] = newtmp("abi", aret.cls[1], f);
                 emit(Ostorel, 0, R, aret.ref[1], r);
-                emit(Oadd, Kl, r, i1.*.to, getcon(8, f));
+                emit(Oadd, Kl, r, i_1.*.to, getcon(8, f));
             }
             aret.ref[0] = newtmp("abi", aret.cls[0], f);
-            emit(Ostorel, 0, R, aret.ref[0], i1.*.to);
+            emit(Ostorel, 0, R, aret.ref[0], i_1.*.to);
             ca += retr(&reg, &aret);
             if (aret.size > 8)
                 emit(Ocopy, aret.cls[1], aret.ref[1], reg[1], R);
             emit(Ocopy, aret.cls[0], aret.ref[0], reg[0], R);
-            r1 = i1.*.to;
+            r1 = i_1.*.to;
         }
         // allocate return pad
         ra = @ptrCast(@alignCast(alloc(@sizeOf(RAlloc))));
@@ -467,16 +467,16 @@ fn selcall(f: [*c]Fn, i0: [*c]Ins, i1: [*c]Ins, rap: *[*c]RAlloc) void {
         rap.* = ra;
     } else {
         ra = null;
-        if (KBASE(i1.*.cls) == 0) {
-            emit(Ocopy, i1.*.cls, i1.*.to, TMP(RAX), R);
+        if (KBASE(i_1.*.cls) == 0) {
+            emit(Ocopy, i_1.*.cls, i_1.*.to, TMP(RAX), R);
             ca += 1;
         } else {
-            emit(Ocopy, i1.*.cls, i1.*.to, TMP(XMM0), R);
+            emit(Ocopy, i_1.*.cls, i_1.*.to, TMP(XMM0), R);
             ca += 1 << 2;
         }
     }
 
-    emit(Ocall, i1.*.cls, R, i1.*.arg[0], CALL(ca));
+    emit(Ocall, i_1.*.cls, R, i_1.*.arg[0], CALL(ca));
 
     if (!req(R, env))
         emit(Ocopy, Kl, TMP(RAX), env, R)
@@ -488,9 +488,9 @@ fn selcall(f: [*c]Fn, i0: [*c]Ins, i1: [*c]Ins, rap: *[*c]RAlloc) void {
     if (ra != null and aret.inmem != 0)
         emit(Ocopy, Kl, rarg(Kl, &ni, &ns), ra.*.i.to, R); // pass hidden argument
 
-    var i = i0;
+    var i = i_0;
     a = ac;
-    while (i < i1) : ({
+    while (i < i_1) : ({
         i += 1;
         a += 1;
     }) {
@@ -512,10 +512,10 @@ fn selcall(f: [*c]Fn, i0: [*c]Ins, i1: [*c]Ins, rap: *[*c]RAlloc) void {
         return;
 
     r = newtmp("abi", Kl, f);
-    i = i0;
+    i = i_0;
     a = ac;
     var off: uint = 0;
-    while (i < i1) : ({
+    while (i < i_1) : ({
         i += 1;
         a += 1;
     }) {
@@ -534,13 +534,13 @@ fn selcall(f: [*c]Fn, i0: [*c]Ins, i1: [*c]Ins, rap: *[*c]RAlloc) void {
     emit(Osalloc, Kl, r, getcon(stk, f), R);
 }
 
-fn selpar(f: [*c]Fn, i0: [*c]Ins, i1: [*c]Ins) i32 {
+fn selpar(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins) i32 {
     var aret: AClass = undefined;
     var fa: i32 = undefined;
     var r: Ref = undefined;
 
     var env = R;
-    const nac: usize = @intCast(ptrdiff(i1, i0));
+    const nac: usize = @intCast(ptrdiff(i_1, i_0));
     const ac: [*c]AClass = @ptrCast(@alignCast(alloc(nac * @sizeOf(AClass))));
     all.curi = all.insbEnd();
     var ni: i32 = 0;
@@ -548,13 +548,13 @@ fn selpar(f: [*c]Fn, i0: [*c]Ins, i1: [*c]Ins) i32 {
 
     if (f.*.retty >= 0) {
         typclass(&aret, &all.typ[@intCast(f.*.retty)]);
-        fa = argsclass(i0, i1, ac, Opar, &aret, &env);
-    } else fa = argsclass(i0, i1, ac, Opar, null, &env);
+        fa = argsclass(i_0, i_1, ac, Opar, &aret, &env);
+    } else fa = argsclass(i_0, i_1, ac, Opar, null, &env);
     f.*.reg = amd64_sysv_argregs(CALL(fa), null);
 
-    var i = i0;
+    var i = i_0;
     var a = ac;
-    while (i < i1) : ({
+    while (i < i_1) : ({
         i += 1;
         a += 1;
     }) {
@@ -579,10 +579,10 @@ fn selpar(f: [*c]Fn, i0: [*c]Ins, i1: [*c]Ins) i32 {
         f.*.retr = r;
     }
 
-    i = i0;
+    i = i_0;
     a = ac;
     var s: i32 = 4;
-    while (i < i1) : ({
+    while (i < i_1) : ({
         i += 1;
         a += 1;
     }) {
@@ -791,13 +791,13 @@ pub fn amd64_sysv_abi(f: [*c]Fn) void {
                 switch (i.*.op) {
                     else => emiti(i.*),
                     Ocall => {
-                        var i0 = i;
-                        while (i0 > b.*.ins) : (i0 -= 1) {
-                            if (!isarg((i0 - 1).*.op))
+                        var i_0 = i;
+                        while (i_0 > b.*.ins) : (i_0 -= 1) {
+                            if (!isarg((i_0 - 1).*.op))
                                 break;
                         }
-                        selcall(f, i0, i, &ral);
-                        i = i0;
+                        selcall(f, i_0, i, &ral);
+                        i = i_0;
                     },
                     Ovastart => selvastart(f, fa, i.*.arg[0]),
                     Ovaarg => selvaarg(f, b, i),

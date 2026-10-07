@@ -125,7 +125,7 @@ pub fn hash(s0: [*c]const u8) u32 {
 pub fn die_(file: [*c]const u8, s: [*c]const u8, ...) callconv(.c) noreturn {
     _ = c.fprintf(c.stderr, "%s: dying: ", file);
     var ap = @cVaStart();
-    _ = c.vfprintf(c.stderr, s, ap);
+    _ = c.vfprintf(c.stderr, s, c.vaarg(&ap));
     @cVaEnd(&ap);
     _ = c.fputc('\n', c.stderr);
     c.abort();
@@ -231,10 +231,10 @@ pub fn addbins(pvins: *[*c]Ins, pnins: *uint, b: [*c]Blk) void {
 fn vstrf(pl: Pool, s: [*c]const u8, ...) callconv(.c) [*c]u8 {
     var ap = @cVaStart();
     var ap2 = @cVaCopy(&ap);
-    const n = c.vsnprintf(null, 0, s, ap);
+    const n = c.vsnprintf(null, 0, s, c.vaarg(&ap));
     @cVaEnd(&ap);
     const p: [*c]u8 = @ptrCast((if (pl == PFn) &alloc else &emalloc)(@intCast(n + 1)));
-    _ = c.vsnprintf(p, @intCast(n + 1), s, ap2);
+    _ = c.vsnprintf(p, @intCast(n + 1), s, c.vaarg(&ap2));
     @cVaEnd(&ap2);
     return p;
 }

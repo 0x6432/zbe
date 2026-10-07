@@ -3,6 +3,12 @@ const std = @import("std");
 
 pub const FILE = opaque {};
 pub const VaList = std.builtin.VaList;
+/// how a va_list is passed to v*printf: on x86_64 va_list is an array
+/// type and decays to a pointer, elsewhere pass by value
+pub const VaListArg = if (@import("builtin").cpu.arch == .x86_64) *VaList else VaList;
+pub inline fn vaarg(ap: *VaList) VaListArg {
+    return if (VaListArg == *VaList) ap else ap.*;
+}
 
 pub extern var stdin: *FILE;
 pub extern var stdout: *FILE;
@@ -12,8 +18,8 @@ pub extern var optind: c_int;
 
 pub extern fn fprintf(f: *FILE, fmt: [*c]const u8, ...) c_int;
 pub extern fn printf(fmt: [*c]const u8, ...) c_int;
-pub extern fn vfprintf(f: *FILE, fmt: [*c]const u8, ap: VaList) c_int;
-pub extern fn vsnprintf(s: [*c]u8, n: usize, fmt: [*c]const u8, ap: VaList) c_int;
+pub extern fn vfprintf(f: *FILE, fmt: [*c]const u8, ap: VaListArg) c_int;
+pub extern fn vsnprintf(s: [*c]u8, n: usize, fmt: [*c]const u8, ap: VaListArg) c_int;
 pub extern fn snprintf(s: [*c]u8, n: usize, fmt: [*c]const u8, ...) c_int;
 pub extern fn sprintf(s: [*c]u8, fmt: [*c]const u8, ...) c_int;
 pub extern fn fputs(s: [*c]const u8, f: *FILE) c_int;

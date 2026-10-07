@@ -1,6 +1,6 @@
 # HANDOFF – QBE → Zig translation
 
-Updated: 20261007-202325 UTC
+Updated: 20261007-203302 UTC
 
 ## Goal
 Translate QBE (C, cloned at /data/qbe-c, HEAD e786f06) to latest Zig master.
@@ -35,11 +35,14 @@ then download /data/backups/qbe-zig-backup.tar.gz.
 
 ## Status
 Done + compiling: ops, libc, all, util, parse, cfg, abi, mem, alias, load, ssa,
-copy, fold, gvn, gcm, ifopt, simpl, live.
-Stubs (`// stub`) remaining: spill, rega, emit, main, amd64/*, arm64/*, rv64/*.
+copy, fold, gvn, gcm, ifopt, simpl, live, spill, rega, emit.
+Written, not yet compiled: amd64/all.zig (target header; preamble.py imports
+its names as `tgt.X`), amd64/targ.zig (Targets built at runtime by
+`targ.init()` – main must call it), amd64/sysv.zig.
+Stubs remaining: main, amd64/{isel,emit,winabi}, arm64/*, rv64/*.
 
 ## Next steps
-1. Translate spill.c, rega.c, emit.c, amd64/{all.h,targ,sysv,isel,emit,winabi},
+1. Translate amd64/{isel,emit,winabi},
    arm64/{all.h,targ,abi,isel,emit}, rv64/{all.h,targ,abi,isel,emit}, main.c.
 2. build.zig (exe qbe, link libc); run ./test.sh with Zig binary; diff asm
    output against C qbe for all tests in test/.

@@ -23,11 +23,20 @@ for f in sys.argv[1:]:
     used = set(ident.findall(body_nc))
     local = set(re.findall(r'^(?:pub )?(?:export )?(?:inline )?(?:const|var|fn) ([A-Za-z_]\w*)', body, re.M))
     lines = []
+    fdir = os.path.dirname(os.path.abspath(f))
+    tpath = os.path.join(fdir, 'all.zig')
+    tgtx = {}
+    if os.path.abspath(tpath) != os.path.abspath(os.path.join(src, 'all.zig')) \
+            and os.path.exists(tpath) and os.path.abspath(f) != os.path.abspath(tpath):
+        tgtx = exports(tpath)
     for n in sorted(used - local):
-        if n in allx and allx[n] != 'var':
+        if n in tgtx and tgtx[n] != 'var':
+            lines.append(f'const {n} = tgt.{n};')
+        elif n in allx and allx[n] != 'var':
             lines.append(f'const {n} = all.{n};')
         elif n in opsx and n not in allx:
             lines.append(f'const {n} = all.ops.{n};')
     rel = os.path.relpath(os.path.join(src, 'all.zig'), os.path.dirname(os.path.abspath(f)))
-    out = head + B + '\nconst all = @import("' + rel + '");\n' + '\n'.join(lines) + '\n' + E + body
+    tgtimp = 'const tgt = @import("all.zig");\n' if tgtx else ''
+    out = head + B + '\nconst all = @import("' + rel + '");\n' + tgtimp + '\n'.join(lines) + '\n' + E + body
     open(f, 'w').write(out)

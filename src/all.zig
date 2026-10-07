@@ -685,3 +685,11 @@ pub inline fn INS0(op: anytype) Ins {
 pub inline fn shl64(x: bits, n: anytype) bits {
     return x << @intCast(@as(u64, @bitCast(@as(i64, n))) & 63);
 }
+
+/// fixed-size, zero-padded char array from a string literal
+/// (for C struct initializers like `.name = "amd64_sysv"`)
+pub fn strarr(comptime N: usize, comptime s: []const u8) [N]u8 {
+    var a: [N]u8 = @splat(0);
+    @memcpy(a[0..s.len], s);
+    return a;
+}

@@ -18,7 +18,8 @@ for f in sys.argv[1:]:
     head, rest = text.split(B, 1)
     _, body = rest.split(E, 1)
     body_nc = re.sub(r'//.*', '', body)
-    body_nc = re.sub(r'"(\\.|[^"\\])*"', '""', body_nc)
+    body_nc = re.sub(r"'(\\.|[^'\\\n])'", "' '", body_nc)
+    body_nc = re.sub(r'"(\\.|[^"\\\n])*"', '""', body_nc)
     used = set(ident.findall(body_nc))
     local = set(re.findall(r'^(?:pub )?(?:export )?(?:inline )?(?:const|var|fn) ([A-Za-z_]\w*)', body, re.M))
     lines = []

@@ -501,7 +501,7 @@ pub const Dat = extern struct {
 // main.c
 pub const main_ = @import("main.zig");
 pub var T: Target = undefined;
-pub var debug: ['Z' + 1]u8 = [_]u8{0} ** ('Z' + 1);
+pub var debug: ['Z' + 1]u8 = @splat(0);
 
 // util.c
 pub const PHeap = 0; // free() necessary

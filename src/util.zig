@@ -102,11 +102,11 @@ const NPtr = 256;
 const IBits = 12;
 const IMask = (1 << IBits) - 1;
 
-var ptr: [NPtr]?*anyopaque = [_]?*anyopaque{null} ** NPtr;
+var ptr: [NPtr]?*anyopaque = @splat(null);
 var pool: [*c]?*anyopaque = &ptr;
 var nptr: i32 = 1;
 
-var itbl: [IMask + 1]Bucket = [_]Bucket{.{ .nstr = 0, .str = null }} ** (IMask + 1); // string interning table
+var itbl: [IMask + 1]Bucket = @splat(.{ .nstr = 0, .str = null }); // string interning table
 
 /// helper for C pointer subtraction (p - q)
 pub inline fn ptrdiff(p: anytype, q: @TypeOf(p)) isize {
@@ -125,7 +125,7 @@ pub fn hash(s0: [*c]const u8) u32 {
 pub fn die_(file: [*c]const u8, s: [*c]const u8, ...) callconv(.c) noreturn {
     _ = c.fprintf(c.stderr, "%s: dying: ", file);
     var ap = @cVaStart();
-    _ = c.vfprintf(c.stderr, s, &ap);
+    _ = c.vfprintf(c.stderr, s, ap);
     @cVaEnd(&ap);
     _ = c.fputc('\n', c.stderr);
     c.abort();
@@ -231,10 +231,10 @@ pub fn addbins(pvins: *[*c]Ins, pnins: *uint, b: [*c]Blk) void {
 fn vstrf(pl: Pool, s: [*c]const u8, ...) callconv(.c) [*c]u8 {
     var ap = @cVaStart();
     var ap2 = @cVaCopy(&ap);
-    const n = c.vsnprintf(null, 0, s, &ap);
+    const n = c.vsnprintf(null, 0, s, ap);
     @cVaEnd(&ap);
     const p: [*c]u8 = @ptrCast((if (pl == PFn) &alloc else &emalloc)(@intCast(n + 1)));
-    _ = c.vsnprintf(p, @intCast(n + 1), s, &ap2);
+    _ = c.vsnprintf(p, @intCast(n + 1), s, ap2);
     @cVaEnd(&ap2);
     return p;
 }
@@ -660,8 +660,8 @@ pub fn bszero(bs: [*c]BSet) void {
 
 /// iterates on a bitset, use as follows
 ///
-/// 	for (i=0; bsiter(set, &i); i++)
-/// 		use(i);
+///     for (i=0; bsiter(set, &i); i++)
+///         use(i);
 ///
 pub fn bsiter(bs: [*c]BSet, elt: *i32) bool {
     const i: uint = @intCast(elt.*);

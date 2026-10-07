@@ -36,14 +36,18 @@ then download /data/backups/qbe-zig-backup.tar.gz.
 ## Status
 Done + compiling: ops, libc, all, util, parse, cfg, abi, mem, alias, load, ssa,
 copy, fold, gvn, gcm, ifopt, simpl, live, spill, rega, emit, amd64/* (all,
-targ, sysv, isel, emit, winabi), main.zig, build.zig (`zig build`).
-All 77 tests in test/ produce byte-identical asm vs C qbe (amd64_sysv).
+targ, sysv, isel, emit, winabi), arm64/* (all, targ, abi, isel, emit),
+main.zig, build.zig (`zig build`, zig at /data/tools/zig/zig).
+- tools/test.sh all (bin=$PWD/zig-out/bin/qbe): all tests execute OK (x86_64).
+- tools/cmp.sh TARGET: byte-identical asm vs C qbe (/data/qbe-c/qbe) on all
+  76 tests for amd64_sysv, amd64_apple, amd64_win, arm64, arm64_apple.
 x86_64 va_list: pass by pointer (libc.VaListArg).
-Remaining 1:1: arm64/*, rv64/* (tlist entries null in main.zig).
+Remaining 1:1: rv64/* (tlist entry null in main.zig).
 
 ## Next steps
-1. Run ./test.sh with Zig binary; compare -t amd64_apple / amd64_win vs C.
-2. Translate arm64/{all.h,targ,abi,isel,emit}, rv64/{all.h,targ,abi,isel,emit};
-   compare -t arm64 / arm64_apple / rv64 output vs C for all tests.
+1. Translate rv64/{all.h,targ,abi,isel,emit} (follow arm64/ as template:
+   target all.zig + runtime targ.init(); add to main.zig tlist/inittargets
+   and src/check_tmp.zig); tools/cmp.sh rv64.
+2. Optionally run arm64/rv64 execution tests with qemu + cross cc if available.
 3. Hare / cproc test suites, abifuzz, own tests.
 4. Canonical Zig rewrite.

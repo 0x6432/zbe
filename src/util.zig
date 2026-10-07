@@ -616,12 +616,14 @@ inline fn bsmax(bs: [*c]BSet) uint {
 
 pub fn bsset(bs: [*c]BSet, elt: anytype) void {
     assert(elt < bsmax(bs));
-    bs.*.t[@intCast(elt / NBit)] |= BIT(elt % NBit);
+    const e: uint = @intCast(elt);
+    bs.*.t[e / NBit] |= BIT(e % NBit);
 }
 
 pub fn bsclr(bs: [*c]BSet, elt: anytype) void {
     assert(elt < bsmax(bs));
-    bs.*.t[@intCast(elt / NBit)] &= ~BIT(elt % NBit);
+    const e: uint = @intCast(elt);
+    bs.*.t[e / NBit] &= ~BIT(e % NBit);
 }
 
 pub fn bscopy(a: [*c]BSet, b: [*c]BSet) void {

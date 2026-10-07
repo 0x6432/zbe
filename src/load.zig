@@ -1,1 +1,553 @@
-// stub
+//! One-to-one translation of load.c
+const std = @import("std");
+const assert = std.debug.assert;
+const C = @import("libc.zig");
+// -- imports --
+const all = @import("all.zig");
+const ACon = all.ACon;
+const AEsc = all.AEsc;
+const ALoc = all.ALoc;
+const ASym = all.ASym;
+const AUnk = all.AUnk;
+const BIT = all.BIT;
+const Blk = all.Blk;
+const CAddr = all.CAddr;
+const Con = all.Con;
+const Fn = all.Fn;
+const INS = all.INS;
+const Ins = all.Ins;
+const KWIDE = all.KWIDE;
+const Kd = all.Kd;
+const Kl = all.Kl;
+const Ks = all.Ks;
+const Kw = all.Kw;
+const MayAlias = all.MayAlias;
+const MustAlias = all.MustAlias;
+const NoAlias = all.NoAlias;
+const Oadd = all.ops.Oadd;
+const Oand = all.ops.Oand;
+const Oblit0 = all.ops.Oblit0;
+const Oblit1 = all.ops.Oblit1;
+const Ocall = all.ops.Ocall;
+const Ocast = all.ops.Ocast;
+const Ocopy = all.ops.Ocopy;
+const Oextsb = all.ops.Oextsb;
+const Oextuw = all.ops.Oextuw;
+const Oload = all.ops.Oload;
+const Oloadsb = all.ops.Oloadsb;
+const Oloadsh = all.ops.Oloadsh;
+const Oloadsw = all.ops.Oloadsw;
+const Oloadub = all.ops.Oloadub;
+const Oloaduh = all.ops.Oloaduh;
+const Oloaduw = all.ops.Oloaduw;
+const Oor = all.ops.Oor;
+const Oshl = all.ops.Oshl;
+const Oshr = all.ops.Oshr;
+const Ostoreb = all.ops.Ostoreb;
+const Ostored = all.ops.Ostored;
+const Ostoreh = all.ops.Ostoreh;
+const Ostorel = all.ops.Ostorel;
+const Ostores = all.ops.Ostores;
+const Ostorew = all.ops.Ostorew;
+const PFn = all.PFn;
+const PHeap = all.PHeap;
+const Phi = all.Phi;
+const R = all.R;
+const RCon = all.RCon;
+const RInt = all.RInt;
+const RTmp = all.RTmp;
+const Ref = all.Ref;
+const TMP = all.TMP;
+const alias = all.alias;
+const alloc = all.alloc;
+const bits = all.bits;
+const die = all.die;
+const dom = all.dom;
+const escapes = all.escapes;
+const getcon = all.getcon;
+const idup = all.idup;
+const isload = all.isload;
+const isstore = all.isstore;
+const newcon = all.newcon;
+const newtmp = all.newtmp;
+const printfn = all.printfn;
+const ptrdiff = all.ptrdiff;
+const req = all.req;
+const rsval = all.rsval;
+const rtype = all.rtype;
+const shl64 = all.shl64;
+const uint = all.uint;
+const vfree = all.vfree;
+const vgrow = all.vgrow;
+const vnewT = all.vnewT;
+// -- end imports --
+
+/// must work when w==8
+inline fn MASK(w: anytype) bits {
+    return BIT(8 * @as(i32, @intCast(w)) - 1) *% 2 -% 1;
+}
+
+const LRoot = 0; // right above the original load
+const LLoad = 1; // inserting a load is allowed
+const LNoLoad = 2; // only scalar operations allowed
+
+const Loc = extern struct {
+    type: i32,
+    off: uint,
+    blk: [*c]Blk,
+};
+
+const Slice = extern struct {
+    ref: Ref,
+    off: i32,
+    sz: i16,
+    cls: i16, // load class
+};
+
+const Insert = extern struct {
+    isphi: u32, // C: uint isphi:1
+    num: u32, // C: uint num:31
+    bid: uint,
+    off: uint,
+    new: extern union {
+        ins: Ins,
+        phi: extern struct {
+            m: Slice,
+            p: [*c]Phi,
+        },
+    },
+};
+
+var curf: [*c]Fn = null;
+var inum: uint = 0; // current insertion number
+var ilog: [*c]Insert = null; // global insertion log
+var nlog: uint = 0; // number of entries in the log
+
+pub fn loadsz(l: [*c]Ins) i32 {
+    switch (l.*.op) {
+        Oloadsb, Oloadub => return 1,
+        Oloadsh, Oloaduh => return 2,
+        Oloadsw, Oloaduw => return 4,
+        Oload => return if (KWIDE(l.*.cls) != 0) 8 else 4,
+        else => {},
+    }
+    die("unreachable", .{});
+}
+
+pub fn storesz(s: [*c]Ins) i32 {
+    switch (s.*.op) {
+        Ostoreb => return 1,
+        Ostoreh => return 2,
+        Ostorew, Ostores => return 4,
+        Ostorel, Ostored => return 8,
+        else => {},
+    }
+    die("unreachable", .{});
+}
+
+fn iins(cls: i32, op: i32, a0: Ref, a1: Ref, l: [*c]Loc) Ref {
+    nlog += 1;
+    vgrow(&ilog, nlog);
+    const ist = &ilog[nlog - 1];
+    ist.*.isphi = 0;
+    ist.*.num = inum;
+    inum += 1;
+    ist.*.bid = l.*.blk.*.id;
+    ist.*.off = l.*.off;
+    ist.*.new.ins = INS(op, cls, R, a0, a1);
+    ist.*.new.ins.to = newtmp("ld", cls, curf);
+    return ist.*.new.ins.to;
+}
+
+fn cast(r: *Ref, cls: i32, l: [*c]Loc) void {
+    if (rtype(r.*) == RCon)
+        return;
+    assert(rtype(r.*) == RTmp);
+    const cls0: i32 = curf.*.tmp[r.*.val].cls;
+    if (cls0 == cls or (cls == Kw and cls0 == Kl))
+        return;
+    if (KWIDE(cls0) < KWIDE(cls)) {
+        if (cls0 == Ks)
+            r.* = iins(Kw, Ocast, r.*, R, l);
+        r.* = iins(Kl, Oextuw, r.*, R, l);
+        if (cls == Kd)
+            r.* = iins(Kd, Ocast, r.*, R, l);
+    } else {
+        if (cls0 == Kd and cls != Kl)
+            r.* = iins(Kl, Ocast, r.*, R, l);
+        if (cls0 != Kd or cls != Kw)
+            r.* = iins(cls, Ocast, r.*, R, l);
+    }
+}
+
+inline fn mask(cls: i32, r: *Ref, msk: bits, l: [*c]Loc) void {
+    cast(r, cls, l);
+    r.* = iins(cls, Oand, r.*, getcon(@bitCast(msk), curf), l);
+}
+
+fn load(sl: Slice, msk: bits, l: [*c]Loc) Ref {
+    var r: Ref = undefined;
+    var cls: i32 = undefined;
+    var c: Con = undefined;
+
+    const ld: i32 = switch (sl.sz) {
+        1 => Oloadub,
+        2 => Oloaduh,
+        4 => Oloaduw,
+        8 => Oload,
+        else => 0,
+    };
+    const all_ = msk == MASK(sl.sz);
+    if (all_)
+        cls = sl.cls
+    else
+        cls = if (sl.sz > 4) Kl else Kw;
+    r = sl.ref;
+    // sl.ref might not be live here,
+    // but its alias base ref will be
+    // (see killsl() below)
+    if (rtype(r) == RTmp) {
+        const a = &curf.*.tmp[r.val].alias;
+        switch (a.*.type) {
+            ALoc, AEsc, AUnk => {
+                r = TMP(a.*.base);
+                if (a.*.offset != 0) {
+                    const r1 = getcon(a.*.offset, curf);
+                    r = iins(Kl, Oadd, r, r1, l);
+                }
+            },
+            ACon, ASym => {
+                c = std.mem.zeroes(Con);
+                c.type = CAddr;
+                c.sym = a.*.u.sym;
+                c.bits.i = a.*.offset;
+                r = newcon(&c, curf);
+            },
+            else => die("unreachable", .{}),
+        }
+    }
+    r = iins(cls, ld, r, R, l);
+    if (!all_)
+        mask(cls, &r, msk, l);
+    return r;
+}
+
+fn rebase(sl: *Slice) void {
+    if (rtype(sl.ref) != RTmp)
+        return;
+    const a = &curf.*.tmp[sl.ref.val].alias;
+    if (a.*.offset == @as(i16, @truncate(a.*.offset)))
+        if (a.*.type == ALoc or a.*.type == AEsc or a.*.type == AUnk) {
+            sl.ref = TMP(a.*.base);
+            sl.off = @intCast(a.*.offset);
+        };
+}
+
+fn killsl(r: Ref, sl: Slice) bool {
+    if (rtype(sl.ref) != RTmp)
+        return false;
+    const a = &curf.*.tmp[sl.ref.val].alias;
+    switch (a.*.type) {
+        ALoc, AEsc, AUnk => return req(TMP(a.*.base), r),
+        ACon, ASym => return false,
+        else => die("unreachable", .{}),
+    }
+}
+
+/// returns a ref containing the contents of the slice
+/// passed as argument, all the bits set to 0 in the
+/// mask argument are zeroed in the result;
+/// the returned ref has an integer class when the
+/// mask does not cover all the bits of the slice,
+/// otherwise, it has class sl.cls
+/// the procedure returns R when it fails
+fn def(sl: Slice, msk: bits, b: [*c]Blk, i: [*c]Ins, il: [*c]Loc) Ref {
+    // invariants:
+    // -1- b dominates il->blk; so we can use
+    //     temporaries of b in il->blk
+    // -2- if il->type != LNoLoad, then il->blk
+    //     postdominates the original load; so it
+    //     is safe to load in il->blk
+    // -3- if il->type != LNoLoad, then b
+    //     postdominates il->blk (and by 2, the
+    //     original load)
+    assert(dom(b, il.*.blk));
+    const oldl = nlog;
+    const oldt = curf.*.ntmp;
+    if (defBody(sl, msk, b, i, il)) |r|
+        return r;
+    // Load:
+    curf.*.ntmp = oldt;
+    nlog = oldl;
+    if (il.*.type != LLoad)
+        return R;
+    return load(sl, msk, il);
+}
+
+/// body of def(); returns null for 'goto Load'
+fn defBody(sl: Slice, msk: bits, b: [*c]Blk, i_: [*c]Ins, il: [*c]Loc) ?Ref {
+    var sl1: Slice = undefined;
+    var msk1: bits = undefined;
+    var off: i32 = undefined;
+    var cls1: i32 = undefined;
+    var op: i32 = undefined;
+    var sz: i32 = undefined;
+    var r: Ref = undefined;
+    var r1: Ref = undefined;
+    var l: Loc = undefined;
+    var i = i_;
+
+    if (i == null)
+        i = &b.*.ins[b.*.nins];
+    const cls: i32 = if (sl.sz > 4) Kl else Kw;
+    const msks = MASK(sl.sz);
+
+    while (i > b.*.ins) {
+        i -= 1;
+        if (killsl(i.*.to, sl) or (i.*.op == Ocall and escapes(sl.ref, curf)))
+            return null;
+        const ld = isload(i.*.op);
+        if (ld) {
+            sz = loadsz(i);
+            r1 = i.*.arg[0];
+            r = i.*.to;
+        } else if (isstore(i.*.op)) {
+            sz = storesz(i);
+            r1 = i.*.arg[1];
+            r = i.*.arg[0];
+        } else if (i.*.op == Oblit1) {
+            assert(rtype(i.*.arg[0]) == RInt);
+            sz = @intCast(@abs(rsval(i.*.arg[0])));
+            assert(i > b.*.ins);
+            i -= 1;
+            assert(i.*.op == Oblit0);
+            r1 = i.*.arg[1];
+        } else continue;
+        switch (alias(sl.ref, sl.off, sl.sz, r1, sz, &off, curf)) {
+            MustAlias => {
+                if (i.*.op == Oblit0) {
+                    sl1 = sl;
+                    sl1.ref = i.*.arg[0];
+                    if (off >= 0) {
+                        assert(off < sz);
+                        sl1.off = off;
+                        sz -= off;
+                        off = 0;
+                    } else {
+                        sl1.off = 0;
+                        sl1.sz = @intCast(sl1.sz + off);
+                    }
+                    if (sz > sl1.sz)
+                        sz = sl1.sz;
+                    assert(sz <= 8);
+                    sl1.sz = @intCast(sz);
+                }
+                if (off < 0) {
+                    off = -off;
+                    msk1 = shl64(MASK(sz), 8 * off) & msks;
+                    op = Oshl;
+                } else {
+                    msk1 = (MASK(sz) >> @intCast(8 * off)) & msks;
+                    op = Oshr;
+                }
+                if ((msk1 & msk) == 0)
+                    continue;
+                if (i.*.op == Oblit0) {
+                    r = def(sl1, MASK(sz), b, i, il);
+                    if (req(r, R))
+                        return null;
+                }
+                if (off != 0) {
+                    cls1 = cls;
+                    if (op == Oshr and off + sl.sz > 4)
+                        cls1 = Kl;
+                    cast(&r, cls1, il);
+                    r1 = getcon(8 * off, curf);
+                    r = iins(cls1, op, r, r1, il);
+                }
+                if ((msk1 & msk) != msk1 or off + sz < sl.sz)
+                    mask(cls, &r, msk1 & msk, il);
+                if ((msk & ~msk1) != 0) {
+                    r1 = def(sl, msk & ~msk1, b, i, il);
+                    if (req(r1, R))
+                        return null;
+                    r = iins(cls, Oor, r, r1, il);
+                }
+                if (msk == msks)
+                    cast(&r, sl.cls, il);
+                return r;
+            },
+            MayAlias => {
+                if (ld)
+                    continue
+                else
+                    return null;
+            },
+            NoAlias => continue,
+            else => die("unreachable", .{}),
+        }
+    }
+
+    var ist = ilog;
+    while (ist < &ilog[nlog]) : (ist += 1)
+        if (ist.*.isphi != 0 and ist.*.bid == b.*.id)
+            if (req(ist.*.new.phi.m.ref, sl.ref))
+                if (ist.*.new.phi.m.off == sl.off)
+                    if (ist.*.new.phi.m.sz == sl.sz) {
+                        r = ist.*.new.phi.p.*.to;
+                        if (msk != msks)
+                            mask(cls, &r, msk, il)
+                        else
+                            cast(&r, sl.cls, il);
+                        return r;
+                    };
+
+    var p = b.*.phi;
+    while (p != null) : (p = p.*.link)
+        if (killsl(p.*.to, sl))
+            // scanning predecessors in that
+            // case would be unsafe
+            return null;
+
+    if (b.*.npred == 0)
+        return null;
+    if (b.*.npred == 1) {
+        const bp = b.*.pred[0];
+        assert(bp.*.loop >= il.*.blk.*.loop);
+        l = il.*;
+        if (bp.*.s2 != null)
+            l.type = LNoLoad;
+        r1 = def(sl, msk, bp, null, &l);
+        if (req(r1, R))
+            return null;
+        return r1;
+    }
+
+    r = newtmp("ld", sl.cls, curf);
+    p = @ptrCast(@alignCast(alloc(@sizeOf(Phi))));
+    nlog += 1;
+    vgrow(&ilog, nlog);
+    ist = &ilog[nlog - 1];
+    ist.*.isphi = 1;
+    ist.*.bid = b.*.id;
+    ist.*.new.phi.m = sl;
+    ist.*.new.phi.p = p;
+    p.*.to = r;
+    p.*.cls = sl.cls;
+    p.*.narg = b.*.npred;
+    p.*.arg = vnewT(Ref, p.*.narg, PFn);
+    p.*.blk = vnewT([*c]Blk, p.*.narg, PFn);
+    var np: uint = 0;
+    while (np < b.*.npred) : (np += 1) {
+        const bp = b.*.pred[np];
+        if (bp.*.s2 == null and il.*.type != LNoLoad and bp.*.loop < il.*.blk.*.loop)
+            l.type = LLoad
+        else
+            l.type = LNoLoad;
+        l.blk = bp;
+        l.off = bp.*.nins;
+        r1 = def(sl, msks, bp, null, &l);
+        if (req(r1, R))
+            return null;
+        p.*.arg[np] = r1;
+        p.*.blk[np] = bp;
+        // XXX - multiplicity in predecessors!!!
+    }
+    if (msk != msks)
+        mask(cls, &r, msk, il);
+    return r;
+}
+
+fn icmp(pa: ?*const anyopaque, pb: ?*const anyopaque) callconv(.c) c_int {
+    const a: [*c]const Insert = @ptrCast(@alignCast(pa));
+    const b: [*c]const Insert = @ptrCast(@alignCast(pb));
+    var c: i32 = @bitCast(a.*.bid -% b.*.bid);
+    if (c != 0)
+        return c;
+    if (a.*.isphi != 0 and b.*.isphi != 0)
+        return 0;
+    if (a.*.isphi != 0)
+        return -1;
+    if (b.*.isphi != 0)
+        return 1;
+    c = @bitCast(a.*.off -% b.*.off);
+    if (c != 0)
+        return c;
+    return @bitCast(a.*.num -% b.*.num);
+}
+
+/// require rpo ssa alias
+pub fn loadopt(f: [*c]Fn) void {
+    var i: [*c]Ins = undefined;
+    var sl: Slice = undefined;
+    var l: Loc = undefined;
+
+    curf = f;
+    ilog = vnewT(Insert, 0, PHeap);
+    nlog = 0;
+    inum = 0;
+    var b = f.*.start;
+    while (b != null) : (b = b.*.link) {
+        i = b.*.ins;
+        while (i < &b.*.ins[b.*.nins]) : (i += 1) {
+            if (!isload(i.*.op))
+                continue;
+            const sz = loadsz(i);
+            sl = .{ .ref = i.*.arg[0], .off = 0, .sz = @intCast(sz), .cls = @intCast(i.*.cls) };
+            l = .{ .type = LRoot, .off = @intCast(ptrdiff(i, b.*.ins)), .blk = b };
+            rebase(&sl);
+            i.*.arg[1] = def(sl, MASK(sz), b, i, &l);
+        }
+    }
+    C.qsort(@ptrCast(ilog), nlog, @sizeOf(Insert), icmp);
+    vgrow(&ilog, nlog + 1);
+    ilog[nlog].bid = f.*.nblk; // add a sentinel
+    var ib = vnewT(Ins, 0, PHeap);
+    var ist = ilog;
+    var n: uint = 0;
+    while (n < f.*.nblk) : (n += 1) {
+        b = f.*.rpo[n];
+        while (ist.*.bid == n and ist.*.isphi != 0) : (ist += 1) {
+            ist.*.new.phi.p.*.link = b.*.phi;
+            b.*.phi = ist.*.new.phi.p;
+        }
+        var ni: uint = 0;
+        var nt: uint = 0;
+        while (true) {
+            if (ist.*.bid == n and ist.*.off == ni) {
+                i = &ist.*.new.ins;
+                ist += 1;
+            } else {
+                if (ni == b.*.nins)
+                    break;
+                i = &b.*.ins[ni];
+                ni += 1;
+                if (isload(i.*.op) and !req(i.*.arg[1], R)) {
+                    const ext = Oextsb + i.*.op - Oloadsb;
+                    sw: switch (i.*.op) {
+                        Oloadsb, Oloadub, Oloadsh, Oloaduh => i.*.op = ext,
+                        Oloadsw, Oloaduw => {
+                            if (i.*.cls == Kl) {
+                                i.*.op = ext;
+                            } else continue :sw Oload;
+                        },
+                        Oload => i.*.op = Ocopy,
+                        else => die("unreachable", .{}),
+                    }
+                    i.*.arg[0] = i.*.arg[1];
+                    i.*.arg[1] = R;
+                }
+            }
+            nt += 1;
+            vgrow(&ib, nt);
+            ib[nt - 1] = i.*;
+        }
+        idup(b, ib, nt);
+    }
+    vfree(@ptrCast(ib));
+    vfree(@ptrCast(ilog));
+    if (all.debug['M'] != 0) {
+        _ = C.fprintf(C.stderr, "\n> After load elimination:\n");
+        printfn(f, C.stderr);
+    }
+}

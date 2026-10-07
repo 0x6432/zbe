@@ -512,6 +512,10 @@ pub const util = @import("util.zig");
 pub var typ: [*c]Typ = null;
 pub var insb: [NIns]Ins = undefined;
 pub var curi: [*c]Ins = null;
+/// &insb[NIns]
+pub inline fn insbEnd() [*c]Ins {
+    return @as([*c]Ins, &insb) + NIns;
+}
 pub const hash = util.hash;
 pub const die_ = util.die_;
 pub const emalloc = util.emalloc;
@@ -565,8 +569,9 @@ pub const vnewT = util.vnewT;
 pub const ptrdiff = util.ptrdiff;
 
 pub inline fn bshas(bs: [*c]BSet, elt: anytype) bool {
-    std.debug.assert(elt < bs.*.nt * NBit);
-    return (bs.*.t[@intCast(elt / NBit)] & BIT(elt % NBit)) != 0;
+    const e: uint = @intCast(elt);
+    std.debug.assert(e < bs.*.nt * NBit);
+    return (bs.*.t[e / NBit] & BIT(e % NBit)) != 0;
 }
 
 // parse.c
@@ -667,3 +672,16 @@ pub const elf_emitfnfin = emit_.elf_emitfnfin;
 pub const elf_emitfin = emit_.elf_emitfin;
 pub const macho_emitfin = emit_.macho_emitfin;
 pub const pe_emitfin = emit_.pe_emitfin;
+
+// helpers for C compound literals of Ins
+pub inline fn INS(op: anytype, k: anytype, to: Ref, a0: Ref, a1: Ref) Ins {
+    return .{ .op = @intCast(op), .cls = @intCast(k), .to = to, .arg = .{ a0, a1 } };
+}
+/// (Ins){.op = op}
+pub inline fn INS0(op: anytype) Ins {
+    return .{ .op = @intCast(op), .cls = 0, .to = R, .arg = .{ R, R } };
+}
+/// C-like `x << n` on 64-bit words (count taken mod 64, as on amd64)
+pub inline fn shl64(x: bits, n: anytype) bits {
+    return x << @intCast(@as(u64, @bitCast(@as(i64, n))) & 63);
+}

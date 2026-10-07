@@ -1,6 +1,6 @@
 # HANDOFF – QBE → Zig translation
 
-Updated: 20261007-203302 UTC
+Updated: 20261007-204625 UTC
 
 ## Goal
 Translate QBE (C, cloned at /data/qbe-c, HEAD e786f06) to latest Zig master.
@@ -35,16 +35,15 @@ then download /data/backups/qbe-zig-backup.tar.gz.
 
 ## Status
 Done + compiling: ops, libc, all, util, parse, cfg, abi, mem, alias, load, ssa,
-copy, fold, gvn, gcm, ifopt, simpl, live, spill, rega, emit.
-Written, not yet compiled: amd64/all.zig (target header; preamble.py imports
-its names as `tgt.X`), amd64/targ.zig (Targets built at runtime by
-`targ.init()` – main must call it), amd64/sysv.zig.
-Stubs remaining: main, amd64/{isel,emit,winabi}, arm64/*, rv64/*.
+copy, fold, gvn, gcm, ifopt, simpl, live, spill, rega, emit, amd64/* (all,
+targ, sysv, isel, emit, winabi), main.zig, build.zig (`zig build`).
+All 77 tests in test/ produce byte-identical asm vs C qbe (amd64_sysv).
+x86_64 va_list: pass by pointer (libc.VaListArg).
+Remaining 1:1: arm64/*, rv64/* (tlist entries null in main.zig).
 
 ## Next steps
-1. Translate amd64/{isel,emit,winabi},
-   arm64/{all.h,targ,abi,isel,emit}, rv64/{all.h,targ,abi,isel,emit}, main.c.
-2. build.zig (exe qbe, link libc); run ./test.sh with Zig binary; diff asm
-   output against C qbe for all tests in test/.
+1. Run ./test.sh with Zig binary; compare -t amd64_apple / amd64_win vs C.
+2. Translate arm64/{all.h,targ,abi,isel,emit}, rv64/{all.h,targ,abi,isel,emit};
+   compare -t arm64 / arm64_apple / rv64 output vs C for all tests.
 3. Hare / cproc test suites, abifuzz, own tests.
 4. Canonical Zig rewrite.

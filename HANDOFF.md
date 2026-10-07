@@ -1,6 +1,6 @@
 # HANDOFF – QBE → Zig translation
 
-Updated: (see git log / backup timestamp)
+Updated: 20261007-202325 UTC
 
 ## Goal
 Translate QBE (C, cloned at /data/qbe-c, HEAD e786f06) to latest Zig master.

@@ -632,7 +632,7 @@ pub fn rega(f: *Fn) void {
             if (rl[ru] != 0 or t < Tmp0) // todo, remove this
                 continue;
             for (s.*.pred[0..s.*.npred]) |pp| {
-                const x = rfind(&end[pp.*.id], t);
+                const x = rfind(&end[pp.id], t);
                 if (x == -1) // spilled
                     continue;
                 rl[ru] = if (rl[ru] == 0 or rl[ru] == x) x else -1;

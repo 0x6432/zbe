@@ -769,7 +769,7 @@ fn arm64_selvaarg(f: *Fn, b: *Blk, i: [*c]Ins) void {
     b0.*.phi.?.cls = Kl;
     b0.*.phi.?.to = loc;
     b0.*.phi.?.narg = 2;
-    b0.*.phi.?.blk = vnewT([*c]Blk, 2, PFn);
+    b0.*.phi.?.blk = vnewT(*Blk, 2, PFn);
     b0.*.phi.?.arg = vnewT(Ref, 2, PFn);
     b0.*.phi.?.blk[0] = bstk;
     b0.*.phi.?.blk[1] = breg;

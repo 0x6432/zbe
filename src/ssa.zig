@@ -235,20 +235,20 @@ fn phiins(f: *Fn) void {
             var n: uint = 0;
             while (n < b.*.nfron) : (n += 1) {
                 const a = b.*.fron[n];
-                const v = a.*.visit;
-                a.*.visit += 1;
+                const v = a.visit;
+                a.visit += 1;
                 if (v == 0)
-                    if (bshas(&a.*.in, t)) {
+                    if (bshas(&a.in, t)) {
                         const p: [*c]Phi = palloc(Phi, 1);
                         p.*.cls = k;
                         p.*.to = TMP(t);
-                        p.*.link = a.*.phi;
+                        p.*.link = a.phi;
                         p.*.arg = vnewT(Ref, 0, PFn);
-                        p.*.blk = vnewT([*c]Blk, 0, PFn);
-                        a.*.phi = p;
-                        if (!bshas(&defs, a.*.id))
-                            if (!bshas(&u, a.*.id)) {
-                                bsset(&u, a.*.id);
+                        p.*.blk = vnewT(*Blk, 0, PFn);
+                        a.phi = p;
+                        if (!bshas(&defs, a.id))
+                            if (!bshas(&u, a.id)) {
+                                bsset(&u, a.id);
                                 bp -= 1;
                                 bp.* = a;
                             };

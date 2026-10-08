@@ -801,7 +801,7 @@ pub fn amd64_sysv_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
         if (lbl or b.npred > 1) {
             var p: uint = 0;
             while (p < b.npred) : (p += 1) {
-                if (b.pred[p].*.id >= b.id)
+                if (b.pred[p].id >= b.id)
                     break;
             }
             if (p != b.npred)

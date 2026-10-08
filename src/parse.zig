@@ -835,7 +835,7 @@ fn closeblk() void {
 
 fn parseline(ps: PState) PState {
     var arg: [NPred]Ref = @splat(R);
-    var blk: [NPred][*c]Blk = undefined;
+    var blk: [NPred]*Blk = undefined;
     var r: Ref = R;
     var op: i32 = 0;
     var i: usize = undefined;
@@ -1002,7 +1002,7 @@ fn parseline(ps: PState) PState {
                 phi.*.cls = @intCast(k);
                 phi.*.arg = vnewT(Ref, i, PFn);
                 @memcpy(phi.*.arg[0..i], arg[0..i]);
-                phi.*.blk = vnewT([*c]Blk, i, PFn);
+                phi.*.blk = vnewT(*Blk, i, PFn);
                 @memcpy(phi.*.blk[0..i], blk[0..i]);
                 phi.*.narg = @intCast(i);
                 plink.* = phi;
@@ -1078,7 +1078,7 @@ fn typecheck(f: *Fn) void {
         bszero(&pb);
         var n: uint = 0;
         while (n < b.npred) : (n += 1)
-            bsset(&pb, b.pred[n].*.id);
+            bsset(&pb, b.pred[n].id);
         var p_it: ?*Phi = b.phi;
         while (p_it) |p| : (p_it = p.link) {
             bszero(&ppb);
@@ -1086,11 +1086,11 @@ fn typecheck(f: *Fn) void {
             n = 0;
             while (n < p.narg) : (n += 1) {
                 k = t.*.cls;
-                if (bshas(&ppb, p.blk[n].*.id))
-                    err("multiple entries for @{s} in phi %{s}", .{cs(p.blk[n].*.name), cs(t.*.name)});
+                if (bshas(&ppb, p.blk[n].id))
+                    err("multiple entries for @{s} in phi %{s}", .{cs(p.blk[n].name), cs(t.*.name)});
                 if (!usecheck(p.arg[n], k, f))
                     err("invalid type for operand %{s} in phi %{s}", .{cs(f.tmp[p.arg[n].val].name), cs(t.*.name)});
-                bsset(&ppb, p.blk[n].*.id);
+                bsset(&ppb, p.blk[n].id);
             }
             if (!bsequal(&pb, &ppb))
                 err("predecessors not matched in phi %{s}", .{cs(t.*.name)});
@@ -1182,7 +1182,7 @@ fn parsefn(lnk: [*c]Lnk) [*c]Fn {
     curf.*.mem = vnewT(Mem, 0, PFn);
     curf.*.nmem = 0;
     curf.*.nblk = @intCast(nblk);
-    curf.*.rpo = vnewT([*c]Blk, nblk, PFn);
+    curf.*.rpo = vnewT(*Blk, nblk, PFn);
     var b: [*c]Blk = curf.*.start;
     while (b != null) : (b = b.*.link)
         b.*.dlink = null; // was trashed by findblk()
@@ -1590,7 +1590,7 @@ pub fn printfn(f: *Fn, fp: *Writer) Writer.Error!void {
             assert(p.narg != 0);
             var n: uint = 0;
             while (true) : (n += 1) {
-                try fp.print("@{s} ", .{cs(p.blk[n].*.name)});
+                try fp.print("@{s} ", .{cs(p.blk[n].name)});
                 try printref(p.arg[n], f, fp);
                 if (n == p.narg - 1) {
                     try fp.print("\n", .{});

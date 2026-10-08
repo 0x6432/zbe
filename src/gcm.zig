@@ -85,7 +85,7 @@ fn schedearly(f: *Fn, r: Ref) uint {
 
     const b = f.rpo[t.bid];
     if (t.def != null) {
-        assert(b.*.ins <= t.def and t.def < b.*.ins + b.*.nins);
+        assert(b.ins <= t.def and t.def < b.ins + b.nins);
         t.gcmbid = 0; // mark as visiting
         t.gcmbid = earlyins(f, b, t.def);
     } else {
@@ -101,7 +101,7 @@ fn earlyins(f: *Fn, b: *Blk, i: [*c]Ins) uint {
     assert(b0 != NOBID);
     const b1 = schedearly(f, i.*.arg[1]);
     assert(b1 != NOBID);
-    if (f.rpo[b0].*.depth < f.rpo[b1].*.depth) {
+    if (f.rpo[b0].depth < f.rpo[b1].depth) {
         assert(dom(f.rpo[b0], f.rpo[b1]));
         b0 = b1;
     }
@@ -110,19 +110,19 @@ fn earlyins(f: *Fn, b: *Blk, i: [*c]Ins) uint {
 
 fn earlyblk(f: *Fn, bid: uint) void {
     const b = f.rpo[bid];
-    var p_it: ?*Phi = b.*.phi;
+    var p_it: ?*Phi = b.phi;
     while (p_it) |p| : (p_it = p.link) {
         var n: uint = 0;
         while (n < p.narg) : (n += 1)
             _ = schedearly(f, p.arg[n]);
     }
-    for (b.*.ins[0..b.*.nins]) |*i| {
+    for (b.ins[0..b.nins]) |*i| {
         if (pinned(i)) {
             _ = schedearly(f, i.arg[0]);
             _ = schedearly(f, i.arg[1]);
         }
     }
-    _ = schedearly(f, b.*.jmp.arg);
+    _ = schedearly(f, b.jmp.arg);
 }
 
 /// least common ancestor in dom tree
@@ -149,11 +149,11 @@ fn bestbid(f: *Fn, earlybid: uint, latebid: uint) uint {
     assert(dom(earlyb, curb));
 
     while (curb != earlyb) {
-        curb = curb.*.idom;
-        if (curb.*.loop < bestb.*.loop)
+        curb = curb.idom.?;
+        if (curb.loop < bestb.loop)
             bestb = curb;
     }
-    return bestb.*.id;
+    return bestb.id;
 }
 
 /// return lca bid of ref uses
@@ -223,7 +223,7 @@ fn latephi(f: *Fn, p: *Phi, r: Ref) uint {
     var n: uint = 0;
     while (n < p.narg) : (n += 1) {
         if (req(p.arg[n], r))
-            latebid = lcabid(f, latebid, p.blk[n].*.id);
+            latebid = lcabid(f, latebid, p.blk[n].id);
     }
 
     assert(latebid != NOBID);
@@ -241,7 +241,7 @@ fn latejmp(b: *Blk, r: Ref) uint {
 
 fn lateblk(f: *Fn, bid: uint) void {
     const b = f.rpo[bid];
-    var pp: *[*c]Phi = &b.*.phi;
+    var pp: *[*c]Phi = &b.phi;
     while (pp.* != null) {
         if (schedlate(f, pp.*.*.to) == NOBID) {
             pp.*.*.narg = 0; // mark unused
@@ -249,7 +249,7 @@ fn lateblk(f: *Fn, bid: uint) void {
         } else pp = &pp.*.*.link;
     }
 
-    for (b.*.ins[0..b.*.nins]) |*i| {
+    for (b.ins[0..b.nins]) |*i| {
         if (pinned(i))
             _ = schedlate(f, i.to);
     }
@@ -260,7 +260,7 @@ fn addgcmins(f: *Fn, vins: [*c]Ins, nins: uint) void {
         assert(rtype(i.to) == RTmp);
         const t = &f.tmp[i.to.val];
         const b = f.rpo[t.gcmbid];
-        addins(&b.*.ins, &b.*.nins, i);
+        addins(&b.ins, &b.nins, i);
     }
 }
 

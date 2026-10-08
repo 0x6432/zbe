@@ -130,8 +130,8 @@ fn replaceuse(f: *Fn, u: *Use, r1: Ref, r2: Ref) void {
                 adduse(t2, UIns, b, @ptrCast(i));
         },
         UJmp => {
-            if (req(b.*.jmp.arg, r1))
-                b.*.jmp.arg = r2;
+            if (req(b.jmp.arg, r1))
+                b.jmp.arg = r2;
             if (t2 != null)
                 adduse(t2, UJmp, b, null);
         },

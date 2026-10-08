@@ -414,9 +414,9 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: [*c]Ins, il: [*c]Loc) ?Ref {
         return null;
     if (b.npred == 1) {
         const bp = b.pred[0];
-        assert(bp.*.loop >= il.*.blk.*.loop);
+        assert(bp.loop >= il.*.blk.*.loop);
         l = il.*;
-        if (bp.*.s2 != null)
+        if (bp.s2 != null)
             l.type = LNoLoad;
         r1 = def(sl, msk, bp, null, &l);
         if (req(r1, R))
@@ -437,16 +437,16 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: [*c]Ins, il: [*c]Loc) ?Ref {
     p.*.cls = sl.cls;
     p.*.narg = b.npred;
     p.*.arg = vnewT(Ref, p.*.narg, PFn);
-    p.*.blk = vnewT([*c]Blk, p.*.narg, PFn);
+    p.*.blk = vnewT(*Blk, p.*.narg, PFn);
     var np: uint = 0;
     while (np < b.npred) : (np += 1) {
         const bp = b.pred[np];
-        if (bp.*.s2 == null and il.*.type != LNoLoad and bp.*.loop < il.*.blk.*.loop)
+        if (bp.s2 == null and il.*.type != LNoLoad and bp.loop < il.*.blk.*.loop)
             l.type = LLoad
         else
             l.type = LNoLoad;
         l.blk = bp;
-        l.off = bp.*.nins;
+        l.off = bp.nins;
         r1 = def(sl, msks, bp, null, &l);
         if (req(r1, R))
             return null;

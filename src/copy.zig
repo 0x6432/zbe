@@ -199,7 +199,7 @@ fn dwl(f: *Fn, r: Ref, w_: i32) bool {
 
     if (t.def == null) {
         // phi def
-        var p: [*c]Phi = f.rpo[t.bid].*.phi;
+        var p: [*c]Phi = f.rpo[t.bid].phi;
         while (p != null) : (p = p.*.link)
             if (req(p.*.to, r))
                 break;

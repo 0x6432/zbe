@@ -164,7 +164,7 @@ pub fn fillalias(f: *Fn) void {
     var n: uint = 0;
     while (n < f.nblk) : (n += 1) {
         const b = f.rpo[n];
-        var p_it: ?*Phi = b.*.phi;
+        var p_it: ?*Phi = b.phi;
         while (p_it) |p| : (p_it = p.link) {
             assert(rtype(p.to) == RTmp);
             const a = &f.tmp[p.to.val].alias;
@@ -174,8 +174,8 @@ pub fn fillalias(f: *Fn) void {
             a.*.offset = 0;
             a.*.slot = null;
         }
-        var i = b.*.ins;
-        while (i < &b.*.ins[b.*.nins]) : (i += 1) {
+        var i = b.ins;
+        while (i < &b.ins[b.nins]) : (i += 1) {
             var a: [*c]Alias = null;
             if (!req(i.*.to, R)) {
                 assert(rtype(i.*.to) == RTmp);
@@ -233,12 +233,12 @@ pub fn fillalias(f: *Fn) void {
             if (isstore(i.*.op))
                 store(i.*.arg[1], storesz(i), f);
         }
-        if (b.*.jmp.type != Jretc)
-            esc(b.*.jmp.arg, f);
+        if (b.jmp.type != Jretc)
+            esc(b.jmp.arg, f);
     }
     var b_it: ?*Blk = f.start;
-    while (b_it) |b| : (b_it = b.*.link) {
-        var p_it: ?*Phi = b.*.phi;
+    while (b_it) |b| : (b_it = b.link) {
+        var p_it: ?*Phi = b.phi;
         while (p_it) |p| : (p_it = p.link) {
             var k: uint = 0;
             while (k < p.narg) : (k += 1)

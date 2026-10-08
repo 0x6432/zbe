@@ -91,7 +91,7 @@ pub fn fillcost(f: *Fn) void {
         while (b_it) |b| : (b_it = b.link) {
             var a: uint = 0;
             while (a < b.npred) : (a += 1) {
-                if (b.id <= b.pred[a].*.id)
+                if (b.id <= b.pred[a].id)
                     break;
             }
             if (a != b.npred) {
@@ -117,7 +117,7 @@ pub fn fillcost(f: *Fn) void {
             tmpuse(p.to, false, 0, f);
             var a: uint = 0;
             while (a < p.narg) : (a += 1) {
-                const n = p.blk[a].*.loop;
+                const n = p.blk[a].loop;
                 t.cost +%= @bitCast(n);
                 tmpuse(p.arg[a], true, n, f);
             }
@@ -366,22 +366,22 @@ pub fn spill(f: *Fn) void {
         bsset(&mask[@intCast(k)], t);
     }
 
-    var bp = f.rpo + f.nblk;
-    while (bp != f.rpo) {
-        bp -= 1;
-        const b = bp.*;
+    var bn = f.nblk;
+    while (bn > 0) {
+        bn -= 1;
+        const b = f.rpo[bn];
         // invariant: all blocks with bigger rpo got
         // their in,out updated.
 
         // 1. find temporaries in registers at
         // the end of the block (put them in v)
         all.curi = null;
-        const s1: [*c]Blk = b.*.s1;
-        const s2: [*c]Blk = b.*.s2;
+        const s1: [*c]Blk = b.s1;
+        const s2: [*c]Blk = b.s2;
         var hd: [*c]Blk = null;
-        if (s1 != null and s1.*.id <= b.*.id)
+        if (s1 != null and s1.*.id <= b.id)
             hd = s1;
-        if (s2 != null and s2.*.id <= b.*.id)
+        if (s2 != null and s2.*.id <= b.id)
             if (hd == null or s2.*.id >= hd.*.id) {
                 hd = s2;
             };
@@ -392,7 +392,7 @@ pub fn spill(f: *Fn) void {
             var k: usize = 0;
             while (k < 2) : (k += 1) {
                 const n: i32 = if (k == 0) all.T.ngpr else all.T.nfpr;
-                bscopy(&u, &b.*.out);
+                bscopy(&u, &b.out);
                 bsinter(&u, &mask[k]);
                 bscopy(&w, &u);
                 bsinter(&u, &hd.*.gen);
@@ -418,29 +418,29 @@ pub fn spill(f: *Fn) void {
             }
             limit2(&v, 0, 0, &w);
         } else {
-            bscopy(&v, &b.*.out);
-            if (rtype(b.*.jmp.arg) == RCall)
-                v.t[0] |= all.T.retregs(b.*.jmp.arg, null);
+            bscopy(&v, &b.out);
+            if (rtype(b.jmp.arg) == RCall)
+                v.t[0] |= all.T.retregs(b.jmp.arg, null);
         }
-        if (rtype(b.*.jmp.arg) == RTmp) {
-            t = @intCast(b.*.jmp.arg.val);
+        if (rtype(b.jmp.arg) == RTmp) {
+            t = @intCast(b.jmp.arg.val);
             assert(KBASE(tmp[@intCast(t)].cls) == 0);
             bsset(&v, t);
             limit2(&v, 0, 0, null);
             if (!bshas(&v, t))
-                b.*.jmp.arg = slot(t);
+                b.jmp.arg = slot(t);
         }
         t = Tmp0;
-        while (bsiter(&b.*.out, &t)) : (t += 1) {
+        while (bsiter(&b.out, &t)) : (t += 1) {
             if (!bshas(&v, t))
                 _ = slot(t);
         }
-        bscopy(&b.*.out, &v);
+        bscopy(&b.out, &v);
 
         // 2. process the block instructions
         all.curi = all.insbEnd();
-        var i = b.*.ins + b.*.nins;
-        while (i != b.*.ins) {
+        var i = b.ins + b.nins;
+        while (i != b.ins) {
             i -= 1;
             if (regcpy(i)) {
                 i = dopm(b, i, &v);
@@ -527,18 +527,18 @@ pub fn spill(f: *Fn) void {
         else
             assert(v.t[0] == all.T.rglob);
 
-        var p_it: ?*Phi = b.*.phi;
+        var p_it: ?*Phi = b.phi;
         while (p_it) |p| : (p_it = p.link) {
             assert(rtype(p.to) == RTmp);
             t = @intCast(p.to.val);
             if (bshas(&v, t)) {
                 bsclr(&v, t);
                 store(p.to, tmp[@intCast(t)].slot);
-            } else if (bshas(&b.*.in, t))
+            } else if (bshas(&b.in, t))
                 // only if the phi is live
                 p.to = slot(@intCast(p.to.val));
         }
-        bscopy(&b.*.in, &v);
+        bscopy(&b.in, &v);
         idup(b, all.curi, @intCast(all.insbEnd() - all.curi));
     }
 
@@ -550,9 +550,9 @@ pub fn spill(f: *Fn) void {
     if (all.debug['S'] != 0) {
         dprint("\n> Block information:\n", .{});
         var b_it: ?*Blk = f.start;
-        while (b_it) |b| : (b_it = b.*.link) {
-            dprint("\t{s:<10} ({f}) ", .{ cs(b.*.name), cint(b.*.loop, 5) });
-            dumpts(&b.*.out, f.tmp, all.dbg) catch {};
+        while (b_it) |b| : (b_it = b.link) {
+            dprint("\t{s:<10} ({f}) ", .{ cs(b.name), cint(b.loop, 5) });
+            dumpts(&b.out, f.tmp, all.dbg) catch {};
         }
         dprint("\n> After spilling:\n", .{});
         printfn(f, all.dbg) catch {};

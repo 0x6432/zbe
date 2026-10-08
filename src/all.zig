@@ -265,7 +265,7 @@ pub const Phi = extern struct {
     visit: i32,
     narg: uint,
     arg: [*c]Ref,
-    blk: [*c][*c]Blk,
+    blk: [*]*Blk,
     link: ?*Phi,
 };
 
@@ -287,11 +287,11 @@ pub const Blk = extern struct {
     idom: ?*Blk,
     dom: ?*Blk,
     dlink: ?*Blk,
-    fron: [*c][*c]Blk,
+    fron: [*]*Blk,
     nfron: uint,
     depth: i32,
 
-    pred: [*c][*c]Blk,
+    pred: [*]*Blk,
     npred: uint,
     in: BSet,
     out: BSet,
@@ -434,7 +434,7 @@ pub const Fn = extern struct {
     nblk: uint,
     retty: i32, // index in typ[], -1 if no aggregate return
     retr: Ref,
-    rpo: [*c][*c]Blk,
+    rpo: [*]*Blk,
     reg: bits,
     slot: i32,
     salign: i32,

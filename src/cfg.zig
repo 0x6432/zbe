@@ -36,7 +36,7 @@ pub fn newblk() [*c]Blk {
     const b: [*c]Blk = palloc(Blk, 1);
     b.* = std.mem.zeroes(Blk);
     b.*.ins = vnewT(Ins, 0, PFn);
-    b.*.pred = vnewT([*c]Blk, 0, PFn);
+    b.*.pred = vnewT(*Blk, 0, PFn);
     return b;
 }
 
@@ -50,8 +50,8 @@ fn fixphis(f: *Fn) void {
             var n0: uint = 0;
             while (n < p.narg) : (n += 1) {
                 const bp = p.blk[n];
-                if (bp.*.id != NOID)
-                    if (bp.*.s1 == b or bp.*.s2 == b) {
+                if (bp.id != NOID)
+                    if (bp.s1 == b or bp.s2 == b) {
                         p.blk[n0] = bp;
                         p.arg[n0] = p.arg[n];
                         n0 += 1;
@@ -165,7 +165,7 @@ pub fn filldom(f: *Fn) void {
             d = null;
             var p: uint = 0;
             while (p < b.*.npred) : (p += 1)
-                if (b.*.pred[p].*.idom != null or b.*.pred[p] == f.start) {
+                if (b.*.pred[p].idom != null or b.*.pred[p] == f.start) {
                     d = inter(d, b.*.pred[p]);
                 };
             if (d != b.*.idom) {
@@ -207,7 +207,7 @@ fn addfron(a: *Blk, b: [*c]Blk) void {
             return;
     if (a.nfron == 0) {
         a.nfron += 1;
-        a.fron = vnewT([*c]Blk, a.nfron, PFn);
+        a.fron = vnewT(*Blk, a.nfron, PFn);
     } else {
         a.nfron += 1;
         vgrow(&a.fron, a.nfron);
@@ -255,7 +255,7 @@ pub fn loopiter(f: *Fn, func: *const fn (*Blk, *Blk) void) void {
         b = f.rpo[n];
         var p: uint = 0;
         while (p < b.*.npred) : (p += 1)
-            if (b.*.pred[p].*.id >= n)
+            if (b.*.pred[p].id >= n)
                 loopmark(b, b.*.pred[p], func);
     }
 }

@@ -149,9 +149,9 @@ fn func(f: *Fn) void {
     var n: uint = 0;
     while (true) : (n += 1) {
         if (n == f.nblk - 1) {
-            f.rpo[n].*.link = null;
+            f.rpo[n].link = null;
             break;
-        } else f.rpo[n].*.link = f.rpo[n + 1];
+        } else f.rpo[n].link = f.rpo[n + 1];
     }
     if (!dbg) {
         all.T.emitfn(f, outf) catch writeFailed();

@@ -36,32 +36,32 @@ const lnk_sec = [2][3][*c]const u8{
     .{ ".abort \"unreachable\"", ".section .tdata,\"awT\"", ".section .tbss,\"awT\"" },
 };
 
-pub fn emitlnk(n: [*c]u8, l: [*c]Lnk, s: i32, f: *Writer) Writer.Error!void {
+pub fn emitlnk(n: [*c]u8, l: *Lnk, s: i32, f: *Writer) Writer.Error!void {
     const pfx: [*c]const u8 = if (n[0] == '"') "" else &all.T.assym;
     var sfx: [*c]const u8 = "";
-    if (all.T.apple != 0 and l.*.thread != 0) {
-        l.*.sec = @constCast("__DATA");
-        l.*.secf = @constCast("__thread_data,thread_local_regular");
+    if (all.T.apple != 0 and l.thread != 0) {
+        l.sec = @constCast("__DATA");
+        l.secf = @constCast("__thread_data,thread_local_regular");
         sfx = "$tlv$init";
         try f.writeAll(".section __DATA,__thread_vars," ++
             "thread_local_variables\n");
         try f.print("{s}{s}:\n", .{cs(pfx), cs(n)});
         try f.print("\t.quad __tlv_bootstrap\n" ++ "\t.quad 0\n" ++ "\t.quad {s}{s}{s}\n\n", .{cs(pfx), cs(n), cs(sfx)});
     }
-    if (l.*.sec != null) {
-        try f.print(".section {s}", .{cs(l.*.sec)});
-        if (l.*.secf != null)
-            try f.print(",{s}", .{cs(l.*.secf)});
-    } else try f.writeAll(cs(lnk_sec[@intFromBool(l.*.thread != 0)][@intCast(s)]));
+    if (l.sec != null) {
+        try f.print(".section {s}", .{cs(l.sec)});
+        if (l.secf != null)
+            try f.print(",{s}", .{cs(l.secf)});
+    } else try f.writeAll(cs(lnk_sec[@intFromBool(l.thread != 0)][@intCast(s)]));
     try f.writeByte('\n');
-    if (l.*.@"align" != 0)
-        try f.print(".balign {d}\n", .{l.*.@"align"});
-    if (l.*.@"export" != 0)
+    if (l.@"align" != 0)
+        try f.print(".balign {d}\n", .{l.@"align"});
+    if (l.@"export" != 0)
         try f.print(".globl {s}{s}\n", .{cs(pfx), cs(n)});
     try f.print("{s}{s}{s}:\n", .{cs(pfx), cs(n), cs(sfx)});
 }
 
-pub fn emitfnlnk(n: [*c]u8, l: [*c]Lnk, f: *Writer) Writer.Error!void {
+pub fn emitfnlnk(n: [*c]u8, l: *Lnk, f: *Writer) Writer.Error!void {
     try emitlnk(n, l, SecText, f);
 }
 
@@ -79,45 +79,45 @@ const di = blk: {
 };
 var emitdat_zero: i64 = 0;
 
-pub fn emitdat(d: [*c]Dat, f: *Writer) Writer.Error!void {
-    switch (d.*.type) {
+pub fn emitdat(d: *Dat, f: *Writer) Writer.Error!void {
+    switch (d.type) {
         DStart => emitdat_zero = 0,
         DEnd => {
-            if (d.*.lnk.*.common != 0) {
+            if (d.lnk.*.common != 0) {
                 if (emitdat_zero == -1)
                     die("invalid common data definition", .{});
-                const p: [*c]const u8 = if (d.*.name[0] == '"') "" else &all.T.assym;
-                try f.print(".comm {s}{s},{d}", .{cs(p), cs(d.*.name), emitdat_zero});
-                if (d.*.lnk.*.@"align" != 0)
-                    try f.print(",{d}", .{d.*.lnk.*.@"align"});
+                const p: [*c]const u8 = if (d.name[0] == '"') "" else &all.T.assym;
+                try f.print(".comm {s}{s},{d}", .{cs(p), cs(d.name), emitdat_zero});
+                if (d.lnk.*.@"align" != 0)
+                    try f.print(",{d}", .{d.lnk.*.@"align"});
                 try f.writeByte('\n');
             } else if (emitdat_zero != -1) {
-                try emitlnk(d.*.name, d.*.lnk, SecBss, f);
+                try emitlnk(d.name, d.lnk, SecBss, f);
                 try f.print("\t.fill {d},1,0\n", .{emitdat_zero});
             }
         },
         DZ => {
             if (emitdat_zero != -1)
-                emitdat_zero += d.*.u.num
+                emitdat_zero += d.u.num
             else
-                try f.print("\t.fill {d},1,0\n", .{d.*.u.num});
+                try f.print("\t.fill {d},1,0\n", .{d.u.num});
         },
         else => {
             if (emitdat_zero != -1) {
-                try emitlnk(d.*.name, d.*.lnk, SecData, f);
+                try emitlnk(d.name, d.lnk, SecData, f);
                 if (emitdat_zero > 0)
                     try f.print("\t.fill {d},1,0\n", .{emitdat_zero});
                 emitdat_zero = -1;
             }
-            if (d.*.isstr != 0) {
-                if (d.*.type != DB)
+            if (d.isstr != 0) {
+                if (d.type != DB)
                     err("strings only supported for 'b' currently", .{});
-                try f.print("\t.ascii {s}\n", .{cs(d.*.u.str)});
-            } else if (d.*.isref != 0) {
-                const p: [*c]const u8 = if (d.*.u.ref.name[0] == '"') "" else &all.T.assym;
-                try f.print("{s} {s}{s}{d:1}\n", .{cs(di[@intCast(d.*.type)].decl), cs(p), cs(d.*.u.ref.name), d.*.u.ref.off});
+                try f.print("\t.ascii {s}\n", .{cs(d.u.str)});
+            } else if (d.isref != 0) {
+                const p: [*c]const u8 = if (d.u.ref.name[0] == '"') "" else &all.T.assym;
+                try f.print("{s} {s}{s}{d:1}\n", .{cs(di[@intCast(d.type)].decl), cs(p), cs(d.u.ref.name), d.u.ref.off});
             } else {
-                try f.print("{s} {d}\n", .{cs(di[@intCast(d.*.type)].decl), d.*.u.num & di[@intCast(d.*.type)].mask});
+                try f.print("{s} {d}\n", .{cs(di[@intCast(d.type)].decl), d.u.num & di[@intCast(d.type)].mask});
             }
         },
     }

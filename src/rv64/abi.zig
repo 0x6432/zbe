@@ -183,12 +183,12 @@ pub fn rv64_argregs(r: Ref, p: [*c]i32) bits {
     return b | (@as(bits, @intCast(t5)) << T5);
 }
 
-fn fpstruct(t: [*c]Typ, off_: i32, c: *Class) i32 {
+fn fpstruct(t: *Typ, off_: i32, c: *Class) i32 {
     var off = off_;
-    if (t.*.isunion != 0)
+    if (t.isunion != 0)
         return -1;
 
-    var f: [*c]Field = &t.*.fields[0];
+    var f: [*c]Field = &t.fields[0];
     while (f.*.type != FEnd) : (f += 1) {
         if (f.*.type == FPad) {
             off += @intCast(f.*.len);
@@ -226,7 +226,7 @@ fn fpstruct(t: [*c]Typ, off_: i32, c: *Class) i32 {
     return c.nfp;
 }
 
-fn typclass(c: *Class, t: [*c]Typ, fpabi: bool, gp_: [*c]i32, fp_: [*c]i32) void {
+fn typclass(c: *Class, t: *Typ, fpabi: bool, gp_: [*c]i32, fp_: [*c]i32) void {
     var gp = gp_;
     var fp = fp_;
     c.type = t;
@@ -234,10 +234,10 @@ fn typclass(c: *Class, t: [*c]Typ, fpabi: bool, gp_: [*c]i32, fp_: [*c]i32) void
     c.ngp = 0;
     c.nfp = 0;
 
-    if (t.*.@"align" > 4)
+    if (t.@"align" > 4)
         err("alignments larger than 16 are not supported", .{});
 
-    if (t.*.isdark != 0 or t.*.size > 16 or t.*.size == 0) {
+    if (t.isdark != 0 or t.size > 16 or t.size == 0) {
         // large structs are replaced by a
         // pointer to some caller-allocated
         // memory
@@ -247,7 +247,7 @@ fn typclass(c: *Class, t: [*c]Typ, fpabi: bool, gp_: [*c]i32, fp_: [*c]i32) void
         c.ngp = 1;
     } else if (!fpabi or fpstruct(t, 0, c) <= 0) {
         var n: uint = 0;
-        while (8 * @as(u64, n) < t.*.size) : (n += 1) {
+        while (8 * @as(u64, n) < t.size) : (n += 1) {
             c.cls[n] = Kl;
             c.off[n] = @intCast(8 * n);
         }
@@ -298,17 +298,17 @@ fn ldregs(c: *Class, mem: Ref, f: *Fn) void {
     }
 }
 
-fn selret(b: [*c]Blk, f: *Fn) void {
+fn selret(b: *Blk, f: *Fn) void {
     var cr: Class = undefined;
     var cty: i32 = undefined;
 
-    const j: i32 = @intCast(b.*.jmp.type);
+    const j: i32 = @intCast(b.jmp.type);
 
     if (!isret(j) or j == Jret0)
         return;
 
-    const r = b.*.jmp.arg;
-    b.*.jmp.type = Jret0;
+    const r = b.jmp.arg;
+    b.jmp.type = Jret0;
 
     if (j == Jretc) {
         typclass(&cr, &all.typ[@intCast(f.retty)], true, &gpreg, &fpreg);
@@ -332,7 +332,7 @@ fn selret(b: [*c]Blk, f: *Fn) void {
         }
     }
 
-    b.*.jmp.arg = CALL(cty);
+    b.jmp.arg = CALL(cty);
 }
 
 fn argsclass(i_0: [*c]Ins, i_1: [*c]Ins, carg: [*c]Class, retptr: bool) i32 {
@@ -406,12 +406,12 @@ fn argsclass(i_0: [*c]Ins, i_1: [*c]Ins, carg: [*c]Class, retptr: bool) i32 {
     return envc << 12 | ngpu << 4 | nfpu << 8;
 }
 
-fn stkblob(r: Ref, t: [*c]Typ, f: *Fn, ilp: *[*c]Insl) void {
+fn stkblob(r: Ref, t: *Typ, f: *Fn, ilp: *[*c]Insl) void {
     const il: [*c]Insl = palloc(Insl, 1);
-    var al: i32 = t.*.@"align" - 2; // specific to NAlign == 3
+    var al: i32 = t.@"align" - 2; // specific to NAlign == 3
     if (al < 0)
         al = 0;
-    const sz: u64 = (t.*.size + 7) & ~@as(u64, 7);
+    const sz: u64 = (t.size + 7) & ~@as(u64, 7);
     il.*.i = INS(Oalloc + al, Kl, r, getcon(@bitCast(sz), f), R);
     il.*.link = ilp.*;
     ilp.* = il;

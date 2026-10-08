@@ -31,14 +31,14 @@ const rtype = all.rtype;
 const uint = all.uint;
 // -- end imports --
 
-pub fn liveon(v: [*c]BSet, b: [*c]Blk, s: [*c]Blk) void {
-    bscopy(v, &s.*.in);
-    var p = s.*.phi;
+pub fn liveon(v: [*c]BSet, b: [*c]Blk, s: *Blk) void {
+    bscopy(v, &s.in);
+    var p = s.phi;
     while (p != null) : (p = p.*.link) {
         if (rtype(p.*.to) == RTmp)
             bsclr(v, p.*.to.val);
     }
-    p = s.*.phi;
+    p = s.phi;
     while (p != null) : (p = p.*.link) {
         var a: uint = 0;
         while (a < p.*.narg) : (a += 1) {
@@ -51,13 +51,13 @@ pub fn liveon(v: [*c]BSet, b: [*c]Blk, s: [*c]Blk) void {
     }
 }
 
-fn bset(r: Ref, b: [*c]Blk, nlv: *[2]i32, tmp: [*c]Tmp) void {
+fn bset(r: Ref, b: *Blk, nlv: *[2]i32, tmp: [*c]Tmp) void {
     if (rtype(r) != RTmp)
         return;
-    bsset(&b.*.gen, r.val);
-    if (!bshas(&b.*.in, r.val)) {
+    bsset(&b.gen, r.val);
+    if (!bshas(&b.in, r.val)) {
         nlv[@intCast(KBASE(tmp[r.val].cls))] += 1;
-        bsset(&b.*.in, r.val);
+        bsset(&b.in, r.val);
     }
 }
 

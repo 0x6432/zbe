@@ -361,12 +361,12 @@ fn register_for_arg(cls: i32, counter: i32) Ref {
     }
 }
 
-fn lower_call(func: *Fn, block: [*c]Blk, call_instr: [*c]Ins, pextra_alloc: *[*c]ExtraAlloc) [*c]Ins {
+fn lower_call(func: *Fn, block: *Blk, call_instr: [*c]Ins, pextra_alloc: *[*c]ExtraAlloc) [*c]Ins {
     // Call arguments are instructions. Walk through them to find the end of the
     // call+args that we need to process (and return the instruction past the body
     // of the instruction for continuing processing).
     var instr_past_args = call_instr - 1;
-    while (instr_past_args >= block.*.ins) : (instr_past_args -= 1) {
+    while (instr_past_args >= block.ins) : (instr_past_args -= 1) {
         if (!isarg(instr_past_args.*.op)) {
             break;
         }
@@ -572,8 +572,8 @@ fn lower_call(func: *Fn, block: [*c]Blk, call_instr: [*c]Ins, pextra_alloc: *[*c
     return instr_past_args;
 }
 
-fn lower_block_return(func: *Fn, block: [*c]Blk) void {
-    const jmp_type: i32 = block.*.jmp.type;
+fn lower_block_return(func: *Fn, block: *Blk) void {
+    const jmp_type: i32 = block.jmp.type;
 
     if (!isret(jmp_type) or jmp_type == Jret0) {
         return;
@@ -581,8 +581,8 @@ fn lower_block_return(func: *Fn, block: [*c]Blk) void {
 
     // Save the argument, and set the block to be a void return because once it's
     // lowered it's handled by the the register/stack manipulation.
-    const ret_arg = block.*.jmp.arg;
-    block.*.jmp.type = Jret0;
+    const ret_arg = block.jmp.arg;
+    block.jmp.type = Jret0;
 
     var reg_usage = std.mem.zeroes(RegisterUsage);
 
@@ -607,7 +607,7 @@ fn lower_block_return(func: *Fn, block: [*c]Blk) void {
             reg_usage.xmm0_returned = true;
         }
     }
-    block.*.jmp.arg = CALL(register_usage_to_call_arg_value(reg_usage));
+    block.jmp.arg = CALL(register_usage_to_call_arg_value(reg_usage));
 }
 
 fn lower_vastart(func: *Fn, param_reg_usage: *RegisterUsage, valist: Ref) void {
@@ -688,9 +688,9 @@ fn lower_args_for_block(func: *Fn, block: [*c]Blk, param_reg_usage: *RegisterUsa
     idup(block, all.curi, block.*.nins);
 }
 
-fn find_end_of_func_parameters(start_block: [*c]Blk) [*c]Ins {
-    var i = start_block.*.ins;
-    while (i < start_block.*.ins + start_block.*.nins) : (i += 1) {
+fn find_end_of_func_parameters(start_block: *Blk) [*c]Ins {
+    var i = start_block.ins;
+    while (i < start_block.ins + start_block.nins) : (i += 1) {
         if (!ispar(i.*.op)) {
             break;
         }

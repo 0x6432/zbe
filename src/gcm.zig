@@ -96,7 +96,7 @@ fn schedearly(f: *Fn, r: Ref) uint {
     return t.*.gcmbid;
 }
 
-fn earlyins(f: *Fn, b: [*c]Blk, i: [*c]Ins) uint {
+fn earlyins(f: *Fn, b: *Blk, i: [*c]Ins) uint {
     var b0 = schedearly(f, i.*.arg[0]);
     assert(b0 != NOBID);
     const b1 = schedearly(f, i.*.arg[1]);
@@ -105,7 +105,7 @@ fn earlyins(f: *Fn, b: [*c]Blk, i: [*c]Ins) uint {
         assert(dom(f.rpo[b0], f.rpo[b1]));
         b0 = b1;
     }
-    return if (pinned(i)) b.*.id else b0;
+    return if (pinned(i)) b.id else b0;
 }
 
 fn earlyblk(f: *Fn, bid: uint) void {
@@ -200,8 +200,8 @@ fn schedlate(f: *Fn, r: Ref) uint {
 
 /// returns lca bid of uses or NOBID if
 /// the definition can be eliminated
-fn lateins(f: *Fn, b: [*c]Blk, i: [*c]Ins, r: Ref) uint {
-    assert(b.*.ins <= i and i < b.*.ins + b.*.nins);
+fn lateins(f: *Fn, b: *Blk, i: [*c]Ins, r: Ref) uint {
+    assert(b.ins <= i and i < b.ins + b.nins);
     assert(req(i.*.arg[0], r) or req(i.*.arg[1], r));
 
     const latebid = schedlate(f, i.*.to);
@@ -209,33 +209,33 @@ fn lateins(f: *Fn, b: [*c]Blk, i: [*c]Ins, r: Ref) uint {
         if (latebid == NOBID)
             if (canelim(i))
                 return NOBID;
-        return b.*.id;
+        return b.id;
     }
 
     return latebid;
 }
 
-fn latephi(f: *Fn, p: [*c]Phi, r: Ref) uint {
-    if (p.*.narg == 0)
+fn latephi(f: *Fn, p: *Phi, r: Ref) uint {
+    if (p.narg == 0)
         return NOBID; // marked as unused
 
     var latebid: uint = NOBID;
     var n: uint = 0;
-    while (n < p.*.narg) : (n += 1) {
-        if (req(p.*.arg[n], r))
-            latebid = lcabid(f, latebid, p.*.blk[n].*.id);
+    while (n < p.narg) : (n += 1) {
+        if (req(p.arg[n], r))
+            latebid = lcabid(f, latebid, p.blk[n].*.id);
     }
 
     assert(latebid != NOBID);
     return latebid;
 }
 
-fn latejmp(b: [*c]Blk, r: Ref) uint {
-    if (req(b.*.jmp.arg, R)) {
+fn latejmp(b: *Blk, r: Ref) uint {
+    if (req(b.jmp.arg, R)) {
         return NOBID;
     } else {
-        assert(req(b.*.jmp.arg, r));
-        return b.*.id;
+        assert(req(b.jmp.arg, r));
+        return b.id;
     }
 }
 
@@ -272,18 +272,17 @@ fn gcmmove(f: *Fn) void {
     var nins: uint = 0;
     var vins = vnewT(Ins, nins, PFn);
 
-    var t = f.tmp;
-    while (t < f.tmp + @as(usize, @intCast(f.ntmp))) : (t += 1) {
-        if (t.*.def == null)
+    for (f.tmp[0..@intCast(f.ntmp)]) |*t| {
+        if (t.def == null)
             continue;
-        if (t.*.bid == t.*.gcmbid)
+        if (t.bid == t.gcmbid)
             continue;
-        const i = t.*.def;
+        const i = t.def;
         if (pinned(i) and !canelim(i))
             continue;
         assert(rtype(i.*.to) == RTmp);
         assert(t == &f.tmp[i.*.to.val]);
-        if (t.*.gcmbid != NOBID)
+        if (t.gcmbid != NOBID)
             addins(&vins, &nins, i);
         i.* = INS0(Onop);
     }
@@ -291,7 +290,7 @@ fn gcmmove(f: *Fn) void {
 }
 
 /// dfs ordering
-fn schedins(f: *Fn, b: [*c]Blk, i_: [*c]Ins, pvins: *[*c]Ins, pnins: *uint) [*c]Ins {
+fn schedins(f: *Fn, b: *Blk, i_: [*c]Ins, pvins: *[*c]Ins, pnins: *uint) [*c]Ins {
     var i_0: [*c]Ins = undefined;
     var i_1: [*c]Ins = undefined;
     igroup(b, i_, &i_0, &i_1);
@@ -302,7 +301,7 @@ fn schedins(f: *Fn, b: [*c]Blk, i_: [*c]Ins, pvins: *[*c]Ins, pnins: *uint) [*c]
             if (rtype(i.*.arg[n]) != RTmp)
                 continue;
             const t = &f.tmp[i.*.arg[n].val];
-            if (t.*.bid != b.*.id or t.*.def == null)
+            if (t.*.bid != b.id or t.*.def == null)
                 continue;
             _ = schedins(f, b, t.*.def, pvins, pnins);
         }
@@ -340,12 +339,12 @@ fn cheap(i: [*c]Ins) bool {
     };
 }
 
-fn sinkref(f: *Fn, b: [*c]Blk, pr: *Ref) void {
+fn sinkref(f: *Fn, b: *Blk, pr: *Ref) void {
     if (rtype(pr.*) != RTmp)
         return;
     const t = &f.tmp[pr.*.val];
     if (t.*.def == null or
-        t.*.bid == b.*.id or
+        t.*.bid == b.id or
         pinned(t.*.def) or
         !cheap(t.*.def))
         return;
@@ -356,7 +355,7 @@ fn sinkref(f: *Fn, b: [*c]Blk, pr: *Ref) void {
     // t invalidated
     pr.* = r;
     i.to = r;
-    f.tmp[r.val].gcmbid = b.*.id;
+    f.tmp[r.val].gcmbid = b.id;
     emiti(i);
     sinkref(f, b, &i.arg[0]);
     sinkref(f, b, &i.arg[1]);

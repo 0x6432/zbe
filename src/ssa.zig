@@ -68,15 +68,15 @@ const NOID: uint = std.math.maxInt(uint);
 
 /// C: adduse(Tmp *, int, Blk *, ...); the variadic argument is the
 /// Phi* (UPhi) or Ins* (UIns), and absent (null) for UJmp
-pub fn adduse(tmp: [*c]Tmp, ty: i32, b: [*c]Blk, x: ?*anyopaque) void {
-    if (tmp.*.use == null)
+pub fn adduse(tmp: *Tmp, ty: i32, b: *Blk, x: ?*anyopaque) void {
+    if (tmp.use == null)
         return;
-    const n = tmp.*.nuse;
-    tmp.*.nuse += 1;
-    vgrow(&tmp.*.use, tmp.*.nuse);
-    const u = &tmp.*.use[n];
+    const n = tmp.nuse;
+    tmp.nuse += 1;
+    vgrow(&tmp.use, tmp.nuse);
+    const u = &tmp.use[n];
     u.*.type = ty;
-    u.*.bid = b.*.id;
+    u.*.bid = b.id;
     switch (ty) {
         UPhi => u.*.u.phi = @ptrCast(@alignCast(x)),
         UIns => u.*.u.ins = @ptrCast(@alignCast(x)),
@@ -287,7 +287,7 @@ fn nfree(n: [*c]Name) void {
     namel = n;
 }
 
-fn rendef(r: *Ref, b: [*c]Blk, stk: [*c][*c]Name, f: *Fn) void {
+fn rendef(r: *Ref, b: *Blk, stk: [*c][*c]Name, f: *Fn) void {
     const t = r.*.val;
     if (req(r.*, R) or f.tmp[t].visit == 0)
         return;
@@ -297,7 +297,7 @@ fn rendef(r: *Ref, b: [*c]Blk, stk: [*c][*c]Name, f: *Fn) void {
     r.* = r1;
 }
 
-fn getstk(t: anytype, b: [*c]Blk, stk: [*c][*c]Name) Ref {
+fn getstk(t: anytype, b: *Blk, stk: [*c][*c]Name) Ref {
     var n = stk[@intCast(t)];
     while (n != null and !dom(n.*.b, b)) {
         const n1 = n;
@@ -311,15 +311,15 @@ fn getstk(t: anytype, b: [*c]Blk, stk: [*c][*c]Name) Ref {
     } else return n.*.r;
 }
 
-fn renblk(b: [*c]Blk, stk: [*c][*c]Name, f: *Fn) void {
+fn renblk(b: *Blk, stk: [*c][*c]Name, f: *Fn) void {
     var succ: [3][*c]Blk = undefined;
     var t: i32 = undefined;
 
-    var p = b.*.phi;
+    var p = b.phi;
     while (p != null) : (p = p.*.link)
         rendef(&p.*.to, b, stk, f);
-    var i = b.*.ins;
-    while (i < &b.*.ins[b.*.nins]) : (i += 1) {
+    var i = b.ins;
+    while (i < &b.ins[b.nins]) : (i += 1) {
         var m: usize = 0;
         while (m < 2) : (m += 1) {
             const tv = i.*.arg[m].val;
@@ -330,13 +330,13 @@ fn renblk(b: [*c]Blk, stk: [*c][*c]Name, f: *Fn) void {
         }
         rendef(&i.*.to, b, stk, f);
     }
-    const jv = b.*.jmp.arg.val;
-    if (rtype(b.*.jmp.arg) == RTmp)
+    const jv = b.jmp.arg.val;
+    if (rtype(b.jmp.arg) == RTmp)
         if (f.tmp[jv].visit != 0) {
-            b.*.jmp.arg = getstk(jv, b, stk);
+            b.jmp.arg = getstk(jv, b, stk);
         };
-    succ[0] = b.*.s1;
-    succ[1] = if (b.*.s2 == b.*.s1) null else b.*.s2;
+    succ[0] = b.s1;
+    succ[1] = if (b.s2 == b.s1) null else b.s2;
     succ[2] = null;
     var ps: [*c][*c]Blk = &succ;
     while (ps.* != null) : (ps += 1) {
@@ -354,7 +354,7 @@ fn renblk(b: [*c]Blk, stk: [*c][*c]Name, f: *Fn) void {
             }
         }
     }
-    var s_it: ?*Blk = b.*.dom;
+    var s_it: ?*Blk = b.dom;
     while (s_it) |s| : (s_it = s.dlink)
         renblk(s, stk, f);
 }
@@ -400,11 +400,11 @@ pub fn ssa(f: *Fn) void {
     }
 }
 
-fn phicheck(p: [*c]Phi, b: [*c]Blk, t: Ref) bool {
+fn phicheck(p: *Phi, b: [*c]Blk, t: Ref) bool {
     var n: uint = 0;
-    while (n < p.*.narg) : (n += 1)
-        if (req(p.*.arg[n], t)) {
-            const b1 = p.*.blk[n];
+    while (n < p.narg) : (n += 1)
+        if (req(p.arg[n], t)) {
+            const b1 = p.blk[n];
             if (b1 != b and !sdom(b, b1))
                 return true;
         };

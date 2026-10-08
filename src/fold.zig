@@ -87,13 +87,13 @@ const symeq = all.symeq;
 
 // boring folding code
 
-fn iscon(c: [*c]Con, w: bool, k: u64) bool {
-    if (c.*.type != CBits)
+fn iscon(c: *Con, w: bool, k: u64) bool {
+    if (c.type != CBits)
         return false;
     if (w)
-        return @as(u64, @bitCast(c.*.bits.i)) == k
+        return @as(u64, @bitCast(c.bits.i)) == k
     else
-        return @as(u32, @truncate(@as(u64, @bitCast(c.*.bits.i)))) == @as(u32, @truncate(k));
+        return @as(u32, @truncate(@as(u64, @bitCast(c.bits.i)))) == @as(u32, @truncate(k));
 }
 
 /// C float -> integer conversion; out-of-range values yield what
@@ -123,7 +123,7 @@ inline fn sx32(x: u64) u64 {
     return @bitCast(@as(i64, @as(i32, @bitCast(@as(u32, @truncate(x))))));
 }
 
-pub fn foldint(res: [*c]Con, op_: i32, w_: bool, cl: [*c]Con, cr: [*c]Con) bool {
+pub fn foldint(res: *Con, op_: i32, w_: bool, cl: *Con, cr: *Con) bool {
     var op = op_;
     const w = w_;
     var l: U = undefined;
@@ -132,28 +132,28 @@ pub fn foldint(res: [*c]Con, op_: i32, w_: bool, cl: [*c]Con, cr: [*c]Con) bool 
     var sym: Sym = std.mem.zeroes(Sym);
     var typ: i32 = CBits;
 
-    l.s = cl.*.bits.i;
-    r.s = cr.*.bits.i;
+    l.s = cl.bits.i;
+    r.s = cr.bits.i;
     if (op == Oadd) {
-        if (cl.*.type == CAddr) {
-            if (cr.*.type == CAddr)
+        if (cl.type == CAddr) {
+            if (cr.type == CAddr)
                 return true;
             typ = CAddr;
-            sym = cl.*.sym;
-        } else if (cr.*.type == CAddr) {
+            sym = cl.sym;
+        } else if (cr.type == CAddr) {
             typ = CAddr;
-            sym = cr.*.sym;
+            sym = cr.sym;
         }
     } else if (op == Osub) {
-        if (cl.*.type == CAddr) {
-            if (cr.*.type != CAddr) {
+        if (cl.type == CAddr) {
+            if (cr.type != CAddr) {
                 typ = CAddr;
-                sym = cl.*.sym;
-            } else if (!symeq(cl.*.sym, cr.*.sym))
+                sym = cl.sym;
+            } else if (!symeq(cl.sym, cr.sym))
                 return true;
-        } else if (cr.*.type == CAddr)
+        } else if (cr.type == CAddr)
             return true;
-    } else if (cl.*.type == CAddr or cr.*.type == CAddr)
+    } else if (cl.type == CAddr or cr.type == CAddr)
         return true;
     if (op == Odiv or op == Orem or op == Oudiv or op == Ourem) {
         if (iscon(cr, w, 0))
@@ -187,15 +187,15 @@ pub fn foldint(res: [*c]Con, op_: i32, w_: bool, cl: [*c]Con, cr: [*c]Con) bool 
         Oextuh => x = @as(u16, @truncate(l.u)),
         Oextsw => x = sx32(l.u),
         Oextuw => x = @as(u32, @truncate(l.u)),
-        Ostosi => x = if (w) @bitCast(f2i(i64, cl.*.bits.s)) else @bitCast(@as(i64, f2i(i32, cl.*.bits.s))),
-        Ostoui => x = if (w) f2i(u64, cl.*.bits.s) else f2i(u32, cl.*.bits.s),
-        Odtosi => x = if (w) @bitCast(f2i(i64, cl.*.bits.d)) else @bitCast(@as(i64, f2i(i32, cl.*.bits.d))),
-        Odtoui => x = if (w) f2i(u64, cl.*.bits.d) else f2i(u32, cl.*.bits.d),
+        Ostosi => x = if (w) @bitCast(f2i(i64, cl.bits.s)) else @bitCast(@as(i64, f2i(i32, cl.bits.s))),
+        Ostoui => x = if (w) f2i(u64, cl.bits.s) else f2i(u32, cl.bits.s),
+        Odtosi => x = if (w) @bitCast(f2i(i64, cl.bits.d)) else @bitCast(@as(i64, f2i(i32, cl.bits.d))),
+        Odtoui => x = if (w) f2i(u64, cl.bits.d) else f2i(u32, cl.bits.d),
         Ocast => {
             x = l.u;
-            if (cl.*.type == CAddr) {
+            if (cl.type == CAddr) {
                 typ = CAddr;
-                sym = cl.*.sym;
+                sym = cl.sym;
             }
         },
         else => {
@@ -245,59 +245,59 @@ pub fn foldint(res: [*c]Con, op_: i32, w_: bool, cl: [*c]Con, cr: [*c]Con) bool 
         },
     }
     res.* = std.mem.zeroes(Con);
-    res.*.type = typ;
-    res.*.sym = sym;
-    res.*.bits.i = @bitCast(x);
+    res.type = typ;
+    res.sym = sym;
+    res.bits.i = @bitCast(x);
     return false;
 }
 
-fn foldflt(res: [*c]Con, op: i32, w: bool, cl: [*c]Con, cr: [*c]Con) void {
-    if (cl.*.type != CBits or cr.*.type != CBits)
+fn foldflt(res: *Con, op: i32, w: bool, cl: *Con, cr: *Con) void {
+    if (cl.type != CBits or cr.type != CBits)
         err("invalid address operand for '{s}'", .{cs(all.optab[@intCast(op)].name)});
     res.* = std.mem.zeroes(Con);
-    res.*.type = CBits;
+    res.type = CBits;
     if (w) {
-        const ld = cl.*.bits.d;
-        const rd = cr.*.bits.d;
+        const ld = cl.bits.d;
+        const rd = cr.bits.d;
         const xd: f64 = switch (op) {
             Oadd => ld + rd,
             Osub => ld - rd,
             Oneg => -ld,
             Odiv => ld / rd,
             Omul => ld * rd,
-            Oswtof => @floatFromInt(@as(i32, @truncate(cl.*.bits.i))),
-            Ouwtof => @floatFromInt(@as(u32, @truncate(@as(u64, @bitCast(cl.*.bits.i))))),
-            Osltof => @floatFromInt(cl.*.bits.i),
-            Oultof => @floatFromInt(@as(u64, @bitCast(cl.*.bits.i))),
-            Oexts => cl.*.bits.s,
+            Oswtof => @floatFromInt(@as(i32, @truncate(cl.bits.i))),
+            Ouwtof => @floatFromInt(@as(u32, @truncate(@as(u64, @bitCast(cl.bits.i))))),
+            Osltof => @floatFromInt(cl.bits.i),
+            Oultof => @floatFromInt(@as(u64, @bitCast(cl.bits.i))),
+            Oexts => cl.bits.s,
             Ocast => ld,
             else => die("unreachable", .{}),
         };
-        res.*.bits.d = xd;
-        res.*.flt = 2;
+        res.bits.d = xd;
+        res.flt = 2;
     } else {
-        const ls = cl.*.bits.s;
-        const rs = cr.*.bits.s;
+        const ls = cl.bits.s;
+        const rs = cr.bits.s;
         const xs: f32 = switch (op) {
             Oadd => ls + rs,
             Osub => ls - rs,
             Oneg => -ls,
             Odiv => ls / rs,
             Omul => ls * rs,
-            Oswtof => @floatFromInt(@as(i32, @truncate(cl.*.bits.i))),
-            Ouwtof => @floatFromInt(@as(u32, @truncate(@as(u64, @bitCast(cl.*.bits.i))))),
-            Osltof => @floatFromInt(cl.*.bits.i),
-            Oultof => @floatFromInt(@as(u64, @bitCast(cl.*.bits.i))),
-            Otruncd => @floatCast(cl.*.bits.d),
+            Oswtof => @floatFromInt(@as(i32, @truncate(cl.bits.i))),
+            Ouwtof => @floatFromInt(@as(u32, @truncate(@as(u64, @bitCast(cl.bits.i))))),
+            Osltof => @floatFromInt(cl.bits.i),
+            Oultof => @floatFromInt(@as(u64, @bitCast(cl.bits.i))),
+            Otruncd => @floatCast(cl.bits.d),
             Ocast => ls,
             else => die("unreachable", .{}),
         };
-        res.*.bits.s = xs;
-        res.*.flt = 1;
+        res.bits.s = xs;
+        res.flt = 1;
     }
 }
 
-fn opfold(op: i32, cls: i32, cl: [*c]Con, cr: [*c]Con, f: *Fn) Ref {
+fn opfold(op: i32, cls: i32, cl: *Con, cr: *Con, f: *Fn) Ref {
     var c: Con = undefined;
 
     if (cls == Kw or cls == Kl) {

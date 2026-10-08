@@ -178,10 +178,10 @@ const store = blk: {
 //        | ` indirect result register x8 used  (0..1)
 //        ` env pointer passed in x9            (0..1)
 
-fn isfloatv(t: [*c]Typ, cls: *i8) bool {
+fn isfloatv(t: *Typ, cls: *i8) bool {
     var n: uint = 0;
-    while (n < t.*.nunion) : (n += 1) {
-        var f: [*c]Field = &t.*.fields[n];
+    while (n < t.nunion) : (n += 1) {
+        var f: [*c]Field = &t.fields[n];
         while (f.*.type != FEnd) : (f += 1) {
             switch (f.*.type) {
                 Fs => {
@@ -285,17 +285,17 @@ fn ldregs(reg: [*c]i32, cls: [*c]i32, n: i32, mem: Ref, f: *Fn) void {
     }
 }
 
-fn selret(b: [*c]Blk, f: *Fn) void {
+fn selret(b: *Blk, f: *Fn) void {
     var cr: Class = undefined;
     var cty: i32 = undefined;
 
-    const j: i32 = @intCast(b.*.jmp.type);
+    const j: i32 = @intCast(b.jmp.type);
 
     if (!isret(j) or j == Jret0)
         return;
 
-    const r = b.*.jmp.arg;
-    b.*.jmp.type = Jret0;
+    const r = b.jmp.arg;
+    b.jmp.type = Jret0;
 
     if (j == Jretc) {
         typclass(&cr, &all.typ[@intCast(f.retty)], &gpreg, &fpreg);
@@ -319,7 +319,7 @@ fn selret(b: [*c]Blk, f: *Fn) void {
         }
     }
 
-    b.*.jmp.arg = CALL(cty);
+    b.jmp.arg = CALL(cty);
 }
 
 fn argsclass(i_0: [*c]Ins, i_1: [*c]Ins, carg: [*c]Class) i32 {
@@ -663,22 +663,22 @@ fn selpar(f: *Fn, i_0: [*c]Ins, i_1: [*c]Ins) Params {
     };
 }
 
-fn split(f: *Fn, b: [*c]Blk) [*c]Blk {
+fn split(f: *Fn, b: *Blk) [*c]Blk {
     f.nblk += 1;
     const bn = newblk();
     idup(bn, all.curi, @intCast(ptrdiff(all.insbEnd(), all.curi)));
     all.curi = all.insbEnd();
-    b.*.visit += 1;
-    bn.*.visit = b.*.visit;
-    bn.*.name = strf(PFn, "{s}.{d}", .{ cs(b.*.name), b.*.visit });
-    bn.*.loop = b.*.loop;
-    bn.*.link = b.*.link;
-    b.*.link = bn;
+    b.visit += 1;
+    bn.*.visit = b.visit;
+    bn.*.name = strf(PFn, "{s}.{d}", .{ cs(b.name), b.visit });
+    bn.*.loop = b.loop;
+    bn.*.link = b.link;
+    b.link = bn;
     return bn;
 }
 
-fn chpred(b: [*c]Blk, bp: [*c]Blk, bp1: [*c]Blk) void {
-    var p_it: ?*Phi = b.*.phi;
+fn chpred(b: *Blk, bp: [*c]Blk, bp1: *Blk) void {
+    var p_it: ?*Phi = b.phi;
     while (p_it) |p| : (p_it = p.link) {
         var a: uint = 0;
         while (p.blk[a] != bp) : (a += 1)
@@ -687,7 +687,7 @@ fn chpred(b: [*c]Blk, bp: [*c]Blk, bp1: [*c]Blk) void {
     }
 }
 
-fn apple_selvaarg(f: *Fn, b: [*c]Blk, i: [*c]Ins) void {
+fn apple_selvaarg(f: *Fn, b: *Blk, i: [*c]Ins) void {
     _ = b;
     const c8 = getcon(8, f);
     const ap = i.*.arg[0];
@@ -700,7 +700,7 @@ fn apple_selvaarg(f: *Fn, b: [*c]Blk, i: [*c]Ins) void {
     emit(Oload, Kl, stk, ap, R);
 }
 
-fn arm64_selvaarg(f: *Fn, b: [*c]Blk, i: [*c]Ins) void {
+fn arm64_selvaarg(f: *Fn, b: *Blk, i: [*c]Ins) void {
     const c8 = getcon(8, f);
     const c16 = getcon(16, f);
     const c24 = getcon(24, f);
@@ -731,13 +731,13 @@ fn arm64_selvaarg(f: *Fn, b: [*c]Blk, i: [*c]Ins) void {
     const loc = newtmp("abi", Kl, f);
     emit(Oload, i.*.cls, i.*.to, loc, R);
     const b0 = split(f, b);
-    b0.*.jmp = b.*.jmp;
-    b0.*.s1 = b.*.s1;
-    b0.*.s2 = b.*.s2;
-    if (b.*.s1 != null)
-        chpred(b.*.s1, b, b0);
-    if (b.*.s2 != null and b.*.s2 != b.*.s1)
-        chpred(b.*.s2, b, b0);
+    b0.*.jmp = b.jmp;
+    b0.*.s1 = b.s1;
+    b0.*.s2 = b.s2;
+    if (b.s1 != null)
+        chpred(b.s1, b, b0);
+    if (b.s2 != null and b.s2 != b.s1)
+        chpred(b.s2, b, b0);
 
     const lreg = newtmp("abi", Kl, f);
     const nr = newtmp("abi", Kl, f);
@@ -777,10 +777,10 @@ fn arm64_selvaarg(f: *Fn, b: [*c]Blk, i: [*c]Ins) void {
     b0.*.phi.*.arg[1] = lreg;
     r0 = newtmp("abi", Kl, f);
     r1 = newtmp("abi", Kw, f);
-    b.*.jmp.type = Jjnz;
-    b.*.jmp.arg = r1;
-    b.*.s1 = breg;
-    b.*.s2 = bstk;
+    b.jmp.type = Jjnz;
+    b.jmp.arg = r1;
+    b.s1 = breg;
+    b.s2 = bstk;
     emit(Ocmpw + Cislt, Kw, r1, nr, CON_Z);
     emit(Oloadsw, Kl, nr, r0, R);
     emit(Oadd, Kl, r0, ap, if (isgp) c24 else c28);

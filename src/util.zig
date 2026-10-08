@@ -356,8 +356,8 @@ pub fn addins(pvins: *[*c]Ins, pnins: *uint, i: [*c]Ins) void {
     pvins.*[pnins.* - 1] = i.*;
 }
 
-pub fn addbins(pvins: *[*c]Ins, pnins: *uint, b: [*c]Blk) void {
-    for (b.*.ins[0..b.*.nins]) |*i|
+pub fn addbins(pvins: *[*c]Ins, pnins: *uint, b: *Blk) void {
+    for (b.ins[0..b.nins]) |*i|
         addins(pvins, pnins, i);
 }
 
@@ -421,10 +421,10 @@ pub fn iscmp(op: anytype, pk: *i32, pc: *i32) bool {
     return true;
 }
 
-pub fn igroup(b: [*c]Blk, i_: [*c]Ins, i_0: *[*c]Ins, i_1: *[*c]Ins) void {
+pub fn igroup(b: *Blk, i_: [*c]Ins, i_0: *[*c]Ins, i_1: *[*c]Ins) void {
     var i = i_;
-    const ib = b.*.ins;
-    const ie = ib + b.*.nins;
+    const ib = b.ins;
+    const ie = ib + b.nins;
     sw: switch (i.*.op) {
         Oblit0 => {
             i_0.* = i;
@@ -495,10 +495,10 @@ pub fn emiti(i: Ins) void {
     emit(i.op, i.cls, i.to, i.arg[0], i.arg[1]);
 }
 
-pub fn idup(b: [*c]Blk, s: [*c]Ins, n: ulong) void {
-    vgrow(&b.*.ins, n);
-    _ = icpy(b.*.ins, s, n);
-    b.*.nins = @intCast(n);
+pub fn idup(b: *Blk, s: [*c]Ins, n: ulong) void {
+    vgrow(&b.ins, n);
+    _ = icpy(b.ins, s, n);
+    b.nins = @intCast(n);
 }
 
 pub fn icpy(d: [*c]Ins, s: [*c]Ins, n: ulong) [*c]Ins {
@@ -580,10 +580,10 @@ pub fn phiargn(p: [*c]Phi, b: [*c]Blk) uint {
     return std.math.maxInt(uint);
 }
 
-pub fn phiarg(p: [*c]Phi, b: [*c]Blk) Ref {
+pub fn phiarg(p: *Phi, b: *Blk) Ref {
     const n = phiargn(p, b);
     assert(n != std.math.maxInt(uint)); // block not found
-    return p.*.arg[n];
+    return p.arg[n];
 }
 
 var newtmp_n: i32 = 0;
@@ -612,11 +612,11 @@ pub fn symeq(s0: Sym, s1: Sym) bool {
     return s0.type == s1.type and s0.id == s1.id;
 }
 
-pub fn newcon(c0: [*c]Con, f: *Fn) Ref {
+pub fn newcon(c0: *Con, f: *Fn) Ref {
     var i: i32 = 1;
     while (i < f.ncon) : (i += 1) {
         const c1 = &f.con[@intCast(i)];
-        if (c0.*.type == c1.*.type and symeq(c0.*.sym, c1.*.sym) and c0.*.bits.i == c1.*.bits.i)
+        if (c0.type == c1.*.type and symeq(c0.sym, c1.*.sym) and c0.bits.i == c1.*.bits.i)
             return CON(i);
     }
     f.ncon += 1;
@@ -638,20 +638,20 @@ pub fn getcon(val: i64, f: *Fn) Ref {
     return CON(cc);
 }
 
-pub fn addcon(c0: [*c]Con, c1: [*c]Con, m: i32) bool {
-    if (m != 1 and c1.*.type == CAddr)
+pub fn addcon(c0: *Con, c1: *Con, m: i32) bool {
+    if (m != 1 and c1.type == CAddr)
         return false;
-    if (c0.*.type == CUndef) {
+    if (c0.type == CUndef) {
         c0.* = c1.*;
-        c0.*.bits.i *%= m;
+        c0.bits.i *%= m;
     } else {
-        if (c1.*.type == CAddr) {
-            if (c0.*.type == CAddr)
+        if (c1.type == CAddr) {
+            if (c0.type == CAddr)
                 return false;
-            c0.*.type = CAddr;
-            c0.*.sym = c1.*.sym;
+            c0.type = CAddr;
+            c0.sym = c1.sym;
         }
-        c0.*.bits.i +%= c1.*.bits.i *% m;
+        c0.bits.i +%= c1.bits.i *% m;
     }
     return true;
 }

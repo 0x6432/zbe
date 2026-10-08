@@ -242,9 +242,9 @@ fn scmp(a: Slot, b: Slot) std.math.Order {
     return std.math.order(a.r.a, b.r.a);
 }
 
-fn maxrpo(hd: [*c]Blk, b: [*c]Blk) void {
-    if (hd.*.loop < @as(i32, @intCast(b.*.id)))
-        hd.*.loop = @intCast(b.*.id);
+fn maxrpo(hd: *Blk, b: *Blk) void {
+    if (hd.loop < @as(i32, @intCast(b.id)))
+        hd.loop = @intCast(b.id);
 }
 
 pub fn coalesce(f: *Fn) void {

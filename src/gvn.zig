@@ -103,14 +103,14 @@ fn gvndup(i: [*c]Ins, insert: bool) [*c]Ins {
     return null;
 }
 
-fn replaceuse(f: *Fn, u: [*c]Use, r1: Ref, r2: Ref) void {
+fn replaceuse(f: *Fn, u: *Use, r1: Ref, r2: Ref) void {
     var t2: [*c]Tmp = null;
     if (rtype(r2) == RTmp)
         t2 = &f.tmp[r2.val];
-    const b = f.rpo[u.*.bid];
-    switch (u.*.type) {
+    const b = f.rpo[u.bid];
+    switch (u.type) {
         UPhi => {
-            const p = u.*.u.phi;
+            const p = u.u.phi;
             var pr = p.*.arg;
             while (pr < &p.*.arg[p.*.narg]) : (pr += 1)
                 if (req(pr.*, r1)) {
@@ -120,7 +120,7 @@ fn replaceuse(f: *Fn, u: [*c]Use, r1: Ref, r2: Ref) void {
                 adduse(t2, UPhi, b, @ptrCast(p));
         },
         UIns => {
-            const i = u.*.u.ins;
+            const i = u.u.ins;
             var n: usize = 0;
             while (n < 2) : (n += 1)
                 if (req(i.*.arg[n], r1)) {
@@ -148,8 +148,8 @@ fn replaceuses(f: *Fn, r1: Ref, r2: Ref) void {
     t1.*.nuse = 0;
 }
 
-fn dedupphi(f: *Fn, b: [*c]Blk) void {
-    var pp: [*c][*c]Phi = &b.*.phi;
+fn dedupphi(f: *Fn, b: *Blk) void {
+    var pp: [*c][*c]Phi = &b.phi;
     while (true) {
         const p = pp.*;
         if (p == null) break;
@@ -192,14 +192,14 @@ fn normins(f: *Fn, i: [*c]Ins) void {
         };
 }
 
-fn negcon(cls: anytype, c: [*c]Con) bool {
+fn negcon(cls: anytype, c: *Con) bool {
     var z = std.mem.zeroes(Con);
     z.type = CBits;
     z.bits.i = 0;
     return foldint(c, Osub, cls != 0, &z, c);
 }
 
-fn assoccon(f: *Fn, b: [*c]Blk, i_1: [*c]Ins) void {
+fn assoccon(f: *Fn, b: *Blk, i_1: [*c]Ins) void {
     var c: Con = undefined;
 
     var op: i32 = @intCast(i_1.*.op);
@@ -247,7 +247,7 @@ fn killins(f: *Fn, i: [*c]Ins, r: Ref) void {
     i.* = INS0(Onop);
 }
 
-fn dedupins(f: *Fn, b: [*c]Blk, i: [*c]Ins) void {
+fn dedupins(f: *Fn, b: *Blk, i: [*c]Ins) void {
     normins(f, i);
     if (i.*.op == Onop or pinned(i))
         return;
@@ -291,7 +291,7 @@ pub fn cmpeqz(f: *Fn, r: Ref, arg: *Ref, cls: *i32, eqval: *i32) bool {
     return false;
 }
 
-fn branchdom(f: *Fn, bif: [*c]Blk, bbr1: [*c]Blk, bbr2: [*c]Blk, b: [*c]Blk) bool {
+fn branchdom(f: *Fn, bif: [*c]Blk, bbr1: *Blk, bbr2: *Blk, b: [*c]Blk) bool {
     assert(bif.*.jmp.type == Jjnz);
 
     if (b != bif and dom(bbr1, b) and !reachesnotvia(f, bbr2, b, bif))
@@ -300,12 +300,12 @@ fn branchdom(f: *Fn, bif: [*c]Blk, bbr1: [*c]Blk, bbr2: [*c]Blk, b: [*c]Blk) boo
     return false;
 }
 
-fn domzero(f: *Fn, d: [*c]Blk, b: [*c]Blk, z: *i32) bool {
-    if (branchdom(f, d, d.*.s1, d.*.s2, b)) {
+fn domzero(f: *Fn, d: *Blk, b: *Blk, z: *i32) bool {
+    if (branchdom(f, d, d.s1, d.s2, b)) {
         z.* = 0;
         return true;
     }
-    if (branchdom(f, d, d.*.s2, d.*.s1, b)) {
+    if (branchdom(f, d, d.s2, d.s1, b)) {
         z.* = 1;
         return true;
     }
@@ -313,12 +313,12 @@ fn domzero(f: *Fn, d: [*c]Blk, b: [*c]Blk, z: *i32) bool {
 }
 
 /// infer 0/non-0 value from dominating jnz
-pub fn zeroval(f: *Fn, b: [*c]Blk, r: Ref, cls: i32, z: *i32) bool {
+pub fn zeroval(f: *Fn, b: *Blk, r: Ref, cls: i32, z: *i32) bool {
     var arg: Ref = undefined;
     var cls1: i32 = undefined;
     var eqval: i32 = undefined;
 
-    var d_it: ?*Blk = b.*.idom;
+    var d_it: ?*Blk = b.idom;
     while (d_it) |d| : (d_it = d.idom) {
         if (d.jmp.type != Jjnz)
             continue;
@@ -333,22 +333,22 @@ pub fn zeroval(f: *Fn, b: [*c]Blk, r: Ref, cls: i32, z: *i32) bool {
     return false;
 }
 
-fn usecls(u: [*c]Use, r: Ref, cls: i32) i32 {
-    switch (u.*.type) {
+fn usecls(u: *Use, r: Ref, cls: i32) i32 {
+    switch (u.type) {
         UIns => {
             var k: i32 = Kx; // widest use
-            if (req(u.*.u.ins.*.arg[0], r))
-                k = argcls(u.*.u.ins, 0);
-            if (req(u.*.u.ins.*.arg[1], r))
+            if (req(u.u.ins.*.arg[0], r))
+                k = argcls(u.u.ins, 0);
+            if (req(u.u.ins.*.arg[1], r))
                 if (k == Kx or KWIDE(k) == 0) {
-                    k = argcls(u.*.u.ins, 1);
+                    k = argcls(u.u.ins, 1);
                 };
             return if (k == Kx) cls else k;
         },
         UPhi => {
-            if (req(u.*.u.phi.*.to, R))
+            if (req(u.u.phi.*.to, R))
                 return cls; // eliminated
-            return u.*.u.phi.*.cls;
+            return u.u.phi.*.cls;
         },
         UJmp => return Kw,
         else => {},
@@ -356,8 +356,8 @@ fn usecls(u: [*c]Use, r: Ref, cls: i32) i32 {
     die("unreachable", .{});
 }
 
-fn propjnz0(f: *Fn, bif: [*c]Blk, s0: [*c]Blk, snon0: [*c]Blk, r: Ref, cls: i32) void {
-    if (s0.*.npred != 1 or rtype(r) != RTmp)
+fn propjnz0(f: *Fn, bif: *Blk, s0: *Blk, snon0: *Blk, r: Ref, cls: i32) void {
+    if (s0.npred != 1 or rtype(r) != RTmp)
         return;
     const t = &f.tmp[r.val];
     for (t.*.use[0..t.*.nuse]) |*u| {
@@ -371,34 +371,34 @@ fn propjnz0(f: *Fn, bif: [*c]Blk, s0: [*c]Blk, snon0: [*c]Blk, r: Ref, cls: i32)
     }
 }
 
-fn dedupjmp(f: *Fn, b: [*c]Blk) void {
+fn dedupjmp(f: *Fn, b: *Blk) void {
     var v: i64 = undefined;
     var arg: Ref = undefined;
     var cls: i32 = undefined;
     var eqval: i32 = undefined;
     var z: i32 = undefined;
 
-    if (b.*.jmp.type != Jjnz)
+    if (b.jmp.type != Jjnz)
         return;
 
     // propagate jmp arg as 0 through s2
-    propjnz0(f, b, b.*.s2, b.*.s1, b.*.jmp.arg, Kw);
+    propjnz0(f, b, b.s2, b.s1, b.jmp.arg, Kw);
     // propagate cmp eq/ne 0 def of jmp arg as 0
-    if (cmpeqz(f, b.*.jmp.arg, &arg, &cls, &eqval)) {
-        const ps = [2][*c]Blk{ b.*.s1, b.*.s2 };
+    if (cmpeqz(f, b.jmp.arg, &arg, &cls, &eqval)) {
+        const ps = [2][*c]Blk{ b.s1, b.s2 };
         propjnz0(f, b, ps[@intCast(eqval ^ 1)], ps[@intCast(eqval)], arg, cls);
     }
 
     // collapse trivial/constant jnz to jmp
     v = 1;
     z = 0;
-    if (b.*.s1 == b.*.s2 or isconbits(f, b.*.jmp.arg, &v) or zeroval(f, b, b.*.jmp.arg, Kw, &z)) {
+    if (b.s1 == b.s2 or isconbits(f, b.jmp.arg, &v) or zeroval(f, b, b.jmp.arg, Kw, &z)) {
         if (v == 0 or z != 0)
-            b.*.s1 = b.*.s2;
+            b.s1 = b.s2;
         // we later move active ins out of dead blks
-        b.*.s2 = null;
-        b.*.jmp.type = Jjmp;
-        b.*.jmp.arg = R;
+        b.s2 = null;
+        b.jmp.type = Jjmp;
+        b.jmp.arg = R;
     }
 }
 

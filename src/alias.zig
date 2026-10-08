@@ -47,22 +47,22 @@ const symeq = all.symeq;
 const uint = all.uint;
 // -- end imports --
 
-pub fn getalias(a: [*c]Alias, r: Ref, f: *Fn) void {
+pub fn getalias(a: *Alias, r: Ref, f: *Fn) void {
     switch (rtype(r)) {
         RTmp => {
             a.* = f.tmp[r.val].alias;
-            if (astack(a.*.type) != 0)
-                a.*.type = a.*.slot.*.type;
-            assert(a.*.type != ABot);
+            if (astack(a.type) != 0)
+                a.type = a.slot.*.type;
+            assert(a.type != ABot);
         },
         RCon => {
             const c = &f.con[r.val];
             if (c.*.type == CAddr) {
-                a.*.type = ASym;
-                a.*.u.sym = c.*.sym;
-            } else a.*.type = ACon;
-            a.*.offset = c.*.bits.i;
-            a.*.slot = null;
+                a.type = ASym;
+                a.u.sym = c.*.sym;
+            } else a.type = ACon;
+            a.offset = c.*.bits.i;
+            a.slot = null;
         },
         else => die("unreachable", .{}),
     }

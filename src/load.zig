@@ -262,7 +262,7 @@ fn killsl(r: Ref, sl: Slice) bool {
 /// mask does not cover all the bits of the slice,
 /// otherwise, it has class sl.cls
 /// the procedure returns R when it fails
-fn def(sl: Slice, msk: bits, b: [*c]Blk, i: [*c]Ins, il: [*c]Loc) Ref {
+fn def(sl: Slice, msk: bits, b: *Blk, i: [*c]Ins, il: [*c]Loc) Ref {
     // invariants:
     // -1- b dominates il->blk; so we can use
     //     temporaries of b in il->blk
@@ -286,7 +286,7 @@ fn def(sl: Slice, msk: bits, b: [*c]Blk, i: [*c]Ins, il: [*c]Loc) Ref {
 }
 
 /// body of def(); returns null for 'goto Load'
-fn defBody(sl: Slice, msk: bits, b: [*c]Blk, i_: [*c]Ins, il: [*c]Loc) ?Ref {
+fn defBody(sl: Slice, msk: bits, b: *Blk, i_: [*c]Ins, il: [*c]Loc) ?Ref {
     var sl1: Slice = undefined;
     var msk1: bits = undefined;
     var off: i32 = undefined;
@@ -299,11 +299,11 @@ fn defBody(sl: Slice, msk: bits, b: [*c]Blk, i_: [*c]Ins, il: [*c]Loc) ?Ref {
     var i = i_;
 
     if (i == null)
-        i = &b.*.ins[b.*.nins];
+        i = &b.ins[b.nins];
     const cls: i32 = if (sl.sz > 4) Kl else Kw;
     const msks = MASK(sl.sz);
 
-    while (i > b.*.ins) {
+    while (i > b.ins) {
         i -= 1;
         if (killsl(i.*.to, sl) or (i.*.op == Ocall and escapes(sl.ref, curf)))
             return null;
@@ -319,7 +319,7 @@ fn defBody(sl: Slice, msk: bits, b: [*c]Blk, i_: [*c]Ins, il: [*c]Loc) ?Ref {
         } else if (i.*.op == Oblit1) {
             assert(rtype(i.*.arg[0]) == RInt);
             sz = @intCast(@abs(rsval(i.*.arg[0])));
-            assert(i > b.*.ins);
+            assert(i > b.ins);
             i -= 1;
             assert(i.*.op == Oblit0);
             r1 = i.*.arg[1];
@@ -391,7 +391,7 @@ fn defBody(sl: Slice, msk: bits, b: [*c]Blk, i_: [*c]Ins, il: [*c]Loc) ?Ref {
 
     var ist = ilog;
     while (ist < &ilog[nlog]) : (ist += 1)
-        if (ist.*.isphi != 0 and ist.*.bid == b.*.id)
+        if (ist.*.isphi != 0 and ist.*.bid == b.id)
             if (req(ist.*.new.phi.m.ref, sl.ref))
                 if (ist.*.new.phi.m.off == sl.off)
                     if (ist.*.new.phi.m.sz == sl.sz) {
@@ -403,17 +403,17 @@ fn defBody(sl: Slice, msk: bits, b: [*c]Blk, i_: [*c]Ins, il: [*c]Loc) ?Ref {
                         return r;
                     };
 
-    var p = b.*.phi;
+    var p = b.phi;
     while (p != null) : (p = p.*.link)
         if (killsl(p.*.to, sl))
             // scanning predecessors in that
             // case would be unsafe
             return null;
 
-    if (b.*.npred == 0)
+    if (b.npred == 0)
         return null;
-    if (b.*.npred == 1) {
-        const bp = b.*.pred[0];
+    if (b.npred == 1) {
+        const bp = b.pred[0];
         assert(bp.*.loop >= il.*.blk.*.loop);
         l = il.*;
         if (bp.*.s2 != null)
@@ -430,17 +430,17 @@ fn defBody(sl: Slice, msk: bits, b: [*c]Blk, i_: [*c]Ins, il: [*c]Loc) ?Ref {
     vgrow(&ilog, nlog);
     ist = &ilog[nlog - 1];
     ist.*.isphi = 1;
-    ist.*.bid = b.*.id;
+    ist.*.bid = b.id;
     ist.*.new.phi.m = sl;
     ist.*.new.phi.p = p;
     p.*.to = r;
     p.*.cls = sl.cls;
-    p.*.narg = b.*.npred;
+    p.*.narg = b.npred;
     p.*.arg = vnewT(Ref, p.*.narg, PFn);
     p.*.blk = vnewT([*c]Blk, p.*.narg, PFn);
     var np: uint = 0;
-    while (np < b.*.npred) : (np += 1) {
-        const bp = b.*.pred[np];
+    while (np < b.npred) : (np += 1) {
+        const bp = b.pred[np];
         if (bp.*.s2 == null and il.*.type != LNoLoad and bp.*.loop < il.*.blk.*.loop)
             l.type = LLoad
         else

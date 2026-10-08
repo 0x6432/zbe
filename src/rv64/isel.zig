@@ -261,10 +261,10 @@ fn sel(i_: Ins, f: *Fn) void {
     }
 }
 
-fn seljmp(b: [*c]Blk, f: *Fn) void {
+fn seljmp(b: *Blk, f: *Fn) void {
     // TODO: replace cmp+jnz with beq/bne/blt[u]/bge[u]
-    if (b.*.jmp.type == Jjnz)
-        fixarg(&b.*.jmp.arg, Kw, null, f);
+    if (b.jmp.type == Jjnz)
+        fixarg(&b.jmp.arg, Kw, null, f);
 }
 
 pub fn rv64_isel(f: *Fn) void {

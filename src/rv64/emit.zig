@@ -249,14 +249,14 @@ fn slot(r: Ref, f: *Fn) i64 {
         return -4 * @as(i64, f.slot - s);
 }
 
-fn emitaddr(c: [*c]Con, f: *Writer) Writer.Error!void {
-    assert((c.*.sym.type & ~@as(i32, SExt)) == SGlo);
-    try f.writeAll(cs(str(c.*.sym.id)));
-    if (c.*.bits.i != 0) {
+fn emitaddr(c: *Con, f: *Writer) Writer.Error!void {
+    assert((c.sym.type & ~@as(i32, SExt)) == SGlo);
+    try f.writeAll(cs(str(c.sym.id)));
+    if (c.bits.i != 0) {
         // TODO: fix isel to ensure no offset for SGlo
-        if ((c.*.sym.type & SExt) != 0)
+        if ((c.sym.type & SExt) != 0)
             die("extern with offset is not supported", .{});
-        try f.print("+{d}", .{c.*.bits.i});
+        try f.print("+{d}", .{c.bits.i});
     }
 }
 
@@ -347,35 +347,35 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
     }
 }
 
-fn loadaddr(c: [*c]Con, rn: [*c]const u8, f: *Writer) Writer.Error!void {
+fn loadaddr(c: *Con, rn: [*c]const u8, f: *Writer) Writer.Error!void {
     var off: [32]u8 = undefined;
 
-    switch (c.*.sym.type) {
+    switch (c.sym.type) {
         SGlo, SExt => {
-            try f.print("\t{s} {s}, ", .{cs(@as([*c]const u8, if (c.*.sym.type == SExt) "lga" else "lla")), cs(rn)});
+            try f.print("\t{s} {s}, ", .{cs(@as([*c]const u8, if (c.sym.type == SExt) "lga" else "lla")), cs(rn)});
             try emitaddr(c, f);
             try f.writeByte('\n');
         },
         SThr => {
-            if (c.*.bits.i != 0)
-                bufPrintZ(&off, "+{d}", .{c.*.bits.i})
+            if (c.bits.i != 0)
+                bufPrintZ(&off, "+{d}", .{c.bits.i})
             else
                 off[0] = 0;
-            try f.print("\tlui {s}, %tprel_hi({s}){s}\n", .{cs(rn), cs(str(c.*.sym.id)), cs(&off)});
-            try f.print("\tadd {s}, {s}, tp, %tprel_add({s}){s}\n", .{cs(rn), cs(rn), cs(str(c.*.sym.id)), cs(&off)});
-            try f.print("\taddi {s}, {s}, %tprel_lo({s}){s}\n", .{cs(rn), cs(rn), cs(str(c.*.sym.id)), cs(&off)});
+            try f.print("\tlui {s}, %tprel_hi({s}){s}\n", .{cs(rn), cs(str(c.sym.id)), cs(&off)});
+            try f.print("\tadd {s}, {s}, tp, %tprel_add({s}){s}\n", .{cs(rn), cs(rn), cs(str(c.sym.id)), cs(&off)});
+            try f.print("\taddi {s}, {s}, %tprel_lo({s}){s}\n", .{cs(rn), cs(rn), cs(str(c.sym.id)), cs(&off)});
         },
         SExtThr => die("extern thread unavailable on rv64", .{}),
         else => {},
     }
 }
 
-fn loadcon(c: [*c]Con, r: i32, k: i32, f: *Writer) Writer.Error!void {
+fn loadcon(c: *Con, r: i32, k: i32, f: *Writer) Writer.Error!void {
     const rn = rname[@intCast(r)];
-    switch (c.*.type) {
+    switch (c.type) {
         CAddr => try loadaddr(c, rn, f),
         CBits => {
-            var n = c.*.bits.i;
+            var n = c.bits.i;
             if (KWIDE(k) == 0)
                 n = @as(i32, @truncate(n));
             try f.print("\tli {s}, {d}\n", .{cs(rn), n});

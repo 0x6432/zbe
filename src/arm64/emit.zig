@@ -392,10 +392,10 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, e: *E) Writer.Error!void {
     }
 }
 
-fn loadaddr(c: [*c]Con, rn: [*c]u8, e: *E) Writer.Error!void {
+fn loadaddr(c: *Con, rn: [*c]u8, e: *E) Writer.Error!void {
     var s: [*c]const u8 = undefined;
 
-    switch (c.*.sym.type) {
+    switch (c.sym.type) {
         else => die("unreachable", .{}),
         SGlo => {
             if (all.T.apple != 0)
@@ -406,7 +406,7 @@ fn loadaddr(c: [*c]Con, rn: [*c]u8, e: *E) Writer.Error!void {
                     "\tadd\tR, R, #:lo12:SO\n";
         },
         SExtThr, SThr => {
-            if (c.*.sym.type == SExtThr and all.T.apple == 0)
+            if (c.sym.type == SExtThr and all.T.apple == 0)
                 die("extern thread unavailable on arm64", .{});
             if (all.T.apple != 0)
                 s = "\tadrp\tR, S@tlvppage\n" ++
@@ -417,7 +417,7 @@ fn loadaddr(c: [*c]Con, rn: [*c]u8, e: *E) Writer.Error!void {
                     "\tadd\tR, R, #:tprel_lo12_nc:SO\n";
         },
         SExt => {
-            assert(c.*.bits.i == 0);
+            assert(c.bits.i == 0);
             if (all.T.apple != 0)
                 s = "\tadrp\tR, S@gotpage\n" ++
                     "\tldr\tR, [R, S@gotpageoff]\n"
@@ -427,7 +427,7 @@ fn loadaddr(c: [*c]Con, rn: [*c]u8, e: *E) Writer.Error!void {
         },
     }
 
-    const l = str(c.*.sym.id);
+    const l = str(c.sym.id);
     const p: [*c]const u8 = if (l[0] == '"') "" else &all.T.assym;
     while (s.* != 0) : (s += 1) {
         switch (s.*) {
@@ -438,24 +438,24 @@ fn loadaddr(c: [*c]Con, rn: [*c]u8, e: *E) Writer.Error!void {
                 try e.f.writeAll(cs(l));
             },
             'O' => {
-                if (c.*.bits.i != 0)
+                if (c.bits.i != 0)
                     // todo, handle large offsets
-                    try e.f.print("+{d}", .{c.*.bits.i});
+                    try e.f.print("+{d}", .{c.bits.i});
             },
         }
     }
 }
 
-fn loadcon(c: [*c]Con, r: i32, k: i32, e: *E) Writer.Error!void {
+fn loadcon(c: *Con, r: i32, k: i32, e: *E) Writer.Error!void {
     const w = KWIDE(k);
     var rn = rname(r, k);
-    var n = c.*.bits.i;
-    if (c.*.type == CAddr) {
+    var n = c.bits.i;
+    if (c.type == CAddr) {
         rn = rname(r, Kl);
         try loadaddr(c, rn, e);
         return;
     }
-    assert(c.*.type == CBits);
+    assert(c.type == CBits);
     if (w == 0)
         n = @as(i32, @truncate(n));
     if ((n | 0xffff) == -1 or arm64_logimm(@bitCast(n), k)) {

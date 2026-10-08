@@ -594,12 +594,12 @@ fn flagi(i_0: [*c]Ins, i_: [*c]Ins) [*c]Ins {
     return null;
 }
 
-fn selsel(f: *Fn, b: [*c]Blk, i: [*c]Ins, tn: [*c]Num) [*c]Ins {
+fn selsel(f: *Fn, b: *Blk, i: [*c]Ins, tn: [*c]Num) [*c]Ins {
     var cr: [2]Ref = undefined;
 
     assert(i.*.op == Osel1);
     var isel0 = i;
-    while (b.*.ins < isel0) : (isel0 -= 1) {
+    while (b.ins < isel0) : (isel0 -= 1) {
         if (isel0.*.op == Osel0)
             break;
         assert(isel0.*.op == Osel1);
@@ -608,7 +608,7 @@ fn selsel(f: *Fn, b: [*c]Blk, i: [*c]Ins, tn: [*c]Num) [*c]Ins {
     var r = isel0.*.arg[0];
     assert(rtype(r) == RTmp);
     const t = &f.tmp[r.val];
-    const fi = flagi(b.*.ins, isel0);
+    const fi = flagi(b.ins, isel0);
     cr[0] = R;
     cr[1] = R;
     var gencmp = false;
@@ -677,30 +677,30 @@ fn selsel(f: *Fn, b: [*c]Blk, i: [*c]Ins, tn: [*c]Num) [*c]Ins {
     return isel0;
 }
 
-fn seljmp(b: [*c]Blk, f: *Fn) void {
+fn seljmp(b: *Blk, f: *Fn) void {
     var k: i32 = undefined;
     var c: i32 = undefined;
 
-    if (b.*.jmp.type == Jret0 or
-        b.*.jmp.type == Jjmp or
-        b.*.jmp.type == Jhlt)
+    if (b.jmp.type == Jret0 or
+        b.jmp.type == Jjmp or
+        b.jmp.type == Jhlt)
         return;
-    assert(b.*.jmp.type == Jjnz);
-    var r = b.*.jmp.arg;
+    assert(b.jmp.type == Jjnz);
+    var r = b.jmp.arg;
     const t = &f.tmp[r.val];
-    b.*.jmp.arg = R;
+    b.jmp.arg = R;
     assert(rtype(r) == RTmp);
-    if (b.*.s1 == b.*.s2) {
+    if (b.s1 == b.s2) {
         chuse(r, -1, f);
-        b.*.jmp.type = Jjmp;
-        b.*.s2 = null;
+        b.jmp.type = Jjmp;
+        b.s2 = null;
         return;
     }
-    const fi = flagi(b.*.ins, b.*.ins + b.*.nins);
+    const fi = flagi(b.ins, b.ins + b.nins);
     if (fi == null or !req(fi.*.to, r)) {
         var cr = [2]Ref{ r, CON_Z };
         selcmp(&cr, Kw, false, f);
-        b.*.jmp.type = Jjf + Cine;
+        b.jmp.type = Jjf + Cine;
     } else if (iscmp(fi.*.op, &k, &c) and
         c != NCmpI + Cfeq and // see sel(), selsel()
         c != NCmpI + Cfne)
@@ -712,14 +712,14 @@ fn seljmp(b: [*c]Blk, f: *Fn) void {
             selcmp(&fi.*.arg, k, swap, f);
             fi.* = INS0(Onop);
         }
-        b.*.jmp.type = @intCast(Jjf + c);
+        b.jmp.type = @intCast(Jjf + c);
     } else if (fi.*.op == Oand and t.*.nuse == 1 and
         (rtype(fi.*.arg[0]) == RTmp or
         rtype(fi.*.arg[1]) == RTmp))
     {
         fi.*.op = Oxtest;
         fi.*.to = R;
-        b.*.jmp.type = Jjf + Cine;
+        b.jmp.type = Jjf + Cine;
         if (rtype(fi.*.arg[1]) == RCon) {
             r = fi.*.arg[1];
             fi.*.arg[1] = fi.*.arg[0];
@@ -731,7 +731,7 @@ fn seljmp(b: [*c]Blk, f: *Fn) void {
         // has to be marked as live
         if (t.*.nuse == 1)
             emit(Ocopy, Kw, R, r, R);
-        b.*.jmp.type = Jjf + Cine;
+        b.jmp.type = Jjf + Cine;
     }
 }
 
@@ -855,8 +855,8 @@ const matcher = blk: {
 
 // end of generated code
 
-fn anumber(tn: [*c]Num, b: [*c]Blk, con: [*c]Con) void {
-    for (b.*.ins[0..b.*.nins]) |*i| {
+fn anumber(tn: [*c]Num, b: *Blk, con: [*]Con) void {
+    for (b.ins[0..b.nins]) |*i| {
         if (rtype(i.to) != RTmp)
             continue;
         const n = &tn[i.to.val];
@@ -868,7 +868,7 @@ fn anumber(tn: [*c]Num, b: [*c]Blk, con: [*c]Con) void {
     }
 }
 
-fn adisp(c: [*c]Con, tn: [*c]Num, r_: Ref, f: *Fn, s: i32) Ref {
+fn adisp(c: *Con, tn: [*c]Num, r_: Ref, f: *Fn, s: i32) Ref {
     var v: [2]Ref = undefined;
     var r = r_;
 

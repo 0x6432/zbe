@@ -425,9 +425,9 @@ pub const Lnk = extern struct {
 
 pub const Fn = extern struct {
     start: [*c]Blk,
-    tmp: [*c]Tmp,
-    con: [*c]Con,
-    mem: [*c]Mem,
+    tmp: [*]Tmp,
+    con: [*]Con,
+    mem: [*]Mem,
     ntmp: i32,
     ncon: i32,
     nmem: i32,
@@ -507,7 +507,7 @@ pub const PFn = 1; // discarded after processing the function
 pub const Pool = i32;
 
 pub const util = @import("util.zig");
-pub var typ: [*c]Typ = null;
+pub var typ: [*]Typ = undefined;
 pub var insb: [NIns]Ins = undefined;
 pub var curi: [*c]Ins = null;
 /// &insb[NIns]

@@ -137,15 +137,15 @@ const RAlloc = extern struct {
     link: [*c]RAlloc,
 };
 
-fn classify(a: [*c]AClass, t: [*c]Typ, s_: uint) void {
+fn classify(a: [*c]AClass, t: *Typ, s_: uint) void {
     var s = s_;
     const s1 = s_;
     var n: uint = 0;
-    while (n < t.*.nunion) : ({
+    while (n < t.nunion) : ({
         n += 1;
         s = s1;
     }) {
-        var f: [*c]Field = &t.*.fields[n];
+        var f: [*c]Field = &t.fields[n];
         while (f.*.type != FEnd) : (f += 1) {
             assert(s <= 16);
             const cls = &a.*.cls[s / 8];
@@ -174,9 +174,9 @@ fn classify(a: [*c]AClass, t: [*c]Typ, s_: uint) void {
     }
 }
 
-fn typclass(a: [*c]AClass, t: [*c]Typ) void {
-    var sz: uint = @intCast(t.*.size);
-    var al: uint = @as(uint, 1) << @intCast(t.*.@"align");
+fn typclass(a: [*c]AClass, t: *Typ) void {
+    var sz: uint = @intCast(t.size);
+    var al: uint = @as(uint, 1) << @intCast(t.@"align");
 
     // the ABI requires sizes to be rounded
     // up to the nearest multiple of 8, moreover
@@ -188,9 +188,9 @@ fn typclass(a: [*c]AClass, t: [*c]Typ) void {
 
     a.*.type = t;
     a.*.size = sz;
-    a.*.@"align" = t.*.@"align";
+    a.*.@"align" = t.@"align";
 
-    if (t.*.isdark != 0 or sz > 16 or sz == 0) {
+    if (t.isdark != 0 or sz > 16 or sz == 0) {
         // large or unaligned structures are
         // required to be passed in memory
         a.*.inmem = 1;
@@ -217,18 +217,18 @@ fn retr(reg: *[2]Ref, aret: [*c]AClass) i32 {
     return ca;
 }
 
-fn selret(b: [*c]Blk, f: *Fn) void {
+fn selret(b: *Blk, f: *Fn) void {
     var reg: [2]Ref = undefined;
     var aret: AClass = undefined;
     var ca: i32 = undefined;
 
-    const j: i32 = @intCast(b.*.jmp.type);
+    const j: i32 = @intCast(b.jmp.type);
 
     if (!isret(j) or j == Jret0)
         return;
 
-    const r0 = b.*.jmp.arg;
-    b.*.jmp.type = Jret0;
+    const r0 = b.jmp.arg;
+    b.jmp.type = Jret0;
 
     if (j == Jretc) {
         typclass(&aret, &all.typ[@intCast(f.retty)]);
@@ -258,7 +258,7 @@ fn selret(b: [*c]Blk, f: *Fn) void {
         }
     }
 
-    b.*.jmp.arg = CALL(ca);
+    b.jmp.arg = CALL(ca);
 }
 
 fn argsclass(i_0: [*c]Ins, i_1: [*c]Ins, ac: [*c]AClass, op: i32, aret: [*c]AClass, env: *Ref) i32 {
@@ -622,22 +622,22 @@ fn selpar(f: *Fn, i_0: [*c]Ins, i_1: [*c]Ins) i32 {
     return fa | (s * 4) << 12;
 }
 
-fn split(f: *Fn, b: [*c]Blk) [*c]Blk {
+fn split(f: *Fn, b: *Blk) [*c]Blk {
     f.nblk += 1;
     const bn = newblk();
     idup(bn, all.curi, @intCast(ptrdiff(all.insbEnd(), all.curi)));
     all.curi = all.insbEnd();
-    b.*.visit += 1;
-    bn.*.visit = b.*.visit;
-    bn.*.name = strf(PFn, "{s}.{d}", .{ cs(b.*.name), b.*.visit });
-    bn.*.loop = b.*.loop;
-    bn.*.link = b.*.link;
-    b.*.link = bn;
+    b.visit += 1;
+    bn.*.visit = b.visit;
+    bn.*.name = strf(PFn, "{s}.{d}", .{ cs(b.name), b.visit });
+    bn.*.loop = b.loop;
+    bn.*.link = b.link;
+    b.link = bn;
     return bn;
 }
 
-fn chpred(b: [*c]Blk, bp: [*c]Blk, bp1: [*c]Blk) void {
-    var p_it: ?*Phi = b.*.phi;
+fn chpred(b: *Blk, bp: [*c]Blk, bp1: *Blk) void {
+    var p_it: ?*Phi = b.phi;
     while (p_it) |p| : (p_it = p.link) {
         var a: uint = 0;
         while (p.blk[a] != bp) : (a += 1)
@@ -646,7 +646,7 @@ fn chpred(b: [*c]Blk, bp: [*c]Blk, bp1: [*c]Blk) void {
     }
 }
 
-fn selvaarg(f: *Fn, b: [*c]Blk, i: [*c]Ins) void {
+fn selvaarg(f: *Fn, b: *Blk, i: [*c]Ins) void {
     const c4 = getcon(4, f);
     const c8 = getcon(8, f);
     const c16 = getcon(16, f);
@@ -677,13 +677,13 @@ fn selvaarg(f: *Fn, b: [*c]Blk, i: [*c]Ins) void {
     const loc = newtmp("abi", Kl, f);
     emit(Oload, i.*.cls, i.*.to, loc, R);
     const b0 = split(f, b);
-    b0.*.jmp = b.*.jmp;
-    b0.*.s1 = b.*.s1;
-    b0.*.s2 = b.*.s2;
-    if (b.*.s1 != null)
-        chpred(b.*.s1, b, b0);
-    if (b.*.s2 != null and b.*.s2 != b.*.s1)
-        chpred(b.*.s2, b, b0);
+    b0.*.jmp = b.jmp;
+    b0.*.s1 = b.s1;
+    b0.*.s2 = b.s2;
+    if (b.s1 != null)
+        chpred(b.s1, b, b0);
+    if (b.s2 != null and b.s2 != b.s1)
+        chpred(b.s2, b, b0);
 
     const lreg = newtmp("abi", Kl, f);
     const nr = newtmp("abi", Kl, f);
@@ -725,10 +725,10 @@ fn selvaarg(f: *Fn, b: [*c]Blk, i: [*c]Ins) void {
     b0.*.phi.*.arg[1] = lreg;
     r0 = newtmp("abi", Kl, f);
     r1 = newtmp("abi", Kw, f);
-    b.*.jmp.type = Jjnz;
-    b.*.jmp.arg = r1;
-    b.*.s1 = breg;
-    b.*.s2 = bstk;
+    b.jmp.type = Jjnz;
+    b.jmp.arg = r1;
+    b.s1 = breg;
+    b.s2 = bstk;
     const c = getcon(if (isint) 48 else 176, f);
     emit(Ocmpw + Ciult, Kw, r1, nr, c);
     emit(Oloadsw, Kl, nr, r0, R);

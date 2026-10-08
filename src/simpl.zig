@@ -88,18 +88,18 @@ fn ispow2(v: u64) bool {
     return v != 0 and (v & (v - 1)) == 0;
 }
 
-fn ins(pi: *[*c]Ins, new: *bool, b: [*c]Blk, f: *Fn) void {
+fn ins(pi: *[*c]Ins, new: *bool, b: *Blk, f: *Fn) void {
     const i = pi.*;
     // simplify more instructions here;
     // copy 0 into xor, bit rotations,
     // etc.
     switch (i.*.op) {
         Oblit1 => {
-            assert(i > b.*.ins);
+            assert(i > b.ins);
             assert((i - 1).*.op == Oblit0);
             if (!new.*) {
                 all.curi = all.insbEnd();
-                const ni: ulong = @intCast((b.*.ins + b.*.nins) - (i + 1));
+                const ni: ulong = @intCast((b.ins + b.nins) - (i + 1));
                 all.curi -= ni;
                 _ = icpy(all.curi, i + 1, ni);
                 new.* = true;

@@ -1194,7 +1194,7 @@ fn parsefn(lnk: [*c]Lnk) [*c]Fn {
     return curf;
 }
 
-fn parsefields(fld: [*c]Field, ty: [*c]Typ, t_: i32) void {
+fn parsefields(fld: [*c]Field, ty: *Typ, t_: i32) void {
     var t = t_;
     var ty1: [*c]Typ = undefined;
     var c: i32 = undefined;
@@ -1204,7 +1204,7 @@ fn parsefields(fld: [*c]Field, ty: [*c]Typ, t_: i32) void {
 
     var n: usize = 0;
     var sz: u64 = 0;
-    var al = ty.*.@"align";
+    var al = ty.@"align";
     while (t != Trbrace) {
         ty1 = null;
         switch (t) {
@@ -1282,11 +1282,11 @@ fn parsefields(fld: [*c]Field, ty: [*c]Typ, t_: i32) void {
         err(", or }} expected", .{});
     fld[n].type = FEnd;
     a = @as(i32, 1) << @intCast(al);
-    if (sz < ty.*.size)
-        sz = ty.*.size;
+    if (sz < ty.size)
+        sz = ty.size;
     const au: u64 = @bitCast(@as(i64, a));
-    ty.*.size = (sz +% au -% 1) & (0 -% au);
-    ty.*.@"align" = al;
+    ty.size = (sz +% au -% 1) & (0 -% au);
+    ty.@"align" = al;
 }
 
 fn parsetyp() void {
@@ -1350,25 +1350,25 @@ fn parsetyp() void {
     ty.*.nunion = n;
 }
 
-fn parsedatref(d: [*c]Dat) void {
-    d.*.isref = 1;
-    d.*.u.ref.name = strf(PFn, "{s}", .{cs(tokval.str)});
-    d.*.u.ref.off = 0;
+fn parsedatref(d: *Dat) void {
+    d.isref = 1;
+    d.u.ref.name = strf(PFn, "{s}", .{cs(tokval.str)});
+    d.u.ref.off = 0;
     const t = peek();
     if (t == Tplus) {
         _ = next();
         if (next() != Tint)
             err("invalid token after offset in ref", .{});
-        d.*.u.ref.off = tokval.num;
+        d.u.ref.off = tokval.num;
     }
 }
 
-fn parsedatstr(d: [*c]Dat) void {
-    d.*.isstr = 1;
-    d.*.u.str = strf(PFn, "{s}", .{cs(tokval.str)});
+fn parsedatstr(d: *Dat) void {
+    d.isstr = 1;
+    d.u.str = strf(PFn, "{s}", .{cs(tokval.str)});
 }
 
-fn parsedat(cb: *const fn ([*c]Dat) void, lnk: [*c]Lnk) void {
+fn parsedat(cb: *const fn (*Dat) void, lnk: [*c]Lnk) void {
     var t: i32 = undefined;
     var d: Dat = undefined;
 
@@ -1435,27 +1435,27 @@ fn parsedat(cb: *const fn ([*c]Dat) void, lnk: [*c]Lnk) void {
     cb(&d);
 }
 
-fn parselnk(lnk: [*c]Lnk) i32 {
+fn parselnk(lnk: *Lnk) i32 {
     var haslnk = false;
     while (true) : (haslnk = true) {
         const t = nextnl();
         switch (t) {
-            Texport => lnk.*.@"export" = 1,
-            Tthread => lnk.*.thread = 1,
-            Tcommon => lnk.*.common = 1,
+            Texport => lnk.@"export" = 1,
+            Tthread => lnk.thread = 1,
+            Tcommon => lnk.common = 1,
             Tsection => {
-                if (lnk.*.sec != null)
+                if (lnk.sec != null)
                     err("only one section allowed", .{});
                 if (next() != Tstr)
                     err("section \"name\" expected", .{});
-                lnk.*.sec = strf(PFn, "{s}", .{cs(tokval.str)});
+                lnk.sec = strf(PFn, "{s}", .{cs(tokval.str)});
                 if (peek() == Tstr) {
                     _ = next();
-                    lnk.*.secf = strf(PFn, "{s}", .{cs(tokval.str)});
+                    lnk.secf = strf(PFn, "{s}", .{cs(tokval.str)});
                 }
             },
             else => {
-                if (t == Tfunc and lnk.*.thread != 0)
+                if (t == Tfunc and lnk.thread != 0)
                     err("only data may have thread linkage", .{});
                 if (haslnk and t != Tdata and t != Tfunc)
                     err("only data and function have linkage", .{});
@@ -1465,7 +1465,7 @@ fn parselnk(lnk: [*c]Lnk) i32 {
     }
 }
 
-pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*c]u8) void, data: *const fn ([*c]Dat) void, func: *const fn (*Fn) void) void {
+pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*c]u8) void, data: *const fn (*Dat) void, func: *const fn (*Fn) void) void {
     var lnk: Lnk = undefined;
 
     lexinit();
@@ -1505,25 +1505,25 @@ pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*c]u8) voi
     }
 }
 
-fn printcon(c: [*c]Con, f: *Writer) Writer.Error!void {
-    switch (c.*.type) {
+fn printcon(c: *Con, f: *Writer) Writer.Error!void {
+    switch (c.type) {
         CUndef => {},
         CAddr => {
-            if ((c.*.sym.type & SExt) != 0)
+            if ((c.sym.type & SExt) != 0)
                 try f.print("extern ", .{});
-            if ((c.*.sym.type & SThr) != 0)
+            if ((c.sym.type & SThr) != 0)
                 try f.print("thread ", .{});
-            try f.print("${s}", .{cs(str(c.*.sym.id))});
-            if (c.*.bits.i != 0)
-                try f.print("{d:1}", .{c.*.bits.i});
+            try f.print("${s}", .{cs(str(c.sym.id))});
+            if (c.bits.i != 0)
+                try f.print("{d:1}", .{c.bits.i});
         },
         CBits => {
-            if (c.*.flt == 1)
-                try f.print("s_{f}", .{cfloat(c.*.bits.s)})
-            else if (c.*.flt == 2)
-                try f.print("d_{f}", .{cfloat(c.*.bits.d)})
+            if (c.flt == 1)
+                try f.print("s_{f}", .{cfloat(c.bits.s)})
+            else if (c.flt == 2)
+                try f.print("d_{f}", .{cfloat(c.bits.d)})
             else
-                try f.print("{d}", .{c.*.bits.i});
+                try f.print("{d}", .{c.bits.i});
         },
         else => {},
     }

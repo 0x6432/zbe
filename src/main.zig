@@ -83,11 +83,11 @@ fn writeFailed() noreturn {
     std.process.exit(1);
 }
 
-fn data(d: [*c]Dat) void {
+fn data(d: *Dat) void {
     if (dbg)
         return;
     emitdat(d, outf) catch writeFailed();
-    if (d.*.type == DEnd) {
+    if (d.type == DEnd) {
         outf.writeAll("/* end data */\n\n") catch writeFailed();
         freeall();
     }

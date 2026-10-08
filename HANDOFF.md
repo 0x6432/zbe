@@ -102,6 +102,11 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    iterated array. Index loops `while (n < f.ntmp)` are kept as while
    loops on purpose (bodies may call newtmp and grow the bound).
    Progress metric: `[*c]` 740 -> 694, `.*.` 3538 -> 3052.
+   DONE (4d): ptrparams for Blk, Phi, Tmp, Con, Typ, Lnk, Dat, Use, Alias;
+   Fn.tmp/con/mem and all.typ are `[*]T` (so `&f.tmp[i]` is `*Tmp`).
+   Metric now `[*c]` 560, `.*.` 2594. Failed/skipped: BSet params (C
+   `[1]BSet` array-of-one idiom must become plain BSet first), Num (null
+   arg in amd64 isel sel()).
    TODO: rest of `[*c]` -> `*T`/`?*T`/slices, enums for ops/classes/jumps.
    Notes: Zig forbids `<` on `[*]T` (only `[*c]`) and `&cptr[i]` is
    `*allowzero T` (won't coerce to *T) -> rewrite pointer loops to

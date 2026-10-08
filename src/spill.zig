@@ -56,14 +56,14 @@ const sort = all.sort;
 const uint = all.uint;
 // -- end imports --
 
-fn aggreg(hd: [*c]Blk, b: [*c]Blk) void {
+fn aggreg(hd: *Blk, b: *Blk) void {
     // aggregate looping information at
     // loop headers
-    bsunion(&hd.*.gen, &b.*.gen);
+    bsunion(&hd.gen, &b.gen);
     var k: usize = 0;
     while (k < 2) : (k += 1) {
-        if (b.*.nlive[k] > hd.*.nlive[k])
-            hd.*.nlive[k] = b.*.nlive[k];
+        if (b.nlive[k] > hd.nlive[k])
+            hd.nlive[k] = b.nlive[k];
     }
 }
 
@@ -267,7 +267,7 @@ fn regcpy(i: [*c]Ins) bool {
     return i.*.op == Ocopy and isreg(i.*.arg[0]);
 }
 
-fn dopm(b: [*c]Blk, i_: [*c]Ins, v: [*c]BSet) [*c]Ins {
+fn dopm(b: *Blk, i_: [*c]Ins, v: [*c]BSet) [*c]Ins {
     var u: [1]BSet = undefined;
     var r: bits = undefined;
 
@@ -292,10 +292,10 @@ fn dopm(b: [*c]Blk, i_: [*c]Ins, v: [*c]BSet) [*c]Ins {
                 store(i.*.to, tmp[t].slot);
             };
         bsset(v, i.*.arg[0].val);
-        if (!(i != b.*.ins and regcpy(i - 1))) break;
+        if (!(i != b.ins and regcpy(i - 1))) break;
     }
     bscopy(&u, v);
-    if (i != b.*.ins and (i - 1).*.op == Ocall) {
+    if (i != b.ins and (i - 1).*.op == Ocall) {
         v.*.t[0] &= ~all.T.retregs((i - 1).*.arg[1], null);
         limit2(v, all.T.nrsave[0], all.T.nrsave[1], null);
         var n: usize = 0;
@@ -317,8 +317,8 @@ fn dopm(b: [*c]Blk, i_: [*c]Ins, v: [*c]BSet) [*c]Ins {
     return i;
 }
 
-fn merge(u: [*c]BSet, bu: [*c]Blk, v: [*c]BSet, bv: [*c]Blk) void {
-    if (bu.*.loop <= bv.*.loop) {
+fn merge(u: [*c]BSet, bu: *Blk, v: [*c]BSet, bv: *Blk) void {
+    if (bu.loop <= bv.loop) {
         bsunion(u, v);
     } else {
         var t: i32 = 0;

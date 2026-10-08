@@ -335,7 +335,7 @@ const extcpy = blk: {
     break :blk t;
 };
 
-pub fn copyref(f: *Fn, b: [*c]Blk, i: [*c]Ins) Ref {
+pub fn copyref(f: *Fn, b: *Blk, i: [*c]Ins) Ref {
     var e: Ext = undefined;
     var v: i64 = undefined;
     var z: i32 = undefined;
@@ -395,18 +395,18 @@ pub fn copyref(f: *Fn, b: [*c]Blk, i: [*c]Ins) Ref {
     return R;
 }
 
-fn phieq(pa: [*c]Phi, pb: [*c]Phi) bool {
-    assert(pa.*.narg == pb.*.narg);
+fn phieq(pa: *Phi, pb: *Phi) bool {
+    assert(pa.narg == pb.narg);
     var n: uint = 0;
-    while (n < pa.*.narg) : (n += 1) {
-        const r = phiarg(pb, pa.*.blk[n]);
-        if (!req(pa.*.arg[n], r))
+    while (n < pa.narg) : (n += 1) {
+        const r = phiarg(pb, pa.blk[n]);
+        if (!req(pa.arg[n], r))
             return false;
     }
     return true;
 }
 
-pub fn phicopyref(f: *Fn, b: [*c]Blk, p: [*c]Phi) Ref {
+pub fn phicopyref(f: *Fn, b: *Blk, p: [*c]Phi) Ref {
     var s: [2][*c]Blk = undefined;
 
     // identical args
@@ -423,7 +423,7 @@ pub fn phicopyref(f: *Fn, b: [*c]Blk, p: [*c]Phi) Ref {
         return r;
 
     // same as a previous phi
-    var p1 = b.*.phi;
+    var p1 = b.phi;
     while (p1 != p) : (p1 = p1.*.link) {
         assert(p1 != null);
         if (phieq(p1, p))
@@ -432,7 +432,7 @@ pub fn phicopyref(f: *Fn, b: [*c]Blk, p: [*c]Phi) Ref {
 
     // can be replaced by a
     // dominating jnz arg
-    const d = b.*.idom;
+    const d = b.idom;
     if (p.*.narg != 2 or d.*.jmp.type != Jjnz or !isw1(f, d.*.jmp.arg))
         return R;
 

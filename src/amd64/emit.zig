@@ -331,22 +331,22 @@ fn slot(r: Ref, e: *E) i32 {
     } else return -4 * (e.@"fn".*.slot - s);
 }
 
-fn emitcon(con: [*c]Con, e: *E) Writer.Error!void {
-    switch (con.*.type) {
+fn emitcon(con: *Con, e: *E) Writer.Error!void {
+    switch (con.type) {
         CAddr => {
-            const l = str(con.*.sym.id);
+            const l = str(con.sym.id);
             const p: [*c]const u8 = if (l[0] == '"') "" else &all.T.assym;
-            if (con.*.sym.type == SThr) {
+            if (con.sym.type == SThr) {
                 assert(all.T.apple == 0);
                 try e.f.print("%fs:{s}{s}@tpoff", .{cs(p), cs(l)});
             } else {
-                assert((con.*.sym.type & ~@as(i32, SExt)) == SGlo);
+                assert((con.sym.type & ~@as(i32, SExt)) == SGlo);
                 try e.f.print("{s}{s}", .{cs(p), cs(l)});
             }
-            if (con.*.bits.i != 0)
-                try e.f.print("{d:1}", .{con.*.bits.i});
+            if (con.bits.i != 0)
+                try e.f.print("{d:1}", .{con.bits.i});
         },
-        CBits => try e.f.print("{d}", .{con.*.bits.i}),
+        CBits => try e.f.print("{d}", .{con.bits.i}),
         else => die("unreachable", .{}),
     }
 }

@@ -63,10 +63,10 @@ fn fixphis(f: *Fn) void {
     }
 }
 
-fn addpred(bp: [*c]Blk, b: [*c]Blk) void {
-    b.*.npred += 1;
-    vgrow(&b.*.pred, b.*.npred);
-    b.*.pred[b.*.npred - 1] = bp;
+fn addpred(bp: *Blk, b: *Blk) void {
+    b.npred += 1;
+    vgrow(&b.pred, b.npred);
+    b.pred[b.npred - 1] = bp;
 }
 
 pub fn fillpreds(f: *Fn) void {
@@ -200,19 +200,19 @@ pub fn dom(b1: [*c]Blk, b2: [*c]Blk) bool {
     return b1 == b2 or sdom(b1, b2);
 }
 
-fn addfron(a: [*c]Blk, b: [*c]Blk) void {
+fn addfron(a: *Blk, b: [*c]Blk) void {
     var n: uint = 0;
-    while (n < a.*.nfron) : (n += 1)
-        if (a.*.fron[n] == b)
+    while (n < a.nfron) : (n += 1)
+        if (a.fron[n] == b)
             return;
-    if (a.*.nfron == 0) {
-        a.*.nfron += 1;
-        a.*.fron = vnewT([*c]Blk, a.*.nfron, PFn);
+    if (a.nfron == 0) {
+        a.nfron += 1;
+        a.fron = vnewT([*c]Blk, a.nfron, PFn);
     } else {
-        a.*.nfron += 1;
-        vgrow(&a.*.fron, a.*.nfron);
+        a.nfron += 1;
+        vgrow(&a.fron, a.nfron);
     }
-    a.*.fron[a.*.nfron - 1] = b;
+    a.fron[a.nfron - 1] = b;
 }
 
 /// fill the dominance frontier
@@ -236,17 +236,17 @@ pub fn fillfron(f: *Fn) void {
     }
 }
 
-fn loopmark(hd: [*c]Blk, b: [*c]Blk, f: *const fn ([*c]Blk, [*c]Blk) void) void {
-    if (b.*.id < hd.*.id or b.*.visit == hd.*.id)
+fn loopmark(hd: *Blk, b: *Blk, f: *const fn (*Blk, *Blk) void) void {
+    if (b.id < hd.id or b.visit == hd.id)
         return;
-    b.*.visit = hd.*.id;
+    b.visit = hd.id;
     f(hd, b);
     var p: uint = 0;
-    while (p < b.*.npred) : (p += 1)
-        loopmark(hd, b.*.pred[p], f);
+    while (p < b.npred) : (p += 1)
+        loopmark(hd, b.pred[p], f);
 }
 
-pub fn loopiter(f: *Fn, func: *const fn ([*c]Blk, [*c]Blk) void) void {
+pub fn loopiter(f: *Fn, func: *const fn (*Blk, *Blk) void) void {
     var b = f.start;
     while (b != null) : (b = b.*.link)
         b.*.visit = NOID;
@@ -305,9 +305,9 @@ pub fn lca(b1_: [*c]Blk, b2_: [*c]Blk) [*c]Blk {
     return b1;
 }
 
-pub fn multloop(hd: [*c]Blk, b: [*c]Blk) void {
+pub fn multloop(hd: *Blk, b: *Blk) void {
     _ = hd;
-    b.*.loop *= 10;
+    b.loop *= 10;
 }
 
 pub fn fillloop(f: *Fn) void {
@@ -379,7 +379,7 @@ fn reachrec(b: [*c]Blk, to: [*c]Blk) bool {
 }
 
 /// Blk.visit needs to be clear at entry
-pub fn reaches(f: *Fn, b_: [*c]Blk, to: [*c]Blk) bool {
+pub fn reaches(f: *Fn, b_: *Blk, to: [*c]Blk) bool {
     assert(to != null);
     const r = reachrec(b_, to);
     var b_it: ?*Blk = f.start;
@@ -390,8 +390,8 @@ pub fn reaches(f: *Fn, b_: [*c]Blk, to: [*c]Blk) bool {
 
 /// can b reach 'to' not through excl
 /// Blk.visit needs to be clear at entry
-pub fn reachesnotvia(f: *Fn, b: [*c]Blk, to: [*c]Blk, excl: [*c]Blk) bool {
-    excl.*.visit = 1;
+pub fn reachesnotvia(f: *Fn, b: *Blk, to: *Blk, excl: *Blk) bool {
+    excl.visit = 1;
     return reaches(f, b, to);
 }
 

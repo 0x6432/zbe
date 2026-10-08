@@ -78,10 +78,10 @@ const Inlo12 = 4;
 const Inhi12 = 5;
 const Inlo24 = 6;
 
-fn imm(c: [*c]Con, k: i32, pn: *i64) i32 {
-    if (c.*.type != CBits)
+fn imm(c: *Con, k: i32, pn: *i64) i32 {
+    if (c.type != CBits)
         return Iother;
-    var n = c.*.bits.i;
+    var n = c.bits.i;
     if (k == Kw)
         n = @as(i32, @truncate(n));
     var i: i32 = Iplo12;
@@ -282,21 +282,21 @@ fn sel(i_: Ins, f: *Fn) void {
     }
 }
 
-fn seljmp(b: [*c]Blk, f: *Fn) void {
+fn seljmp(b: *Blk, f: *Fn) void {
     var ck: i32 = undefined;
     var cc: i32 = undefined;
 
-    if (b.*.jmp.type == Jret0 or
-        b.*.jmp.type == Jjmp or
-        b.*.jmp.type == Jhlt)
+    if (b.jmp.type == Jret0 or
+        b.jmp.type == Jjmp or
+        b.jmp.type == Jhlt)
         return;
-    assert(b.*.jmp.type == Jjnz);
-    const r = b.*.jmp.arg;
+    assert(b.jmp.type == Jjnz);
+    const r = b.jmp.arg;
     var use: i32 = -1;
-    b.*.jmp.arg = R;
+    b.jmp.arg = R;
     var ir: [*c]Ins = null;
-    var i = b.*.ins + b.*.nins;
-    while (i > b.*.ins) {
+    var i = b.ins + b.nins;
+    while (i > b.ins) {
         i -= 1;
         if (req(i.*.to, r)) {
             use = @intCast(f.tmp[r.val].nuse);
@@ -307,12 +307,12 @@ fn seljmp(b: [*c]Blk, f: *Fn) void {
     if (ir != null and use == 1 and iscmp(ir.*.op, &ck, &cc)) {
         if (selcmp(&ir.*.arg, ck, f))
             cc = cmpop(cc);
-        b.*.jmp.type = @intCast(Jjf + cc);
+        b.jmp.type = @intCast(Jjf + cc);
         ir.* = INS0(Onop);
     } else {
         var a = [2]Ref{ r, CON_Z };
         _ = selcmp(&a, Kw, f);
-        b.*.jmp.type = Jjfine;
+        b.jmp.type = Jjfine;
     }
 }
 

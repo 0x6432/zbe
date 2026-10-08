@@ -368,14 +368,14 @@ fn insert(r: [*c]Ref, rs: *[4][*c]Ref, p: usize) void {
     }
 }
 
-fn doblk(b: [*c]Blk, cur: *RMap) void {
+fn doblk(b: *Blk, cur: *RMap) void {
     var ra: [4][*c]Ref = undefined;
 
-    if (rtype(b.*.jmp.arg) == RTmp)
-        b.*.jmp.arg = ralloc(cur, @intCast(b.*.jmp.arg.val));
+    if (rtype(b.jmp.arg) == RTmp)
+        b.jmp.arg = ralloc(cur, @intCast(b.jmp.arg.val));
     all.curi = all.insbEnd();
-    var i_1 = b.*.ins + b.*.nins;
-    while (i_1 != b.*.ins) {
+    var i_1 = b.ins + b.nins;
+    while (i_1 != b.ins) {
         i_1 -= 1;
         emiti(i_1.*);
         const i = all.curi;
@@ -476,12 +476,12 @@ fn doblk(b: [*c]Blk, cur: *RMap) void {
 
 /// qsort() comparison function to peel
 /// loop nests from inside out
-fn carve(ba: [*c]Blk, bb: [*c]Blk) std.math.Order {
+fn carve(ba: *Blk, bb: *Blk) std.math.Order {
     // todo, evaluate if this order is really
     // better than the simple postorder
-    if (ba.*.loop == bb.*.loop)
-        return std.math.order(bb.*.id, ba.*.id);
-    return if (ba.*.loop > bb.*.loop) .lt else .gt;
+    if (ba.loop == bb.loop)
+        return std.math.order(bb.id, ba.id);
+    return if (ba.loop > bb.loop) .lt else .gt;
 }
 
 /// comparison function to order temporaries
@@ -531,7 +531,7 @@ pub fn rega(f: *Fn) void {
         bp.* = b;
         bp += 1;
     }
-    sort([*c]Blk, blk, f.nblk, carve);
+    sort(*Blk, @ptrCast(blk), f.nblk, carve);
     b = f.start;
     var i = b.*.ins;
     while (i < b.*.ins + b.*.nins) : (i += 1) {

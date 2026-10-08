@@ -35,9 +35,9 @@ const vnewT = all.vnewT;
 const MaxIns = 2;
 const MaxPhis = 2;
 
-fn okbranch(b: [*c]Blk) bool {
+fn okbranch(b: *Blk) bool {
     var n: i32 = 0;
-    for (b.*.ins[0..b.*.nins]) |*i| {
+    for (b.ins[0..b.nins]) |*i| {
         if (i.op != Odbgloc) {
             if (pinned(i))
                 return false;
@@ -48,9 +48,9 @@ fn okbranch(b: [*c]Blk) bool {
     return n <= MaxIns;
 }
 
-fn okjoin(b: [*c]Blk) bool {
+fn okjoin(b: *Blk) bool {
     var n: i32 = 0;
-    var p_it: ?*Phi = b.*.phi;
+    var p_it: ?*Phi = b.phi;
     while (p_it) |p| : (p_it = p.link) {
         if (KBASE(p.cls) != 0)
             return false;
@@ -59,8 +59,8 @@ fn okjoin(b: [*c]Blk) bool {
     return n <= MaxPhis;
 }
 
-fn okgraph(ifb: [*c]Blk, thenb: [*c]Blk, elseb: [*c]Blk, joinb: [*c]Blk) bool {
-    if (joinb.*.npred != 2 or !okjoin(joinb))
+fn okgraph(ifb: [*c]Blk, thenb: [*c]Blk, elseb: [*c]Blk, joinb: *Blk) bool {
+    if (joinb.npred != 2 or !okjoin(joinb))
         return false;
     assert(thenb != elseb);
     if (thenb != ifb and !okbranch(thenb))
@@ -70,7 +70,7 @@ fn okgraph(ifb: [*c]Blk, thenb: [*c]Blk, elseb: [*c]Blk, joinb: [*c]Blk) bool {
     return true;
 }
 
-fn convert(ifb: [*c]Blk, thenb: [*c]Blk, elseb: [*c]Blk, joinb: [*c]Blk) void {
+fn convert(ifb: [*c]Blk, thenb: [*c]Blk, elseb: [*c]Blk, joinb: *Blk) void {
     var ins = vnewT(Ins, 0, PHeap);
     var nins: uint = 0;
     addbins(&ins, &nins, ifb);
@@ -78,14 +78,14 @@ fn convert(ifb: [*c]Blk, thenb: [*c]Blk, elseb: [*c]Blk, joinb: [*c]Blk) void {
         addbins(&ins, &nins, thenb);
     if (elseb != ifb)
         addbins(&ins, &nins, elseb);
-    assert(joinb.*.npred == 2);
+    assert(joinb.npred == 2);
     var sel: Ins = undefined;
-    if (joinb.*.phi != null) {
+    if (joinb.phi != null) {
         sel = INS(Osel0, Kw, R, ifb.*.jmp.arg, R);
         addins(&ins, &nins, &sel);
     }
     sel = INS0(Osel1);
-    var p_it: ?*Phi = joinb.*.phi;
+    var p_it: ?*Phi = joinb.phi;
     while (p_it) |p| : (p_it = p.link) {
         sel.to = p.to;
         sel.cls = @intCast(p.cls);
@@ -98,9 +98,9 @@ fn convert(ifb: [*c]Blk, thenb: [*c]Blk, elseb: [*c]Blk, joinb: [*c]Blk) void {
     ifb.*.jmp.arg = R;
     ifb.*.s1 = joinb;
     ifb.*.s2 = null;
-    joinb.*.npred = 1;
-    joinb.*.pred[0] = ifb;
-    joinb.*.phi = null;
+    joinb.npred = 1;
+    joinb.pred[0] = ifb;
+    joinb.phi = null;
     vfree(@ptrCast(ins));
 }
 

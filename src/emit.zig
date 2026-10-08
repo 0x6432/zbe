@@ -83,16 +83,16 @@ pub fn emitdat(d: *Dat, f: *Writer) Writer.Error!void {
     switch (d.type) {
         DStart => emitdat_zero = 0,
         DEnd => {
-            if (d.lnk.*.common != 0) {
+            if (d.lnk.?.common != 0) {
                 if (emitdat_zero == -1)
                     die("invalid common data definition", .{});
                 const p: [*c]const u8 = if (d.name[0] == '"') "" else &all.T.assym;
                 try f.print(".comm {s}{s},{d}", .{cs(p), cs(d.name), emitdat_zero});
-                if (d.lnk.*.@"align" != 0)
-                    try f.print(",{d}", .{d.lnk.*.@"align"});
+                if (d.lnk.?.@"align" != 0)
+                    try f.print(",{d}", .{d.lnk.?.@"align"});
                 try f.writeByte('\n');
             } else if (emitdat_zero != -1) {
-                try emitlnk(d.name, d.lnk, SecBss, f);
+                try emitlnk(d.name, d.lnk.?, SecBss, f);
                 try f.print("\t.fill {d},1,0\n", .{emitdat_zero});
             }
         },
@@ -104,7 +104,7 @@ pub fn emitdat(d: *Dat, f: *Writer) Writer.Error!void {
         },
         else => {
             if (emitdat_zero != -1) {
-                try emitlnk(d.name, d.lnk, SecData, f);
+                try emitlnk(d.name, d.lnk.?, SecData, f);
                 if (emitdat_zero > 0)
                     try f.print("\t.fill {d},1,0\n", .{emitdat_zero});
                 emitdat_zero = -1;
@@ -129,24 +129,23 @@ const Asmbits = extern struct {
     link: ?*Asmbits,
 };
 
-var stash: [*c]Asmbits = null;
+var stash: ?*Asmbits = null;
 
 pub fn stashbits(n: bits, size: i32) i32 {
     assert(size == 4 or size == 8 or size == 16);
-    var pb: *[*c]Asmbits = &stash;
+    var pb: *?*Asmbits = &stash;
     var i: i32 = 0;
-    while (pb.* != null) : ({
-        pb = &pb.*.*.link;
+    while (pb.*) |b| : ({
+        pb = &b.link;
         i += 1;
     }) {
-        const b = pb.*;
-        if (size <= b.*.size and b.*.n == n)
+        if (size <= b.size and b.n == n)
             return i;
     }
     const b = enew(Asmbits);
-    b.*.n = n;
-    b.*.size = size;
-    b.*.link = null;
+    b.n = n;
+    b.size = size;
+    b.link = null;
     pb.* = b;
     return i;
 }
@@ -157,31 +156,30 @@ fn emitfin(f: *Writer, sec: *const [3][*c]const u8) Writer.Error!void {
     try f.print("/* floating point constants */\n", .{});
     var lg: i32 = 4;
     while (lg >= 2) : (lg -= 1) {
-        var b = stash;
+        var b_it = stash;
         var i: i32 = 0;
-        while (b != null) : ({
-            b = b.*.link;
+        while (b_it) |b| : ({
+            b_it = b.link;
             i += 1;
         }) {
-            if (b.*.size == (@as(i32, 1) << @intCast(lg))) {
+            if (b.size == (@as(i32, 1) << @intCast(lg))) {
                 try f.print(".section {s}\n" ++ ".p2align {d}\n" ++ "{s}fp{d}:", .{cs(sec[@intCast(lg - 2)]), lg, cs(&all.T.asloc), i});
                 if (lg == 4) {
-                    try f.print("\n\t.quad {d}" ++ "\n\t.quad 0\n\n", .{@as(i64, @bitCast(b.*.n))});
+                    try f.print("\n\t.quad {d}" ++ "\n\t.quad 0\n\n", .{@as(i64, @bitCast(b.n))});
                 } else if (lg == 3) {
-                    const ui: i64 = @bitCast(b.*.n);
-                    const uf: f64 = @bitCast(b.*.n);
+                    const ui: i64 = @bitCast(b.n);
+                    const uf: f64 = @bitCast(b.n);
                     try f.print("\n\t.quad {d}" ++ " /* {f} */\n\n", .{ ui, cfloat(uf) });
                 } else if (lg == 2) {
-                    const ui: i32 = @bitCast(@as(u32, @truncate(b.*.n)));
-                    const uf: f32 = @bitCast(@as(u32, @truncate(b.*.n)));
+                    const ui: i32 = @bitCast(@as(u32, @truncate(b.n)));
+                    const uf: f32 = @bitCast(@as(u32, @truncate(b.n)));
                     try f.print("\n\t.int {d}" ++ " /* {f} */\n\n", .{ ui, cfloat(uf) });
                 }
             }
         }
     }
-    while (stash != null) {
-        const b = stash;
-        stash = b.*.link;
+    while (stash) |b| {
+        stash = b.link;
         efree(@ptrCast(b));
     }
 }

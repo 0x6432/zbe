@@ -481,7 +481,7 @@ pub const DZ = 6;
 pub const Dat = extern struct {
     type: i32,
     name: [*c]u8,
-    lnk: [*c]Lnk,
+    lnk: ?*Lnk,
     u: extern union {
         num: i64,
         fltd: f64,

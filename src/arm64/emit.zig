@@ -173,7 +173,7 @@ const Ka = -2; // matches all classes
 const OMap = struct {
     op: i16,
     cls: i16,
-    fmt: [*c]const u8,
+    fmt: ?[*:0]const u8,
 };
 const omap = blk: {
     const base = [_]OMap{
@@ -293,7 +293,7 @@ fn slot(r: Ref, e: *E) u64 {
     } else return 16 + @as(u64, e.padding +% 4 *% @as(u32, @bitCast(s)));
 }
 
-fn emitf(s_: [*c]const u8, i: *Ins, e: *E) Writer.Error!void {
+fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
     var s = s_;
     var r: Ref = undefined;
     var c: u8 = undefined;
@@ -304,7 +304,7 @@ fn emitf(s_: [*c]const u8, i: *Ins, e: *E) Writer.Error!void {
     while (true) {
         var k: i32 = @intCast(i.cls);
         while (true) {
-            c = s.*;
+            c = s[0];
             s += 1;
             if (c == '%') break;
             if (c == ' ' and !sp) {
@@ -316,7 +316,7 @@ fn emitf(s_: [*c]const u8, i: *Ins, e: *E) Writer.Error!void {
             } else try e.f.writeByte(c);
         }
         sw: while (true) { // Switch:
-            c = s.*;
+            c = s[0];
             s += 1;
             switch (c) {
                 else => die("invalid escape", .{}),
@@ -373,7 +373,7 @@ fn emitf(s_: [*c]const u8, i: *Ins, e: *E) Writer.Error!void {
                     }
                 },
                 'M' => {
-                    c = s.*;
+                    c = s[0];
                     s += 1;
                     assert(c == '0' or c == '1' or c == '=');
                     r = if (c == '=') i.to else i.arg[c - '0'];
@@ -393,7 +393,7 @@ fn emitf(s_: [*c]const u8, i: *Ins, e: *E) Writer.Error!void {
 }
 
 fn loadaddr(c: *Con, rn: [*c]u8, e: *E) Writer.Error!void {
-    var s: [*c]const u8 = undefined;
+    var s: [*:0]const u8 = undefined;
 
     switch (c.sym.type) {
         else => die("unreachable", .{}),
@@ -428,10 +428,10 @@ fn loadaddr(c: *Con, rn: [*c]u8, e: *E) Writer.Error!void {
     }
 
     const l = str(c.sym.id);
-    const p: [*c]const u8 = if (l[0] == '"') "" else &all.T.assym;
-    while (s.* != 0) : (s += 1) {
-        switch (s.*) {
-            else => try e.f.writeByte(s.*),
+    const p: [*:0]const u8 = if (l[0] == '"') "" else @ptrCast(&all.T.assym);
+    while (s[0] != 0) : (s += 1) {
+        switch (s[0]) {
+            else => try e.f.writeByte(s[0]),
             'R' => try e.f.writeAll(cs(rn)),
             'S' => {
                 try e.f.writeAll(cs(p));
@@ -561,7 +561,7 @@ fn emitins(i: *Ins, e: *E) Writer.Error!void {
                 c.bits.i != 0)
                 die("invalid call argument", .{});
             const l = str(c.sym.id);
-            const p: [*c]const u8 = if (l[0] == '"') "" else &all.T.assym;
+            const p: [*:0]const u8 = if (l[0] == '"') "" else @ptrCast(&all.T.assym);
             try e.f.print("\tbl\t{s}{s}\n", .{cs(p), cs(l)});
         },
         Osalloc => {
@@ -588,7 +588,7 @@ fn table(i: *Ins, e: *E) Writer.Error!void {
             (omap[o].cls == Ki and KBASE(i.cls) == 0)))
             break;
     }
-    try emitf(omap[o].fmt, i, e);
+    try emitf(omap[o].fmt.?, i, e);
 }
 
 fn framelayout(e: *E) void {
@@ -628,7 +628,7 @@ fn framelayout(e: *E) void {
 // +=============+ <- x29
 
 const ctoa = blk: {
-    var t: [NCmp][2][*c]const u8 = @splat(.{ null, null });
+    var t: [NCmp][2]?[*:0]const u8 = @splat(.{ null, null });
     for (CMP) |x|
         t[x.c] = .{ x.s0 ++ "", x.s1 ++ "" };
     break :blk t;

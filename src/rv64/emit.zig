@@ -134,7 +134,7 @@ const Ka = -2; // matches all classes
 const OMap = struct {
     op: i16,
     cls: i16,
-    fmt: [*c]const u8,
+    fmt: ?[*:0]const u8,
 };
 const omap = [_]OMap{
     .{ .op = Oadd, .cls = Ki, .fmt = "add%k %=, %0, %1" },
@@ -223,7 +223,7 @@ const omap = [_]OMap{
 };
 
 const rname = blk: {
-    var t: [FT11 + 1][*c]const u8 = @splat(null);
+    var t: [FT11 + 1]?[*:0]const u8 = @splat(null);
     t[FP] = "fp";
     t[SP] = "sp";
     t[GP] = "gp";
@@ -262,7 +262,7 @@ fn emitaddr(c: *Con, f: *Writer) Writer.Error!void {
 
 const clschr = [_]u8{ 'w', 'l', 's', 'd' };
 
-fn emitf(s_: [*c]const u8, i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
+fn emitf(s_: [*:0]const u8, i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
     var s = s_;
     var r: Ref = undefined;
     var c: u8 = undefined;
@@ -271,7 +271,7 @@ fn emitf(s_: [*c]const u8, i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
     while (true) {
         const k: i32 = @intCast(i.cls);
         while (true) {
-            c = s.*;
+            c = s[0];
             s += 1;
             if (c == '%') break;
             if (c == 0) {
@@ -279,7 +279,7 @@ fn emitf(s_: [*c]const u8, i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
                 return;
             } else try f.writeByte(c);
         }
-        c = s.*;
+        c = s[0];
         s += 1;
         switch (c) {
             else => die("invalid escape", .{}),
@@ -315,7 +315,7 @@ fn emitf(s_: [*c]const u8, i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
                 }
             },
             'M' => {
-                c = s.*;
+                c = s[0];
                 s += 1;
                 assert(c == '0' or c == '1');
                 r = i.arg[c - '0'];
@@ -347,7 +347,7 @@ fn emitf(s_: [*c]const u8, i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
     }
 }
 
-fn loadaddr(c: *Con, rn: [*c]const u8, f: *Writer) Writer.Error!void {
+fn loadaddr(c: *Con, rn: ?[*:0]const u8, f: *Writer) Writer.Error!void {
     var off: [32]u8 = undefined;
 
     switch (c.sym.type) {
@@ -418,7 +418,7 @@ fn table(i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
             (omap[o].cls == Ki and KBASE(i.cls) == 0)))
             break;
     }
-    try emitf(omap[o].fmt, i, fn_, f);
+    try emitf(omap[o].fmt.?, i, fn_, f);
 }
 
 fn emitins(i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {

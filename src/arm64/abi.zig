@@ -667,7 +667,7 @@ fn selpar(f: *Fn, i_0: [*c]Ins, i_1: [*c]Ins) Params {
 fn split(f: *Fn, b: *Blk) [*c]Blk {
     f.nblk += 1;
     const bn = newblk();
-    idup(bn, all.curi, @intCast(ptrdiff(all.insbEnd(), all.curi)));
+    idup(bn, all.curi, @intCast(all.insbTail()));
     all.curi = all.insbEnd();
     b.visit += 1;
     bn.visit = b.visit;
@@ -840,7 +840,7 @@ pub fn arm64_abi(f: *Fn) void {
             break;
     }
     const p = selpar(f, b.*.ins, i);
-    const n0: uint = @intCast(ptrdiff(all.insbEnd(), all.curi));
+    const n0: uint = @intCast(all.insbTail());
     const ioff: uint = @intCast(ptrdiff(i, b.*.ins));
     const n1: uint = b.*.nins - ioff;
     vgrow(&b.*.ins, n0 + n1);
@@ -891,7 +891,7 @@ pub fn arm64_abi(f: *Fn) void {
                 while (il != null) : (il = il.*.link)
                     emiti(il.*.i);
             }
-            idup(b, all.curi, @intCast(ptrdiff(all.insbEnd(), all.curi)));
+            idup(b, all.curi, @intCast(all.insbTail()));
         }
         if (b == f.start) break;
     }
@@ -935,7 +935,7 @@ pub fn apple_extsb(f: *Fn) void {
                 emiti(i.*);
                 if (isargbh(i.*.op)) {
                     i.*.to = newtmp("abi", Kl, f);
-                    all.curi.*.arg[0] = i.*.to;
+                    all.curi[0].arg[0] = i.*.to;
                 }
             }
             i = i_1;
@@ -947,7 +947,7 @@ pub fn apple_extsb(f: *Fn) void {
                 }
             }
         }
-        idup(b, all.curi, @intCast(ptrdiff(all.insbEnd(), all.curi)));
+        idup(b, all.curi, @intCast(all.insbTail()));
     }
 
     if (all.debug['A'] != 0) {

@@ -372,7 +372,7 @@ fn sink(f: *Fn) void {
         }
         sinkref(f, b, &b.jmp.arg);
     }
-    addgcmins(f, all.curi[0..@intCast(all.insbEnd() - all.curi)]);
+    addgcmins(f, all.curi[0..all.insbTail()]);
 }
 
 /// requires use dom

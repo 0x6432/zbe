@@ -487,10 +487,10 @@ pub fn argcls(i: *Ins, n: anytype) i32 {
 }
 
 pub fn emit(op: anytype, k: anytype, to: Ref, arg0: Ref, arg1: Ref) void {
-    if (all.curi == @as([*c]Ins, &all.insb))
+    if (all.curi == @as([*]Ins, &all.insb))
         die("emit, too many instructions", .{});
     all.curi -= 1;
-    all.curi.* = Ins{
+    all.curi[0] = Ins{
         .op = @intCast(op),
         .cls = @intCast(k),
         .to = to,

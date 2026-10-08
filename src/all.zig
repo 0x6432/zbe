@@ -509,10 +509,20 @@ pub const Pool = i32;
 pub const util = @import("util.zig");
 pub var typ: [*]Typ = undefined;
 pub var insb: [NIns]Ins = undefined;
-pub var curi: [*c]Ins = null;
+/// cursor into insb; emit() fills insb backwards from insbEnd(),
+/// the parser fills it forwards from insb[0]
+pub var curi: [*]Ins = &insb;
 /// &insb[NIns]
-pub inline fn insbEnd() [*c]Ins {
-    return @as([*c]Ins, &insb) + NIns;
+pub inline fn insbEnd() [*]Ins {
+    return @as([*]Ins, &insb) + NIns;
+}
+/// number of instructions between curi and the end of insb
+pub inline fn insbTail() usize {
+    return insbEnd() - curi;
+}
+/// number of instructions between the start of insb and curi
+pub inline fn insbHead() usize {
+    return curi - @as([*]Ins, &insb);
 }
 pub const hash = util.hash;
 pub const die = util.die;

@@ -378,7 +378,6 @@ pub fn spill(f: *Fn) void {
 
         // 1. find temporaries in registers at
         // the end of the block (put them in v)
-        all.curi = null;
         const s1 = b.s1;
         const s2 = b.s2;
         var hd_: ?*Blk = null;
@@ -543,7 +542,7 @@ pub fn spill(f: *Fn) void {
                 p.to = slot(@intCast(p.to.val));
         }
         bscopy(&b.in, &v);
-        idup(b, all.curi, @intCast(all.insbEnd() - all.curi));
+        idup(b, all.curi, @intCast(all.insbTail()));
     }
 
     // align the locals to a 16 byte boundary

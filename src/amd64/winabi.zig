@@ -685,7 +685,7 @@ fn lower_args_for_block(func: *Fn, block: [*c]Blk, param_reg_usage: *RegisterUsa
 
     // emit/emiti add instructions from the end to the beginning of the temporary
     // global buffer. dup the final version into the final block storage.
-    block.*.nins = @intCast(ptrdiff(all.insbEnd(), all.curi));
+    block.*.nins = @intCast(all.insbTail());
     idup(block, all.curi, block.*.nins);
 }
 
@@ -786,7 +786,7 @@ fn lower_func_parameters(func: *Fn) RegisterUsage {
         emit(Ocopy, Kl, env, TMP(RAX), R);
     }
 
-    const num_created_instrs: uint = @intCast(ptrdiff(all.insbEnd(), all.curi));
+    const num_created_instrs: uint = @intCast(all.insbTail());
     const num_other_after_instrs: uint = @intCast(start_block.*.nins - num_params);
     const new_total_instrs = num_other_after_instrs + num_created_instrs;
     const new_instrs = vnewT(Ins, new_total_instrs, PFn);

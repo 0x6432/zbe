@@ -410,13 +410,13 @@ var tokval: struct {
 } = .{ .chr = 0, .fltd = 0, .flts = 0, .num = 0, .str = null };
 var lnum: i32 = 0;
 
-var curf: [*c]Fn = null;
-var tmph: [*c]i32 = null;
+var curf: *Fn = undefined;
+var tmph: [*]i32 = undefined;
 var tmphcap: i32 = 0;
-var plink: [*c][*c]Phi = null;
-var curb: [*c]Blk = null;
-var blink: [*c][*c]Blk = null;
-var blkh: [BMask + 1][*c]Blk = @splat(null);
+var plink: *?*Phi = undefined;
+var curb: ?*Blk = null;
+var blink: *?*Blk = undefined;
+var blkh: [BMask + 1]?*Blk = @splat(null);
 var nblk: i32 = 0;
 var rcls: i32 = 0;
 var ntyp: uint = 0;
@@ -630,13 +630,13 @@ fn tmpref() Ref {
     var t: i32 = undefined;
     var i: i32 = undefined;
 
-    if (@divTrunc(tmphcap, 2) <= curf.*.ntmp - Tmp0) {
-        efree(@ptrCast(tmph));
+    if (@divTrunc(tmphcap, 2) <= curf.ntmp - Tmp0) {
+        if (tmphcap != 0) efree(@ptrCast(tmph));
         tmphcap = if (tmphcap != 0) tmphcap * 2 else TMask + 1;
         tmph = ealloc(i32, tmphcap);
         t = Tmp0;
-        while (t < curf.*.ntmp) : (t += 1) {
-            i = @bitCast(hash(curf.*.tmp[@intCast(t)].name) & @as(u32, @intCast(tmphcap - 1)));
+        while (t < curf.ntmp) : (t += 1) {
+            i = @bitCast(hash(curf.tmp[@intCast(t)].name) & @as(u32, @intCast(tmphcap - 1)));
             while (tmph[@intCast(i)] != 0) : (i = (i + 1) & (tmphcap - 1)) {}
             tmph[@intCast(i)] = t;
         }
@@ -644,13 +644,13 @@ fn tmpref() Ref {
     i = @bitCast(hash(tokval.str) & @as(u32, @intCast(tmphcap - 1)));
     while (tmph[@intCast(i)] != 0) : (i = (i + 1) & (tmphcap - 1)) {
         t = tmph[@intCast(i)];
-        if (streq(curf.*.tmp[@intCast(t)].name, tokval.str))
+        if (streq(curf.tmp[@intCast(t)].name, tokval.str))
             return TMP(t);
     }
-    t = curf.*.ntmp;
+    t = curf.ntmp;
     tmph[@intCast(i)] = t;
     _ = newtmp(null, Kx, curf);
-    curf.*.tmp[@intCast(t)].name = strf(PFn, "{s}", .{cs(tokval.str)});
+    curf.tmp[@intCast(t)].name = strf(PFn, "{s}", .{cs(tokval.str)});
     return TMP(t);
 }
 
@@ -743,7 +743,7 @@ fn parserefl(arg: bool) bool {
     var vararg = false;
     expect(Tlparen);
     while (peek() != Trparen) {
-        if (ptrdiff(all.curi, @as([*c]Ins, &all.insb)) >= NIns)
+        if (all.insbHead() >= NIns)
             err("too many instructions", .{});
         if (!arg and vararg)
             err("no parameters allowed after '...'", .{});
@@ -754,8 +754,8 @@ fn parserefl(arg: bool) bool {
                     err("only one '...' allowed", .{});
                 vararg = true;
                 if (arg) {
-                    all.curi.* = std.mem.zeroes(Ins);
-                    all.curi.*.op = Oargv;
+                    all.curi[0] = std.mem.zeroes(Ins);
+                    all.curi[0].op = Oargv;
                     all.curi += 1;
                 }
                 _ = next();
@@ -782,24 +782,24 @@ fn parserefl(arg: bool) bool {
                 err("invalid function parameter", .{});
             if (env) {
                 if (arg)
-                    all.curi.* = mkins(Oarge, k, R, r, R)
+                    all.curi[0] = mkins(Oarge, k, R, r, R)
                 else
-                    all.curi.* = mkins(Opare, k, r, R, R);
+                    all.curi[0] = mkins(Opare, k, r, R, R);
             } else if (k == Kc) {
                 if (arg)
-                    all.curi.* = mkins(Oargc, Kl, R, TYPE(ty), r)
+                    all.curi[0] = mkins(Oargc, Kl, R, TYPE(ty), r)
                 else
-                    all.curi.* = mkins(Oparc, Kl, r, TYPE(ty), R);
+                    all.curi[0] = mkins(Oparc, Kl, r, TYPE(ty), R);
             } else if (k >= Ksb) {
                 if (arg)
-                    all.curi.* = mkins(Oargsb + (k - Ksb), Kw, R, r, R)
+                    all.curi[0] = mkins(Oargsb + (k - Ksb), Kw, R, r, R)
                 else
-                    all.curi.* = mkins(Oparsb + (k - Ksb), Kw, r, R, R);
+                    all.curi[0] = mkins(Oparsb + (k - Ksb), Kw, r, R, R);
             } else {
                 if (arg)
-                    all.curi.* = mkins(Oarg, k, R, r, R)
+                    all.curi[0] = mkins(Oarg, k, R, r, R)
                 else
-                    all.curi.* = mkins(Opar, k, r, R, R);
+                    all.curi[0] = mkins(Opar, k, r, R, R);
             }
             all.curi += 1;
         }
@@ -812,24 +812,24 @@ fn parserefl(arg: bool) bool {
     return vararg;
 }
 
-fn findblk() [*c]Blk {
+fn findblk() *Blk {
     const h = hash(tokval.str) & BMask;
-    var b = blkh[h];
-    while (b != null) : (b = b.*.dlink)
-        if (streq(b.*.name, tokval.str))
+    var b_it = blkh[h];
+    while (b_it) |b| : (b_it = b.dlink)
+        if (streq(b.name, tokval.str))
             return b;
-    b = newblk();
-    b.*.id = @intCast(nblk);
+    const b = newblk();
+    b.id = @intCast(nblk);
     nblk += 1;
-    b.*.name = strf(PFn, "{s}", .{cs(tokval.str)});
-    b.*.dlink = blkh[h];
+    b.name = strf(PFn, "{s}", .{cs(tokval.str)});
+    b.dlink = blkh[h];
     blkh[h] = b;
     return b;
 }
 
 fn closeblk() void {
-    idup(curb, &all.insb, @intCast(ptrdiff(all.curi, @as([*c]Ins, &all.insb))));
-    blink = &curb.*.link;
+    idup(curb.?, &all.insb, @intCast(all.insbHead()));
+    blink = &curb.?.link;
     all.curi = &all.insb;
 }
 
@@ -863,46 +863,46 @@ fn parseline(ps: PState) PState {
         Trbrace => return PEnd,
         Tlbl => {
             const b = findblk();
-            if (curb != null and curb.*.jmp.type == Jxxx) {
+            if (curb != null and curb.?.jmp.type == Jxxx) {
                 closeblk();
-                curb.*.jmp.type = Jjmp;
-                curb.*.s1 = b;
+                curb.?.jmp.type = Jjmp;
+                curb.?.s1 = b;
             }
             if (b.*.jmp.type != Jxxx)
                 err("multiple definitions of block @{s}", .{cs(b.*.name)});
             blink.* = b;
             curb = b;
-            plink = &curb.*.phi;
+            plink = &curb.?.phi;
             expect(Tnl);
             return PPhi;
         },
         Tret => {
-            curb.*.jmp.type = @intCast(Jretw + rcls);
+            curb.?.jmp.type = @intCast(Jretw + rcls);
             if (peek() == Tnl)
-                curb.*.jmp.type = Jret0
+                curb.?.jmp.type = Jret0
             else if (rcls != K0) {
                 r = parseref();
                 if (req(r, R))
                     err("invalid return value", .{});
-                curb.*.jmp.arg = r;
+                curb.?.jmp.arg = r;
             }
             flow = .close;
         },
         Tjmp => {
-            curb.*.jmp.type = Jjmp;
+            curb.?.jmp.type = Jjmp;
             flow = .jump;
         },
         Tjnz => {
-            curb.*.jmp.type = Jjnz;
+            curb.?.jmp.type = Jjnz;
             r = parseref();
             if (req(r, R))
                 err("invalid argument for jnz jump", .{});
-            curb.*.jmp.arg = r;
+            curb.?.jmp.arg = r;
             expect(Tcomma);
             flow = .jump;
         },
         Thlt => {
-            curb.*.jmp.type = Jhlt;
+            curb.?.jmp.type = Jhlt;
             flow = .close;
         },
         Odbgloc => {
@@ -932,13 +932,13 @@ fn parseline(ps: PState) PState {
     }
     if (flow == .jump) {
         expect(Tlbl);
-        curb.*.s1 = findblk();
-        if (curb.*.jmp.type != Jjmp) {
+        curb.?.s1 = findblk();
+        if (curb.?.jmp.type != Jjmp) {
             expect(Tcomma);
             expect(Tlbl);
-            curb.*.s2 = findblk();
+            curb.?.s2 = findblk();
         }
-        if (curb.*.s1 == curf.*.start or curb.*.s2 == curf.*.start)
+        if (curb.?.s1 == curf.start or curb.?.s2 == curf.start)
             err("invalid jump to the start block", .{});
         flow = .close;
     }
@@ -948,7 +948,7 @@ fn parseline(ps: PState) PState {
         return PLbl;
     }
     if (flow == .normal and op == Tcall) {
-        curf.*.leaf = 0;
+        curf.leaf = 0;
         arg[0] = parseref();
         _ = parserefl(true);
         op = Ocall;
@@ -968,7 +968,7 @@ fn parseline(ps: PState) PState {
             op = Oload;
         if (op == Talloc1 or op == Talloc2)
             op = Oalloc;
-        if (op == Ovastart and curf.*.vararg == 0)
+        if (op == Ovastart and curf.vararg == 0)
             err("cannot use vastart in non-variadic function", .{});
         if (k >= Ksb)
             err("size class must be w, l, s, or d", .{});
@@ -995,7 +995,7 @@ fn parseline(ps: PState) PState {
         _ = next();
         switch (op) {
             Tphi => {
-                if (ps != PPhi or curb == curf.*.start)
+                if (ps != PPhi or curb == curf.start)
                     err("unexpected phi instruction", .{});
                 const phi = pnew(Phi);
                 phi.to = r;
@@ -1010,21 +1010,21 @@ fn parseline(ps: PState) PState {
                 return PPhi;
             },
             Tblit => {
-                if (ptrdiff(all.curi, @as([*c]Ins, &all.insb)) >= NIns - 1)
+                if (all.insbHead() >= NIns - 1)
                     err("too many instructions", .{});
                 @memset(all.curi[0..2], std.mem.zeroes(Ins));
-                all.curi.*.op = Oblit0;
-                all.curi.*.arg[0] = arg[0];
-                all.curi.*.arg[1] = arg[1];
+                all.curi[0].op = Oblit0;
+                all.curi[0].arg[0] = arg[0];
+                all.curi[0].arg[1] = arg[1];
                 all.curi += 1;
                 if (rtype(arg[2]) != RCon)
                     err("blit size must be constant", .{});
-                const c = &curf.*.con[arg[2].val];
+                const c = &curf.con[arg[2].val];
                 r = INT(c.bits.i);
                 if (c.type != CBits or rsval(r) < 0 or rsval(r) != c.bits.i)
                     err("invalid blit size", .{});
-                all.curi.*.op = Oblit1;
-                all.curi.*.arg[0] = r;
+                all.curi[0].op = Oblit1;
+                all.curi[0].arg[0] = r;
                 all.curi += 1;
                 return PIns;
             },
@@ -1035,13 +1035,13 @@ fn parseline(ps: PState) PState {
         }
     }
     // Ins:
-    if (ptrdiff(all.curi, @as([*c]Ins, &all.insb)) >= NIns)
+    if (all.insbHead() >= NIns)
         err("too many instructions", .{});
-    all.curi.*.op = @intCast(op);
-    all.curi.*.cls = @intCast(k);
-    all.curi.*.to = r;
-    all.curi.*.arg[0] = arg[0];
-    all.curi.*.arg[1] = arg[1];
+    all.curi[0].op = @intCast(op);
+    all.curi[0].cls = @intCast(k);
+    all.curi[0].to = r;
+    all.curi[0].arg[0] = arg[0];
+    all.curi[0].arg[1] = arg[1];
     all.curi += 1;
     return PIns;
 }
@@ -1134,17 +1134,17 @@ fn typecheck(f: *Fn) void {
     }
 }
 
-fn parsefn(lnk: ?*Lnk) [*c]Fn {
+fn parsefn(lnk: *Lnk) *Fn {
     var ps: PState = undefined;
 
     curb = null;
     nblk = 0;
     all.curi = &all.insb;
     curf = pnew(Fn);
-    curf.*.ntmp = 0;
-    curf.*.ncon = 2;
-    curf.*.tmp = vnewT(Tmp, curf.*.ntmp, PFn);
-    curf.*.con = vnewT(Con, curf.*.ncon, PFn);
+    curf.ntmp = 0;
+    curf.ncon = 2;
+    curf.tmp = vnewT(Tmp, curf.ntmp, PFn);
+    curf.con = vnewT(Con, curf.ncon, PFn);
     var i: i32 = 0;
     while (i < Tmp0) : (i += 1)
         if (all.T.fpr0 <= i and i < all.T.fpr0 + all.T.nfpr) {
@@ -1152,21 +1152,21 @@ fn parsefn(lnk: ?*Lnk) [*c]Fn {
         } else {
             _ = newtmp(null, Kl, curf);
         };
-    curf.*.con[0].type = CBits;
-    curf.*.con[0].bits.i = 0xdeaddead; // UNDEF
-    curf.*.con[1].type = CBits;
-    curf.*.lnk = lnk.?.*;
-    curf.*.leaf = 1;
-    blink = &curf.*.start;
-    curf.*.retty = Kx;
+    curf.con[0].type = CBits;
+    curf.con[0].bits.i = 0xdeaddead; // UNDEF
+    curf.con[1].type = CBits;
+    curf.lnk = lnk.*;
+    curf.leaf = 1;
+    blink = &curf.start;
+    curf.retty = Kx;
     if (peek() != Tglo)
-        rcls = parsecls(&curf.*.retty)
+        rcls = parsecls(&curf.retty)
     else
         rcls = K0;
     if (next() != Tglo)
         err("function name expected", .{});
-    curf.*.name = strf(PFn, "{s}", .{cs(tokval.str)});
-    curf.*.vararg = @intFromBool(parserefl(false));
+    curf.name = strf(PFn, "{s}", .{cs(tokval.str)});
+    curf.vararg = @intFromBool(parserefl(false));
     if (nextnl() != Tlbrace)
         err("function body must start with {{", .{});
     ps = PLbl;
@@ -1176,18 +1176,16 @@ fn parsefn(lnk: ?*Lnk) [*c]Fn {
     }
     if (curb == null)
         err("empty function", .{});
-    if (curb.*.jmp.type == Jxxx)
+    if (curb.?.jmp.type == Jxxx)
         err("last block misses jump", .{});
-    curf.*.mem = vnewT(Mem, 0, PFn);
-    curf.*.nmem = 0;
-    curf.*.nblk = @intCast(nblk);
-    curf.*.rpo = vnewT(*Blk, nblk, PFn);
-    var b: ?*Blk = curf.*.start;
-    while (b != null) : (b = b.?.link)
-        b.?.dlink = null; // was trashed by findblk()
-    i = 0;
-    while (i < BMask + 1) : (i += 1)
-        blkh[@intCast(i)] = null;
+    curf.mem = vnewT(Mem, 0, PFn);
+    curf.nmem = 0;
+    curf.nblk = @intCast(nblk);
+    curf.rpo = vnewT(*Blk, nblk, PFn);
+    var b_it = curf.start;
+    while (b_it) |b| : (b_it = b.link)
+        b.dlink = null; // was trashed by findblk()
+    blkh = @splat(null);
     if (tmphcap != 0) @memset(tmph[0..@intCast(tmphcap)], 0);
     typecheck(curf);
     return curf;

@@ -206,7 +206,7 @@ fn selcmp(arg: [*c]Ref, k: i32, f: *Fn) bool {
 
     if (KBASE(k) == 1) {
         emit(Oafcmp, k, R, arg[0], arg[1]);
-        const iarg: [*c]Ref = &all.curi.*.arg;
+        const iarg: [*c]Ref = &all.curi[0].arg;
         fixarg(&iarg[0], k, false, f);
         fixarg(&iarg[1], k, false, f);
         return false;
@@ -233,7 +233,7 @@ fn selcmp(arg: [*c]Ref, k: i32, f: *Fn) bool {
         }
     }
     emit(cmp, k, R, arg[0], r);
-    const iarg: [*c]Ref = &all.curi.*.arg;
+    const iarg: [*c]Ref = &all.curi[0].arg;
     fixarg(&iarg[0], k, false, f);
     if (fix)
         fixarg(&iarg[1], k, false, f);
@@ -257,14 +257,14 @@ fn sel(i_: Ins, f: *Fn) void {
     var cc: i32 = undefined;
 
     if (INRANGE(i.op, Oalloc, Oalloc1)) {
-        const i_0 = all.curi - 1;
+        const i_0 = &(all.curi - 1)[0];
         salloc(i.to, i.arg[0], f);
         fixarg(&i_0.*.arg[0], Kl, false, f);
         return;
     }
     if (iscmp(i.op, &ck, &cc)) {
         emit(Oflag, i.cls, i.to, R, R);
-        const i_0 = all.curi;
+        const i_0 = &all.curi[0];
         if (selcmp(&i.arg, ck, f))
             i_0.*.op += @intCast(cmpop(cc))
         else
@@ -277,7 +277,7 @@ fn sel(i_: Ins, f: *Fn) void {
     }
     if (i.op != Onop) {
         emiti(i);
-        const iarg: [*c]Ref = &all.curi.*.arg; // fixarg() can change curi
+        const iarg: [*c]Ref = &all.curi[0].arg; // fixarg() can change curi
         fixarg(&iarg[0], argcls(&i, 0), false, f);
         fixarg(&iarg[1], argcls(&i, 1), false, f);
     }
@@ -365,7 +365,7 @@ pub fn arm64_isel(f: *Fn) void {
             const i = &b.*.ins[i_n];
             sel(i.*, f);
         }
-        idup(b, all.curi, @intCast(ptrdiff(all.insbEnd(), all.curi)));
+        idup(b, all.curi, @intCast(all.insbTail()));
     }
 
     if (all.debug['I'] != 0) {

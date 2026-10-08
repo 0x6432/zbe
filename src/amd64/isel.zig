@@ -351,12 +351,12 @@ fn selcmp(arg: [*c]Ref, k: i32, swap: bool, f: *Fn) void {
         arg[0] = r;
     }
     emit(Oxcmp, k, R, arg[1], arg[0]);
-    const icmp = all.curi;
+    const icmp = &all.curi[0];
     if (rtype(arg[0]) == RCon) {
         assert(k != Kw);
         icmp.*.arg[1] = newtmp("isel", k, f);
         emit(Ocopy, k, icmp.*.arg[1], arg[0], R);
-        fixarg(&all.curi.*.arg[0], k, all.curi, f);
+        fixarg(&all.curi[0].arg[0], k, all.curi, f);
     }
     fixarg(&icmp.*.arg[0], k, icmp, f);
     fixarg(&icmp.*.arg[1], k, icmp, f);
@@ -378,7 +378,7 @@ fn sel(i_: Ins, tn: [*c]Num, f: *Fn) void {
                 chuse(i.arg[1], -1, f);
                 return;
             };
-    var i_0 = all.curi;
+    const i_0 = all.curi;
     const k: i32 = @intCast(i.cls);
     sw: switch (i.op) {
         Odiv, Orem, Oudiv, Ourem => {
@@ -408,7 +408,7 @@ fn sel(i_: Ins, tn: [*c]Num, f: *Fn) void {
                 emit(Ocopy, k, TMP(RDX), CON_Z, R);
             }
             emit(Ocopy, k, TMP(RAX), i.arg[0], R);
-            fixarg(&all.curi.*.arg[0], k, all.curi, f);
+            fixarg(&all.curi[0].arg[0], k, all.curi, f);
             if (rtype(i.arg[1]) == RCon)
                 emit(Ocopy, k, r0, i.arg[1], R);
         },
@@ -429,7 +429,7 @@ fn sel(i_: Ins, tn: [*c]Num, f: *Fn) void {
             r0 = newtmp("utof", Kl, f);
             emit(Osltof, k, i.to, r0, R);
             emit(Oextuw, Kl, r0, i.arg[0], R);
-            fixarg(&all.curi.*.arg[0], k, all.curi, f);
+            fixarg(&all.curi[0].arg[0], k, all.curi, f);
         },
         Oultof => {
             // %mask =l and %arg.0, 1
@@ -462,13 +462,13 @@ fn sel(i_: Ins, tn: [*c]Num, f: *Fn) void {
             emit(Osltof, k, r0, tmp[3], R);
             emit(Oor, Kl, tmp[3], tmp[0], tmp[2]);
             emit(Oshr, Kl, tmp[2], i.arg[0], tmp[1]);
-            const ci = all.curi;
+            const ci = &all.curi[0];
             all.curi += 1;
             sel(ci.*, null, f);
             emit(Oshr, Kl, tmp[1], i.arg[0], getcon(63, f));
-            fixarg(&all.curi.*.arg[0], Kl, all.curi, f);
+            fixarg(&all.curi[0].arg[0], Kl, all.curi, f);
             emit(Oand, Kl, tmp[0], i.arg[0], getcon(1, f));
-            fixarg(&all.curi.*.arg[0], Kl, all.curi, f);
+            fixarg(&all.curi[0].arg[0], Kl, all.curi, f);
         },
         Ostoui, Odtoui => {
             if (i.op == Ostoui) {
@@ -512,7 +512,7 @@ fn sel(i_: Ins, tn: [*c]Num, f: *Fn) void {
             fixarg(&i_1.*.arg[1], kc, i_1, f);
             emit(Osar, Kl, tmp[1], tmp[0], getcon(63, f));
             emit(i.op, Kl, tmp[0], i.arg[0], R);
-            fixarg(&all.curi.*.arg[0], Kl, all.curi, f);
+            fixarg(&all.curi[0].arg[0], Kl, all.curi, f);
         },
         Onop => {},
         Ostored, Ostores, Ostorel, Ostorew, Ostoreh, Ostoreb => {
@@ -575,10 +575,9 @@ fn sel(i_: Ins, tn: [*c]Num, f: *Fn) void {
         },
     }
 
-    while (i_0 > all.curi) {
-        i_0 -= 1;
-        assert(rslot(i_0.*.arg[0], f) == -1);
-        assert(rslot(i_0.*.arg[1], f) == -1);
+    for (all.curi[0 .. i_0 - all.curi]) |*ii| {
+        assert(rslot(ii.arg[0], f) == -1);
+        assert(rslot(ii.arg[1], f) == -1);
     }
 }
 
@@ -1010,7 +1009,7 @@ pub fn amd64_isel(f: *Fn) void {
             else
                 sel(i.*, num, f);
         }
-        idup(b, all.curi, @intCast(ptrdiff(all.insbEnd(), all.curi)));
+        idup(b, all.curi, @intCast(all.insbTail()));
     }
     efree(@ptrCast(num));
 

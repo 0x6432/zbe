@@ -377,7 +377,7 @@ fn doblk(b: *Blk, cur: *RMap) void {
     while (idx != 0) {
         idx -= 1;
         emiti(b.ins[idx]);
-        const i: *Ins = all.curi;
+        const i = &all.curi[0];
         var rf: i32 = -1;
         sw: switch (i.op) {
             Ocall => {
@@ -394,7 +394,7 @@ fn doblk(b: *Blk, cur: *RMap) void {
                         all.curi += 1;
                         const mark = all.curi;
                         idx = dopm(b, idx, cur);
-                        stmov += @intCast(ptrdiff(mark, all.curi));
+                        stmov += @intCast(mark - all.curi);
                         continue;
                     }
                     if (isreg(i.to))
@@ -471,7 +471,7 @@ fn doblk(b: *Blk, cur: *RMap) void {
                 };
         }
     }
-    idup(b, all.curi, @intCast(ptrdiff(all.insbEnd(), all.curi)));
+    idup(b, all.curi, @intCast(all.insbTail()));
 }
 
 /// qsort() comparison function to peel
@@ -656,7 +656,7 @@ pub fn rega(f: *Fn) void {
         }
         all.curi = all.insbEnd();
         pmgen();
-        const jj: uint = @intCast(ptrdiff(all.insbEnd(), all.curi));
+        const jj: uint = @intCast(all.insbTail());
         if (jj == 0)
             continue;
         stmov += jj;
@@ -721,9 +721,9 @@ pub fn rega(f: *Fn) void {
             blist = b1;
             f.nblk += 1;
             b1.name = strf(PFn, "{s}_{s}", .{ cs(b.name), cs(s.name) });
-            stmov += @intCast(ptrdiff(all.insbEnd(), all.curi));
+            stmov += @intCast(all.insbTail());
             stblk += 1;
-            idup(b1, all.curi, @intCast(ptrdiff(all.insbEnd(), all.curi)));
+            idup(b1, all.curi, @intCast(all.insbTail()));
             b1.jmp.type = Jjmp;
             b1.s1 = s;
             psa[pi].* = b1;

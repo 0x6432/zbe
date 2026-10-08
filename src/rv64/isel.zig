@@ -167,7 +167,7 @@ fn negate(pr: *Ref, f: *Fn) void {
 }
 
 fn fixcmp(k: i32, f: *Fn) void {
-    const icmp = all.curi;
+    const icmp = &all.curi[0];
     fixarg(&icmp.*.arg[0], k, icmp, f);
     fixarg(&icmp.*.arg[1], k, icmp, f);
 }
@@ -245,7 +245,7 @@ fn sel(i_: Ins, f: *Fn) void {
     var cc: i32 = undefined;
 
     if (INRANGE(i.op, Oalloc, Oalloc1)) {
-        const i_0 = all.curi - 1;
+        const i_0 = &(all.curi - 1)[0];
         salloc(i.to, i.arg[0], f);
         fixarg(&i_0.*.arg[0], Kl, i_0, f);
         return;
@@ -256,7 +256,7 @@ fn sel(i_: Ins, f: *Fn) void {
     }
     if (i.op != Onop) {
         emiti(i);
-        const i_0 = all.curi; // fixarg() can change curi
+        const i_0 = &all.curi[0]; // fixarg() can change curi
         fixarg(&i_0.*.arg[0], argcls(&i, 0), i_0, f);
         fixarg(&i_0.*.arg[1], argcls(&i, 1), i_0, f);
     }
@@ -318,7 +318,7 @@ pub fn rv64_isel(f: *Fn) void {
             const i = &b.*.ins[i_n];
             sel(i.*, f);
         }
-        idup(b, all.curi, @intCast(ptrdiff(all.insbEnd(), all.curi)));
+        idup(b, all.curi, @intCast(all.insbTail()));
     }
 
     if (all.debug['I'] != 0) {

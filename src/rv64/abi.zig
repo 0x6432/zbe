@@ -546,9 +546,9 @@ fn selcall(f: *Fn, i_0: [*c]Ins, i_1: [*c]Ins, ilp: *[*c]Insl) void {
                 // extension for l temps passed
                 // as w arguments
                 // (see rv64/isel.c:fixarg)
-                all.curi.*.op = Ostorel;
-                all.curi.*.arg[0] = newtmp("abi", Kl, f);
-                emit(Oextsw, Kl, all.curi.*.arg[0], i.*.arg[0], R);
+                all.curi[0].op = Ostorel;
+                all.curi[0].arg[0] = newtmp("abi", Kl, f);
+                emit(Oextsw, Kl, all.curi[0].arg[0], i.*.arg[0], R);
             }
             emit(Oadd, Kl, r1, r, getcon(@bitCast(off), f));
             off += 8;
@@ -697,7 +697,7 @@ pub fn rv64_abi(f: *Fn) void {
             break;
     }
     const p = selpar(f, b.*.ins, i);
-    const n0: uint = @intCast(ptrdiff(all.insbEnd(), all.curi));
+    const n0: uint = @intCast(all.insbTail());
     const ioff: uint = @intCast(ptrdiff(i, b.*.ins));
     const n1: uint = b.*.nins - ioff;
     vgrow(&b.*.ins, n0 + n1);
@@ -738,7 +738,7 @@ pub fn rv64_abi(f: *Fn) void {
                 while (il != null) : (il = il.*.link)
                     emiti(il.*.i);
             }
-            idup(b, all.curi, @intCast(ptrdiff(all.insbEnd(), all.curi)));
+            idup(b, all.curi, @intCast(all.insbTail()));
         }
         if (b == f.start) break;
     }

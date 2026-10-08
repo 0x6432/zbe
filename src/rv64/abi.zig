@@ -143,14 +143,12 @@ var fpreg = [10]i32{ FA0, FA1, FA2, FA3, FA4, FA5, FA6, FA7, 0, 0 };
 //        |    ` fp regs passed             (0..8)
 //        ` env pointer passed in t5        (0..1)
 
-pub fn rv64_retregs(r: Ref, p: [*c]i32) bits {
+pub fn rv64_retregs(r: Ref, p: ?*[2]i32) bits {
     assert(rtype(r) == RCall);
     var ngp: i32 = @intCast(r.val & 3);
     var nfp: i32 = @intCast((r.val >> 2) & 3);
-    if (p != null) {
-        p[0] = ngp;
-        p[1] = nfp;
-    }
+    if (p) |q|
+        q.* = .{ ngp, nfp };
     var b: bits = 0;
     while (ngp > 0) {
         ngp -= 1;
@@ -163,15 +161,13 @@ pub fn rv64_retregs(r: Ref, p: [*c]i32) bits {
     return b;
 }
 
-pub fn rv64_argregs(r: Ref, p: [*c]i32) bits {
+pub fn rv64_argregs(r: Ref, p: ?*[2]i32) bits {
     assert(rtype(r) == RCall);
     var ngp: i32 = @intCast((r.val >> 4) & 15);
     var nfp: i32 = @intCast((r.val >> 8) & 15);
     const t5: i32 = @intCast((r.val >> 12) & 1);
-    if (p != null) {
-        p[0] = ngp + t5;
-        p[1] = nfp;
-    }
+    if (p) |q|
+        q.* = .{ ngp + t5, nfp };
     var b: bits = 0;
     while (ngp > 0) {
         ngp -= 1;

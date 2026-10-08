@@ -25,8 +25,8 @@ pub const Target = struct {
     nrglob: i32,
     rsave: [*c]i32, // caller-save
     nrsave: [2]i32,
-    retregs: *const fn (Ref, [*c]i32) bits,
-    argregs: *const fn (Ref, [*c]i32) bits,
+    retregs: *const fn (Ref, ?*[2]i32) bits,
+    argregs: *const fn (Ref, ?*[2]i32) bits,
     memargs: *const fn (i32) i32,
     abi0: *const fn (*Fn) void,
     abi1: *const fn (*Fn) void,

@@ -348,7 +348,7 @@ comptime {
 //          |    ` sse regs passed             (0..8)
 //          ` 1 if rax is used to pass data    (0..1)
 
-pub fn amd64_sysv_retregs(r: Ref, p: [*c]i32) bits {
+pub fn amd64_sysv_retregs(r: Ref, p: ?*[2]i32) bits {
     assert(rtype(r) == RCall);
     var b: bits = 0;
     const ni: i32 = @intCast(r.val & 3);
@@ -361,14 +361,12 @@ pub fn amd64_sysv_retregs(r: Ref, p: [*c]i32) bits {
         b |= BIT(XMM0);
     if (nf >= 2)
         b |= BIT(XMM1);
-    if (p != null) {
-        p[0] = ni;
-        p[1] = nf;
-    }
+    if (p) |q|
+        q.* = .{ ni, nf };
     return b;
 }
 
-pub fn amd64_sysv_argregs(r: Ref, p: [*c]i32) bits {
+pub fn amd64_sysv_argregs(r: Ref, p: ?*[2]i32) bits {
     assert(rtype(r) == RCall);
     var b: bits = 0;
     const ni: i32 = @intCast((r.val >> 4) & 15);
@@ -380,10 +378,8 @@ pub fn amd64_sysv_argregs(r: Ref, p: [*c]i32) bits {
     j = 0;
     while (j < nf) : (j += 1)
         b |= BIT(XMM0 + j);
-    if (p != null) {
-        p[0] = ni + ra;
-        p[1] = nf;
-    }
+    if (p) |q|
+        q.* = .{ ni + ra, nf };
     return b | (if (ra != 0) BIT(RAX) else 0);
 }
 

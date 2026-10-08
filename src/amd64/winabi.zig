@@ -157,7 +157,7 @@ comptime {
 // bit c: env call (rax passed)
 // bits d..1f: 0
 
-pub fn amd64_winabi_retregs(r: Ref, p: [*c]i32) bits {
+pub fn amd64_winabi_retregs(r: Ref, p: ?*[2]i32) bits {
     assert(rtype(r) == RCall);
 
     var b: bits = 0;
@@ -168,10 +168,8 @@ pub fn amd64_winabi_retregs(r: Ref, p: [*c]i32) bits {
     } else {
         b |= BIT(XMM0);
     }
-    if (p != null) {
-        p[0] = num_int_returns;
-        p[1] = num_float_returns;
-    }
+    if (p) |q|
+        q.* = .{ num_int_returns, num_float_returns };
     return b;
 }
 
@@ -186,7 +184,7 @@ fn popcnt(b_: bits) uint {
     return @intCast(b & 0xff);
 }
 
-pub fn amd64_winabi_argregs(r: Ref, p: [*c]i32) bits {
+pub fn amd64_winabi_argregs(r: Ref, p: ?*[2]i32) bits {
     assert(rtype(r) == RCall);
 
     // On SysV, these are counts. Here, a count isn't sufficient, we actually need
@@ -205,13 +203,12 @@ pub fn amd64_winabi_argregs(r: Ref, p: [*c]i32) bits {
     b |= if ((float_passed & 4) != 0) BIT(XMM2) else 0;
     b |= if ((float_passed & 8) != 0) BIT(XMM3) else 0;
     b |= if (env_param) BIT(RAX) else 0;
-    if (p != null) {
+    if (p) |q| {
         // TODO: The only place this is used is live.c. I'm not sure what should be
         // returned here wrt to using the same counter for int/float regs on win.
         // For now, try the number of registers in use even though they're not
         // contiguous.
-        p[0] = @intCast(popcnt(int_passed));
-        p[1] = @intCast(popcnt(float_passed));
+        q.* = .{ @intCast(popcnt(int_passed)), @intCast(popcnt(float_passed)) };
     }
     return b;
 }

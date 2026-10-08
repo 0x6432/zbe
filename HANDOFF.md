@@ -1,6 +1,6 @@
 # HANDOFF – QBE → Zig translation
 
-Updated: 20261008-115514 UTC
+Updated: 20261008-201359 UTC
 
 ## Goal
 Translate QBE (C, cloned at /data/qbe-c, HEAD e786f06) to latest Zig master.
@@ -185,10 +185,40 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    `*allowzero T` (won't coerce to *T) -> rewrite pointer loops to
    slices/indices before converting struct fields to `[*]T`.
 
-## Next steps
-1. Canonical Zig rewrite (slices, optionals, enums, std.Io.Writer, no libc),
-   keep tools/cmp.sh, tools/corpus.sh, tests/*fuzz.py passing after each step.
-   Suggested order: libc/util (allocation, vectors -> std.ArrayList-like),
-   then IR types (Ref packed struct, enums for ops/classes), then passes.
-2. Optionally fix BUGS.md items in the Zig version (separate commits, will
-   intentionally diverge from C output for those cases).
+## Next steps (current as of stage 5s, all checks green)
+NOTE: a stage 5t (arm64/isel.zig + rv64/isel.zig idiomatic) was completed in a
+sandbox that got reset before backup -> LOST. Redo it first (same recipe as
+5s for amd64/isel: fixarg(r: *Ref, ...), emit/ins pointers -> *Ins / index
+loops, tools/abislices.py isel_blocks helpers).
+1. arm64/isel.zig, rv64/isel.zig (redo 5t).
+2. Emit files (arm64/emit ~70 `.*.`, rv64/emit ~57, amd64/emit ~35,
+   emit.zig ~34): E.fn `*Fn`, `*_emitfn(f: *Fn, ...)`, fixarg(pr: *Ref),
+   emitins(i: *Ins), rv64 emitf(i: *Ins), `e.@"fn".*.` -> `e.@"fn".`,
+   rclob loops `for (arm64_rclob) |r| { if (r < 0) break; ... }`.
+   Asm format strings stay C-style strings (deliberate).
+3. util.zig (vectors, hash), simpl.zig, all.zig, leftovers in
+   parse/spill/main/cfg/amd64/targ. Count: `grep -c '\[\*c\]' src/*.zig src/*/*.zig`.
+4. Consider enums for ops/classes/jumps (or document as deliberate), nicer
+   Vec API; optionally fix BUGS.md items (separate commits, intentional diffs).
+Cautions: never `git stash` with uncommitted tool edits; C relied on zeroed
+memory (Debug fills `undefined` with 0xaa); `[*]T` has no `<`/`>` (use
+indices/slices); pointer subtraction on `[*]T` works; tmph needs
+`tmphcap != 0` guard.
+
+## Prompt for the next agent
+> You are continuing a QBE (C compiler backend) -> Zig master translation.
+> Restore: extract qbe-zig-backup.tar.gz into /data (gives /data/qbe-zig git
+> repo + /data/backup.sh); install Zig master to /data/tools/zig and
+> `export PATH=/data/tools/zig:$PATH` in every shell; clone
+> git://c9x.me/qbe.git to /data/qbe-c and `make` (reference binary
+> /data/qbe-c/qbe); build corpus with `sh tools/mkcorpus.sh` (Hare/cproc IR,
+> see Status section). Read HANDOFF.md fully first.
+> State: 1:1 translation done and verified (git tag `v1-literal`). Canonical
+> rewrite in progress, stages 1-5s done (see "Canonical rewrite").
+> Verify after EVERY change: `sh tools/all.sh > /tmp/all.log 2>&1; head -1
+> /tmp/all.log; tail -8 /tmp/all.log` (FUZZ=1 also runs abifuzz/irfuzz).
+> Expected: "All is fine!", 0/76 differ on 6 targets + debug dumps, corpus
+> 564 runs 0 differ 84 both-failed, abifuzz 60/60, irfuzz 100/100.
+> Commit each stage ("stage 5x: ..."). Every 10-15 min: update HANDOFF.md
+> (required), run `sh /data/backup.sh`, download the tarball.
+> Continue with "Next steps" above. Output must stay byte-identical to C QBE.

@@ -1,6 +1,6 @@
 # HANDOFF – QBE → Zig translation
 
-Updated: 20261008-111955 UTC
+Updated: 20261008-113319 UTC
 
 ## Goal
 Translate QBE (C, cloned at /data/qbe-c, HEAD e786f06) to latest Zig master.
@@ -159,7 +159,12 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    an ins index ?uint), mem.zig (coalesce slices; Store.i/bl are `[*]Ins`
    so blit pairs use i[1]). NOTE: when building structs with `undefined`
    fields, remember the C code relied on zeroed memory (Debug fills 0xaa).
-   NEXT FILES: parse, emit files, ABI, isel.
+   DONE 5m/5n: all.curi is now `[*]Ins` (init &insb); use all.insbTail()
+   (= insbEnd()-curi) / all.insbHead() (= curi-&insb); `&all.curi[0]` for a
+   single *Ins. parse.zig globals typed (curf *Fn, curb ?*Blk, plink
+   *?*Phi, blink *?*Blk, tmph [*]i32 guarded by tmphcap), ttoa ?[]const u8.
+   Strings remain C strings (`[*c]u8` interned + cs()) -- deliberate for now.
+   NEXT FILES: emit files, ABI, isel.
    NEXT: rewrite remaining `[*c]Ins` pointer walks to index loops / slices
    (ABI selpar/selcall take [i0,i1) ranges -> should take `[]Ins`), manual
    idiomatic rewrites of functions optionalize couldn't handle (e.g.

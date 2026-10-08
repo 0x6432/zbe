@@ -43,6 +43,7 @@ const fillloop = all.fillloop;
 const filluse = all.filluse;
 const idup = all.idup;
 const igroup = all.igroup;
+const insidx = all.insidx;
 const isalloc = all.isalloc;
 const iscmp = all.iscmp;
 const isload = all.isload;
@@ -200,11 +201,11 @@ fn schedlate(f: *Fn, r: Ref) uint {
 
 /// returns lca bid of uses or NOBID if
 /// the definition can be eliminated
-fn lateins(f: *Fn, b: *Blk, i: [*c]Ins, r: Ref) uint {
-    assert(b.ins <= i and i < b.ins + b.nins);
-    assert(req(i.*.arg[0], r) or req(i.*.arg[1], r));
+fn lateins(f: *Fn, b: *Blk, i: *Ins, r: Ref) uint {
+    _ = insidx(b, i); // asserts i is in b
+    assert(req(i.arg[0], r) or req(i.arg[1], r));
 
-    const latebid = schedlate(f, i.*.to);
+    const latebid = schedlate(f, i.to);
     if (pinned(i)) {
         if (latebid == NOBID)
             if (canelim(i))
@@ -241,12 +242,12 @@ fn latejmp(b: *Blk, r: Ref) uint {
 
 fn lateblk(f: *Fn, bid: uint) void {
     const b = f.rpo[bid];
-    var pp: *[*c]Phi = &b.phi;
-    while (pp.* != null) {
-        if (schedlate(f, pp.*.*.to) == NOBID) {
-            pp.*.*.narg = 0; // mark unused
-            pp.* = pp.*.*.link; // remove phi
-        } else pp = &pp.*.*.link;
+    var pp: *?*Phi = &b.phi;
+    while (pp.*) |p| {
+        if (schedlate(f, p.to) == NOBID) {
+            p.narg = 0; // mark unused
+            pp.* = p.link; // remove phi
+        } else pp = &p.link;
     }
 
     for (b.ins[0..b.nins]) |*i| {
@@ -255,8 +256,8 @@ fn lateblk(f: *Fn, bid: uint) void {
     }
 }
 
-fn addgcmins(f: *Fn, vins: [*c]Ins, nins: uint) void {
-    for (vins[0..nins]) |*i| {
+fn addgcmins(f: *Fn, vins: []Ins) void {
+    for (vins) |*i| {
         assert(rtype(i.to) == RTmp);
         const t = &f.tmp[i.to.val];
         const b = f.rpo[t.gcmbid];
@@ -277,52 +278,48 @@ fn gcmmove(f: *Fn) void {
             continue;
         if (t.bid == t.gcmbid)
             continue;
-        const i: [*c]Ins = t.def;
+        const i = t.def.?;
         if (pinned(i) and !canelim(i))
             continue;
-        assert(rtype(i.*.to) == RTmp);
-        assert(t == &f.tmp[i.*.to.val]);
+        assert(rtype(i.to) == RTmp);
+        assert(t == &f.tmp[i.to.val]);
         if (t.gcmbid != NOBID)
             addins(&vins, &nins, i);
         i.* = INS0(Onop);
     }
-    addgcmins(f, vins, nins);
+    addgcmins(f, vins[0..nins]);
 }
 
-/// dfs ordering
-fn schedins(f: *Fn, b: *Blk, i_: *Ins, pvins: *[*]Ins, pnins: *uint) [*c]Ins {
-    var i_0: [*c]Ins = undefined;
-    var i_1: [*c]Ins = undefined;
-    igroup(b, i_, &i_0, &i_1);
-    var i = i_0;
-    while (i < i_1) : (i += 1) {
-        var n: usize = 0;
-        while (n < 2) : (n += 1) {
-            if (rtype(i.*.arg[n]) != RTmp)
+/// dfs ordering; schedules the group containing
+/// b.ins[n], returns the index past that group
+fn schedins(f: *Fn, b: *Blk, n: uint, pvins: *[*]Ins, pnins: *uint) uint {
+    const lo, const hi = igroup(b, n);
+    for (b.ins[lo..hi]) |*i| {
+        for (0..2) |k| {
+            if (rtype(i.arg[k]) != RTmp)
                 continue;
-            const t = &f.tmp[i.*.arg[n].val];
+            const t = &f.tmp[i.arg[k].val];
             if (t.bid != b.id or t.def == null)
                 continue;
-            _ = schedins(f, b, t.def.?, pvins, pnins);
+            _ = schedins(f, b, insidx(b, t.def.?), pvins, pnins);
         }
     }
-    i = i_0;
-    while (i < i_1) : (i += 1) {
+    for (b.ins[lo..hi]) |*i| {
         addins(pvins, pnins, i);
         i.* = INS0(Onop);
     }
-    return i_1;
+    return hi;
 }
 
 /// order ins within a block
 fn schedblk(f: *Fn) void {
     var vins = vnewT(Ins, 0, PHeap);
-    var b_it: ?*Blk = f.start;
+    var b_it = f.start;
     while (b_it) |b| : (b_it = b.link) {
         var nins: uint = 0;
-        var i: [*c]Ins = b.ins;
-        while (i < b.ins + b.nins)
-            i = schedins(f, b, i, &vins, &nins);
+        var n: uint = 0;
+        while (n < b.nins)
+            n = schedins(f, b, n, &vins, &nins);
         idup(b, vins, nins);
     }
     vfree(@ptrCast(vins));
@@ -375,8 +372,7 @@ fn sink(f: *Fn) void {
         }
         sinkref(f, b, &b.jmp.arg);
     }
-    const end: [*c]Ins = all.insbEnd();
-    addgcmins(f, all.curi, @intCast(end - all.curi));
+    addgcmins(f, all.curi[0..@intCast(all.insbEnd() - all.curi)]);
 }
 
 /// requires use dom

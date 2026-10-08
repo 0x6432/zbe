@@ -23,3 +23,16 @@ error "operand type mismatch". Fix idea: mask immediate counts with
 (width-1) in amd64 isel/emit (and check fold).
 
 tests/irfuzz.py avoids both unless run with --upstream-bugs.
+
+## 3. util.c igroup(): Osel1 case asserts the wrong instruction (latent)
+```c
+case Osel1:
+	for (; i>ib && (i-1)->op == Osel1; i--)
+		;
+	assert(i->op == Osel0);   /* i is the first Osel1 here, not the Osel0 */
+```
+After the loop `i` points at the first `sel1` of the run, so the assert can
+only hold if the run is empty; the intended code is presumably
+`for (; (i-1)->op == Osel1; i--); i--;` (or asserting `(i-1)->op == Osel0`).
+Not reachable today: gcm's schedblk always enters a sel group at its `sel0`.
+The Zig port keeps the upstream behavior (util.zig igroup).

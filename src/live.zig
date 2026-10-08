@@ -8,7 +8,6 @@ const Blk = all.Blk;
 const Fn = all.Fn;
 const KBASE = all.KBASE;
 const Ocall = all.ops.Ocall;
-const Phi = all.Phi;
 const R = all.R;
 const RCall = all.RCall;
 const RMem = all.RMem;
@@ -29,7 +28,6 @@ const dprint = all.dprint;
 const dumpts = all.dumpts;
 const req = all.req;
 const rtype = all.rtype;
-const uint = all.uint;
 // -- end imports --
 
 pub fn liveon(v: *BSet, b: *Blk, s: *Blk) void {

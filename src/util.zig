@@ -432,56 +432,52 @@ pub fn iscmp(op: anytype, pk: *i32, pc: *i32) bool {
     return true;
 }
 
-pub fn igroup(b: *Blk, i_: [*c]Ins, i_0: *[*c]Ins, i_1: *[*c]Ins) void {
-    var i = i_;
-    const ib = b.ins;
-    const ie = ib + b.nins;
-    sw: switch (i.*.op) {
-        Oblit0 => {
-            i_0.* = i;
-            i_1.* = i + 2;
-            return;
+/// index of instruction i within b.ins
+pub fn insidx(b: *const Blk, i: *const Ins) uint {
+    const off = @intFromPtr(i) - @intFromPtr(b.ins);
+    assert(off % @sizeOf(Ins) == 0 and off / @sizeOf(Ins) < b.nins);
+    return @intCast(off / @sizeOf(Ins));
+}
+
+/// index range [lo, hi) of the instruction
+/// group that contains b.ins[n0]
+pub fn igroup(b: *Blk, n0: uint) struct { uint, uint } {
+    const ins = b.ins[0..b.nins];
+    var n = n0;
+    sw: switch (ins[n].op) {
+        Oblit0 => return .{ n, n + 2 },
+        Oblit1 => return .{ n - 1, n + 1 },
+        Opar => {
+            while (n > 0 and ispar(ins[n - 1].op)) n -= 1;
+            const lo = n;
+            while (n < ins.len and ispar(ins[n].op)) n += 1;
+            return .{ lo, n };
         },
-        Oblit1 => {
-            i_0.* = i - 1;
-            i_1.* = i + 1;
-            return;
-        },
-        Opar => { // case_Opar
-            while (i > ib and ispar((i - 1).*.op)) i -= 1;
-            i_0.* = i;
-            while (i < ie and ispar(i.*.op)) i += 1;
-            i_1.* = i;
-            return;
-        },
-        Ocall, Oarg => { // case_Oarg
-            while (i > ib and isarg((i - 1).*.op)) i -= 1;
-            i_0.* = i;
-            while (i < ie and i.*.op != Ocall) i += 1;
-            assert(i < ie);
-            i_1.* = i + 1;
-            return;
+        Ocall, Oarg => {
+            while (n > 0 and isarg(ins[n - 1].op)) n -= 1;
+            const lo = n;
+            while (n < ins.len and ins[n].op != Ocall) n += 1;
+            assert(n < ins.len);
+            return .{ lo, n + 1 };
         },
         Osel1 => {
-            while (i > ib and (i - 1).*.op == Osel1) i -= 1;
-            assert(i.*.op == Osel0);
+            // NOTE: same (unreachable in practice) assert as upstream
+            while (n > 0 and ins[n - 1].op == Osel1) n -= 1;
+            assert(ins[n].op == Osel0);
             continue :sw Osel0;
         },
         Osel0 => {
-            i_0.* = i;
-            i += 1;
-            while (i < ie and i.*.op == Osel1) i += 1;
-            i_1.* = i;
-            return;
+            const lo = n;
+            n += 1;
+            while (n < ins.len and ins[n].op == Osel1) n += 1;
+            return .{ lo, n };
         },
         else => {
-            if (ispar(i.*.op))
+            if (ispar(ins[n].op))
                 continue :sw Opar;
-            if (isarg(i.*.op))
+            if (isarg(ins[n].op))
                 continue :sw Oarg;
-            i_0.* = i;
-            i_1.* = i + 1;
-            return;
+            return .{ n, n + 1 };
         },
     }
 }

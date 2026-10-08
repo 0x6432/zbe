@@ -548,6 +548,7 @@ pub const argcls = util.argcls;
 pub const isreg = util.isreg;
 pub const iscmp = util.iscmp;
 pub const igroup = util.igroup;
+pub const insidx = util.insidx;
 pub const emit = util.emit;
 pub const emiti = util.emiti;
 pub const idup = util.idup;

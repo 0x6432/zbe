@@ -688,26 +688,26 @@ fn chpred(b: *Blk, bp: ?*Blk, bp1: *Blk) void {
     }
 }
 
-fn apple_selvaarg(f: *Fn, b: *Blk, i: [*c]Ins) void {
+fn apple_selvaarg(f: *Fn, b: *Blk, i: *Ins) void {
     _ = b;
     const c8 = getcon(8, f);
-    const ap = i.*.arg[0];
+    const ap = i.arg[0];
     const stk8 = newtmp("abi", Kl, f);
     const stk = newtmp("abi", Kl, f);
 
     emit(Ostorel, 0, R, stk8, ap);
     emit(Oadd, Kl, stk8, stk, c8);
-    emit(Oload, i.*.cls, i.*.to, stk, R);
+    emit(Oload, i.cls, i.to, stk, R);
     emit(Oload, Kl, stk, ap, R);
 }
 
-fn arm64_selvaarg(f: *Fn, b: *Blk, i: [*c]Ins) void {
+fn arm64_selvaarg(f: *Fn, b: *Blk, i: *Ins) void {
     const c8 = getcon(8, f);
     const c16 = getcon(16, f);
     const c24 = getcon(24, f);
     const c28 = getcon(28, f);
-    const ap = i.*.arg[0];
-    const isgp = KBASE(i.*.cls) == 0;
+    const ap = i.arg[0];
+    const isgp = KBASE(i.cls) == 0;
 
     // @b [...]
     //     r0 =l add ap, (24 or 28)
@@ -730,7 +730,7 @@ fn arm64_selvaarg(f: *Fn, b: *Blk, i: [*c]Ins) void {
     //     i->to =(i->cls) load %loc
 
     const loc = newtmp("abi", Kl, f);
-    emit(Oload, i.*.cls, i.*.to, loc, R);
+    emit(Oload, i.cls, i.to, loc, R);
     const b0 = split(f, b);
     b0.*.jmp = b.jmp;
     b0.*.s1 = b.s1;

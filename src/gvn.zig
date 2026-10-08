@@ -70,22 +70,22 @@ inline fn rhash(r: Ref) uint {
     return mix(r.type, r.val);
 }
 
-fn ihash(i: [*c]Ins) uint {
-    var h = mix(i.*.op, i.*.cls);
-    h = mix(h, rhash(i.*.arg[0]));
-    h = mix(h, rhash(i.*.arg[1]));
+fn ihash(i: *Ins) uint {
+    var h = mix(i.op, i.cls);
+    h = mix(h, rhash(i.arg[0]));
+    h = mix(h, rhash(i.arg[1]));
     return h;
 }
 
-fn ieq(ia: [*c]Ins, ib: [*c]Ins) bool {
-    return ia.*.op == ib.*.op and ia.*.cls == ib.*.cls and
-        req(ia.*.arg[0], ib.*.arg[0]) and req(ia.*.arg[1], ib.*.arg[1]);
+fn ieq(ia: *Ins, ib: *Ins) bool {
+    return ia.op == ib.op and ia.cls == ib.cls and
+        req(ia.arg[0], ib.arg[0]) and req(ia.arg[1], ib.arg[1]);
 }
 
 var gvntbl: [*c][*c]Ins = null;
 var gvntbln: uint = 0;
 
-fn gvndup(i: [*c]Ins, insert: bool) [*c]Ins {
+fn gvndup(i: *Ins, insert: bool) [*c]Ins {
     var idx = ihash(i) % gvntbln;
     while (true) {
         const ii = gvntbl[idx];
@@ -167,7 +167,7 @@ fn rcmp(a: Ref, b: Ref) i32 {
     return @as(i32, @intCast(a.val)) - @as(i32, @intCast(b.val));
 }
 
-fn normins(f: *Fn, i: [*c]Ins) void {
+fn normins(f: *Fn, i: *Ins) void {
     var v: i64 = undefined;
 
     // truncate constant bits to
@@ -175,19 +175,19 @@ fn normins(f: *Fn, i: [*c]Ins) void {
     var n: usize = 0;
     while (n < 2) : (n += 1) {
         if (KWIDE(argcls(i, n)) == 0)
-            if (isconbits(f, i.*.arg[n], &v))
+            if (isconbits(f, i.arg[n], &v))
                 if ((v & 0xffffffff) != v) {
-                    i.*.arg[n] = getcon(v & 0xffffffff, f);
+                    i.arg[n] = getcon(v & 0xffffffff, f);
                 };
     }
     // order arg[0] <= arg[1] for
     // commutative ops, preferring
     // RTmp in arg[0]
-    if (all.optab[i.*.op].commutes != 0)
-        if (rcmp(i.*.arg[0], i.*.arg[1]) > 0) {
-            const r = i.*.arg[1];
-            i.*.arg[1] = i.*.arg[0];
-            i.*.arg[0] = r;
+    if (all.optab[i.op].commutes != 0)
+        if (rcmp(i.arg[0], i.arg[1]) > 0) {
+            const r = i.arg[1];
+            i.arg[1] = i.arg[0];
+            i.arg[0] = r;
         };
 }
 
@@ -198,18 +198,18 @@ fn negcon(cls: anytype, c: *Con) bool {
     return foldint(c, Osub, cls != 0, &z, c);
 }
 
-fn assoccon(f: *Fn, b: *Blk, i_1: [*c]Ins) void {
+fn assoccon(f: *Fn, b: *Blk, i_1: *Ins) void {
     var c: Con = undefined;
 
-    var op: i32 = @intCast(i_1.*.op);
+    var op: i32 = @intCast(i_1.op);
     if (op == Osub)
         op = Oadd;
 
-    if (all.optab[@intCast(op)].assoc == 0 or KBASE(i_1.*.cls) != 0 or rtype(i_1.*.arg[0]) != RTmp or rtype(i_1.*.arg[1]) != RCon)
+    if (all.optab[@intCast(op)].assoc == 0 or KBASE(i_1.cls) != 0 or rtype(i_1.arg[0]) != RTmp or rtype(i_1.arg[1]) != RCon)
         return;
-    var c1 = f.con[i_1.*.arg[1].val];
+    var c1 = f.con[i_1.arg[1].val];
 
-    const t2 = &f.tmp[i_1.*.arg[0].val];
+    const t2 = &f.tmp[i_1.arg[0].val];
     if (t2.def == null)
         return;
     const i_2: [*c]Ins = t2.def;
@@ -219,43 +219,43 @@ fn assoccon(f: *Fn, b: *Blk, i_1: [*c]Ins) void {
     var c2 = f.con[i_2.*.arg[1].val];
 
     assert(KBASE(i_2.*.cls) == 0);
-    assert(KWIDE(i_2.*.cls) >= KWIDE(i_1.*.cls));
+    assert(KWIDE(i_2.*.cls) >= KWIDE(i_1.cls));
 
-    if (i_1.*.op == Osub and negcon(i_1.*.cls, &c1))
+    if (i_1.op == Osub and negcon(i_1.cls, &c1))
         return;
     if (i_2.*.op == Osub and negcon(i_2.*.cls, &c2))
         return;
-    if (foldint(&c, op, i_1.*.cls != 0, &c1, &c2))
+    if (foldint(&c, op, i_1.cls != 0, &c1, &c2))
         return;
 
     if (op == Oadd and c.type == CBits)
-        if ((i_1.*.cls == Kl and c.bits.i < 0) or (i_1.*.cls == Kw and @as(i32, @truncate(c.bits.i)) < 0)) {
-            const fail = negcon(i_1.*.cls, &c);
+        if ((i_1.cls == Kl and c.bits.i < 0) or (i_1.cls == Kw and @as(i32, @truncate(c.bits.i)) < 0)) {
+            const fail = negcon(i_1.cls, &c);
             assert(!fail);
             op = Osub;
         };
 
-    i_1.*.op = @intCast(op);
-    i_1.*.arg[0] = i_2.*.arg[0];
-    i_1.*.arg[1] = newcon(&c, f);
-    adduse(&f.tmp[i_1.*.arg[0].val], UIns, b, @ptrCast(i_1));
+    i_1.op = @intCast(op);
+    i_1.arg[0] = i_2.*.arg[0];
+    i_1.arg[1] = newcon(&c, f);
+    adduse(&f.tmp[i_1.arg[0].val], UIns, b, @ptrCast(i_1));
 }
 
-fn killins(f: *Fn, i: [*c]Ins, r: Ref) void {
-    replaceuses(f, i.*.to, r);
+fn killins(f: *Fn, i: *Ins, r: Ref) void {
+    replaceuses(f, i.to, r);
     i.* = INS0(Onop);
 }
 
-fn dedupins(f: *Fn, b: *Blk, i: [*c]Ins) void {
+fn dedupins(f: *Fn, b: *Blk, i: *Ins) void {
     normins(f, i);
-    if (i.*.op == Onop or pinned(i))
+    if (i.op == Onop or pinned(i))
         return;
 
     // when sel instructions are inserted
     // before gvn, we may want to optimize
     // them here
-    assert(i.*.op != Osel0);
-    assert(!req(i.*.to, R));
+    assert(i.op != Osel0);
+    assert(!req(i.to, R));
     assoccon(f, b, i);
 
     var r = copyref(f, b, i);

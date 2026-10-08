@@ -263,8 +263,8 @@ fn store(r: Ref, s: i32) void {
         emit(Ostorew + @as(i32, tmp[r.val].cls), 0, R, r, SLOT(s));
 }
 
-fn regcpy(i: [*c]Ins) bool {
-    return i.*.op == Ocopy and isreg(i.*.arg[0]);
+fn regcpy(i: *Ins) bool {
+    return i.op == Ocopy and isreg(i.arg[0]);
 }
 
 fn dopm(b: *Blk, i_: [*c]Ins, v: *BSet) [*c]Ins {

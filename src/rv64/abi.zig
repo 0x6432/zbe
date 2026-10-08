@@ -668,13 +668,13 @@ fn selpar(f: *Fn, i_0: [*c]Ins, i_1: [*c]Ins) Params {
     };
 }
 
-fn selvaarg(f: *Fn, i: [*c]Ins) void {
+fn selvaarg(f: *Fn, i: *Ins) void {
     const loc = newtmp("abi", Kl, f);
     const newloc = newtmp("abi", Kl, f);
-    emit(Ostorel, Kw, R, newloc, i.*.arg[0]);
+    emit(Ostorel, Kw, R, newloc, i.arg[0]);
     emit(Oadd, Kl, newloc, loc, getcon(8, f));
-    emit(Oload, i.*.cls, i.*.to, loc, R);
-    emit(Oload, Kl, loc, i.*.arg[0], R);
+    emit(Oload, i.cls, i.to, loc, R);
+    emit(Oload, Kl, loc, i.arg[0], R);
 }
 
 fn selvastart(f: *Fn, p: Params, ap: Ref) void {

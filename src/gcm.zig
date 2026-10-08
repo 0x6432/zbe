@@ -59,20 +59,20 @@ const vnewT = all.vnewT;
 
 const NOBID: uint = std.math.maxInt(uint);
 
-fn isdivwl(i: [*c]Ins) bool {
-    return switch (i.*.op) {
-        Odiv, Orem, Oudiv, Ourem => KBASE(i.*.cls) == 0,
+fn isdivwl(i: *Ins) bool {
+    return switch (i.op) {
+        Odiv, Orem, Oudiv, Ourem => KBASE(i.cls) == 0,
         else => false,
     };
 }
 
-pub fn pinned(i: [*c]Ins) bool {
-    return all.optab[i.*.op].pinned != 0 or isdivwl(i);
+pub fn pinned(i: *Ins) bool {
+    return all.optab[i.op].pinned != 0 or isdivwl(i);
 }
 
 /// pinned ins that can be eliminated if unused
-fn canelim(i: [*c]Ins) bool {
-    return isload(i.*.op) or isalloc(i.*.op) or isdivwl(i);
+fn canelim(i: *Ins) bool {
+    return isload(i.op) or isalloc(i.op) or isdivwl(i);
 }
 
 fn schedearly(f: *Fn, r: Ref) uint {
@@ -87,7 +87,7 @@ fn schedearly(f: *Fn, r: Ref) uint {
     if (t.def != null) {
         assert(@intFromPtr(b.ins) <= @intFromPtr(t.def) and @intFromPtr(t.def) < @intFromPtr(b.ins + b.nins));
         t.gcmbid = 0; // mark as visiting
-        t.gcmbid = earlyins(f, b, t.def);
+        t.gcmbid = earlyins(f, b, t.def.?);
     } else {
         // phis do not move
         t.gcmbid = t.bid;
@@ -96,10 +96,10 @@ fn schedearly(f: *Fn, r: Ref) uint {
     return t.gcmbid;
 }
 
-fn earlyins(f: *Fn, b: *Blk, i: [*c]Ins) uint {
-    var b0 = schedearly(f, i.*.arg[0]);
+fn earlyins(f: *Fn, b: *Blk, i: *Ins) uint {
+    var b0 = schedearly(f, i.arg[0]);
     assert(b0 != NOBID);
-    const b1 = schedearly(f, i.*.arg[1]);
+    const b1 = schedearly(f, i.arg[1]);
     assert(b1 != NOBID);
     if (f.rpo[b0].depth < f.rpo[b1].depth) {
         assert(dom(f.rpo[b0], f.rpo[b1]));
@@ -190,7 +190,7 @@ fn schedlate(f: *Fn, r: Ref) uint {
     // in fixed instructions that may be eliminated
     // and are themselves unused transitively
 
-    if (t.def != null and !pinned(t.def))
+    if (t.def != null and !pinned(t.def.?))
         t.gcmbid = bestbid(f, earlybid, latebid);
     // else, keep the early one
 
@@ -290,7 +290,7 @@ fn gcmmove(f: *Fn) void {
 }
 
 /// dfs ordering
-fn schedins(f: *Fn, b: *Blk, i_: [*c]Ins, pvins: *[*]Ins, pnins: *uint) [*c]Ins {
+fn schedins(f: *Fn, b: *Blk, i_: *Ins, pvins: *[*]Ins, pnins: *uint) [*c]Ins {
     var i_0: [*c]Ins = undefined;
     var i_1: [*c]Ins = undefined;
     igroup(b, i_, &i_0, &i_1);
@@ -303,7 +303,7 @@ fn schedins(f: *Fn, b: *Blk, i_: [*c]Ins, pvins: *[*]Ins, pnins: *uint) [*c]Ins 
             const t = &f.tmp[i.*.arg[n].val];
             if (t.bid != b.id or t.def == null)
                 continue;
-            _ = schedins(f, b, t.def, pvins, pnins);
+            _ = schedins(f, b, t.def.?, pvins, pnins);
         }
     }
     i = i_0;
@@ -328,14 +328,14 @@ fn schedblk(f: *Fn) void {
     vfree(@ptrCast(vins));
 }
 
-fn cheap(i: [*c]Ins) bool {
+fn cheap(i: *Ins) bool {
     var x: i32 = undefined;
 
-    if (KBASE(i.*.cls) != 0)
+    if (KBASE(i.cls) != 0)
         return false;
-    return switch (i.*.op) {
+    return switch (i.op) {
         Oneg, Oadd, Osub, Omul, Oand, Oor, Oxor, Osar, Oshr, Oshl => true,
-        else => iscmp(i.*.op, &x, &x),
+        else => iscmp(i.op, &x, &x),
     };
 }
 
@@ -345,8 +345,8 @@ fn sinkref(f: *Fn, b: *Blk, pr: *Ref) void {
     const t = &f.tmp[pr.val];
     if (t.def == null or
         t.bid == b.id or
-        pinned(t.def) or
-        !cheap(t.def))
+        pinned(t.def.?) or
+        !cheap(t.def.?))
         return;
 
     // sink t->def to b

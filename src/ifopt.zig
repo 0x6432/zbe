@@ -81,7 +81,7 @@ fn convert(ifb: *Blk, thenb: *Blk, elseb: *Blk, joinb: *Blk) void {
     assert(joinb.npred == 2);
     var sel: Ins = undefined;
     if (joinb.phi != null) {
-        sel = INS(Osel0, Kw, R, ifb.*.jmp.arg, R);
+        sel = INS(Osel0, Kw, R, ifb.jmp.arg, R);
         addins(&ins, &nins, &sel);
     }
     sel = INS0(Osel1);
@@ -94,10 +94,10 @@ fn convert(ifb: *Blk, thenb: *Blk, elseb: *Blk, joinb: *Blk) void {
         addins(&ins, &nins, &sel);
     }
     idup(ifb, ins, nins);
-    ifb.*.jmp.type = Jjmp;
-    ifb.*.jmp.arg = R;
-    ifb.*.s1 = joinb;
-    ifb.*.s2 = null;
+    ifb.jmp.type = Jjmp;
+    ifb.jmp.arg = R;
+    ifb.s1 = joinb;
+    ifb.s2 = null;
     joinb.npred = 1;
     joinb.pred[0] = ifb;
     joinb.phi = null;
@@ -120,7 +120,7 @@ pub fn ifconvert(f: *Fn) void {
         if (ifgraph(ifb, &thenb, &elseb, &joinb))
             if (okgraph(ifb, thenb, elseb, joinb)) {
                 if (all.debug['K'] != 0)
-                    dprint("    @{s} -> @{s}, @{s} -> @{s}\n", .{cs(ifb.name), cs(thenb.*.name), cs(elseb.*.name), cs(joinb.*.name)});
+                    dprint("    @{s} -> @{s}, @{s} -> @{s}\n", .{cs(ifb.name), cs(thenb.name), cs(elseb.name), cs(joinb.name)});
                 convert(ifb, thenb, elseb, joinb);
             };
     }

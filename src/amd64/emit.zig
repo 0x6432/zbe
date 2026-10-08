@@ -361,11 +361,11 @@ fn regtoa(reg: i32, sz: i32) [*c]const u8 {
     } else return rname[@intCast(reg)][@intCast(sz)];
 }
 
-fn getarg(c: u8, i: [*c]Ins) Ref {
+fn getarg(c: u8, i: *Ins) Ref {
     switch (c) {
-        '0' => return i.*.arg[0],
-        '1' => return i.*.arg[1],
-        '=' => return i.*.to,
+        '0' => return i.arg[0],
+        '1' => return i.arg[1],
+        '=' => return i.to,
         else => die("invalid arg letter {c}", .{c}),
     }
 }
@@ -403,7 +403,7 @@ fn emitmem(ref: Ref, e: *E) Writer.Error!void {
     try e.f.writeByte(')');
 }
 
-fn emitf(s_: [*c]const u8, i: [*c]Ins, e: *E) Writer.Error!void {
+fn emitf(s_: [*c]const u8, i: *Ins, e: *E) Writer.Error!void {
     var s = s_;
     var c: u8 = undefined;
     var sz: i32 = undefined;
@@ -411,15 +411,15 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, e: *E) Writer.Error!void {
     switch (s.*) {
         '+', '-' => {
             if (s.* == '+') {
-                if (req(i.*.arg[1], i.*.to)) {
-                    const ref = i.*.arg[0];
-                    i.*.arg[0] = i.*.arg[1];
-                    i.*.arg[1] = ref;
+                if (req(i.arg[1], i.to)) {
+                    const ref = i.arg[0];
+                    i.arg[0] = i.arg[1];
+                    i.arg[1] = ref;
                 }
                 // fall through
             }
-            assert(!req(i.*.arg[1], i.*.to) or req(i.*.arg[0], i.*.to)); // cannot convert to 2-address
-            try emitcopy(i.*.to, i.*.arg[0], @intCast(i.*.cls), e);
+            assert(!req(i.arg[1], i.to) or req(i.arg[0], i.to)); // cannot convert to 2-address
+            try emitcopy(i.to, i.arg[0], @intCast(i.cls), e);
             s += 1;
         },
         else => {},
@@ -441,9 +441,9 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, e: *E) Writer.Error!void {
         var doref = false;
         switch (c) {
             '%' => try e.f.writeByte('%'),
-            'k' => try e.f.writeAll(cs(clstoa[i.*.cls])),
+            'k' => try e.f.writeAll(cs(clstoa[i.cls])),
             '0', '1', '=' => {
-                sz = if (KWIDE(i.*.cls) != 0) SLong else SWord;
+                sz = if (KWIDE(i.cls) != 0) SLong else SWord;
                 s -= 1;
                 doref = true;
             },

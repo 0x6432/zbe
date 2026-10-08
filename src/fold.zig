@@ -312,21 +312,21 @@ fn opfold(op: i32, cls: i32, cl: *Con, cr: *Con, f: *Fn) Ref {
 }
 
 /// used by GVN
-pub fn foldref(f: *Fn, i: [*c]Ins) Ref {
-    if (rtype(i.*.to) != RTmp)
+pub fn foldref(f: *Fn, i: *Ins) Ref {
+    if (rtype(i.to) != RTmp)
         return R;
-    if (all.optab[i.*.op].canfold != 0) {
-        if (rtype(i.*.arg[0]) != RCon)
+    if (all.optab[i.op].canfold != 0) {
+        if (rtype(i.arg[0]) != RCon)
             return R;
-        const cl = &f.con[i.*.arg[0].val];
-        var rr = i.*.arg[1];
+        const cl = &f.con[i.arg[0].val];
+        var rr = i.arg[1];
         if (req(rr, R))
             rr = CON_Z;
         if (rtype(rr) != RCon)
             return R;
         const cr = &f.con[rr.val];
 
-        return opfold(@intCast(i.*.op), @intCast(i.*.cls), cl, cr, f);
+        return opfold(@intCast(i.op), @intCast(i.cls), cl, cr, f);
     }
     return R;
 }

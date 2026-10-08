@@ -293,7 +293,7 @@ fn slot(r: Ref, e: *E) u64 {
     } else return 16 + @as(u64, e.padding +% 4 *% @as(u32, @bitCast(s)));
 }
 
-fn emitf(s_: [*c]const u8, i: [*c]Ins, e: *E) Writer.Error!void {
+fn emitf(s_: [*c]const u8, i: *Ins, e: *E) Writer.Error!void {
     var s = s_;
     var r: Ref = undefined;
     var c: u8 = undefined;
@@ -302,7 +302,7 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, e: *E) Writer.Error!void {
 
     var sp = false;
     while (true) {
-        var k: i32 = @intCast(i.*.cls);
+        var k: i32 = @intCast(i.cls);
         while (true) {
             c = s.*;
             s += 1;
@@ -343,12 +343,12 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, e: *E) Writer.Error!void {
                         try e.f.writeAll(cs(rname(V31, k)));
                 },
                 '=', '0' => {
-                    r = if (c == '=') i.*.to else i.*.arg[0];
+                    r = if (c == '=') i.to else i.arg[0];
                     assert(isreg(r) or req(r, TMP(V31)));
                     try e.f.writeAll(cs(rname(@intCast(r.val), k)));
                 },
                 '1' => {
-                    r = i.*.arg[1];
+                    r = i.arg[1];
                     switch (rtype(r)) {
                         else => die("invalid second argument", .{}),
                         RTmp => {
@@ -376,7 +376,7 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, e: *E) Writer.Error!void {
                     c = s.*;
                     s += 1;
                     assert(c == '0' or c == '1' or c == '=');
-                    r = if (c == '=') i.*.to else i.*.arg[c - '0'];
+                    r = if (c == '=') i.to else i.arg[c - '0'];
                     switch (rtype(r)) {
                         else => die("todo (arm emit): unhandled ref", .{}),
                         RTmp => {
@@ -576,16 +576,16 @@ fn emitins(i: [*c]Ins, e: *E) Writer.Error!void {
 /// Table: most instructions are just pulled out of
 /// the table omap[], some special cases are
 /// detailed in emitins
-fn table(i: [*c]Ins, e: *E) Writer.Error!void {
+fn table(i: *Ins, e: *E) Writer.Error!void {
     var o: usize = 0;
     while (true) : (o += 1) {
         // this linear search should really be a binary
         // search
         if (omap[o].op == NOp)
-            die("no match for {s}({c})", .{cs(all.optab[i.*.op].name), "wlsd"[i.*.cls]});
-        if (omap[o].op == i.*.op and
-            (omap[o].cls == i.*.cls or omap[o].cls == Ka or
-            (omap[o].cls == Ki and KBASE(i.*.cls) == 0)))
+            die("no match for {s}({c})", .{cs(all.optab[i.op].name), "wlsd"[i.cls]});
+        if (omap[o].op == i.op and
+            (omap[o].cls == i.cls or omap[o].cls == Ka or
+            (omap[o].cls == Ki and KBASE(i.cls) == 0)))
             break;
     }
     try emitf(omap[o].fmt, i, e);

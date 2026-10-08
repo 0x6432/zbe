@@ -647,12 +647,12 @@ fn chpred(b: *Blk, bp: ?*Blk, bp1: *Blk) void {
     }
 }
 
-fn selvaarg(f: *Fn, b: *Blk, i: [*c]Ins) void {
+fn selvaarg(f: *Fn, b: *Blk, i: *Ins) void {
     const c4 = getcon(4, f);
     const c8 = getcon(8, f);
     const c16 = getcon(16, f);
-    const ap = i.*.arg[0];
-    const isint = KBASE(i.*.cls) == 0;
+    const ap = i.arg[0];
+    const isint = KBASE(i.cls) == 0;
 
     // @b [...]
     //     r0 =l add ap, (0 or 4)
@@ -676,7 +676,7 @@ fn selvaarg(f: *Fn, b: *Blk, i: [*c]Ins) void {
     //     i->to =(i->cls) load %loc
 
     const loc = newtmp("abi", Kl, f);
-    emit(Oload, i.*.cls, i.*.to, loc, R);
+    emit(Oload, i.cls, i.to, loc, R);
     const b0 = split(f, b);
     b0.*.jmp = b.jmp;
     b0.*.s1 = b.s1;

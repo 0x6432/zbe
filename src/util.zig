@@ -359,8 +359,8 @@ pub fn vgrow(vp: anytype, len: anytype) void {
     vp.* = @ptrCast(@alignCast(v1));
 }
 
-pub fn addins(pvins: *[*]Ins, pnins: *uint, i: [*c]Ins) void {
-    if (i.*.op == Onop)
+pub fn addins(pvins: *[*]Ins, pnins: *uint, i: *Ins) void {
+    if (i.op == Onop)
         return;
     pnins.* += 1;
     vgrow(pvins, pnins.*);
@@ -486,8 +486,8 @@ pub fn igroup(b: *Blk, i_: [*c]Ins, i_0: *[*c]Ins, i_1: *[*c]Ins) void {
     }
 }
 
-pub fn argcls(i: [*c]Ins, n: anytype) i32 {
-    return all.optab[i.*.op].argcls[@intCast(n)][i.*.cls];
+pub fn argcls(i: *Ins, n: anytype) i32 {
+    return all.optab[i.op].argcls[@intCast(n)][i.cls];
 }
 
 pub fn emit(op: anytype, k: anytype, to: Ref, arg0: Ref, arg1: Ref) void {
@@ -506,13 +506,13 @@ pub fn emiti(i: Ins) void {
     emit(i.op, i.cls, i.to, i.arg[0], i.arg[1]);
 }
 
-pub fn idup(b: *Blk, s: [*c]Ins, n: ulong) void {
+pub fn idup(b: *Blk, s: [*]const Ins, n: ulong) void {
     vgrow(&b.ins, n);
     _ = icpy(b.ins, s, n);
     b.nins = @intCast(n);
 }
 
-pub fn icpy(d: [*c]Ins, s: [*c]Ins, n: ulong) [*c]Ins {
+pub fn icpy(d: [*]Ins, s: [*]const Ins, n: ulong) [*]Ins {
     if (n != 0)
         if (@intFromPtr(d) <= @intFromPtr(s))
             std.mem.copyForwards(Ins, d[0..n], s[0..n])

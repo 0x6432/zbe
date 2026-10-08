@@ -406,16 +406,16 @@ fn fixmem(pr: [*c]Ref, fn_: *Fn, f: *Writer) Writer.Error!void {
 /// Table: most instructions are just pulled out of
 /// the table omap[], some special cases are
 /// detailed in emitins
-fn table(i: [*c]Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
+fn table(i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
     var o: usize = 0;
     while (true) : (o += 1) {
         // this linear search should really be a binary
         // search
         if (omap[o].op == NOp)
-            die("no match for {s}({c})", .{cs(all.optab[i.*.op].name), "wlsd"[i.*.cls]});
-        if (omap[o].op == i.*.op and
-            (omap[o].cls == i.*.cls or omap[o].cls == Ka or
-            (omap[o].cls == Ki and KBASE(i.*.cls) == 0)))
+            die("no match for {s}({c})", .{cs(all.optab[i.op].name), "wlsd"[i.cls]});
+        if (omap[o].op == i.op and
+            (omap[o].cls == i.cls or omap[o].cls == Ka or
+            (omap[o].cls == Ki and KBASE(i.cls) == 0)))
             break;
     }
     try emitf(omap[o].fmt, i, fn_, f);

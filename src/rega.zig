@@ -302,8 +302,8 @@ fn move(r: i32, to: Ref, m: *RMap) void {
     radd(m, t, r);
 }
 
-fn regcpy(i: [*c]Ins) bool {
-    return i.*.op == Ocopy and isreg(i.*.arg[0]);
+fn regcpy(i: *Ins) bool {
+    return i.op == Ocopy and isreg(i.arg[0]);
 }
 
 fn dopm(b: ?*Blk, i_: [*c]Ins, m: *RMap) [*c]Ins {

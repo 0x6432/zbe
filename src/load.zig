@@ -124,19 +124,19 @@ var inum: uint = 0; // current insertion number
 var ilog: [*c]Insert = null; // global insertion log
 var nlog: uint = 0; // number of entries in the log
 
-pub fn loadsz(l: [*c]Ins) i32 {
-    switch (l.*.op) {
+pub fn loadsz(l: *Ins) i32 {
+    switch (l.op) {
         Oloadsb, Oloadub => return 1,
         Oloadsh, Oloaduh => return 2,
         Oloadsw, Oloaduw => return 4,
-        Oload => return if (KWIDE(l.*.cls) != 0) 8 else 4,
+        Oload => return if (KWIDE(l.cls) != 0) 8 else 4,
         else => {},
     }
     die("unreachable", .{});
 }
 
-pub fn storesz(s: [*c]Ins) i32 {
-    switch (s.*.op) {
+pub fn storesz(s: *Ins) i32 {
+    switch (s.op) {
         Ostoreb => return 1,
         Ostoreh => return 2,
         Ostorew, Ostores => return 4,
@@ -262,7 +262,7 @@ fn killsl(r: Ref, sl: Slice) bool {
 /// mask does not cover all the bits of the slice,
 /// otherwise, it has class sl.cls
 /// the procedure returns R when it fails
-fn def(sl: Slice, msk: bits, b: *Blk, i: [*c]Ins, il: [*c]Loc) Ref {
+fn def(sl: Slice, msk: bits, b: *Blk, i: ?*Ins, il: [*c]Loc) Ref {
     // invariants:
     // -1- b dominates il->blk; so we can use
     //     temporaries of b in il->blk

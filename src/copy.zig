@@ -71,10 +71,10 @@ const ext_tbl = [_]Ext{
     .{ .zext = 1, .nopw = 32, .usew = 32 }, // extuw
 };
 
-fn ext(i: [*c]Ins, e: *Ext) bool {
-    if (!isext(i.*.op))
+fn ext(i: *Ins, e: *Ext) bool {
+    if (!isext(i.op))
         return false;
-    e.* = ext_tbl[i.*.op - Oextsb];
+    e.* = ext_tbl[i.op - Oextsb];
     return true;
 }
 
@@ -334,61 +334,61 @@ const extcpy = blk: {
     break :blk t;
 };
 
-pub fn copyref(f: *Fn, b: *Blk, i: [*c]Ins) Ref {
+pub fn copyref(f: *Fn, b: *Blk, i: *Ins) Ref {
     var e: Ext = undefined;
     var v: i64 = undefined;
     var z: i32 = undefined;
-    const op = &all.optab[i.*.op];
+    const op = &all.optab[i.op];
 
-    if (i.*.op == Ocopy)
-        return i.*.arg[0];
+    if (i.op == Ocopy)
+        return i.arg[0];
 
     // op identity value
-    if (op.hasid != 0 and KBASE(i.*.cls) == 0 // integer only - fp NaN!
-    and req(i.*.arg[1], all.con01[op.idval]) and (op.cmpeqwl == 0 or isw1(f, i.*.arg[0])))
-        return i.*.arg[0];
+    if (op.hasid != 0 and KBASE(i.cls) == 0 // integer only - fp NaN!
+    and req(i.arg[1], all.con01[op.idval]) and (op.cmpeqwl == 0 or isw1(f, i.arg[0])))
+        return i.arg[0];
 
     // idempotent op with identical args
-    if (op.idemp != 0 and req(i.*.arg[0], i.*.arg[1]))
-        return i.*.arg[0];
+    if (op.idemp != 0 and req(i.arg[0], i.arg[1]))
+        return i.arg[0];
 
     // integer cmp with identical args
-    if ((op.cmpeqwl != 0 or op.cmplgtewl != 0) and req(i.*.arg[0], i.*.arg[1]))
+    if ((op.cmpeqwl != 0 or op.cmplgtewl != 0) and req(i.arg[0], i.arg[1]))
         return all.con01[op.eqval];
 
     // cmpeq/ne 0 with 0/non-0 inference
-    if (op.cmpeqwl != 0 and req(i.*.arg[1], CON_Z) and zeroval(f, b, i.*.arg[0], argcls(i, 0), &z))
+    if (op.cmpeqwl != 0 and req(i.arg[1], CON_Z) and zeroval(f, b, i.arg[0], argcls(i, 0), &z))
         return all.con01[@intCast(op.eqval ^ z ^ 1)];
 
     // redundant and mask
-    if (i.*.op == Oand and isconbits(f, i.*.arg[1], &v) and (v > 0 and ((v +% 1) & v) == 0) and defwidthle(f, i.*.arg[0], bitwidth(@bitCast(v))))
-        return i.*.arg[0];
+    if (i.op == Oand and isconbits(f, i.arg[1], &v) and (v > 0 and ((v +% 1) & v) == 0) and defwidthle(f, i.arg[0], bitwidth(@bitCast(v))))
+        return i.arg[0];
 
-    if (i.*.cls == Kw and (i.*.op == Oextsw or i.*.op == Oextuw))
-        return i.*.arg[0];
+    if (i.cls == Kw and (i.op == Oextsw or i.op == Oextuw))
+        return i.arg[0];
 
-    if (ext(i, &e) and rtype(i.*.arg[0]) == RTmp) {
-        const t = &f.tmp[i.*.arg[0].val];
+    if (ext(i, &e) and rtype(i.arg[0]) == RTmp) {
+        const t = &f.tmp[i.arg[0].val];
         assert(KBASE(t.cls) == 0);
 
         // do not break typing by returning
         // a narrower temp
-        if (KWIDE(i.*.cls) > KWIDE(t.cls))
+        if (KWIDE(i.cls) > KWIDE(t.cls))
             return R;
 
-        const w = Wsb + (i.*.op - Oextsb);
+        const w = Wsb + (i.op - Oextsb);
         if ((BIT(w) & extcpy[@intCast(t.width)]) != 0)
-            return i.*.arg[0];
+            return i.arg[0];
 
         // avoid eliding extensions of params
         // inserted in the start block; their
         // point is to make further extensions
         // redundant
-        if ((t.def == null or !ispar(t.def.?.op)) and usewidthle(f, i.*.to, e.usew))
-            return i.*.arg[0];
+        if ((t.def == null or !ispar(t.def.?.op)) and usewidthle(f, i.to, e.usew))
+            return i.arg[0];
 
-        if (defwidthle(f, i.*.arg[0], e.nopw))
-            return i.*.arg[0];
+        if (defwidthle(f, i.arg[0], e.nopw))
+            return i.arg[0];
     }
 
     return R;

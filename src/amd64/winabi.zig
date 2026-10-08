@@ -630,16 +630,16 @@ fn lower_vastart(func: *Fn, param_reg_usage: *RegisterUsage, valist: Ref) void {
     emit(Oadd, Kl, offset, TMP(RBP), getcon(param_reg_usage.num_named_args_passed * 8 + 16, func));
 }
 
-fn lower_vaarg(func: *Fn, vaarg_instr: [*c]Ins) void {
+fn lower_vaarg(func: *Fn, vaarg_instr: *Ins) void {
     // va_list is just a void** on winx64, so load the pointer, then load the
     // argument from that pointer, then increment the pointer to the next arg.
     // (All emitted backwards as usual.)
     const inc = newtmp("abi.vaarg.inc", Kl, func);
     const ptr = newtmp("abi.vaarg.ptr", Kl, func);
-    emit(Ostorel, 0, R, inc, vaarg_instr.*.arg[0]);
+    emit(Ostorel, 0, R, inc, vaarg_instr.arg[0]);
     emit(Oadd, Kl, inc, ptr, getcon(8, func));
-    emit(Oload, vaarg_instr.*.cls, vaarg_instr.*.to, ptr, R);
-    emit(Oload, Kl, ptr, vaarg_instr.*.arg[0], R);
+    emit(Oload, vaarg_instr.cls, vaarg_instr.to, ptr, R);
+    emit(Oload, Kl, ptr, vaarg_instr.arg[0], R);
 }
 
 fn lower_args_for_block(func: *Fn, block: [*c]Blk, param_reg_usage: *RegisterUsage, pextra_alloc: *[*c]ExtraAlloc) void {

@@ -71,77 +71,68 @@ const vnewT = all.vnewT;
 
 /// require use, maintains use counts
 pub fn promote(f: *Fn) void {
-    var t: ?*Tmp = undefined;
-    var l: [*c]Ins = undefined;
-    var s: i32 = undefined;
-    var k: i32 = undefined;
-
     // promote uniform stack slots to temporaries
-    const b: ?*Blk = f.start;
-    var i: [*c]Ins = b.?.ins;
-    outer: while (i < &b.?.ins[b.?.nins]) : (i += 1) {
-        if (Oalloc > i.*.op or i.*.op > Oalloc1)
+    const b = f.start.?;
+    outer: for (b.ins[0..b.nins]) |*i| {
+        if (Oalloc > i.op or i.op > Oalloc1)
             continue;
         // specific to NAlign == 3
-        assert(rtype(i.*.to) == RTmp);
-        t = &f.tmp[i.*.to.val];
-        if (t.?.ndef != 1)
+        assert(rtype(i.to) == RTmp);
+        const t = &f.tmp[i.to.val];
+        if (t.ndef != 1)
             continue :outer; // goto Skip
-        k = -1;
-        s = -1;
-        var u = t.?.use;
-        while (u < &t.?.use[t.?.nuse]) : (u += 1) {
-            if (u.*.type != UIns)
+        var k: i32 = -1;
+        var s: i32 = -1;
+        for (t.use[0..t.nuse]) |*u| {
+            if (u.type != UIns)
                 continue :outer;
-            l = u.*.u.ins;
-            if (isload(l.*.op))
+            const l = u.u.ins;
+            if (isload(l.op))
                 if (s == -1 or s == loadsz(l)) {
                     s = loadsz(l);
                     continue;
                 };
-            if (isstore(l.*.op))
-                if (req(i.*.to, l.*.arg[1]) and !req(i.*.to, l.*.arg[0]))
+            if (isstore(l.op))
+                if (req(i.to, l.arg[1]) and !req(i.to, l.arg[0]))
                     if (s == -1 or s == storesz(l))
-                        if (k == -1 or k == all.optab[l.*.op].argcls[0][0]) {
+                        if (k == -1 or k == all.optab[l.op].argcls[0][0]) {
                             s = storesz(l);
-                            k = all.optab[l.*.op].argcls[0][0];
+                            k = all.optab[l.op].argcls[0][0];
                             continue;
                         };
             continue :outer;
         }
         // get rid of the alloc and replace uses
         i.* = INS0(Onop);
-        t.?.ndef -= 1;
-        const ue = &t.?.use[t.?.nuse];
-        u = t.?.use;
-        while (u != ue) : (u += 1) {
-            l = u.*.u.ins;
-            if (isstore(l.*.op)) {
-                l.*.cls = @intCast(k);
-                l.*.op = Ocopy;
-                l.*.to = l.*.arg[1];
-                l.*.arg[1] = R;
-                t.?.nuse -= 1;
-                t.?.ndef += 1;
+        t.ndef -= 1;
+        for (t.use[0..t.nuse]) |*u| {
+            const l = u.u.ins;
+            if (isstore(l.op)) {
+                l.cls = @intCast(k);
+                l.op = Ocopy;
+                l.to = l.arg[1];
+                l.arg[1] = R;
+                t.nuse -= 1;
+                t.ndef += 1;
             } else {
                 if (k == -1)
-                    err("slot %{s} is read but never stored to", .{cs(f.tmp[l.*.arg[0].val].name)});
+                    err("slot %{s} is read but never stored to", .{cs(f.tmp[l.arg[0].val].name)});
                 // try to turn loads into copies so we
                 // can eliminate them later
-                sw: switch (l.*.op) {
+                sw: switch (l.op) {
                     Oloadsw, Oloaduw => {
                         if (k == Kl)
                             continue :sw 0; // goto Extend
                         continue :sw Oload;
                     },
                     Oload => {
-                        if (KBASE(k) != KBASE(l.*.cls))
-                            l.*.op = Ocast
+                        if (KBASE(k) != KBASE(l.cls))
+                            l.op = Ocast
                         else
-                            l.*.op = Ocopy;
+                            l.op = Ocopy;
                     },
                     else => { // Extend:
-                        l.*.op = Oextsb + (l.*.op - Oloadsb);
+                        l.op = Oextsb + (l.op - Oloadsb);
                     },
                 }
             }
@@ -159,19 +150,19 @@ const Range = extern struct {
     b: i32,
 };
 
-const Store = extern struct {
+const Store = struct {
     ip: i32,
-    i: [*c]Ins,
+    i: [*]Ins, // points into a block's ins (blits span two)
 };
 
-const Slot = extern struct {
+const Slot = struct {
     t: i32,
     sz: i32,
     m: bits,
     l: bits,
     r: Range,
-    s: [*c]Slot,
-    st: [*c]Store,
+    s: ?*Slot,
+    st: [*]Store,
     nst: i32,
 };
 
@@ -192,45 +183,39 @@ fn radd(r: *Range, n: i32) void {
         r.b = n + 1;
 }
 
-fn slot(ps: *[*c]Slot, off: *i64, r: Ref, f: *Fn, sl: [*c]Slot) bool {
+fn slot(off: *i64, r: Ref, f: *Fn, sl: []Slot) ?*Slot {
     var a: Alias = undefined;
 
     getalias(&a, r, f);
     if (a.type != ALoc)
-        return false;
+        return null;
     const t = &f.tmp[@intCast(a.base)];
     if (t.visit < 0)
-        return false;
+        return null;
     off.* = a.offset;
-    ps.* = &sl[@intCast(t.visit)];
-    return true;
+    return &sl[@intCast(t.visit)];
 }
 
-fn load(r: Ref, x: bits, ip: i32, f: *Fn, sl: [*c]Slot) void {
+fn load(r: Ref, x: bits, ip: i32, f: *Fn, sl: []Slot) void {
     var off: i64 = undefined;
-    var s: [*c]Slot = undefined;
-
-    if (slot(&s, &off, r, f, sl)) {
-        s.*.l |= shl64(x, off);
-        s.*.l &= s.*.m;
-        if (s.*.l != 0)
-            radd(&s.*.r, ip);
+    if (slot(&off, r, f, sl)) |s| {
+        s.l |= shl64(x, off);
+        s.l &= s.m;
+        if (s.l != 0)
+            radd(&s.r, ip);
     }
 }
 
-fn store(r: Ref, x: bits, ip: i32, i: [*c]Ins, f: *Fn, sl: [*c]Slot) void {
+fn store(r: Ref, x: bits, ip: i32, i: [*]Ins, f: *Fn, sl: []Slot) void {
     var off: i64 = undefined;
-    var s: [*c]Slot = undefined;
-
-    if (slot(&s, &off, r, f, sl)) {
-        if (s.*.l != 0) {
-            radd(&s.*.r, ip);
-            s.*.l &= ~shl64(x, off);
+    if (slot(&off, r, f, sl)) |s| {
+        if (s.l != 0) {
+            radd(&s.r, ip);
+            s.l &= ~shl64(x, off);
         } else {
-            s.*.nst += 1;
-            vgrow(&s.*.st, s.*.nst);
-            s.*.st[@intCast(s.*.nst - 1)].ip = ip;
-            s.*.st[@intCast(s.*.nst - 1)].i = i;
+            s.nst += 1;
+            vgrow(&s.st, s.nst);
+            s.st[@intCast(s.nst - 1)] = .{ .ip = ip, .i = i };
         }
     }
 }
@@ -242,323 +227,306 @@ fn scmp(a: Slot, b: Slot) std.math.Order {
     return std.math.order(a.r.a, b.r.a);
 }
 
+fn scmpLess(_: void, a: Slot, b: Slot) bool {
+    return scmp(a, b) == .lt;
+}
+
 fn maxrpo(hd: *Blk, b: *Blk) void {
     if (hd.loop < @as(i32, @intCast(b.id)))
         hd.loop = @intCast(b.id);
 }
 
+/// kills an instruction; blits are killed as a pair
+fn killins(i: [*]Ins) void {
+    if (i[0].op == Oblit0)
+        i[1] = INS0(Onop);
+    i[0] = INS0(Onop);
+}
+
 pub fn coalesce(f: *Fn) void {
-    var r: Range = undefined;
-    var s: [*c]Slot = undefined;
-    var s0: [*c]Slot = undefined;
-    var b: ?*Blk = undefined;
-    var succ: [3][*c]Blk = undefined;
-    var i: [*c]Ins = undefined;
-    var t: [*c]Tmp = undefined;
-    var arg: [*c]Ref = undefined;
-    var x: bits = undefined;
-    var off0: i64 = undefined;
-    var off1: i64 = undefined;
-    var n: i32 = undefined;
-    var m: i32 = undefined;
-    var sz: i32 = undefined;
+    const ones: bits = @bitCast(@as(i64, -1));
 
     // minimize the stack usage
     // by coalescing slots
-    var nsl: i32 = 0;
-    var sl = vnewT(Slot, 0, PHeap);
-    n = Tmp0;
-    while (n < f.ntmp) : (n += 1) {
-        t = &f.tmp[@intCast(n)];
-        t.*.visit = -1;
-        if (t.*.alias.type == ALoc)
-            if (t.*.alias.slot == &t.*.alias)
-                if (t.*.bid == f.start.?.id)
-                    if (t.*.alias.u.loc.sz != -1) {
-                        t.*.visit = nsl;
+    var nsl: usize = 0;
+    var slv = vnewT(Slot, 0, PHeap);
+    var tn: i32 = Tmp0;
+    while (tn < f.ntmp) : (tn += 1) {
+        const t = &f.tmp[@intCast(tn)];
+        t.visit = -1;
+        if (t.alias.type == ALoc)
+            if (t.alias.slot == &t.alias)
+                if (t.bid == f.start.?.id)
+                    if (t.alias.u.loc.sz != -1) {
+                        t.visit = @intCast(nsl);
                         nsl += 1;
-                        vgrow(&sl, nsl);
-                        s = &sl[@intCast(nsl - 1)];
-                        s.*.t = n;
-                        s.*.sz = t.*.alias.u.loc.sz;
-                        s.*.m = t.*.alias.u.loc.m;
-                        s.*.s = null;
-                        s.*.st = vnewT(Store, 0, PHeap);
-                        s.*.nst = 0;
+                        vgrow(&slv, nsl);
+                        slv[nsl - 1] = .{
+                            .t = tn,
+                            .sz = t.alias.u.loc.sz,
+                            .m = t.alias.u.loc.m,
+                            .l = 0,
+                            .r = .{ .a = 0, .b = 0 },
+                            .s = null,
+                            .st = vnewT(Store, 0, PHeap),
+                            .nst = 0,
+                        };
                     };
     }
+    var sl = slv[0..nsl];
 
     // one-pass liveness analysis
-    b = f.start;
-    while (b != null) : (b = b.?.link)
-        b.?.loop = -1;
+    var b_it = f.start;
+    while (b_it) |b| : (b_it = b.link)
+        b.loop = -1;
     loopiter(f, maxrpo);
-    var nbl: i32 = 0;
-    var bl = vnewT([*c]Ins, 0, PHeap);
-    const br: [*c]Range = ealloc(Range, f.nblk);
+    var nbl: usize = 0;
+    var bl = vnewT([*]Ins, 0, PHeap);
+    const br = ealloc(Range, f.nblk)[0..f.nblk];
     var ip: i32 = std.math.maxInt(c_int) - 1;
-    n = @as(i32, @intCast(f.nblk)) - 1;
-    while (n >= 0) : (n -= 1) {
-        b = f.rpo[@intCast(n)];
-        succ[0] = b.?.s1;
-        succ[1] = b.?.s2;
-        succ[2] = null;
-        br[@intCast(n)].b = ip;
+    var bn = f.nblk;
+    while (bn > 0) {
+        bn -= 1;
+        const n: i32 = @intCast(bn);
+        const b = f.rpo[bn];
+        const succ = [2]?*Blk{ b.s1, b.s2 };
+        br[bn].b = ip;
         ip -= 1;
-        s = sl;
-        while (s < &sl[@intCast(nsl)]) : (s += 1) {
-            s.*.l = 0;
-            var ps: [*c][*c]Blk = &succ;
-            while (ps.* != null) : (ps += 1) {
-                m = @intCast(ps.*.*.id);
-                if (m > n and rin(s.*.r, br[@intCast(m)].a)) {
-                    s.*.l = s.*.m;
-                    radd(&s.*.r, ip);
+        for (sl) |*s| {
+            s.l = 0;
+            for (succ) |ps_| {
+                const ps = ps_ orelse break;
+                const m = ps.id;
+                if (m > bn and rin(s.r, br[m].a)) {
+                    s.l = s.m;
+                    radd(&s.r, ip);
                 }
             }
         }
-        if (b.?.jmp.type == Jretc) {
+        if (b.jmp.type == Jretc) {
             ip -= 1;
-            load(b.?.jmp.arg, @bitCast(@as(i64, -1)), ip, f, sl);
+            load(b.jmp.arg, ones, ip, f, sl);
         }
-        i = &b.?.ins[b.?.nins];
-        while (i != b.?.ins) {
-            i -= 1;
-            arg = &i.*.arg;
-            if (i.*.op == Oargc) {
+        var idx = b.nins;
+        while (idx != 0) {
+            idx -= 1;
+            const ii = b.ins + idx;
+            const i = &ii[0];
+            const arg = &i.arg;
+            if (i.op == Oargc) {
                 ip -= 1;
-                load(arg[1], @bitCast(@as(i64, -1)), ip, f, sl);
+                load(arg[1], ones, ip, f, sl);
             }
-            if (isload(i.*.op)) {
-                x = BIT(loadsz(i)) -% 1;
+            if (isload(i.op)) {
+                const x = BIT(loadsz(i)) -% 1;
                 ip -= 1;
                 load(arg[0], x, ip, f, sl);
             }
-            if (isstore(i.*.op)) {
-                x = BIT(storesz(i)) -% 1;
-                store(arg[1], x, ip, i, f, sl);
+            if (isstore(i.op)) {
+                const x = BIT(storesz(i)) -% 1;
+                store(arg[1], x, ip, ii, f, sl);
                 ip -= 1;
             }
-            if (i.*.op == Oblit0) {
-                assert((i + 1).*.op == Oblit1);
-                assert(rtype((i + 1).*.arg[0]) == RInt);
-                sz = @intCast(@abs(rsval((i + 1).*.arg[0])));
-                x = if (sz >= NBit) @bitCast(@as(i64, -1)) else BIT(sz) -% 1;
-                store(arg[1], x, ip, i, f, sl);
+            if (i.op == Oblit0) {
+                assert(ii[1].op == Oblit1);
+                assert(rtype(ii[1].arg[0]) == RInt);
+                const sz: i32 = @intCast(@abs(rsval(ii[1].arg[0])));
+                const x = if (sz >= NBit) ones else BIT(sz) -% 1;
+                store(arg[1], x, ip, ii, f, sl);
                 ip -= 1;
                 load(arg[0], x, ip, f, sl);
                 nbl += 1;
                 vgrow(&bl, nbl);
-                bl[@intCast(nbl - 1)] = i;
+                bl[nbl - 1] = ii;
             }
         }
-        s = sl;
-        while (s < &sl[@intCast(nsl)]) : (s += 1)
-            if (s.*.l != 0) {
-                radd(&s.*.r, ip);
-                if (b.?.loop != -1) {
-                    assert(b.?.loop >= n);
-                    radd(&s.*.r, br[@intCast(b.?.loop)].b - 1);
+        for (sl) |*s|
+            if (s.l != 0) {
+                radd(&s.r, ip);
+                if (b.loop != -1) {
+                    assert(b.loop >= n);
+                    radd(&s.r, br[@intCast(b.loop)].b - 1);
                 }
             };
-        br[@intCast(n)].a = ip;
+        br[bn].a = ip;
     }
-    efree(@ptrCast(br));
+    efree(@ptrCast(br.ptr));
 
     // kill dead stores
-    s = sl;
-    while (s < &sl[@intCast(nsl)]) : (s += 1) {
-        n = 0;
-        while (n < s.*.nst) : (n += 1)
-            if (!rin(s.*.r, s.*.st[@intCast(n)].ip)) {
-                i = s.*.st[@intCast(n)].i;
-                if (i.*.op == Oblit0)
-                    (i + 1).* = INS0(Onop);
-                i.* = INS0(Onop);
-            };
-    }
+    for (sl) |*s|
+        for (s.st[0..@intCast(s.nst)]) |st|
+            if (!rin(s.r, st.ip))
+                killins(st.i);
 
     // kill slots with an empty live range
     var total: uint = 0;
     var freed: uint = 0;
+    var nstk: usize = 0;
     var stk = vnewT(i32, 0, PHeap);
-    n = 0;
-    s = sl;
-    s0 = sl;
-    while (s < &sl[@intCast(nsl)]) : (s += 1) {
-        total +%= @bitCast(s.*.sz);
-        if (s.*.r.b == 0) {
-            vfree(@ptrCast(s.*.st));
-            n += 1;
-            vgrow(&stk, n);
-            stk[@intCast(n - 1)] = s.*.t;
-            freed +%= @bitCast(s.*.sz);
-        } else {
-            s0.* = s.*;
-            s0 += 1;
+    {
+        var nkeep: usize = 0;
+        for (sl) |*s| {
+            total +%= @bitCast(s.sz);
+            if (s.r.b == 0) {
+                vfree(@ptrCast(s.st));
+                nstk += 1;
+                vgrow(&stk, nstk);
+                stk[nstk - 1] = s.t;
+                freed +%= @bitCast(s.sz);
+            } else {
+                sl[nkeep] = s.*;
+                nkeep += 1;
+            }
         }
+        sl = sl[0..nkeep];
     }
-    nsl = @intCast(ptrdiff(s0, sl));
     if (all.debug['M'] != 0) {
         dprint("\n> Slot coalescing:\n", .{});
-        if (n != 0) {
+        if (nstk != 0) {
             dprint("\tkill [", .{});
-            m = 0;
-            while (m < n) : (m += 1)
-                dprint(" %{s}", .{cs(f.tmp[@intCast(stk[@intCast(m)])].name)});
+            for (stk[0..nstk]) |st|
+                dprint(" %{s}", .{cs(f.tmp[@intCast(st)].name)});
             dprint(" ]\n", .{});
         }
     }
-    while (n != 0) {
-        n -= 1;
-        t = &f.tmp[@intCast(stk[@intCast(n)])];
-        assert(t.*.ndef == 1 and t.*.def != null);
-        i = t.*.def;
-        if (isload(i.*.op)) {
-            i.*.op = Ocopy;
-            i.*.arg[0] = UNDEF;
+    while (nstk != 0) {
+        nstk -= 1;
+        const t = &f.tmp[@intCast(stk[nstk])];
+        assert(t.ndef == 1);
+        const i = t.def.?;
+        if (isload(i.op)) {
+            i.op = Ocopy;
+            i.arg[0] = UNDEF;
             continue;
         }
         i.* = INS0(Onop);
-        for (t.*.use[0..t.*.nuse]) |*u| {
+        for (t.use[0..t.nuse]) |*u| {
             if (u.type == UJmp) {
-                b = f.rpo[u.bid];
-                assert(isret(b.?.jmp.type));
-                b.?.jmp.type = Jret0;
-                b.?.jmp.arg = R;
+                const b = f.rpo[u.bid];
+                assert(isret(b.jmp.type));
+                b.jmp.type = Jret0;
+                b.jmp.arg = R;
                 continue;
             }
             assert(u.type == UIns);
-            i = u.u.ins;
-            if (!req(i.*.to, R)) {
-                assert(rtype(i.*.to) == RTmp);
-                n += 1;
-                vgrow(&stk, n);
-                stk[@intCast(n - 1)] = @intCast(i.*.to.val);
-            } else if (isarg(i.*.op)) {
-                assert(i.*.op == Oargc);
-                i.*.arg[1] = CON_Z; // crash
+            const ui = u.u.ins;
+            if (!req(ui.to, R)) {
+                assert(rtype(ui.to) == RTmp);
+                nstk += 1;
+                vgrow(&stk, nstk);
+                stk[nstk - 1] = @intCast(ui.to.val);
+            } else if (isarg(ui.op)) {
+                assert(ui.op == Oargc);
+                ui.arg[1] = CON_Z; // crash
             } else {
-                if (i.*.op == Oblit0)
-                    (i + 1).* = INS0(Onop);
-                i.* = INS0(Onop);
+                killins(@ptrCast(ui));
             }
         }
     }
     vfree(@ptrCast(stk));
 
     // fuse slots by decreasing size
-    sort(Slot, sl, @intCast(nsl), scmp);
+    std.sort.block(Slot, sl, {}, scmpLess);
     var fused: uint = 0;
-    n = 0;
-    while (n < nsl) : (n += 1) {
-        s0 = &sl[@intCast(n)];
-        if (s0.*.s != null)
+    for (sl, 0..) |*s0, n| {
+        if (s0.s != null)
             continue;
-        s0.*.s = s0;
-        r = s0.*.r;
-        s = s0 + 1;
-        skip: while (s < &sl[@intCast(nsl)]) : (s += 1) {
-            if (s.*.s != null or s.*.r.b == 0)
+        s0.s = s0;
+        var r = s0.r;
+        skip: for (sl[n + 1 ..], n + 1..) |*s, sn| {
+            if (s.s != null or s.r.b == 0)
                 continue :skip;
-            if (rovlap(r, s.*.r)) {
+            if (rovlap(r, s.r)) {
                 // O(n); can be approximated
                 // by 'goto Skip;' if need be
-                m = n;
-                while (&sl[@intCast(m)] < s) : (m += 1)
-                    if (sl[@intCast(m)].s == s0)
-                        if (rovlap(sl[@intCast(m)].r, s.*.r))
+                for (sl[n..sn]) |*sm|
+                    if (sm.s == s0)
+                        if (rovlap(sm.r, s.r))
                             continue :skip;
             }
-            radd(&r, s.*.r.a);
-            radd(&r, s.*.r.b - 1);
-            s.*.s = s0;
-            fused +%= @bitCast(s.*.sz);
+            radd(&r, s.r.a);
+            radd(&r, s.r.b - 1);
+            s.s = s0;
+            fused +%= @bitCast(s.sz);
         }
     }
 
     // substitute fused slots
-    s = sl;
-    while (s < &sl[@intCast(nsl)]) : (s += 1) {
-        t = &f.tmp[@intCast(s.*.t)];
+    for (sl, 0..) |*s, sn| {
+        const t = &f.tmp[@intCast(s.t)];
         // the visit link is stale,
         // reset it before the slot()
         // calls below
-        t.*.visit = @intCast(ptrdiff(s, sl));
-        assert(t.*.ndef == 1 and t.*.def != null);
-        if (s.*.s == s)
+        t.visit = @intCast(sn);
+        assert(t.ndef == 1 and t.def != null);
+        const ss = s.s.?;
+        if (ss == s)
             continue;
-        t.*.def.?.* = INS0(Onop);
-        const ts = &f.tmp[@intCast(s.*.s.*.t)];
-        assert(t.*.bid == ts.bid);
-        if (@intFromPtr(t.*.def) < @intFromPtr(ts.def)) {
+        t.def.?.* = INS0(Onop);
+        const ts = &f.tmp[@intCast(ss.t)];
+        assert(t.bid == ts.bid);
+        if (@intFromPtr(t.def) < @intFromPtr(ts.def)) {
             // make sure the slot we
             // selected has a def that
             // dominates its new uses
-            t.*.def.?.* = ts.def.?.*;
+            t.def.?.* = ts.def.?.*;
             ts.def.?.* = INS0(Onop);
-            ts.def = t.*.def;
+            ts.def = t.def;
         }
-        for (t.*.use[0..t.*.nuse]) |*u| {
+        for (t.use[0..t.nuse]) |*u| {
             if (u.type == UJmp) {
-                b = f.rpo[u.bid];
-                b.?.jmp.arg = TMP(s.*.s.*.t);
+                f.rpo[u.bid].jmp.arg = TMP(ss.t);
                 continue;
             }
             assert(u.type == UIns);
-            arg = &u.u.ins.arg;
-            n = 0;
-            while (n < 2) : (n += 1) {
-                if (req(arg[@intCast(n)], TMP(s.*.t)))
-                    arg[@intCast(n)] = TMP(s.*.s.*.t);
+            for (&u.u.ins.arg) |*arg| {
+                if (req(arg.*, TMP(s.t)))
+                    arg.* = TMP(ss.t);
             }
         }
     }
 
     // fix newly overlapping blits
-    n = 0;
-    while (n < nbl) : (n += 1) {
-        i = bl[@intCast(n)];
-        if (i.*.op == Oblit0)
-            if (slot(&s, &off0, i.*.arg[0], f, sl))
-                if (slot(&s0, &off1, i.*.arg[1], f, sl))
-                    if (s.*.s == s0.*.s) {
+    for (bl[0..nbl]) |i| {
+        var off0: i64 = undefined;
+        var off1: i64 = undefined;
+        if (i[0].op == Oblit0)
+            if (slot(&off0, i[0].arg[0], f, sl)) |s|
+                if (slot(&off1, i[0].arg[1], f, sl)) |s0|
+                    if (s.s == s0.s) {
                         if (off0 < off1) {
-                            sz = rsval((i + 1).*.arg[0]);
+                            const sz = rsval(i[1].arg[0]);
                             assert(sz >= 0);
-                            (i + 1).*.arg[0] = INT(-sz);
+                            i[1].arg[0] = INT(-sz);
                         } else if (off0 == off1) {
-                            i.* = INS0(Onop);
-                            (i + 1).* = INS0(Onop);
+                            i[0] = INS0(Onop);
+                            i[1] = INS0(Onop);
                         }
                     };
     }
     vfree(@ptrCast(bl));
 
     if (all.debug['M'] != 0) {
-        s0 = sl;
-        while (s0 < &sl[@intCast(nsl)]) : (s0 += 1) {
-            if (s0.*.s != s0)
+        for (sl, 0..) |*s0, n| {
+            if (s0.s != s0)
                 continue;
-            dprint("\tfuse ({f}b) [", .{cint(s0.*.sz, 3)});
-            s = s0;
-            while (s < &sl[@intCast(nsl)]) : (s += 1) {
-                if (s.*.s != s0)
+            dprint("\tfuse ({f}b) [", .{cint(s0.sz, 3)});
+            for (sl[n..]) |*s| {
+                if (s.s != s0)
                     continue;
-                dprint(" %{s}", .{cs(f.tmp[@intCast(s.*.t)].name)});
-                if (s.*.r.b != 0)
-                    dprint("[{d},{d})", .{s.*.r.a - ip, s.*.r.b - ip})
+                dprint(" %{s}", .{cs(f.tmp[@intCast(s.t)].name)});
+                if (s.r.b != 0)
+                    dprint("[{d},{d})", .{ s.r.a - ip, s.r.b - ip })
                 else
                     dprint("{s}", .{"{}"});
             }
             dprint(" ]\n", .{});
         }
-        dprint("\tsums {d}/{d}/{d} (killed/fused/total)\n\n", .{freed, fused, total});
+        dprint("\tsums {d}/{d}/{d} (killed/fused/total)\n\n", .{ freed, fused, total });
         printfn(f, all.dbg) catch {};
     }
 
-    s = sl;
-    while (s < &sl[@intCast(nsl)]) : (s += 1)
-        vfree(@ptrCast(s.*.st));
-    vfree(@ptrCast(sl));
+    for (sl) |*s|
+        vfree(@ptrCast(s.st));
+    vfree(@ptrCast(slv));
 }

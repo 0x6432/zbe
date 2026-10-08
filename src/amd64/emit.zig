@@ -759,8 +759,8 @@ pub fn amd64_sysv_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
     var itmp: Ins = undefined;
     var e_ = E{ .f = fp, .@"fn" = f, .fp = 0, .fsz = 0, .nclob = 0 };
     const e = &e_;
-    const rclob: [*c]i32 = &tgt.sysv.amd64_sysv_rclob;
-    const rsave: [*c]i32 = &tgt.sysv.amd64_sysv_rsave;
+    const rclob = tgt.sysv.amd64_sysv_rclob[0..NCLR_SYSV];
+    const rsave = tgt.sysv.amd64_sysv_rsave[0..6];
 
     try emitfnlnk(f.name, &f.lnk, fp);
     try fp.writeAll("\tendbr64\n");
@@ -773,12 +773,10 @@ pub fn amd64_sysv_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
         try fp.print("\tsubq ${d}, %rsp\n", .{e.fsz});
     if (f.vararg != 0) {
         var o: i32 = -176;
-        var r = rsave;
-        while (r < rsave + 6) : ({
-            r += 1;
+        for (rsave) |r| {
+            try fp.print("\tmovq %{s}, {d}(%rbp)\n", .{cs(rname[@intCast(r)][0]), o});
             o += 8;
-        })
-            try fp.print("\tmovq %{s}, {d}(%rbp)\n", .{cs(rname[@intCast(r.*)][0]), o});
+        }
         var n: i32 = 0;
         while (n < 8) : ({
             n += 1;
@@ -786,10 +784,9 @@ pub fn amd64_sysv_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
         })
             try fp.print("\tmovaps %xmm{d}, {d}(%rbp)\n", .{n, o});
     }
-    var r = rclob;
-    while (r < rclob + NCLR_SYSV) : (r += 1) {
-        if ((f.reg & BIT(r.*)) != 0) {
-            itmp.arg[0] = TMP(r.*);
+    for (rclob) |r| {
+        if ((f.reg & BIT(r)) != 0) {
+            itmp.arg[0] = TMP(r);
             try emitf("pushq %L0", &itmp, e);
             e.nclob += 1;
         }
@@ -816,11 +813,12 @@ pub fn amd64_sysv_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
             Jret0 => {
                 if (f.dynalloc != 0)
                     try fp.print("\tmovq %rbp, %rsp\n" ++ "\tsubq ${d}, %rsp\n", .{e.fsz + @as(u64, @intCast(e.nclob)) * 8});
-                r = rclob + NCLR_SYSV;
-                while (r > rclob) {
-                    r -= 1;
-                    if ((f.reg & BIT(r.*)) != 0) {
-                        itmp.arg[0] = TMP(r.*);
+                var k = rclob.len;
+                while (k > 0) {
+                    k -= 1;
+                    const r = rclob[k];
+                    if ((f.reg & BIT(r)) != 0) {
+                        itmp.arg[0] = TMP(r);
                         try emitf("popq %L0", &itmp, e);
                     }
                 }
@@ -884,7 +882,7 @@ pub fn amd64_winabi_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
     var itmp: Ins = undefined;
     var e_ = E{ .f = fp, .@"fn" = f, .fp = 0, .fsz = 0, .nclob = 0 };
     const e = &e_;
-    const rclob: [*c]i32 = &tgt.winabi.amd64_winabi_rclob;
+    const rclob = tgt.winabi.amd64_winabi_rclob[0..NCLR_WIN];
 
     try emitfnlnk(f.name, &f.lnk, fp);
     try fp.writeAll("\tendbr64\n");
@@ -901,10 +899,9 @@ pub fn amd64_winabi_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
     winabi_framesz(e);
     if (e.fsz != 0)
         try fp.print("\tsubq ${d}, %rsp\n", .{e.fsz});
-    var r = rclob;
-    while (r < rclob + NCLR_WIN) : (r += 1) {
-        if ((f.reg & BIT(r.*)) != 0) {
-            itmp.arg[0] = TMP(r.*);
+    for (rclob) |r| {
+        if ((f.reg & BIT(r)) != 0) {
+            itmp.arg[0] = TMP(r);
             try emitf("pushq %L0", &itmp, e);
             e.nclob += 1;
         }
@@ -923,11 +920,12 @@ pub fn amd64_winabi_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
             Jret0 => {
                 if (f.dynalloc != 0)
                     try fp.print("\tmovq %rbp, %rsp\n" ++ "\tsubq ${d}, %rsp\n", .{e.fsz + @as(u64, @intCast(e.nclob)) * 8});
-                r = rclob + NCLR_WIN;
-                while (r > rclob) {
-                    r -= 1;
-                    if ((f.reg & BIT(r.*)) != 0) {
-                        itmp.arg[0] = TMP(r.*);
+                var k = rclob.len;
+                while (k > 0) {
+                    k -= 1;
+                    const r = rclob[k];
+                    if ((f.reg & BIT(r)) != 0) {
+                        itmp.arg[0] = TMP(r);
                         try emitf("popq %L0", &itmp, e);
                     }
                 }

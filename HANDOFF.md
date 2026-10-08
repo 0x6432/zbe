@@ -1,6 +1,6 @@
 # HANDOFF – QBE → Zig translation
 
-Updated: 20261008-095934 UTC
+Updated: 20261008-100916 UTC
 
 ## Goal
 Translate QBE (C, cloned at /data/qbe-c, HEAD e786f06) to latest Zig master.
@@ -116,6 +116,16 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    (pipe zig errors into it); tools/listloops2.py converts variables reused
    for several list walks in one function. NOTE Use.u.phi is still [*c]Phi
    (don't apply `.phi.?` there).
+   DONE (4g/4h): listloops.py/forloops.py made scope-aware (used-after check
+   stops at end of enclosing block; `&x.*.f` no longer blocks) -> 11 more
+   list walks, 8 more pointer walks converted.
+   DONE (4i): tools/derefdots.py: rewrites every `p.*.f` -> `p.f`, then runs
+   `zig build` repeatedly and restores `.*.` per base expression per function
+   where zig says "[*c]T does not support field access" (C pointers need .*).
+   Run from src/ (`--resume` skips the global rewrite). all.sh now runs
+   `zig build` first and aborts on failure (check_tmp.zig misses main.zig!).
+   Metric: `[*c]` 547, `.*.` 2088 (remaining `.*.` are on C pointers; they
+   disappear as C pointers are converted -- rerun derefdots after each step).
    TODO: rest of `[*c]` -> `*T`/`?*T`/slices (the `[*c]T` locals added by
    fixderef are candidates), enums for ops/classes/jumps.
    Notes: Zig forbids `<` on `[*]T` (only `[*c]`) and `&cptr[i]` is

@@ -212,7 +212,7 @@ pub fn pe_emitfin(f: *Writer) Writer.Error!void {
     try emitfin(f, &sec);
 }
 
-var file: [*c]u32 = null;
+var file: ?[*]u32 = null; // vector of interned file names
 var nfile: uint = 0;
 var curfile: uint = 0;
 
@@ -220,7 +220,7 @@ pub fn emitdbgfile(fname: [*c]u8, f: *Writer) Writer.Error!void {
     const id = intern(fname);
     var n: uint = 0;
     while (n < nfile) : (n += 1) {
-        if (file[n] == id) {
+        if (file.?[n] == id) {
             // gas requires positive
             // file numbers
             curfile = n + 1;
@@ -231,7 +231,7 @@ pub fn emitdbgfile(fname: [*c]u8, f: *Writer) Writer.Error!void {
         file = vnewT(u32, 0, PHeap);
     nfile += 1;
     vgrow(&file, nfile);
-    file[nfile - 1] = id;
+    file.?[nfile - 1] = id;
     curfile = nfile;
     try f.print(".file {d} {s}\n", .{curfile, cs(fname)});
 }

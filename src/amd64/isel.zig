@@ -1001,7 +1001,7 @@ pub fn amd64_isel(f: *Fn) void {
         if (n != 0) @memset(num[0..@intCast(n)], std.mem.zeroes(Num));
         anumber(num, b, f.con);
         seljmp(b, f);
-        var i = b.*.ins + b.*.nins;
+        var i: [*c]Ins = b.*.ins + b.*.nins;
         while (i != b.*.ins) {
             i -= 1;
             assert(i.*.op != Osel0);

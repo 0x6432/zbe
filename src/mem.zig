@@ -78,7 +78,7 @@ pub fn promote(f: *Fn) void {
 
     // promote uniform stack slots to temporaries
     const b: [*c]Blk = f.start;
-    var i = b.*.ins;
+    var i: [*c]Ins = b.*.ins;
     outer: while (i < &b.*.ins[b.*.nins]) : (i += 1) {
         if (Oalloc > i.*.op or i.*.op > Oalloc1)
             continue;

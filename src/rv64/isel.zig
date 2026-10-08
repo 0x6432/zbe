@@ -312,7 +312,7 @@ pub fn rv64_isel(f: *Fn) void {
             }
         }
         seljmp(b, f);
-        var i = b.*.ins + b.*.nins;
+        var i: [*c]Ins = b.*.ins + b.*.nins;
         while (i != b.*.ins) {
             i -= 1;
             sel(i.*, f);

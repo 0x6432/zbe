@@ -271,7 +271,7 @@ pub const Phi = extern struct {
 
 pub const Blk = extern struct {
     phi: ?*Phi,
-    ins: [*c]Ins,
+    ins: [*]Ins,
     nins: uint,
     jmp: extern struct {
         type: i16,

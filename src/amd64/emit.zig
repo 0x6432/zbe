@@ -808,7 +808,7 @@ pub fn amd64_sysv_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
                 try fp.print(".p2align 4\n", .{});
             try fp.print("{s}bb{d}:\n", .{cs(&all.T.asloc), sysv_id0 + @as(i32, @intCast(b.id))});
         }
-        var i = b.ins;
+        var i: [*c]Ins = b.ins;
         while (i != b.ins + b.nins) : (i += 1)
             try emitins(i.*, e);
         lbl = true;
@@ -916,7 +916,7 @@ pub fn amd64_winabi_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
     while (b_it) |b| : (b_it = b.link) {
         if (lbl or b.npred > 1)
             try fp.print("{s}bb{d}:\n", .{cs(&all.T.asloc), winabi_id0 + @as(i32, @intCast(b.id))});
-        var i = b.ins;
+        var i: [*c]Ins = b.ins;
         while (i != b.ins + b.nins) : (i += 1)
             try emitins(i.*, e);
         lbl = true;

@@ -85,7 +85,7 @@ fn schedearly(f: *Fn, r: Ref) uint {
 
     const b = f.rpo[t.bid];
     if (t.def != null) {
-        assert(b.ins <= t.def and t.def < b.ins + b.nins);
+        assert(@intFromPtr(b.ins) <= @intFromPtr(t.def) and @intFromPtr(t.def) < @intFromPtr(b.ins + b.nins));
         t.gcmbid = 0; // mark as visiting
         t.gcmbid = earlyins(f, b, t.def);
     } else {
@@ -270,7 +270,7 @@ fn addgcmins(f: *Fn, vins: [*c]Ins, nins: uint) void {
 /// schedblk
 fn gcmmove(f: *Fn) void {
     var nins: uint = 0;
-    var vins = vnewT(Ins, nins, PFn);
+    var vins: [*]Ins = vnewT(Ins, nins, PFn);
 
     for (f.tmp[0..@intCast(f.ntmp)]) |*t| {
         if (t.def == null)
@@ -290,7 +290,7 @@ fn gcmmove(f: *Fn) void {
 }
 
 /// dfs ordering
-fn schedins(f: *Fn, b: *Blk, i_: [*c]Ins, pvins: *[*c]Ins, pnins: *uint) [*c]Ins {
+fn schedins(f: *Fn, b: *Blk, i_: [*c]Ins, pvins: *[*]Ins, pnins: *uint) [*c]Ins {
     var i_0: [*c]Ins = undefined;
     var i_1: [*c]Ins = undefined;
     igroup(b, i_, &i_0, &i_1);
@@ -320,7 +320,7 @@ fn schedblk(f: *Fn) void {
     var b_it: ?*Blk = f.start;
     while (b_it) |b| : (b_it = b.link) {
         var nins: uint = 0;
-        var i = b.ins;
+        var i: [*c]Ins = b.ins;
         while (i < b.ins + b.nins)
             i = schedins(f, b, i, &vins, &nins);
         idup(b, vins, nins);

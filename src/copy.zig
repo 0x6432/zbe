@@ -284,7 +284,7 @@ pub fn narrowpars(f: *Fn) void {
     b = f.start;
 
     var npar: uint = 0;
-    var i = b.*.ins;
+    var i: [*c]Ins = b.*.ins;
     while (i < &b.*.ins[b.*.nins]) : (i += 1) {
         if (!ispar(i.*.op))
             break;

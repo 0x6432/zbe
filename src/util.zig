@@ -323,7 +323,7 @@ pub fn vnew(len: ulong, esz: usize, pl: Pool) ?*anyopaque {
 }
 
 /// typed convenience wrapper: (T *)vnew(len, sizeof(T), pool)
-pub inline fn vnewT(comptime T: type, len: anytype, pl: Pool) [*c]T {
+pub inline fn vnewT(comptime T: type, len: anytype, pl: Pool) [*]T {
     return @ptrCast(@alignCast(vnew(@intCast(len), @sizeOf(T), pl)));
 }
 
@@ -348,7 +348,7 @@ pub fn vgrow(vp: anytype, len: anytype) void {
     vp.* = @ptrCast(@alignCast(v1));
 }
 
-pub fn addins(pvins: *[*c]Ins, pnins: *uint, i: [*c]Ins) void {
+pub fn addins(pvins: *[*]Ins, pnins: *uint, i: [*c]Ins) void {
     if (i.*.op == Onop)
         return;
     pnins.* += 1;
@@ -356,7 +356,7 @@ pub fn addins(pvins: *[*c]Ins, pnins: *uint, i: [*c]Ins) void {
     pvins.*[pnins.* - 1] = i.*;
 }
 
-pub fn addbins(pvins: *[*c]Ins, pnins: *uint, b: *Blk) void {
+pub fn addbins(pvins: *[*]Ins, pnins: *uint, b: *Blk) void {
     for (b.ins[0..b.nins]) |*i|
         addins(pvins, pnins, i);
 }

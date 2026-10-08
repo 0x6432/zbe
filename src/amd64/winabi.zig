@@ -651,7 +651,7 @@ fn lower_args_for_block(func: *Fn, block: [*c]Blk, param_reg_usage: *RegisterUsa
     if (block.*.nins != 0) {
         // Work backwards through the instructions, either copying them unchanged,
         // or modifying as necessary.
-        var instr = block.*.ins + (block.*.nins - 1);
+        var instr: [*c]Ins = block.*.ins + (block.*.nins - 1);
         while (instr >= block.*.ins) {
             switch (instr.*.op) {
                 Ocall => instr = lower_call(func, block, instr, pextra_alloc),
@@ -689,7 +689,7 @@ fn lower_args_for_block(func: *Fn, block: [*c]Blk, param_reg_usage: *RegisterUsa
 }
 
 fn find_end_of_func_parameters(start_block: *Blk) [*c]Ins {
-    var i = start_block.ins;
+    var i: [*c]Ins = start_block.ins;
     while (i < start_block.ins + start_block.nins) : (i += 1) {
         if (!ispar(i.*.op)) {
             break;
@@ -733,7 +733,7 @@ fn lower_func_parameters(func: *Fn) RegisterUsage {
     // on how they're passed, they either need to be copied or loaded.
     var arg = arg_classes;
     var slot_offset: i32 = SHADOW_SPACE_SIZE / 4 + 4;
-    var instr = start_of_params;
+    var instr: [*c]Ins = start_of_params;
     while (instr < end_of_params) : ({
         instr += 1;
         arg += 1;

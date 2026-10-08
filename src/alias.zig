@@ -15,6 +15,7 @@ const Blk = all.Blk;
 const CAddr = all.CAddr;
 const CBits = all.CBits;
 const Fn = all.Fn;
+const Ins = all.Ins;
 const Jretc = all.Jretc;
 const MayAlias = all.MayAlias;
 const MustAlias = all.MustAlias;
@@ -174,7 +175,7 @@ pub fn fillalias(f: *Fn) void {
             a.*.offset = 0;
             a.*.slot = null;
         }
-        var i = b.ins;
+        var i: [*c]Ins = b.ins;
         while (i < &b.ins[b.nins]) : (i += 1) {
             var a: [*c]Alias = null;
             if (!req(i.*.to, R)) {

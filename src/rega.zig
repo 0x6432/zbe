@@ -374,7 +374,7 @@ fn doblk(b: *Blk, cur: *RMap) void {
     if (rtype(b.jmp.arg) == RTmp)
         b.jmp.arg = ralloc(cur, @intCast(b.jmp.arg.val));
     all.curi = all.insbEnd();
-    var i_1 = b.ins + b.nins;
+    var i_1: [*c]Ins = b.ins + b.nins;
     while (i_1 != b.ins) {
         i_1 -= 1;
         emiti(i_1.*);
@@ -533,7 +533,7 @@ pub fn rega(f: *Fn) void {
     }
     sort(*Blk, @ptrCast(blk), f.nblk, carve);
     b = f.start;
-    var i = b.*.ins;
+    var i: [*c]Ins = b.*.ins;
     while (i < b.*.ins + b.*.nins) : (i += 1) {
         if (i.*.op != Ocopy or !isreg(i.*.arg[0])) {
             break;

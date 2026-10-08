@@ -296,7 +296,7 @@ fn seljmp(b: *Blk, f: *Fn) void {
     var use: i32 = -1;
     b.jmp.arg = R;
     var ir: [*c]Ins = null;
-    var i = b.ins + b.nins;
+    var i: [*c]Ins = b.ins + b.nins;
     while (i > b.ins) {
         i -= 1;
         if (req(i.*.to, r)) {
@@ -359,7 +359,7 @@ pub fn arm64_isel(f: *Fn) void {
             }
         }
         seljmp(b, f);
-        var i = b.*.ins + b.*.nins;
+        var i: [*c]Ins = b.*.ins + b.*.nins;
         while (i != b.*.ins) {
             i -= 1;
             sel(i.*, f);

@@ -439,7 +439,7 @@ pub fn spill(f: *Fn) void {
 
         // 2. process the block instructions
         all.curi = all.insbEnd();
-        var i = b.ins + b.nins;
+        var i: [*c]Ins = b.ins + b.nins;
         while (i != b.ins) {
             i -= 1;
             if (regcpy(i)) {

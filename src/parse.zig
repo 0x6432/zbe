@@ -1065,7 +1065,7 @@ fn typecheck(f: *Fn) void {
         var p_it: ?*Phi = b.phi;
         while (p_it) |p| : (p_it = p.link)
             f.tmp[p.to.val].cls = p.cls;
-        var i = b.ins;
+        var i: [*c]Ins = b.ins;
         while (i < &b.ins[b.nins]) : (i += 1)
             if (rtype(i.*.to) == RTmp) {
                 t = &f.tmp[i.*.to.val];

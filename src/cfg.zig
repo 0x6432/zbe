@@ -489,7 +489,7 @@ pub fn simplcfg(f: *Fn) void {
         jmp[b.*.id].s1 = b.*.s1;
         jmp[b.*.id].s2 = b.*.s2;
         empty[b.*.id] = @intFromBool(b.*.phi == null);
-        var i = b.*.ins;
+        var i: [*c]Ins = b.*.ins;
         while (i < &b.*.ins[b.*.nins]) : (i += 1)
             if (i.*.op != Onop and i.*.op != Odbgloc) {
                 empty[b.*.id] = 0;

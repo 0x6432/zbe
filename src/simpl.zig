@@ -136,7 +136,7 @@ pub fn simpl(f: *Fn) void {
     var b_it: ?*Blk = f.start;
     while (b_it) |b| : (b_it = b.link) {
         var new = false;
-        var i = b.ins + b.nins;
+        var i: [*c]Ins = b.ins + b.nins;
         while (i != b.ins) {
             i -= 1;
             ins(&i, &new, b, f);

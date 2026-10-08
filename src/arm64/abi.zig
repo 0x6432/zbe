@@ -833,7 +833,7 @@ pub fn arm64_abi(f: *Fn) void {
 
     // lower parameters
     b = f.start;
-    var i = b.*.ins;
+    var i: [*c]Ins = b.*.ins;
     while (i < b.*.ins + b.*.nins) : (i += 1) {
         if (!ispar(i.*.op))
             break;
@@ -916,7 +916,7 @@ pub fn apple_extsb(f: *Fn) void {
             b.jmp.arg = r;
             b.jmp.type = Jretw;
         }
-        var i = b.ins + b.nins;
+        var i: [*c]Ins = b.ins + b.nins;
         while (i > b.ins) {
             i -= 1;
             emiti(i.*);

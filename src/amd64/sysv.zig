@@ -762,7 +762,7 @@ pub fn amd64_sysv_abi(f: *Fn) void {
 
     // lower parameters
     b = f.start;
-    var i = b.*.ins;
+    var i: [*c]Ins = b.*.ins;
     while (i < b.*.ins + b.*.nins) : (i += 1) {
         if (!ispar(i.*.op))
             break;

@@ -6,6 +6,7 @@ const all = @import("all.zig");
 const BSet = all.BSet;
 const Blk = all.Blk;
 const Fn = all.Fn;
+const Ins = all.Ins;
 const KBASE = all.KBASE;
 const Ocall = all.ops.Ocall;
 const Phi = all.Phi;
@@ -109,7 +110,7 @@ pub fn filllive(f: *Fn) void {
             var k: usize = 0;
             while (k < 2) : (k += 1)
                 b.*.nlive[k] = nlv[k];
-            var i = b.*.ins + b.*.nins;
+            var i: [*c]Ins = b.*.ins + b.*.nins;
             while (i != b.*.ins) {
                 i -= 1;
                 if (i.*.op == Ocall and rtype(i.*.arg[1]) == RCall) {

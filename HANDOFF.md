@@ -1,6 +1,6 @@
 # HANDOFF – QBE → Zig translation
 
-Updated: 20261008-223921 UTC (backup 39)
+Updated: 20261008-224718 UTC (backup 40)
 
 ## Goal
 Translate QBE (C, cloned at /data/qbe-c, HEAD e786f06) to latest Zig master.
@@ -186,7 +186,7 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    `*allowzero T` (won't coerce to *T) -> rewrite pointer loops to
    slices/indices before converting struct fields to `[*]T`.
 
-## Next steps (current as of stage 6m, all checks green)
+## Next steps (current as of stage 6n, all checks green)
 DONE 5t (redone after sandbox reset): arm64/isel.zig (fixarg(pr: *Ref),
 selcmp(arg: *[2]Ref), seljmp backward index search with ?*Ins, list walks)
 and rv64/isel.zig (memarg/immarg/fixarg take *Ref/?*Ins). All isel files
@@ -263,7 +263,15 @@ SANDBOX NOTE: long foreground commands (all.sh ~2 min) have killed the sandbox
 twice and rolled /data back to an older snapshot. Always run all.sh in the
 background (`(sh tools/all.sh > /tmp/all.log 2>&1; echo EXIT $? >> /tmp/all.log) &`)
 and poll with `sleep 100; tail -12 /tmp/all.log`. Commit WIP before verifying.
-PLAN (user approved, in order): (1) strings DONE; (2) vectors DONE; (2b) tests DONE; (3) jump enum DONE, then vectors (vnew/vgrow) -> typed growable arrays;
+DONE 6n: tools/s6n_casts.py removed 111 redundant @intCast/@truncate/@ptrCast
+(a cast builtin never passes its result type to its operand, so a removal that
+still compiles is an identity or lossless widening). ~470 casts remain; they
+are real narrowing/sign/pointer conversions inherited from C int/uint mixing.
+REMAINING (optional, not started): ops/classes (Kw..Kd, O*) as enums - ops are
+used as table indices and in range arithmetic everywhere, so convert like 6m
+(enum + aliases + .int()/add()); Ins.op/cls are u32 while Tmp.cls is i16 -
+unifying these types would remove many of the remaining casts.
+PLAN (user approved, in order): (1) strings DONE; (2) vectors DONE; (2b) tests DONE; (3) jump enum DONE, cast reduction pass DONE, then vectors (vnew/vgrow) -> typed growable arrays;
 (3) enums for ops/classes/jumps; (4) cut casts.
 NOTE: the sandbox can stop mid-session (files in /data survived once, but the
 last edits before the stop were partly lost) -> commit + back up often.
@@ -291,7 +299,7 @@ indices/slices); pointer subtraction on `[*]T` works; tmph needs
 > /data/qbe-c/qbe); build corpus with `sh tools/mkcorpus.sh` (Hare/cproc IR,
 > see Status section). Read HANDOFF.md fully first.
 > State: 1:1 translation done and verified (git tag `v1-literal`). Canonical
-> rewrite in progress, stages 1-6m done (see "Canonical rewrite").
+> rewrite in progress, stages 1-6n done (see "Canonical rewrite").
 > Verify after EVERY change: `sh tools/all.sh > /tmp/all.log 2>&1; head -1
 > /tmp/all.log; tail -8 /tmp/all.log` (FUZZ=1 also runs abifuzz/irfuzz).
 > Expected: "All is fine!", 0/76 differ on 6 targets + debug dumps, corpus

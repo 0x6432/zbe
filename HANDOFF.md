@@ -1,6 +1,6 @@
 # HANDOFF – QBE → Zig translation
 
-Updated: 20261008-202911 UTC
+Updated: 20261008-203409 UTC
 
 ## Goal
 Translate QBE (C, cloned at /data/qbe-c, HEAD e786f06) to latest Zig master.
@@ -185,7 +185,7 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    `*allowzero T` (won't coerce to *T) -> rewrite pointer loops to
    slices/indices before converting struct fields to `[*]T`.
 
-## Next steps (current as of stage 5t, all checks green)
+## Next steps (current as of stage 5u, all checks green)
 DONE 5t (redone after sandbox reset): arm64/isel.zig (fixarg(pr: *Ref),
 selcmp(arg: *[2]Ref), seljmp backward index search with ?*Ins, list walks)
 and rv64/isel.zig (memarg/immarg/fixarg take *Ref/?*Ins). All isel files
@@ -195,6 +195,11 @@ Restore notes: ziglang.org/builds still serves 0.18.0-dev.35+5e754304d
 (master moved to dev.120); a full mkcorpus.sh run takes a few minutes and now
 gives corpus "1608 runs, 0 differ, 104 both-failed" (bigger than before).
 1. (done) arm64/isel.zig, rv64/isel.zig.
+DONE 5u (start of emit files): amd64/emit.zig + arm64/emit.zig: E.fn is
+`*Fn`, `*_emitfn(f: *Fn, ...)` (were ?*Fn), `e.@"fn".*.` -> `e.@"fn".`.
+Remaining C-isms: arm64/emit ~52, rv64/emit ~57, amd64/emit ~12, emit.zig ~34.
+NOTE: the sandbox can stop mid-session (files in /data survived once, but the
+last edits before the stop were partly lost) -> commit + back up often.
 2. Emit files (arm64/emit ~70 `.*.`, rv64/emit ~57, amd64/emit ~35,
    emit.zig ~34): E.fn `*Fn`, `*_emitfn(f: *Fn, ...)`, fixarg(pr: *Ref),
    emitins(i: *Ins), rv64 emitf(i: *Ins), `e.@"fn".*.` -> `e.@"fn".`,
@@ -218,7 +223,7 @@ indices/slices); pointer subtraction on `[*]T` works; tmph needs
 > /data/qbe-c/qbe); build corpus with `sh tools/mkcorpus.sh` (Hare/cproc IR,
 > see Status section). Read HANDOFF.md fully first.
 > State: 1:1 translation done and verified (git tag `v1-literal`). Canonical
-> rewrite in progress, stages 1-5t done (see "Canonical rewrite").
+> rewrite in progress, stages 1-5u done (see "Canonical rewrite").
 > Verify after EVERY change: `sh tools/all.sh > /tmp/all.log 2>&1; head -1
 > /tmp/all.log; tail -8 /tmp/all.log` (FUZZ=1 also runs abifuzz/irfuzz).
 > Expected: "All is fine!", 0/76 differ on 6 targets + debug dumps, corpus

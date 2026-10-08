@@ -238,7 +238,7 @@ pub inline fn KBASE(k: anytype) i32 {
 }
 
 pub const Op = struct {
-    name: [*c]const u8,
+    name: ?[*:0]const u8,
     argcls: [2][4]i16,
     canfold: u1,
     hasid: u1, // op identity value?
@@ -298,7 +298,7 @@ pub const Blk = extern struct {
     gen: BSet,
     nlive: [2]i32,
     loop: i32,
-    name: [*c]u8,
+    name: ?[*:0]u8,
 };
 
 pub const UXXX = 0;
@@ -370,7 +370,7 @@ pub const Wsw = 5;
 pub const Wuw = 6;
 
 pub const Tmp = extern struct {
-    name: [*c]u8,
+    name: ?[*:0]u8,
     def: ?*Ins,
     use: ?[*]Use, // vector, null until filluse()
     ndef: uint,
@@ -419,8 +419,8 @@ pub const Lnk = extern struct {
     thread: i8,
     common: i8,
     @"align": i8,
-    sec: [*c]u8,
-    secf: [*c]u8,
+    sec: ?[*:0]u8,
+    secf: ?[*:0]u8,
 };
 
 pub const Fn = extern struct {
@@ -441,7 +441,7 @@ pub const Fn = extern struct {
     vararg: i8,
     dynalloc: i8,
     leaf: i8,
-    name: [*c]u8,
+    name: ?[*:0]u8,
     lnk: Lnk,
 };
 
@@ -461,7 +461,7 @@ pub const Field = extern struct {
 };
 
 pub const Typ = extern struct {
-    name: [*c]u8,
+    name: ?[*:0]u8,
     isdark: i8,
     isunion: i8,
     @"align": i32,
@@ -480,15 +480,15 @@ pub const DZ = 6;
 
 pub const Dat = extern struct {
     type: i32,
-    name: [*c]u8,
+    name: ?[*:0]u8,
     lnk: ?*Lnk,
     u: extern union {
         num: i64,
         fltd: f64,
         flts: f32,
-        str: [*c]u8,
+        str: ?[*:0]u8,
         ref: extern struct {
-            name: [*c]u8,
+            name: ?[*:0]u8,
             off: i64,
         },
     },

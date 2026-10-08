@@ -86,7 +86,7 @@ pub fn emitdat(d: *Dat, f: *Writer) Writer.Error!void {
             if (d.lnk.?.common != 0) {
                 if (emitdat_zero == -1)
                     die("invalid common data definition", .{});
-                const p: [*:0]const u8 = if (d.name[0] == '"') "" else @ptrCast(&all.T.assym);
+                const p: [*:0]const u8 = if (d.name.?[0] == '"') "" else @ptrCast(&all.T.assym);
                 try f.print(".comm {s}{s},{d}", .{cs(p), cs(d.name), emitdat_zero});
                 if (d.lnk.?.@"align" != 0)
                     try f.print(",{d}", .{d.lnk.?.@"align"});
@@ -114,7 +114,7 @@ pub fn emitdat(d: *Dat, f: *Writer) Writer.Error!void {
                     err("strings only supported for 'b' currently", .{});
                 try f.print("\t.ascii {s}\n", .{cs(d.u.str)});
             } else if (d.isref != 0) {
-                const p: [*:0]const u8 = if (d.u.ref.name[0] == '"') "" else @ptrCast(&all.T.assym);
+                const p: [*:0]const u8 = if (d.u.ref.name.?[0] == '"') "" else @ptrCast(&all.T.assym);
                 try f.print("{s} {s}{s}{d:1}\n", .{cs(di[@intCast(d.type)].decl), cs(p), cs(d.u.ref.name), d.u.ref.off});
             } else {
                 try f.print("{s} {d}\n", .{cs(di[@intCast(d.type)].decl), d.u.num & di[@intCast(d.type)].mask});

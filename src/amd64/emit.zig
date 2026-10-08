@@ -385,21 +385,21 @@ const clstoa = [_][*c]const u8{ "l", "q", "ss", "sd" };
 fn emitmem(ref: Ref, e: *E) Writer.Error!void {
     var off: Con = undefined;
     const m = &e.@"fn".*.mem[ref.val];
-    if (rtype(m.*.base) == RSlot) {
+    if (rtype(m.base) == RSlot) {
         off.type = CBits;
-        off.bits.i = slot(m.*.base, e);
-        _ = addcon(&m.*.offset, &off, 1);
-        m.*.base = TMP(e.fp);
+        off.bits.i = slot(m.base, e);
+        _ = addcon(&m.offset, &off, 1);
+        m.base = TMP(e.fp);
     }
-    if (m.*.offset.type != CUndef)
-        try emitcon(&m.*.offset, e);
+    if (m.offset.type != CUndef)
+        try emitcon(&m.offset, e);
     try e.f.writeByte('(');
-    if (!req(m.*.base, R))
-        try e.f.print("%{s}", .{cs(regtoa(@intCast(m.*.base.val), SLong))})
-    else if (m.*.offset.type == CAddr)
+    if (!req(m.base, R))
+        try e.f.print("%{s}", .{cs(regtoa(@intCast(m.base.val), SLong))})
+    else if (m.offset.type == CAddr)
         try e.f.print("%rip", .{});
-    if (!req(m.*.index, R))
-        try e.f.print(", %{s}, {d}", .{cs(regtoa(@intCast(m.*.index.val), SLong)), m.*.scale});
+    if (!req(m.index, R))
+        try e.f.print(", %{s}, {d}", .{cs(regtoa(@intCast(m.index.val), SLong)), m.scale});
     try e.f.writeByte(')');
 }
 
@@ -658,35 +658,35 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
                 return;
             }
             const con = &e.@"fn".*.con[i.arg[0].val];
-            assert(isreg(i.to) and con.*.type == CAddr);
-            const sym = str(con.*.sym.id);
+            assert(isreg(i.to) and con.type == CAddr);
+            const sym = str(con.sym.id);
             const pfx: [*c]const u8 = if (sym[0] == '"') "" else &all.T.assym;
-            if (all.T.apple != 0 and (con.*.sym.type & SThr) != 0) {
+            if (all.T.apple != 0 and (con.sym.type & SThr) != 0) {
                 try e.f.print("\tmovq {s}{s}@tlvp(%rip), %{s}\n", .{cs(pfx), cs(sym), cs(regtoa(@intCast(i.to.val), SLong))});
                 return;
             }
-            if (all.T.windows != 0 and con.*.sym.type != SGlo)
+            if (all.T.windows != 0 and con.sym.type != SGlo)
                 die("extern/thread unsupported on amd64_win", .{});
-            switch (con.*.sym.type) {
+            switch (con.sym.type) {
                 SThr => {
                     // derive the symbol address from the TCB
                     // address at offset 0 of %fs
                     try emitf("movq %%fs:0, %L=", &i, e);
                     try e.f.print("\tleaq {s}{s}@tpoff", .{cs(pfx), cs(sym)});
-                    if (con.*.bits.i != 0)
-                        try e.f.print("{d:1}", .{con.*.bits.i});
+                    if (con.bits.i != 0)
+                        try e.f.print("{d:1}", .{con.bits.i});
                     try e.f.print("(%{s}), %{s}\n", .{cs(regtoa(@intCast(i.to.val), SLong)), cs(regtoa(@intCast(i.to.val), SLong))});
                 },
                 SExtThr => {
                     // initial-exec TLS: load offset from
                     // GOT, add to thread-base register
-                    assert(con.*.bits.i == 0);
+                    assert(con.bits.i == 0);
                     try emitf("movq %%fs:0, %L=", &i, e);
                     try e.f.print("\taddq {s}{s}@gottpoff(%rip), %{s}\n", .{cs(pfx), cs(sym), cs(regtoa(@intCast(i.to.val), SLong))});
                 },
                 SExt => {
                     // load address from the GOT
-                    assert(con.*.bits.i == 0);
+                    assert(con.bits.i == 0);
                     try e.f.print("\tmovq {s}{s}@gotpcrel(%rip), %{s}\n", .{cs(pfx), cs(sym), cs(regtoa(@intCast(i.to.val), SLong))});
                 },
                 else => try emittable(&i, e),
@@ -700,8 +700,8 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
                     const con = &e.@"fn".*.con[i.arg[0].val];
                     try e.f.print("\tcallq ", .{});
                     try emitcon(con, e);
-                    if (con.*.type == CAddr and
-                        (con.*.sym.type & SExt) != 0 and
+                    if (con.type == CAddr and
+                        (con.sym.type & SExt) != 0 and
                         all.T.apple == 0)
                         try e.f.print("@plt", .{});
                     try e.f.print("\n", .{});

@@ -307,11 +307,11 @@ fn classify_arguments(reg_usage: *RegisterUsage, begin_instr: [*c]Ins, end_instr
                 const by_copy = type_is_by_copy(@"type");
                 assign_register_or_stack(reg_usage, arg, false, by_copy);
                 arg.*.cls = Kl;
-                if (!by_copy and @"type".*.size <= 4) {
+                if (!by_copy and @"type".size <= 4) {
                     arg.*.cls = Kw;
                 }
                 arg.*.@"align" = 3;
-                arg.*.size = @intCast(@"type".*.size);
+                arg.*.size = @intCast(@"type".size);
             },
             Oarge => {
                 env.* = instr.*.arg[0];
@@ -392,7 +392,7 @@ fn lower_call(func: *Fn, block: *Blk, call_instr: [*c]Ins, pextra_alloc: *[*c]Ex
         if (is_struct_return) {
             assign_register_or_stack(&reg_usage, &ret_arg_class, false, true);
         }
-        ret_arg_class.size = @intCast(ret_type.*.size);
+        ret_arg_class.size = @intCast(ret_type.size);
     }
     var env = R;
     classify_arguments(&reg_usage, earliest_arg_instr, call_instr, arg_classes, &env);
@@ -591,7 +591,7 @@ fn lower_block_return(func: *Fn, block: *Blk) void {
         if (type_is_by_copy(@"type")) {
             assert(rtype(func.retr) == RTmp);
             emit(Ocopy, Kl, TMP(RAX), func.retr, R);
-            emit(Oblit1, 0, R, INT(@"type".*.size), R);
+            emit(Oblit1, 0, R, INT(@"type".size), R);
             emit(Oblit0, 0, R, ret_arg, func.retr);
         } else {
             emit(Oload, Kl, TMP(RAX), ret_arg, R);

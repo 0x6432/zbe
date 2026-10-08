@@ -75,11 +75,11 @@ pub fn adduse(tmp: *Tmp, ty: i32, b: *Blk, x: ?*anyopaque) void {
     tmp.nuse += 1;
     vgrow(&tmp.use, tmp.nuse);
     const u = &tmp.use[n];
-    u.*.type = ty;
-    u.*.bid = b.id;
+    u.type = ty;
+    u.bid = b.id;
     switch (ty) {
-        UPhi => u.*.u.phi = @ptrCast(@alignCast(x)),
-        UIns => u.*.u.ins = @ptrCast(@alignCast(x)),
+        UPhi => u.u.phi = @ptrCast(@alignCast(x)),
+        UIns => u.u.ins = @ptrCast(@alignCast(x)),
         UJmp => {},
         else => die("unreachable", .{}),
     }
@@ -97,15 +97,15 @@ pub fn filluse(f: *Fn) void {
     t = Tmp0;
     while (t < f.ntmp) : (t += 1) {
         const tt = &tmp[@intCast(t)];
-        tt.*.def = null;
-        tt.*.bid = NOID;
-        tt.*.ndef = 0;
-        tt.*.nuse = 0;
-        tt.*.cls = 0;
-        tt.*.phi = 0;
-        tt.*.width = WFull;
-        if (tt.*.use == null)
-            tt.*.use = vnewT(Use, 0, PFn);
+        tt.def = null;
+        tt.bid = NOID;
+        tt.ndef = 0;
+        tt.nuse = 0;
+        tt.cls = 0;
+        tt.phi = 0;
+        tt.width = WFull;
+        if (tt.use == null)
+            tt.use = vnewT(Use, 0, PFn);
     }
     var b_it: ?*Blk = f.start;
     while (b_it) |b| : (b_it = b.link) {
@@ -179,14 +179,14 @@ fn phiins(f: *Fn) void {
     var t: i32 = Tmp0;
     while (t < nt) : (t += 1) {
         const tt = &f.tmp[@intCast(t)];
-        tt.*.visit = 0;
-        if (tt.*.phi != 0)
+        tt.visit = 0;
+        if (tt.phi != 0)
             continue;
-        if (tt.*.ndef == 1) {
+        if (tt.ndef == 1) {
             var ok = true;
-            const defb = tt.*.bid;
-            var use = tt.*.use;
-            var n = tt.*.nuse;
+            const defb = tt.bid;
+            var use = tt.use;
+            var n = tt.nuse;
             while (n != 0) : (use += 1) {
                 n -= 1;
                 ok = ok and (use.*.bid == defb);
@@ -288,7 +288,7 @@ fn nfree(n: [*c]Name) void {
 }
 
 fn rendef(r: *Ref, b: *Blk, stk: [*c][*c]Name, f: *Fn) void {
-    const t = r.*.val;
+    const t = r.val;
     if (req(r.*, R) or f.tmp[t].visit == 0)
         return;
     const r1 = refindex(@intCast(t), f);
@@ -354,7 +354,7 @@ fn renblk(b: *Blk, stk: [*c][*c]Name, f: *Fn) void {
         }
     }
     var s_it: ?*Blk = b.dom;
-    while (s_it) |s| : (s_it = s.dlink)
+    while (s_it) |s| : (s_it = s.*.dlink)
         renblk(s, stk, f);
 }
 

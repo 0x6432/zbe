@@ -57,11 +57,11 @@ pub fn getalias(a: *Alias, r: Ref, f: *Fn) void {
         },
         RCon => {
             const c = &f.con[r.val];
-            if (c.*.type == CAddr) {
+            if (c.type == CAddr) {
                 a.type = ASym;
-                a.u.sym = c.*.sym;
+                a.u.sym = c.sym;
             } else a.type = ACon;
-            a.offset = c.*.bits.i;
+            a.offset = c.bits.i;
             a.slot = null;
         },
         else => die("unreachable", .{}),
@@ -125,15 +125,15 @@ pub fn escapes(r: Ref, f: *Fn) bool {
     if (rtype(r) != RTmp)
         return true;
     const a = &f.tmp[r.val].alias;
-    return astack(a.*.type) == 0 or a.*.slot.*.type == AEsc;
+    return astack(a.type) == 0 or a.slot.*.type == AEsc;
 }
 
 fn esc(r: Ref, f: *Fn) void {
     assert(rtype(r) <= RType);
     if (rtype(r) == RTmp) {
         const a = &f.tmp[r.val].alias;
-        if (astack(a.*.type) != 0)
-            a.*.slot.*.type = AEsc;
+        if (astack(a.type) != 0)
+            a.slot.*.type = AEsc;
     }
 }
 
@@ -142,14 +142,14 @@ fn store(r: Ref, sz: i32, f: *Fn) void {
 
     if (rtype(r) == RTmp) {
         const a = &f.tmp[r.val].alias;
-        if (a.*.slot != null) {
-            assert(astack(a.*.type) != 0);
-            const off = a.*.offset;
+        if (a.slot != null) {
+            assert(astack(a.type) != 0);
+            const off = a.offset;
             if (sz >= NBit or (off < 0 or off >= NBit))
                 m = @bitCast(@as(i64, -1))
             else
                 m = (BIT(sz) -% 1) << @intCast(off);
-            a.*.slot.*.u.loc.m |= m;
+            a.slot.*.u.loc.m |= m;
         }
     }
 }
@@ -187,8 +187,8 @@ pub fn fillalias(f: *Fn) void {
                     a.*.u.loc.sz = -1;
                     if (rtype(i.*.arg[0]) == RCon) {
                         const c = &f.con[i.*.arg[0].val];
-                        const x = c.*.bits.i;
-                        if (c.*.type == CBits)
+                        const x = c.bits.i;
+                        if (c.type == CBits)
                             if (0 <= x and x <= NBit) {
                                 a.*.u.loc.sz = @intCast(x);
                             };
@@ -237,8 +237,8 @@ pub fn fillalias(f: *Fn) void {
             esc(b.*.jmp.arg, f);
     }
     var b_it: ?*Blk = f.start;
-    while (b_it) |b| : (b_it = b.link) {
-        var p_it: ?*Phi = b.phi;
+    while (b_it) |b| : (b_it = b.*.link) {
+        var p_it: ?*Phi = b.*.phi;
         while (p_it) |p| : (p_it = p.link) {
             var k: uint = 0;
             while (k < p.narg) : (k += 1)

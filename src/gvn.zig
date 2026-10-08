@@ -143,9 +143,9 @@ fn replaceuse(f: *Fn, u: *Use, r1: Ref, r2: Ref) void {
 fn replaceuses(f: *Fn, r1: Ref, r2: Ref) void {
     assert(rtype(r1) == RTmp);
     const t1 = &f.tmp[r1.val];
-    for (t1.*.use[0..t1.*.nuse]) |*u|
+    for (t1.use[0..t1.nuse]) |*u|
         replaceuse(f, u, r1, r2);
-    t1.*.nuse = 0;
+    t1.nuse = 0;
 }
 
 fn dedupphi(f: *Fn, b: *Blk) void {
@@ -211,9 +211,9 @@ fn assoccon(f: *Fn, b: *Blk, i_1: [*c]Ins) void {
     var c1 = f.con[i_1.*.arg[1].val];
 
     const t2 = &f.tmp[i_1.*.arg[0].val];
-    if (t2.*.def == null)
+    if (t2.def == null)
         return;
-    const i_2 = t2.*.def;
+    const i_2 = t2.def;
 
     if (op != (if (i_2.*.op == Osub) Oadd else i_2.*.op) or rtype(i_2.*.arg[1]) != RCon)
         return;
@@ -360,7 +360,7 @@ fn propjnz0(f: *Fn, bif: *Blk, s0: *Blk, snon0: *Blk, r: Ref, cls: i32) void {
     if (s0.npred != 1 or rtype(r) != RTmp)
         return;
     const t = &f.tmp[r.val];
-    for (t.*.use[0..t.*.nuse]) |*u| {
+    for (t.use[0..t.nuse]) |*u| {
         const b = f.rpo[u.bid];
         // we may compare an l temp with a w
         // comparison; so check that the use

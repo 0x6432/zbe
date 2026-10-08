@@ -273,8 +273,8 @@ fn fixarg(r: [*c]Ref, k: i32, i: [*c]Ins, f: *Fn) void {
         emit(Oaddr, Kl, r2, r3, R);
         if (rtype(r0) == RMem) {
             const m = &f.mem[r0.val];
-            m.*.offset.type = CUndef;
-            m.*.base = r1;
+            m.offset.type = CUndef;
+            m.base = r1;
             r1 = r0;
         }
     } else if (!(isstore(op) and r == &i.*.arg[1]) and
@@ -289,12 +289,12 @@ fn fixarg(r: [*c]Ref, k: i32, i: [*c]Ins, f: *Fn) void {
         // eliminate memory operands of
         // the form $foo(%rip, ...)
         const m = &f.mem[r0.val];
-        if (req(m.*.base, R))
-            if (m.*.offset.type == CAddr) {
+        if (req(m.base, R))
+            if (m.offset.type == CAddr) {
                 r0 = newtmp("isel", Kl, f);
-                emit(Oaddr, Kl, r0, newcon(&m.*.offset, f), R);
-                m.*.offset.type = CUndef;
-                m.*.base = r0;
+                emit(Oaddr, Kl, r0, newcon(&m.offset, f), R);
+                m.offset.type = CUndef;
+                m.base = r0;
             };
     } else if (isxsel(op) and rtype(r.*) == RCon) {
         r1 = newtmp("isel", i.*.cls, f);
@@ -635,14 +635,14 @@ fn selsel(f: *Fn, b: *Blk, i: [*c]Ins, tn: [*c]Num) [*c]Ins {
             swap = cmpswap(&fi.*.arg, c);
             if (swap)
                 c = cmpop(c);
-            if (t.*.nuse == 1) {
+            if (t.nuse == 1) {
                 gencmp = true;
                 cr[0] = fi.*.arg[0];
                 cr[1] = fi.*.arg[1];
                 fi.* = INS0(Onop);
             }
         }
-    } else if (fi.*.op == Oand and t.*.nuse == 1 and
+    } else if (fi.*.op == Oand and t.nuse == 1 and
         (rtype(fi.*.arg[0]) == RTmp or
         rtype(fi.*.arg[1]) == RTmp))
     {
@@ -660,7 +660,7 @@ fn selsel(f: *Fn, b: *Blk, i: [*c]Ins, tn: [*c]Num) [*c]Ins {
         // since flags are not tracked in liveness,
         // the result of the flag-setting instruction
         // has to be marked as live
-        if (t.*.nuse == 1)
+        if (t.nuse == 1)
             gencpy = true;
     }
     // generate conditional moves
@@ -709,12 +709,12 @@ fn seljmp(b: *Blk, f: *Fn) void {
         const swap = cmpswap(&fi.*.arg, c);
         if (swap)
             c = cmpop(c);
-        if (t.*.nuse == 1) {
+        if (t.nuse == 1) {
             selcmp(&fi.*.arg, k, swap, f);
             fi.* = INS0(Onop);
         }
         b.jmp.type = @intCast(Jjf + c);
-    } else if (fi.*.op == Oand and t.*.nuse == 1 and
+    } else if (fi.*.op == Oand and t.nuse == 1 and
         (rtype(fi.*.arg[0]) == RTmp or
         rtype(fi.*.arg[1]) == RTmp))
     {
@@ -730,7 +730,7 @@ fn seljmp(b: *Blk, f: *Fn) void {
         // since flags are not tracked in liveness,
         // the result of the flag-setting instruction
         // has to be marked as live
-        if (t.*.nuse == 1)
+        if (t.nuse == 1)
             emit(Ocopy, Kw, R, r, R);
         b.jmp.type = Jjf + Cine;
     }
@@ -861,11 +861,11 @@ fn anumber(tn: [*c]Num, b: *Blk, con: [*]Con) void {
         if (rtype(i.to) != RTmp)
             continue;
         const n = &tn[i.to.val];
-        n.*.l = i.arg[0];
-        n.*.r = i.arg[1];
-        n.*.nl = @truncate(@as(u32, @bitCast(refn(n.*.l, tn, con))));
-        n.*.nr = @truncate(@as(u32, @bitCast(refn(n.*.r, tn, con))));
-        n.*.n = @truncate(@as(u32, @bitCast(opn(@intCast(i.op), n.*.nl, n.*.nr))));
+        n.l = i.arg[0];
+        n.r = i.arg[1];
+        n.nl = @truncate(@as(u32, @bitCast(refn(n.l, tn, con))));
+        n.nr = @truncate(@as(u32, @bitCast(refn(n.r, tn, con))));
+        n.n = @truncate(@as(u32, @bitCast(opn(@intCast(i.op), n.nl, n.nr))));
     }
 }
 
@@ -926,8 +926,8 @@ fn amatch(a: [*c]Addr, tn: [*c]Num, r: Ref, f: *Fn) bool {
     if (!req(rs, R)) {
         assert(rtype(rs) == RCon);
         const c = &f.con[rs.val];
-        assert(c.*.type == CBits);
-        s = @truncate(c.*.bits.i);
+        assert(c.type == CBits);
+        s = @truncate(c.bits.i);
     }
     ri = adisp(&co, tn, ri, f, s);
     a.* = .{ .offset = co, .base = rb, .index = ri, .scale = s };
@@ -963,17 +963,17 @@ pub fn amd64_isel(f: *Fn) void {
         n *= 2;
     }) {
         for (b.*.ins[0..b.*.nins]) |*i| {
-            if (i.op == al) {
-                if (rtype(i.arg[0]) != RCon)
+            if (i.*.op == al) {
+                if (rtype(i.*.arg[0]) != RCon)
                     break;
-                var sz = f.con[i.arg[0].val].bits.i;
+                var sz = f.con[i.*.arg[0].val].bits.i;
                 if (sz < 0 or sz >= std.math.maxInt(i32) - 15)
                     err("invalid alloc size {d}", .{sz});
                 sz = (sz + n - 1) & -@as(i64, n);
                 sz = @divTrunc(sz, 4);
                 if (sz > std.math.maxInt(i32) - f.slot)
                     die("alloc too large", .{});
-                f.tmp[i.to.val].slot = f.slot;
+                f.tmp[i.*.to.val].slot = f.slot;
                 f.slot += @intCast(sz);
                 f.salign = 2 + al - Oalloc;
                 i.* = INS0(Onop);

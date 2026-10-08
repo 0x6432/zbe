@@ -70,13 +70,13 @@ fn aggreg(hd: *Blk, b: *Blk) void {
 fn tmpuse(r: Ref, use: bool, loop: i32, f: *Fn) void {
     if (rtype(r) == RMem) {
         const m = &f.mem[r.val];
-        tmpuse(m.*.base, true, loop, f);
-        tmpuse(m.*.index, true, loop, f);
+        tmpuse(m.base, true, loop, f);
+        tmpuse(m.index, true, loop, f);
     } else if (rtype(r) == RTmp and r.val >= Tmp0) {
         const t = &f.tmp[r.val];
-        t.*.nuse += @intFromBool(use);
-        t.*.ndef += @intFromBool(!use);
-        t.*.cost +%= @bitCast(loop);
+        t.nuse += @intFromBool(use);
+        t.ndef += @intFromBool(!use);
+        t.cost +%= @bitCast(loop);
     }
 }
 
@@ -105,9 +105,9 @@ pub fn fillcost(f: *Fn) void {
     var ti: i32 = 0;
     while (ti < f.ntmp) : (ti += 1) {
         const t = &f.tmp[@intCast(ti)];
-        t.*.cost = if (ti < Tmp0) std.math.maxInt(uint) else 0;
-        t.*.nuse = 0;
-        t.*.ndef = 0;
+        t.cost = if (ti < Tmp0) std.math.maxInt(uint) else 0;
+        t.nuse = 0;
+        t.ndef = 0;
     }
     var b_it: ?*Blk = f.start;
     while (b_it) |b| : (b_it = b.link) {
@@ -118,7 +118,7 @@ pub fn fillcost(f: *Fn) void {
             var a: uint = 0;
             while (a < p.narg) : (a += 1) {
                 const n = p.blk[a].*.loop;
-                t.*.cost +%= @bitCast(n);
+                t.cost +%= @bitCast(n);
                 tmpuse(p.arg[a], true, n, f);
             }
         }
@@ -296,16 +296,16 @@ fn dopm(b: *Blk, i_: [*c]Ins, v: *BSet) [*c]Ins {
     }
     bscopy(&u, v);
     if (i != b.ins and (i - 1).*.op == Ocall) {
-        v.*.t[0] &= ~all.T.retregs((i - 1).*.arg[1], null);
+        v.t[0] &= ~all.T.retregs((i - 1).*.arg[1], null);
         limit2(v, all.T.nrsave[0], all.T.nrsave[1], null);
         var n: usize = 0;
         r = 0;
         while (all.T.rsave[n] >= 0) : (n += 1)
             r |= BIT(all.T.rsave[n]);
-        v.*.t[0] |= all.T.argregs((i - 1).*.arg[1], null);
+        v.t[0] |= all.T.argregs((i - 1).*.arg[1], null);
     } else {
         limit2(v, 0, 0, null);
-        r = v.*.t[0];
+        r = v.t[0];
     }
     sethint(v, r);
     reloads(&u, v);
@@ -472,13 +472,13 @@ pub fn spill(f: *Fn) void {
                     RMem => {
                         t = @intCast(i.*.arg[n].val);
                         const m = &f.mem[@intCast(t)];
-                        if (rtype(m.*.base) == RTmp) {
-                            bsset(&v, m.*.base.val);
-                            bsset(&w, m.*.base.val);
+                        if (rtype(m.base) == RTmp) {
+                            bsset(&v, m.base.val);
+                            bsset(&w, m.base.val);
                         }
-                        if (rtype(m.*.index) == RTmp) {
-                            bsset(&v, m.*.index.val);
-                            bsset(&w, m.*.index.val);
+                        if (rtype(m.index) == RTmp) {
+                            bsset(&v, m.index.val);
+                            bsset(&w, m.index.val);
                         }
                     },
                     RTmp => {
@@ -550,9 +550,9 @@ pub fn spill(f: *Fn) void {
     if (all.debug['S'] != 0) {
         dprint("\n> Block information:\n", .{});
         var b_it: ?*Blk = f.start;
-        while (b_it) |b| : (b_it = b.link) {
-            dprint("\t{s:<10} ({f}) ", .{ cs(b.name), cint(b.loop, 5) });
-            dumpts(&b.out, f.tmp, all.dbg) catch {};
+        while (b_it) |b| : (b_it = b.*.link) {
+            dprint("\t{s:<10} ({f}) ", .{ cs(b.*.name), cint(b.*.loop, 5) });
+            dumpts(&b.*.out, f.tmp, all.dbg) catch {};
         }
         dprint("\n> After spilling:\n", .{});
         printfn(f, all.dbg) catch {};

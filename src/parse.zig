@@ -1020,8 +1020,8 @@ fn parseline(ps: PState) PState {
                 if (rtype(arg[2]) != RCon)
                     err("blit size must be constant", .{});
                 const c = &curf.*.con[arg[2].val];
-                r = INT(c.*.bits.i);
-                if (c.*.type != CBits or rsval(r) < 0 or rsval(r) != c.*.bits.i)
+                r = INT(c.bits.i);
+                if (c.type != CBits or rsval(r) < 0 or rsval(r) != c.bits.i)
                     err("invalid blit size", .{});
                 all.curi.*.op = Oblit1;
                 all.curi.*.arg[0] = r;
@@ -1098,20 +1098,20 @@ fn typecheck(f: *Fn) void {
         for (b.ins[0..b.nins]) |*i| {
             n = 0;
             while (n < 2) : (n += 1) {
-                k = all.optab[i.op].argcls[n][i.cls];
-                r = i.arg[n];
+                k = all.optab[i.*.op].argcls[n][i.*.cls];
+                r = i.*.arg[n];
                 t = &f.tmp[r.val];
                 const which: [*c]const u8 = if (n == 1) "second" else "first";
                 if (k == Ke)
-                    err("invalid instruction type in {s}", .{cs(all.optab[i.op].name)});
+                    err("invalid instruction type in {s}", .{cs(all.optab[i.*.op].name)});
                 if (rtype(r) == RType)
                     continue;
                 if (rtype(r) != -1 and k == Kx)
-                    err("no {s} operand expected in {s}", .{cs(which), cs(all.optab[i.op].name)});
+                    err("no {s} operand expected in {s}", .{cs(which), cs(all.optab[i.*.op].name)});
                 if (rtype(r) == -1 and k != Kx)
-                    err("missing {s} operand in {s}", .{cs(which), cs(all.optab[i.op].name)});
+                    err("missing {s} operand in {s}", .{cs(which), cs(all.optab[i.*.op].name)});
                 if (!usecheck(r, k, f))
-                    err("invalid type for {s} operand %{s} in {s}", .{cs(which), cs(t.*.name), cs(all.optab[i.op].name)});
+                    err("invalid type for {s} operand %{s} in {s}", .{cs(which), cs(t.*.name), cs(all.optab[i.*.op].name)});
             }
         }
         r = b.jmp.arg;
@@ -1299,13 +1299,13 @@ fn parsetyp() void {
     vgrow(&all.typ, ntyp + 1);
     const ty = &all.typ[ntyp];
     ntyp += 1;
-    ty.*.isdark = 0;
-    ty.*.isunion = 0;
-    ty.*.@"align" = -1;
-    ty.*.size = 0;
+    ty.isdark = 0;
+    ty.isunion = 0;
+    ty.@"align" = -1;
+    ty.size = 0;
     if (nextnl() != Ttyp or nextnl() != Teq)
         err("type name and then = expected", .{});
-    ty.*.name = strf(PHeap, "{s}", .{cs(tokval.str)});
+    ty.name = strf(PHeap, "{s}", .{cs(tokval.str)});
     t = nextnl();
     if (t == Talign) {
         if (nextnl() != Tint)
@@ -1315,39 +1315,39 @@ fn parsetyp() void {
             tokval.num = @divTrunc(tokval.num, 2);
             if (tokval.num == 0) break;
         }
-        ty.*.@"align" = al;
+        ty.@"align" = al;
         t = nextnl();
     }
     if (t != Tlbrace)
         err("type body must start with {{", .{});
     t = nextnl();
     if (t == Tint) {
-        ty.*.isdark = 1;
-        ty.*.size = @bitCast(tokval.num);
-        if (ty.*.@"align" == -1)
+        ty.isdark = 1;
+        ty.size = @bitCast(tokval.num);
+        if (ty.@"align" == -1)
             err("dark types need alignment", .{});
         if (nextnl() != Trbrace)
             err("}} expected", .{});
         return;
     }
     var n: uint = 0;
-    ty.*.fields = vnewT([NField + 1]Field, 1, PHeap);
+    ty.fields = vnewT([NField + 1]Field, 1, PHeap);
     if (t == Tlbrace) {
-        ty.*.isunion = 1;
+        ty.isunion = 1;
         while (true) {
             if (t != Tlbrace)
                 err("invalid union member", .{});
-            vgrow(&ty.*.fields, n + 1);
-            parsefields(&ty.*.fields[n], ty, nextnl());
+            vgrow(&ty.fields, n + 1);
+            parsefields(&ty.fields[n], ty, nextnl());
             n += 1;
             t = nextnl();
             if (t == Trbrace) break;
         }
     } else {
-        parsefields(&ty.*.fields[n], ty, t);
+        parsefields(&ty.fields[n], ty, t);
         n += 1;
     }
-    ty.*.nunion = n;
+    ty.nunion = n;
 }
 
 fn parsedatref(d: *Dat) void {
@@ -1550,21 +1550,21 @@ pub fn printref(r: Ref, f: *Fn, fp: *Writer) Writer.Error!void {
             var i = false;
             const m = &f.mem[r.val];
             try fp.writeByte('[');
-            if (m.*.offset.type != CUndef) {
-                try printcon(&m.*.offset, fp);
+            if (m.offset.type != CUndef) {
+                try printcon(&m.offset, fp);
                 i = true;
             }
-            if (!req(m.*.base, R)) {
+            if (!req(m.base, R)) {
                 if (i)
                     try fp.print(" + ", .{});
-                try printref(m.*.base, f, fp);
+                try printref(m.base, f, fp);
                 i = true;
             }
-            if (!req(m.*.index, R)) {
+            if (!req(m.index, R)) {
                 if (i)
                     try fp.print(" + ", .{});
-                try fp.print("{d} * ", .{m.*.scale});
-                try printref(m.*.index, f, fp);
+                try fp.print("{d} * ", .{m.scale});
+                try printref(m.index, f, fp);
             }
             try fp.writeByte(']');
         },

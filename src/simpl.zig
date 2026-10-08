@@ -113,9 +113,9 @@ fn ins(pi: *[*c]Ins, new: *bool, b: *Blk, f: *Fn) void {
             if (KBASE(i.*.cls) == 0)
                 if (rtype(r) == RCon) {
                     const c = &f.con[r.val];
-                    if (c.*.type == CBits)
-                        if (ispow2(@bitCast(c.*.bits.i))) {
-                            const n = ulog2(@bitCast(c.*.bits.i));
+                    if (c.type == CBits)
+                        if (ispow2(@bitCast(c.bits.i))) {
+                            const n = ulog2(@bitCast(c.bits.i));
                             if (i.*.op == Ourem) {
                                 i.*.op = Oand;
                                 i.*.arg[1] = getcon(@bitCast((@as(u64, 1) << @intCast(n)) - 1), f);

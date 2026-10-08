@@ -150,21 +150,21 @@ fn iins(cls: i32, op: i32, a0: Ref, a1: Ref, l: [*c]Loc) Ref {
     nlog += 1;
     vgrow(&ilog, nlog);
     const ist = &ilog[nlog - 1];
-    ist.*.isphi = 0;
-    ist.*.num = inum;
+    ist.isphi = 0;
+    ist.num = inum;
     inum += 1;
-    ist.*.bid = l.*.blk.*.id;
-    ist.*.off = l.*.off;
-    ist.*.new.ins = INS(op, cls, R, a0, a1);
-    ist.*.new.ins.to = newtmp("ld", cls, curf);
-    return ist.*.new.ins.to;
+    ist.bid = l.*.blk.*.id;
+    ist.off = l.*.off;
+    ist.new.ins = INS(op, cls, R, a0, a1);
+    ist.new.ins.to = newtmp("ld", cls, curf);
+    return ist.new.ins.to;
 }
 
 fn cast(r: *Ref, cls: i32, l: [*c]Loc) void {
     if (rtype(r.*) == RCon)
         return;
     assert(rtype(r.*) == RTmp);
-    const cls0: i32 = curf.*.tmp[r.*.val].cls;
+    const cls0: i32 = curf.*.tmp[r.val].cls;
     if (cls0 == cls or (cls == Kw and cls0 == Kl))
         return;
     if (KWIDE(cls0) < KWIDE(cls)) {
@@ -209,19 +209,19 @@ fn load(sl: Slice, msk: bits, l: [*c]Loc) Ref {
     // (see killsl() below)
     if (rtype(r) == RTmp) {
         const a = &curf.*.tmp[r.val].alias;
-        switch (a.*.type) {
+        switch (a.type) {
             ALoc, AEsc, AUnk => {
-                r = TMP(a.*.base);
-                if (a.*.offset != 0) {
-                    const r1 = getcon(a.*.offset, curf);
+                r = TMP(a.base);
+                if (a.offset != 0) {
+                    const r1 = getcon(a.offset, curf);
                     r = iins(Kl, Oadd, r, r1, l);
                 }
             },
             ACon, ASym => {
                 c = std.mem.zeroes(Con);
                 c.type = CAddr;
-                c.sym = a.*.u.sym;
-                c.bits.i = a.*.offset;
+                c.sym = a.u.sym;
+                c.bits.i = a.offset;
                 r = newcon(&c, curf);
             },
             else => die("unreachable", .{}),
@@ -237,10 +237,10 @@ fn rebase(sl: *Slice) void {
     if (rtype(sl.ref) != RTmp)
         return;
     const a = &curf.*.tmp[sl.ref.val].alias;
-    if (a.*.offset == @as(i16, @truncate(a.*.offset)))
-        if (a.*.type == ALoc or a.*.type == AEsc or a.*.type == AUnk) {
-            sl.ref = TMP(a.*.base);
-            sl.off = @intCast(a.*.offset);
+    if (a.offset == @as(i16, @truncate(a.offset)))
+        if (a.type == ALoc or a.type == AEsc or a.type == AUnk) {
+            sl.ref = TMP(a.base);
+            sl.off = @intCast(a.offset);
         };
 }
 
@@ -248,8 +248,8 @@ fn killsl(r: Ref, sl: Slice) bool {
     if (rtype(sl.ref) != RTmp)
         return false;
     const a = &curf.*.tmp[sl.ref.val].alias;
-    switch (a.*.type) {
-        ALoc, AEsc, AUnk => return req(TMP(a.*.base), r),
+    switch (a.type) {
+        ALoc, AEsc, AUnk => return req(TMP(a.base), r),
         ACon, ASym => return false,
         else => die("unreachable", .{}),
     }

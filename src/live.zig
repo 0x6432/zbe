@@ -145,8 +145,8 @@ pub fn filllive(f: *Fn) void {
                     switch (rtype(i.*.arg[k])) {
                         RMem => {
                             const ma = &f.mem[i.*.arg[k].val];
-                            bset(ma.*.base, b, &nlv, f.tmp);
-                            bset(ma.*.index, b, &nlv, f.tmp);
+                            bset(ma.base, b, &nlv, f.tmp);
+                            bset(ma.index, b, &nlv, f.tmp);
                         },
                         else => bset(i.*.arg[k], b, &nlv, f.tmp),
                     }

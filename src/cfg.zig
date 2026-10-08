@@ -504,29 +504,29 @@ pub fn simplcfg(f: *Fn) void {
             if (b.*.id == NOID)
                 continue;
             const j = &jmp[b.*.id];
-            if (j.*.type == Jjmp and j.*.s1.?.npred == 1) {
-                assert(j.*.s1.?.phi == null);
-                addbins(&b.*.ins, &b.*.nins, j.*.s1.?);
-                empty[b.*.id] &= empty[j.*.s1.?.id];
-                const jj = &jmp[j.*.s1.?.id];
-                var pbuf = [3][*c]Blk{ jj.*.s1, jj.*.s2, null };
+            if (j.type == Jjmp and j.s1.?.npred == 1) {
+                assert(j.s1.?.phi == null);
+                addbins(&b.*.ins, &b.*.nins, j.s1.?);
+                empty[b.*.id] &= empty[j.s1.?.id];
+                const jj = &jmp[j.s1.?.id];
+                var pbuf = [3][*c]Blk{ jj.s1, jj.s2, null };
                 var pb: [*c][*c]Blk = &pbuf;
                 while (pb.* != null) : (pb += 1) {
                     const bb = pb.*;
                     var p_it: ?*Phi = bb.*.phi;
                     while (p_it) |p| : (p_it = p.link) {
-                        const n = phiargn(p, j.*.s1);
+                        const n = phiargn(p, j.s1);
                         p.blk[n] = b;
                     }
                 }
-                j.*.s1.?.id = NOID;
+                j.s1.?.id = NOID;
                 j.* = jj.*;
                 done = false;
-            } else if (j.*.type == Jjnz and empty[j.*.s1.?.id] != 0 and empty[j.*.s2.?.id] != 0 and
-                jmpeq(&jmp[j.*.s1.?.id], &jmp[j.*.s2.?.id]) and
-                jmpnophi(&jmp[j.*.s1.?.id]))
+            } else if (j.type == Jjnz and empty[j.s1.?.id] != 0 and empty[j.s2.?.id] != 0 and
+                jmpeq(&jmp[j.s1.?.id], &jmp[j.s2.?.id]) and
+                jmpnophi(&jmp[j.s1.?.id]))
             {
-                j.* = jmp[j.*.s1.?.id];
+                j.* = jmp[j.s1.?.id];
                 done = false;
             }
         }
@@ -537,12 +537,12 @@ pub fn simplcfg(f: *Fn) void {
     while (b != null) : (b = b.*.link)
         if (b.*.id != NOID) {
             const j = &jmp[b.*.id];
-            b.*.jmp.type = @intCast(j.*.type);
-            b.*.jmp.arg = j.*.arg;
-            b.*.s1 = j.*.s1;
-            b.*.s2 = j.*.s2;
-            assert(j.*.s1 == null or j.*.s1.?.id != NOID);
-            assert(j.*.s2 == null or j.*.s2.?.id != NOID);
+            b.*.jmp.type = @intCast(j.type);
+            b.*.jmp.arg = j.arg;
+            b.*.s1 = j.s1;
+            b.*.s2 = j.s2;
+            assert(j.s1 == null or j.s1.?.id != NOID);
+            assert(j.s2 == null or j.s2.?.id != NOID);
         };
 
     fillcfg(f);

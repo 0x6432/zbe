@@ -126,7 +126,7 @@ fn uwl(f: *Fn, r: Ref, w: i32) bool {
 
     assert(rtype(r) == RTmp);
     const t = &f.tmp[r.val];
-    for (t.*.use[0..t.*.nuse]) |*u| {
+    for (t.use[0..t.nuse]) |*u| {
         switch (u.type) {
             UPhi => {
                 const p = u.u.phi;
@@ -194,12 +194,12 @@ fn dwl(f: *Fn, r: Ref, w_: i32) bool {
     if (rtype(r) != RTmp)
         return false;
     const t = &f.tmp[r.val];
-    if (t.*.cls != Kw)
+    if (t.cls != Kw)
         return false;
 
-    if (t.*.def == null) {
+    if (t.def == null) {
         // phi def
-        var p: [*c]Phi = f.rpo[t.*.bid].*.phi;
+        var p: [*c]Phi = f.rpo[t.bid].*.phi;
         while (p != null) : (p = p.*.link)
             if (req(p.*.to, r))
                 break;
@@ -214,7 +214,7 @@ fn dwl(f: *Fn, r: Ref, w_: i32) bool {
         return true;
     }
 
-    const i = t.*.def;
+    const i = t.def;
     if (i.*.op == Ocopy)
         return dwl(f, i.*.arg[0], w);
     if (i.*.op == Oshr or i.*.op == Osar) {
@@ -370,22 +370,22 @@ pub fn copyref(f: *Fn, b: *Blk, i: [*c]Ins) Ref {
 
     if (ext(i, &e) and rtype(i.*.arg[0]) == RTmp) {
         const t = &f.tmp[i.*.arg[0].val];
-        assert(KBASE(t.*.cls) == 0);
+        assert(KBASE(t.cls) == 0);
 
         // do not break typing by returning
         // a narrower temp
-        if (KWIDE(i.*.cls) > KWIDE(t.*.cls))
+        if (KWIDE(i.*.cls) > KWIDE(t.cls))
             return R;
 
         const w = Wsb + (i.*.op - Oextsb);
-        if ((BIT(w) & extcpy[@intCast(t.*.width)]) != 0)
+        if ((BIT(w) & extcpy[@intCast(t.width)]) != 0)
             return i.*.arg[0];
 
         // avoid eliding extensions of params
         // inserted in the start block; their
         // point is to make further extensions
         // redundant
-        if ((t.*.def == null or !ispar(t.*.def.*.op)) and usewidthle(f, i.*.to, e.usew))
+        if ((t.def == null or !ispar(t.def.*.op)) and usewidthle(f, i.*.to, e.usew))
             return i.*.arg[0];
 
         if (defwidthle(f, i.*.arg[0], e.nopw))

@@ -245,7 +245,7 @@ fn callable(r: Ref, f: *Fn) bool {
         return true;
     if (rtype(r) == RCon) {
         const c = &f.con[r.val];
-        if (c.*.type == CAddr and c.*.bits.i == 0)
+        if (c.type == CAddr and c.bits.i == 0)
             return true;
     }
     return false;

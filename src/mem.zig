@@ -199,10 +199,10 @@ fn slot(ps: *[*c]Slot, off: *i64, r: Ref, f: *Fn, sl: [*c]Slot) bool {
     if (a.type != ALoc)
         return false;
     const t = &f.tmp[@intCast(a.base)];
-    if (t.*.visit < 0)
+    if (t.visit < 0)
         return false;
     off.* = a.offset;
-    ps.* = &sl[@intCast(t.*.visit)];
+    ps.* = &sl[@intCast(t.visit)];
     return true;
 }
 
@@ -490,14 +490,14 @@ pub fn coalesce(f: *Fn) void {
             continue;
         t.*.def.* = INS0(Onop);
         const ts = &f.tmp[@intCast(s.*.s.*.t)];
-        assert(t.*.bid == ts.*.bid);
-        if (t.*.def < ts.*.def) {
+        assert(t.*.bid == ts.bid);
+        if (t.*.def < ts.def) {
             // make sure the slot we
             // selected has a def that
             // dominates its new uses
-            t.*.def.* = ts.*.def.*;
-            ts.*.def.* = INS0(Onop);
-            ts.*.def = t.*.def;
+            t.*.def.* = ts.def.*;
+            ts.def.* = INS0(Onop);
+            ts.def = t.*.def;
         }
         for (t.*.use[0..t.*.nuse]) |*u| {
             if (u.type == UJmp) {

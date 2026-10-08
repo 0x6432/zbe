@@ -616,7 +616,7 @@ pub fn newcon(c0: *Con, f: *Fn) Ref {
     var i: i32 = 1;
     while (i < f.ncon) : (i += 1) {
         const c1 = &f.con[@intCast(i)];
-        if (c0.type == c1.*.type and symeq(c0.sym, c1.*.sym) and c0.bits.i == c1.*.bits.i)
+        if (c0.type == c1.type and symeq(c0.sym, c1.sym) and c0.bits.i == c1.bits.i)
             return CON(i);
     }
     f.ncon += 1;
@@ -659,8 +659,8 @@ pub fn addcon(c0: *Con, c1: *Con, m: i32) bool {
 pub fn isconbits(f: *Fn, r: Ref, v: *i64) bool {
     if (rtype(r) == RCon) {
         const cn = &f.con[r.val];
-        if (cn.*.type == CBits) {
-            v.* = cn.*.bits.i;
+        if (cn.type == CBits) {
+            v.* = cn.bits.i;
             return true;
         }
     }
@@ -692,8 +692,8 @@ pub fn salloc(rt: Ref, rs: Ref, f: *Fn) void {
 
 pub fn bsinit(bs: *BSet, n_: uint) void {
     const n = (n_ + NBit - 1) / NBit;
-    bs.*.nt = n;
-    bs.*.t = palloc(bits, n);
+    bs.nt = n;
+    bs.t = palloc(bits, n);
 }
 
 comptime {
@@ -736,59 +736,59 @@ inline fn firstbit(b_: bits) i32 {
 pub fn bscount(bs: *BSet) uint {
     var n: uint = 0;
     var i: uint = 0;
-    while (i < bs.*.nt) : (i += 1)
-        n += popcnt(bs.*.t[i]);
+    while (i < bs.nt) : (i += 1)
+        n += popcnt(bs.t[i]);
     return n;
 }
 
 inline fn bsmax(bs: *BSet) uint {
-    return bs.*.nt * NBit;
+    return bs.nt * NBit;
 }
 
 pub fn bsset(bs: *BSet, elt: anytype) void {
     assert(elt < bsmax(bs));
     const e: uint = @intCast(elt);
-    bs.*.t[e / NBit] |= BIT(e % NBit);
+    bs.t[e / NBit] |= BIT(e % NBit);
 }
 
 pub fn bsclr(bs: *BSet, elt: anytype) void {
     assert(elt < bsmax(bs));
     const e: uint = @intCast(elt);
-    bs.*.t[e / NBit] &= ~BIT(e % NBit);
+    bs.t[e / NBit] &= ~BIT(e % NBit);
 }
 
 pub fn bscopy(a: *BSet, b: *BSet) void {
-    assert(a.*.nt == b.*.nt);
+    assert(a.nt == b.nt);
     var i: uint = 0;
-    while (i < a.*.nt) : (i += 1) a.*.t[i] = b.*.t[i];
+    while (i < a.nt) : (i += 1) a.t[i] = b.t[i];
 }
 pub fn bsunion(a: *BSet, b: *BSet) void {
-    assert(a.*.nt == b.*.nt);
+    assert(a.nt == b.nt);
     var i: uint = 0;
-    while (i < a.*.nt) : (i += 1) a.*.t[i] |= b.*.t[i];
+    while (i < a.nt) : (i += 1) a.t[i] |= b.t[i];
 }
 pub fn bsinter(a: *BSet, b: *BSet) void {
-    assert(a.*.nt == b.*.nt);
+    assert(a.nt == b.nt);
     var i: uint = 0;
-    while (i < a.*.nt) : (i += 1) a.*.t[i] &= b.*.t[i];
+    while (i < a.nt) : (i += 1) a.t[i] &= b.t[i];
 }
 pub fn bsdiff(a: *BSet, b: *BSet) void {
-    assert(a.*.nt == b.*.nt);
+    assert(a.nt == b.nt);
     var i: uint = 0;
-    while (i < a.*.nt) : (i += 1) a.*.t[i] &= ~b.*.t[i];
+    while (i < a.nt) : (i += 1) a.t[i] &= ~b.t[i];
 }
 
 pub fn bsequal(a: *BSet, b: *BSet) bool {
-    assert(a.*.nt == b.*.nt);
+    assert(a.nt == b.nt);
     var i: uint = 0;
-    while (i < a.*.nt) : (i += 1)
-        if (a.*.t[i] != b.*.t[i])
+    while (i < a.nt) : (i += 1)
+        if (a.t[i] != b.t[i])
             return false;
     return true;
 }
 
 pub fn bszero(bs: *BSet) void {
-    if (bs.*.nt != 0) @memset(bs.*.t[0..bs.*.nt], 0);
+    if (bs.nt != 0) @memset(bs.t[0..bs.nt], 0);
 }
 
 /// iterates on a bitset, use as follows
@@ -799,15 +799,15 @@ pub fn bszero(bs: *BSet) void {
 pub fn bsiter(bs: *BSet, elt: *i32) bool {
     const i: uint = @intCast(elt.*);
     var t: uint = i / NBit;
-    if (t >= bs.*.nt)
+    if (t >= bs.nt)
         return false;
-    var b = bs.*.t[t];
+    var b = bs.t[t];
     b &= ~(BIT(i % NBit) -% 1);
     while (b == 0) {
         t += 1;
-        if (t >= bs.*.nt)
+        if (t >= bs.nt)
             return false;
-        b = bs.*.t[t];
+        b = bs.t[t];
     }
     elt.* = @as(i32, @intCast(NBit * t)) + firstbit(b);
     return true;

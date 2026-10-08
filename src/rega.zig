@@ -88,9 +88,9 @@ fn hint(t: i32) [*c]i32 {
 
 fn sethint(t: i32, r: i32) void {
     const p = &tmp[@intCast(phicls(t, tmp))];
-    if (p.*.hint.r == -1 or p.*.hint.w > loop) {
-        p.*.hint.r = r;
-        p.*.hint.w = loop;
+    if (p.hint.r == -1 or p.hint.w > loop) {
+        p.hint.r = r;
+        p.hint.w = loop;
         tmp[@intCast(t)].visit = -1;
     }
 }
@@ -423,12 +423,12 @@ fn doblk(b: *Blk, cur: *RMap) void {
             switch (rtype(i.*.arg[x])) {
                 RMem => {
                     const m = &mem[i.*.arg[x].val];
-                    if (rtype(m.*.base) == RTmp) {
-                        insert(&m.*.base, &ra, nr);
+                    if (rtype(m.base) == RTmp) {
+                        insert(&m.base, &ra, nr);
                         nr += 1;
                     }
-                    if (rtype(m.*.index) == RTmp) {
-                        insert(&m.*.index, &ra, nr);
+                    if (rtype(m.index) == RTmp) {
+                        insert(&m.index, &ra, nr);
                         nr += 1;
                     }
                 },
@@ -626,9 +626,9 @@ pub fn rega(f: *Fn) void {
 
         // process non-phis temporaries
         var j: usize = 0;
-        while (j < m.*.n) : (j += 1) {
-            t = m.*.t[j];
-            const ru: usize = @intCast(m.*.r[j]);
+        while (j < m.n) : (j += 1) {
+            t = m.t[j];
+            const ru: usize = @intCast(m.r[j]);
             if (rl[ru] != 0 or t < Tmp0) // todo, remove this
                 continue;
             for (s.*.pred[0..s.*.npred]) |pp| {
@@ -643,15 +643,15 @@ pub fn rega(f: *Fn) void {
 
         npm = 0;
         j = 0;
-        while (j < m.*.n) : (j += 1) {
-            t = m.*.t[j];
-            const r = m.*.r[j];
+        while (j < m.n) : (j += 1) {
+            t = m.t[j];
+            const r = m.r[j];
             const x = rl[@intCast(r)];
             assert(x != 0 or t < Tmp0); // todo, ditto
-            if (x > 0 and !bshas(&m.*.b, x)) {
+            if (x > 0 and !bshas(&m.b, x)) {
                 pmadd(TMP(x), TMP(r), tmp[@intCast(t)].cls);
-                m.*.r[j] = x;
-                bsset(&m.*.b, x);
+                m.r[j] = x;
+                bsset(&m.b, x);
             }
         }
         all.curi = all.insbEnd();

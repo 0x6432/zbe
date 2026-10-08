@@ -80,20 +80,20 @@ fn schedearly(f: *Fn, r: Ref) uint {
         return 0;
 
     const t = &f.tmp[r.val];
-    if (t.*.gcmbid != NOBID)
-        return t.*.gcmbid;
+    if (t.gcmbid != NOBID)
+        return t.gcmbid;
 
-    const b = f.rpo[t.*.bid];
-    if (t.*.def != null) {
-        assert(b.*.ins <= t.*.def and t.*.def < b.*.ins + b.*.nins);
-        t.*.gcmbid = 0; // mark as visiting
-        t.*.gcmbid = earlyins(f, b, t.*.def);
+    const b = f.rpo[t.bid];
+    if (t.def != null) {
+        assert(b.*.ins <= t.def and t.def < b.*.ins + b.*.nins);
+        t.gcmbid = 0; // mark as visiting
+        t.gcmbid = earlyins(f, b, t.def);
     } else {
         // phis do not move
-        t.*.gcmbid = t.*.bid;
+        t.gcmbid = t.bid;
     }
 
-    return t.*.gcmbid;
+    return t.gcmbid;
 }
 
 fn earlyins(f: *Fn, b: *Blk, i: [*c]Ins) uint {
@@ -162,18 +162,18 @@ fn schedlate(f: *Fn, r: Ref) uint {
         return NOBID;
 
     const t = &f.tmp[r.val];
-    if (t.*.visit != 0)
-        return t.*.gcmbid;
+    if (t.visit != 0)
+        return t.gcmbid;
 
-    t.*.visit = 1;
-    const earlybid = t.*.gcmbid;
+    t.visit = 1;
+    const earlybid = t.gcmbid;
     if (earlybid == NOBID)
         return NOBID; // not used
 
     // reuse gcmbid for late bid
-    t.*.gcmbid = t.*.bid;
+    t.gcmbid = t.bid;
     var latebid: uint = NOBID;
-    for (t.*.use[0..t.*.nuse]) |*u| {
+    for (t.use[0..t.nuse]) |*u| {
         assert(u.bid < f.nblk);
         const b = f.rpo[u.bid];
         var uselatebid: uint = undefined;
@@ -190,12 +190,12 @@ fn schedlate(f: *Fn, r: Ref) uint {
     // in fixed instructions that may be eliminated
     // and are themselves unused transitively
 
-    if (t.*.def != null and !pinned(t.*.def))
-        t.*.gcmbid = bestbid(f, earlybid, latebid);
+    if (t.def != null and !pinned(t.def))
+        t.gcmbid = bestbid(f, earlybid, latebid);
     // else, keep the early one
 
     // now, gcmbid is the best bid
-    return t.*.gcmbid;
+    return t.gcmbid;
 }
 
 /// returns lca bid of uses or NOBID if
@@ -259,7 +259,7 @@ fn addgcmins(f: *Fn, vins: [*c]Ins, nins: uint) void {
     for (vins[0..nins]) |*i| {
         assert(rtype(i.to) == RTmp);
         const t = &f.tmp[i.to.val];
-        const b = f.rpo[t.*.gcmbid];
+        const b = f.rpo[t.gcmbid];
         addins(&b.*.ins, &b.*.nins, i);
     }
 }
@@ -301,9 +301,9 @@ fn schedins(f: *Fn, b: *Blk, i_: [*c]Ins, pvins: *[*c]Ins, pnins: *uint) [*c]Ins
             if (rtype(i.*.arg[n]) != RTmp)
                 continue;
             const t = &f.tmp[i.*.arg[n].val];
-            if (t.*.bid != b.id or t.*.def == null)
+            if (t.bid != b.id or t.def == null)
                 continue;
-            _ = schedins(f, b, t.*.def, pvins, pnins);
+            _ = schedins(f, b, t.def, pvins, pnins);
         }
     }
     i = i_0;
@@ -342,16 +342,16 @@ fn cheap(i: [*c]Ins) bool {
 fn sinkref(f: *Fn, b: *Blk, pr: *Ref) void {
     if (rtype(pr.*) != RTmp)
         return;
-    const t = &f.tmp[pr.*.val];
-    if (t.*.def == null or
-        t.*.bid == b.id or
-        pinned(t.*.def) or
-        !cheap(t.*.def))
+    const t = &f.tmp[pr.val];
+    if (t.def == null or
+        t.bid == b.id or
+        pinned(t.def) or
+        !cheap(t.def))
         return;
 
     // sink t->def to b
-    var i = t.*.def.*;
-    const r = newtmp("snk", t.*.cls, f);
+    var i = t.def.*;
+    const r = newtmp("snk", t.cls, f);
     // t invalidated
     pr.* = r;
     i.to = r;

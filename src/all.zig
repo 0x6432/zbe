@@ -582,8 +582,8 @@ pub const ptrdiff = util.ptrdiff;
 
 pub inline fn bshas(bs: *BSet, elt: anytype) bool {
     const e: uint = @intCast(elt);
-    std.debug.assert(e < bs.*.nt * NBit);
-    return (bs.*.t[e / NBit] & BIT(e % NBit)) != 0;
+    std.debug.assert(e < bs.nt * NBit);
+    return (bs.t[e / NBit] & BIT(e % NBit)) != 0;
 }
 
 // parse.c

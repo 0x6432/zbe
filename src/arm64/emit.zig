@@ -357,8 +357,8 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, e: *E) Writer.Error!void {
                         },
                         RCon => {
                             const pc = &e.@"fn".*.con[r.val];
-                            const n: u64 = @bitCast(pc.*.bits.i);
-                            assert(pc.*.type == CBits);
+                            const n: u64 = @bitCast(pc.bits.i);
+                            assert(pc.type == CBits);
                             if ((n >> 24) != 0) {
                                 assert(arm64_logimm(n, k));
                                 try e.f.print("#{d}", .{n});
@@ -556,11 +556,11 @@ fn emitins(i: [*c]Ins, e: *E) Writer.Error!void {
                 return;
             }
             const c = &e.@"fn".*.con[i.*.arg[0].val];
-            if (c.*.type != CAddr or
-                (c.*.sym.type & SThr) != 0 or
-                c.*.bits.i != 0)
+            if (c.type != CAddr or
+                (c.sym.type & SThr) != 0 or
+                c.bits.i != 0)
                 die("invalid call argument", .{});
-            const l = str(c.*.sym.id);
+            const l = str(c.sym.id);
             const p: [*c]const u8 = if (l[0] == '"') "" else &all.T.assym;
             try e.f.print("\tbl\t{s}{s}\n", .{cs(p), cs(l)});
         },

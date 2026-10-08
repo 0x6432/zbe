@@ -308,9 +308,9 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
                     },
                     RCon => {
                         const pc = &fn_.con[r.val];
-                        assert(pc.*.type == CBits);
-                        assert(pc.*.bits.i >= -2048 and pc.*.bits.i < 2048);
-                        try f.print("{d}", .{pc.*.bits.i});
+                        assert(pc.type == CBits);
+                        assert(pc.bits.i >= -2048 and pc.bits.i < 2048);
+                        try f.print("{d}", .{pc.bits.i});
                     },
                 }
             },
@@ -324,7 +324,7 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
                     RTmp => try f.print("0({s})", .{cs(rname[r.val])}),
                     RCon => {
                         const pc = &fn_.con[r.val];
-                        assert(pc.*.type == CAddr);
+                        assert(pc.type == CAddr);
                         try emitaddr(pc, f);
                         if (isstore(i.*.op) or
                             (isload(i.*.op) and KBASE(i.*.cls) == 1))
@@ -388,7 +388,7 @@ fn fixmem(pr: [*c]Ref, fn_: *Fn, f: *Writer) Writer.Error!void {
     const r = pr.*;
     if (rtype(r) == RCon) {
         const c = &fn_.con[r.val];
-        if (c.*.type == CAddr and c.*.sym.type != SGlo) {
+        if (c.type == CAddr and c.sym.type != SGlo) {
             try loadcon(c, T6, Kl, f);
             pr.* = TMP(T6);
         }
@@ -482,11 +482,11 @@ fn emitins(i: [*c]Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
             switch (rtype(i.*.arg[0])) {
                 RCon => {
                     const con = &fn_.con[i.*.arg[0].val];
-                    if (con.*.type != CAddr or
-                        (con.*.sym.type & SThr) != 0 or
-                        con.*.bits.i != 0)
+                    if (con.type != CAddr or
+                        (con.sym.type & SThr) != 0 or
+                        con.bits.i != 0)
                         die("invalid call argument", .{});
-                    try f.print("\tcall {s}\n", .{cs(str(con.*.sym.id))});
+                    try f.print("\tcall {s}\n", .{cs(str(con.sym.id))});
                 },
                 RTmp => try emitf("jalr %0", i, fn_, f),
                 else => die("invalid call argument", .{}),

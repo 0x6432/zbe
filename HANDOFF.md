@@ -1,6 +1,6 @@
 # HANDOFF – QBE → Zig translation
 
-Updated: 20261008-201359 UTC
+Updated: 20261008-202911 UTC
 
 ## Goal
 Translate QBE (C, cloned at /data/qbe-c, HEAD e786f06) to latest Zig master.
@@ -185,12 +185,16 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    `*allowzero T` (won't coerce to *T) -> rewrite pointer loops to
    slices/indices before converting struct fields to `[*]T`.
 
-## Next steps (current as of stage 5s, all checks green)
-NOTE: a stage 5t (arm64/isel.zig + rv64/isel.zig idiomatic) was completed in a
-sandbox that got reset before backup -> LOST. Redo it first (same recipe as
-5s for amd64/isel: fixarg(r: *Ref, ...), emit/ins pointers -> *Ins / index
-loops, tools/abislices.py isel_blocks helpers).
-1. arm64/isel.zig, rv64/isel.zig (redo 5t).
+## Next steps (current as of stage 5t, all checks green)
+DONE 5t (redone after sandbox reset): arm64/isel.zig (fixarg(pr: *Ref),
+selcmp(arg: *[2]Ref), seljmp backward index search with ?*Ins, list walks)
+and rv64/isel.zig (memarg/immarg/fixarg take *Ref/?*Ins). All isel files
+are now free of `[*c]`/`.*.`. Pattern for new con in fixarg: keep the index
+`ci` and use CON(ci) instead of ptrdiff(c, f.con) (ptrdiff needs same types).
+Restore notes: ziglang.org/builds still serves 0.18.0-dev.35+5e754304d
+(master moved to dev.120); a full mkcorpus.sh run takes a few minutes and now
+gives corpus "1608 runs, 0 differ, 104 both-failed" (bigger than before).
+1. (done) arm64/isel.zig, rv64/isel.zig.
 2. Emit files (arm64/emit ~70 `.*.`, rv64/emit ~57, amd64/emit ~35,
    emit.zig ~34): E.fn `*Fn`, `*_emitfn(f: *Fn, ...)`, fixarg(pr: *Ref),
    emitins(i: *Ins), rv64 emitf(i: *Ins), `e.@"fn".*.` -> `e.@"fn".`,
@@ -214,11 +218,11 @@ indices/slices); pointer subtraction on `[*]T` works; tmph needs
 > /data/qbe-c/qbe); build corpus with `sh tools/mkcorpus.sh` (Hare/cproc IR,
 > see Status section). Read HANDOFF.md fully first.
 > State: 1:1 translation done and verified (git tag `v1-literal`). Canonical
-> rewrite in progress, stages 1-5s done (see "Canonical rewrite").
+> rewrite in progress, stages 1-5t done (see "Canonical rewrite").
 > Verify after EVERY change: `sh tools/all.sh > /tmp/all.log 2>&1; head -1
 > /tmp/all.log; tail -8 /tmp/all.log` (FUZZ=1 also runs abifuzz/irfuzz).
 > Expected: "All is fine!", 0/76 differ on 6 targets + debug dumps, corpus
-> 564 runs 0 differ 84 both-failed, abifuzz 60/60, irfuzz 100/100.
+> 1608 runs 0 differ 104 both-failed, abifuzz 60/60, irfuzz 100/100.
 > Commit each stage ("stage 5x: ..."). Every 10-15 min: update HANDOFF.md
 > (required), run `sh /data/backup.sh`, download the tarball.
 > Continue with "Next steps" above. Output must stay byte-identical to C QBE.

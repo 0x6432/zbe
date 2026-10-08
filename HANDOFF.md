@@ -1,6 +1,6 @@
 # HANDOFF – QBE → Zig translation
 
-Updated: 20261008-221214 UTC (backup 37)
+Updated: 20261008-223131 UTC (backup 38)
 
 ## Goal
 Translate QBE (C, cloned at /data/qbe-c, HEAD e786f06) to latest Zig master.
@@ -186,7 +186,7 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    `*allowzero T` (won't coerce to *T) -> rewrite pointer loops to
    slices/indices before converting struct fields to `[*]T`.
 
-## Next steps (current as of stage 6j, all checks green)
+## Next steps (current as of stage 6l, all checks green)
 DONE 5t (redone after sandbox reset): arm64/isel.zig (fixarg(pr: *Ref),
 selcmp(arg: *[2]Ref), seljmp backward index search with ?*Ins, list walks)
 and rv64/isel.zig (memarg/immarg/fixarg take *Ref/?*Ins). All isel files
@@ -237,7 +237,25 @@ dbgfile fn type `fn ([*:0]const u8) void`. NUL-terminated stack buffers
 Tool: /data/fixopt.py rebuilds and auto-inserts `.?` / `@ptrCast` for the
 common optional/sentinel errors (falls over when the caret points at a
 `.field`; fix those by hand).
-PLAN (user approved, in order): (1) strings DONE; (2) vectors (vnew/vgrow) -> typed growable arrays;
+DONE 6k: typed vector API in util.zig: Vec header {mag,pool,cap};
+`vnewT(T,len,pool) [*]T`, `vgrow(&v,len)` / `vfree(v)` / `vcap(v)` are generic
+over the element type (accept [*]T, [*:0]T, ?[*]T); no anyopaque, no esz,
+typed @memcpy; call sites no longer @ptrCast for vfree.
+DONE 6l: TESTS + 3 real bugs found by them:
+  * `zig build test` -> src/unit_tests.zig (14 tests: vectors incl. growth/
+    optional/sentinel/pools, hash, intern dedup/collisions/empty, strf, cs,
+    streq, bitsets across word boundaries + algebra, sort, ptrdiff).
+  * tools/edge.sh: 291 C-vs-Zig cases (CLI options/errors, stdin, -o, every
+    -d flag, multiple files, lexer/parser errors, huge/float constants,
+    long/quoted idents, data/sections/thread, empty/nested/union/opaque types,
+    unreachable blocks, phis, register pressure, varargs, many args, blit,
+    dbgloc) x 6 targets; compares stdout, exit code, stderr, -o file.
+  * all.sh now also prints `unit: ok` and `edge: N passed, 0 failed`.
+  * bugs fixed: empty aggregate type `type :e = { }` panicked (C does
+    `1 << -1`; we now mask the shift like x86) in parse.zig parsefields and
+    amd64/sysv.zig typclass; fatal errors (e.g. missing 2nd input file) lost
+    already-emitted stdout - main.fail() now flushes stdout like C exit().
+PLAN (user approved, in order): (1) strings DONE; (2) vectors DONE; (2b) tests DONE; (3) vectors (vnew/vgrow) -> typed growable arrays;
 (3) enums for ops/classes/jumps; (4) cut casts.
 NOTE: the sandbox can stop mid-session (files in /data survived once, but the
 last edits before the stop were partly lost) -> commit + back up often.
@@ -265,7 +283,7 @@ indices/slices); pointer subtraction on `[*]T` works; tmph needs
 > /data/qbe-c/qbe); build corpus with `sh tools/mkcorpus.sh` (Hare/cproc IR,
 > see Status section). Read HANDOFF.md fully first.
 > State: 1:1 translation done and verified (git tag `v1-literal`). Canonical
-> rewrite in progress, stages 1-6j done (see "Canonical rewrite").
+> rewrite in progress, stages 1-6l done (see "Canonical rewrite").
 > Verify after EVERY change: `sh tools/all.sh > /tmp/all.log 2>&1; head -1
 > /tmp/all.log; tail -8 /tmp/all.log` (FUZZ=1 also runs abifuzz/irfuzz).
 > Expected: "All is fine!", 0/76 differ on 6 targets + debug dumps, corpus

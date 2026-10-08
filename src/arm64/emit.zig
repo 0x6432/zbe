@@ -253,8 +253,8 @@ const V31 = 0x1fffffff; // local name for V31
 
 var rname_buf: [4]u8 = undefined;
 
-fn rname(r: i32, k: i32) [*c]u8 {
-    const buf: [*c]u8 = &rname_buf;
+fn rname(r: i32, k: i32) [*:0]u8 {
+    const buf: [*]u8 = &rname_buf;
     if (r == SP) {
         assert(k == Kl);
         bufPrintZ(&rname_buf, "sp", .{});
@@ -277,7 +277,7 @@ fn rname(r: i32, k: i32) [*c]u8 {
             Kd => bufPrintZ(&rname_buf, "d31", .{}),
         }
     } else die("invalid register", .{});
-    return buf;
+    return @ptrCast(buf);
 }
 
 fn slot(r: Ref, e: *E) u64 {
@@ -392,7 +392,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
     }
 }
 
-fn loadaddr(c: *Con, rn: [*c]u8, e: *E) Writer.Error!void {
+fn loadaddr(c: *Con, rn: [*:0]const u8, e: *E) Writer.Error!void {
     var s: [*:0]const u8 = undefined;
 
     switch (c.sym.type) {
@@ -641,7 +641,7 @@ pub fn arm64_emitfn(f: *Fn, out: *Writer) Writer.Error!void {
     const e = &e_;
     if (all.T.apple != 0)
         e.@"fn".lnk.@"align" = 4;
-    try emitfnlnk(e.@"fn".name, &e.@"fn".lnk, e.f);
+    try emitfnlnk(e.@"fn".name.?, &e.@"fn".lnk, e.f);
     try e.f.writeAll("\thint\t#34\n");
     framelayout(e);
 
@@ -734,5 +734,5 @@ pub fn arm64_emitfn(f: *Fn, out: *Writer) Writer.Error!void {
     }
     id0 += @intCast(e.@"fn".nblk);
     if (all.T.apple == 0)
-        try elf_emitfnfin(f.name, out);
+        try elf_emitfnfin(f.name.?, out);
 }

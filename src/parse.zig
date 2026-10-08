@@ -249,8 +249,8 @@ const Tdots = NPubOp + 51;
 const Teof = NPubOp + 52;
 const Ntok = NPubOp + 53;
 
-var kwmap: [Ntok][*c]const u8 = blk: {
-    var m: [Ntok][*c]const u8 = @splat(null);
+var kwmap: [Ntok]?[*:0]const u8 = blk: {
+    var m: [Ntok]?[*:0]const u8 = @splat(null);
     m[Tloadw] = "loadw";
     m[Tloadl] = "loadl";
     m[Tloads] = "loads";
@@ -406,8 +406,8 @@ var tokval: struct {
     fltd: f64,
     flts: f32,
     num: i64,
-    str: [*c]u8,
-} = .{ .chr = 0, .fltd = 0, .flts = 0, .num = 0, .str = null };
+    str: [*:0]u8, // growable token buffer (vector), NUL-terminated by lex()
+} = .{ .chr = 0, .fltd = 0, .flts = 0, .num = 0, .str = undefined };
 var lnum: i32 = 0;
 
 var curf: *Fn = undefined;
@@ -441,7 +441,7 @@ fn lexinit() void {
     i = 0;
     while (i < Ntok) : (i += 1)
         if (kwmap[i] != null) {
-            const h = (hash(kwmap[i]) *% K) >> M;
+            const h = (hash(kwmap[i].?) *% K) >> M;
             assert(lexh[h] == Txxx);
             lexh[h] = @intCast(i);
         };
@@ -1461,7 +1461,7 @@ fn parselnk(lnk: *Lnk) i32 {
     }
 }
 
-pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*c]u8) void, data: *const fn (*Dat) void, func: *const fn (*Fn) void) void {
+pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*:0]const u8) void, data: *const fn (*Dat) void, func: *const fn (*Fn) void) void {
     var lnk: Lnk = undefined;
 
     lexinit();
@@ -1472,7 +1472,7 @@ pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*c]u8) voi
     thead = Txxx;
     ntyp = 0;
     all.typ = vnewT(Typ, 0, PHeap);
-    tokval.str = vnewT(u8, 128, PHeap);
+    tokval.str = @ptrCast(vnewT(u8, 128, PHeap));
     while (true) {
         lnk = std.mem.zeroes(Lnk);
         switch (parselnk(&lnk)) {

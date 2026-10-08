@@ -36,7 +36,7 @@ const lnk_sec = [2][3][*:0]const u8{
     .{ ".abort \"unreachable\"", ".section .tdata,\"awT\"", ".section .tbss,\"awT\"" },
 };
 
-pub fn emitlnk(n: [*c]u8, l: *Lnk, s: i32, f: *Writer) Writer.Error!void {
+pub fn emitlnk(n: [*:0]const u8, l: *Lnk, s: i32, f: *Writer) Writer.Error!void {
     const pfx: [*:0]const u8 = if (n[0] == '"') "" else @ptrCast(&all.T.assym);
     var sfx: [*:0]const u8 = "";
     if (all.T.apple != 0 and l.thread != 0) {
@@ -61,7 +61,7 @@ pub fn emitlnk(n: [*c]u8, l: *Lnk, s: i32, f: *Writer) Writer.Error!void {
     try f.print("{s}{s}{s}:\n", .{cs(pfx), cs(n), cs(sfx)});
 }
 
-pub fn emitfnlnk(n: [*c]u8, l: *Lnk, f: *Writer) Writer.Error!void {
+pub fn emitfnlnk(n: [*:0]const u8, l: *Lnk, f: *Writer) Writer.Error!void {
     try emitlnk(n, l, SecText, f);
 }
 
@@ -92,7 +92,7 @@ pub fn emitdat(d: *Dat, f: *Writer) Writer.Error!void {
                     try f.print(",{d}", .{d.lnk.?.@"align"});
                 try f.writeByte('\n');
             } else if (emitdat_zero != -1) {
-                try emitlnk(d.name, d.lnk.?, SecBss, f);
+                try emitlnk(d.name.?, d.lnk.?, SecBss, f);
                 try f.print("\t.fill {d},1,0\n", .{emitdat_zero});
             }
         },
@@ -104,7 +104,7 @@ pub fn emitdat(d: *Dat, f: *Writer) Writer.Error!void {
         },
         else => {
             if (emitdat_zero != -1) {
-                try emitlnk(d.name, d.lnk.?, SecData, f);
+                try emitlnk(d.name.?, d.lnk.?, SecData, f);
                 if (emitdat_zero > 0)
                     try f.print("\t.fill {d},1,0\n", .{emitdat_zero});
                 emitdat_zero = -1;
@@ -191,7 +191,7 @@ pub fn elf_emitfin(f: *Writer) Writer.Error!void {
     try f.print(".section .note.GNU-stack,\"\",@progbits\n", .{});
 }
 
-pub fn elf_emitfnfin(fname: [*c]u8, f: *Writer) Writer.Error!void {
+pub fn elf_emitfnfin(fname: [*:0]const u8, f: *Writer) Writer.Error!void {
     try f.print(".type {s}, @function\n", .{cs(fname)});
     try f.print(".size {s}, .-{s}\n", .{cs(fname), cs(fname)});
 }
@@ -216,7 +216,7 @@ var file: ?[*]u32 = null; // vector of interned file names
 var nfile: uint = 0;
 var curfile: uint = 0;
 
-pub fn emitdbgfile(fname: [*c]u8, f: *Writer) Writer.Error!void {
+pub fn emitdbgfile(fname: [*:0]const u8, f: *Writer) Writer.Error!void {
     const id = intern(fname);
     var n: uint = 0;
     while (n < nfile) : (n += 1) {

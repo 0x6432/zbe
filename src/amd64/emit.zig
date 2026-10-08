@@ -762,7 +762,7 @@ pub fn amd64_sysv_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
     const rclob = tgt.sysv.amd64_sysv_rclob[0..NCLR_SYSV];
     const rsave = tgt.sysv.amd64_sysv_rsave[0..6];
 
-    try emitfnlnk(f.name, &f.lnk, fp);
+    try emitfnlnk(f.name.?, &f.lnk, fp);
     try fp.writeAll("\tendbr64\n");
     if (f.leaf == 0 or f.vararg != 0 or f.dynalloc != 0) {
         e.fp = RBP;
@@ -854,7 +854,7 @@ pub fn amd64_sysv_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
     }
     sysv_id0 += @intCast(f.nblk);
     if (all.T.apple == 0)
-        try elf_emitfnfin(f.name, fp);
+        try elf_emitfnfin(f.name.?, fp);
 }
 
 fn winabi_framesz(e: *E) void {
@@ -884,7 +884,7 @@ pub fn amd64_winabi_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
     const e = &e_;
     const rclob = tgt.winabi.amd64_winabi_rclob[0..NCLR_WIN];
 
-    try emitfnlnk(f.name, &f.lnk, fp);
+    try emitfnlnk(f.name.?, &f.lnk, fp);
     try fp.writeAll("\tendbr64\n");
     if (f.vararg != 0) {
         try fp.print("\tmovq %rcx, 0x8(%rsp)\n", .{});

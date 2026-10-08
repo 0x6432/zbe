@@ -163,7 +163,7 @@ fn func(f: *Fn) void {
     freeall();
 }
 
-fn dbgfile(f: [*c]u8) void {
+fn dbgfile(f: [*:0]const u8) void {
     emitdbgfile(f, outf) catch writeFailed();
 }
 

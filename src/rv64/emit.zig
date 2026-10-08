@@ -527,7 +527,7 @@ fn emitins(i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
 var id0: i32 = 0;
 
 pub fn rv64_emitfn(fn_: *Fn, f: *Writer) Writer.Error!void {
-    try emitfnlnk(fn_.name, &fn_.lnk, f);
+    try emitfnlnk(fn_.name.?, &fn_.lnk, f);
 
     if (fn_.vararg != 0) {
         // TODO: only need space for registers
@@ -619,5 +619,5 @@ pub fn rv64_emitfn(fn_: *Fn, f: *Writer) Writer.Error!void {
         }
     }
     id0 += @intCast(fn_.nblk);
-    try elf_emitfnfin(fn_.name, f);
+    try elf_emitfnfin(fn_.name.?, f);
 }

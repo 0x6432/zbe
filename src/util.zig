@@ -828,68 +828,66 @@ pub fn dumpts(bs: *BSet, tmp: [*c]Tmp, f: *Writer) Writer.Error!void {
     try f.writeAll(" ]\n");
 }
 
-pub fn runmatch(code: [*c]const uchar, tn: [*c]Num, ref_: Ref, @"var": [*c]Ref) void {
+/// runs the matcher bytecode code on the tree rooted at
+/// ref, storing matched references into vars
+pub fn runmatch(code: []const uchar, tn: [*]const Num, ref_: Ref, vars: []Ref) void {
     var ref = ref_;
-    var stkbuf: [20]Ref = undefined;
-    var stk: [*c]Ref = &stkbuf;
-    var s: [*c]const uchar = undefined;
-    var pc: [*c]const uchar = code;
-    var bc: i32 = undefined;
+    var stk: [20]Ref = undefined;
+    var nstk: usize = 0;
+    var pc: usize = 0;
 
     assert(rtype(ref) == RTmp);
     while (true) {
-        bc = pc.*;
+        const bc = code[pc];
         if (bc == 0) break;
         sw: switch (bc) {
             1, 2 => { // pushsym, push
-                assert(stk < @as([*c]Ref, &stkbuf) + 20);
+                assert(nstk < stk.len);
                 assert(rtype(ref) == RTmp);
-                const nl = tn[ref.val].nl;
-                const nr = tn[ref.val].nr;
-                if (bc == 1 and nl > nr) {
-                    stk.* = tn[ref.val].l;
-                    stk += 1;
-                    ref = tn[ref.val].r;
+                const t = &tn[ref.val];
+                if (bc == 1 and t.nl > t.nr) {
+                    stk[nstk] = t.l;
+                    ref = t.r;
                 } else {
-                    stk.* = tn[ref.val].r;
-                    stk += 1;
-                    ref = tn[ref.val].l;
+                    stk[nstk] = t.r;
+                    ref = t.l;
                 }
+                nstk += 1;
                 pc += 1;
             },
             3 => { // set
                 pc += 1;
-                @"var"[pc.*] = ref;
-                if ((pc + 1).* == 0)
+                vars[code[pc]] = ref;
+                if (code[pc + 1] == 0)
                     return;
                 continue :sw 4;
             },
             4 => { // pop
-                assert(stk > @as([*c]Ref, &stkbuf));
-                stk -= 1;
-                ref = stk.*;
+                assert(nstk > 0);
+                nstk -= 1;
+                ref = stk[nstk];
                 pc += 1;
             },
             5 => { // switch
                 assert(rtype(ref) == RTmp);
                 const n = tn[ref.val].n;
-                s = pc + 1;
-                var i: i32 = s.*;
+                var s = pc + 1;
+                var i: i32 = code[s];
                 s += 1;
                 while (i > 0) : ({
                     i -= 1;
                     s += 1;
                 }) {
-                    const v = s.*;
+                    const v = code[s];
                     s += 1;
                     if (n == v)
                         break;
                 }
-                pc += s.*;
+                pc += code[s];
             },
             else => { // jump
                 assert(bc >= 10);
-                pc = code + @as(usize, @intCast(bc - 10));
+                pc = bc - 10;
             },
         }
     }

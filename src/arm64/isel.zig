@@ -310,7 +310,7 @@ fn seljmp(b: *Blk, f: *Fn) void {
         const ir = ir_.?;
         if (selcmp(&ir.arg, ck, f))
             cc = cmpop(cc);
-        b.jmp.type = @intCast(Jjf + cc);
+        b.jmp.type = Jjf.add(cc);
         ir.* = INS0(Onop);
     } else {
         var a = [2]Ref{ r, CON_Z };

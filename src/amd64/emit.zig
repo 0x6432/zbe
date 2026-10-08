@@ -836,7 +836,7 @@ pub fn amd64_sysv_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
                     lbl = false;
             },
             else => {
-                const c: i32 = @as(i32, @intCast(b.jmp.type)) - Jjf;
+                const c: i32 = b.jmp.type.int() - Jjf.int();
                 if (0 <= c and c <= NCmp) {
                     var n: usize = undefined;
                     if (b.link == b.s2) {
@@ -943,7 +943,7 @@ pub fn amd64_winabi_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
                     lbl = false;
             },
             else => {
-                const c: i32 = @as(i32, @intCast(b.jmp.type)) - Jjf;
+                const c: i32 = b.jmp.type.int() - Jjf.int();
                 if (0 <= c and c <= NCmp) {
                     var n: usize = undefined;
                     if (b.link == b.s2 or c >= NCmpI) {

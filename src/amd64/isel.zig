@@ -711,7 +711,7 @@ fn seljmp(b: *Blk, f: *Fn) void {
     if (fi_ == null or !req(fi_.?.to, r)) {
         var cr = [2]Ref{ r, CON_Z };
         selcmp(&cr, Kw, false, f);
-        b.jmp.type = Jjf + Cine;
+        b.jmp.type = Jjf.add(Cine);
         return;
     }
     const fi = fi_.?;
@@ -726,14 +726,14 @@ fn seljmp(b: *Blk, f: *Fn) void {
             selcmp(&fi.arg, k, swap, f);
             fi.* = INS0(Onop);
         }
-        b.jmp.type = @intCast(Jjf + c);
+        b.jmp.type = Jjf.add(c);
     } else if (fi.op == Oand and t.nuse == 1 and
         (rtype(fi.arg[0]) == RTmp or
         rtype(fi.arg[1]) == RTmp))
     {
         fi.op = Oxtest;
         fi.to = R;
-        b.jmp.type = Jjf + Cine;
+        b.jmp.type = Jjf.add(Cine);
         if (rtype(fi.arg[1]) == RCon) {
             r = fi.arg[1];
             fi.arg[1] = fi.arg[0];
@@ -745,7 +745,7 @@ fn seljmp(b: *Blk, f: *Fn) void {
         // has to be marked as live
         if (t.nuse == 1)
             emit(Ocopy, Kw, R, r, R);
-        b.jmp.type = Jjf + Cine;
+        b.jmp.type = Jjf.add(Cine);
     }
 }
 

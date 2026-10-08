@@ -877,7 +877,7 @@ fn parseline(ps: PState) PState {
             return PPhi;
         },
         Tret => {
-            curb.?.jmp.type = @intCast(Jretw + rcls);
+            curb.?.jmp.type = Jretw.add(rcls);
             if (peek() == Tnl)
                 curb.?.jmp.type = Jret0
             else if (rcls != K0) {
@@ -1118,10 +1118,10 @@ fn typecheck(f: *Fn) void {
         if (isret(b.jmp.type)) {
             if (b.jmp.type == Jretc)
                 k = Kl
-            else if (b.jmp.type >= Jretsb)
+            else if (b.jmp.type.int() >= Jretsb.int())
                 k = Kw
             else
-                k = b.jmp.type - Jretw;
+                k = b.jmp.type.int() - Jretw.int();
             if (!usecheck(r, k, f))
                 jerr = true;
         }
@@ -1620,7 +1620,7 @@ pub fn printfn(f: *Fn, fp: *Writer) Writer.Error!void {
         }
         switch (b.jmp.type) {
             Jret0, Jretsb, Jretub, Jretsh, Jretuh, Jretw, Jretl, Jrets, Jretd, Jretc => {
-                try fp.print("\t{s}", .{cs(jtoa[@intCast(b.jmp.type - 1)].ptr)});
+                try fp.print("\t{s}", .{cs(jtoa[@intCast(b.jmp.type.int() - 1)].ptr)});
                 if (b.jmp.type != Jret0 or !req(b.jmp.arg, R)) {
                     try fp.print(" ", .{});
                     try printref(b.jmp.arg, f, fp);
@@ -1635,7 +1635,7 @@ pub fn printfn(f: *Fn, fp: *Writer) Writer.Error!void {
                     try fp.print("\tjmp @{s}\n", .{cs(b.s1.?.name)});
             },
             else => {
-                try fp.print("\t{s} ", .{cs(jtoa[@intCast(b.jmp.type - 1)].ptr)});
+                try fp.print("\t{s} ", .{cs(jtoa[@intCast(b.jmp.type.int() - 1)].ptr)});
                 if (b.jmp.type == Jjnz) {
                     try printref(b.jmp.arg, f, fp);
                     try fp.print(", ", .{});

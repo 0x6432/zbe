@@ -286,15 +286,15 @@ fn selret(b: *Blk, f: *Fn) void {
     var cr: Class = undefined;
     var cty: i32 = undefined;
 
-    const j: i32 = @intCast(b.jmp.type);
+    const j: i32 = b.jmp.type.int();
 
-    if (!isret(j) or j == Jret0)
+    if (!isret(j) or j == Jret0.int())
         return;
 
     const r = b.jmp.arg;
     b.jmp.type = Jret0;
 
-    if (j == Jretc) {
+    if (j == Jretc.int()) {
         typclass(&cr, &all.typ[@intCast(f.retty)], &gpreg, &fpreg);
         if ((cr.class & Cptr) != 0) {
             assert(rtype(f.retr) == RTmp);
@@ -306,7 +306,7 @@ fn selret(b: *Blk, f: *Fn) void {
             cty = (@as(i32, cr.nfp) << 2) | cr.ngp;
         }
     } else {
-        const k = j - Jretw;
+        const k = j - Jretw.int();
         if (KBASE(k) == 0) {
             emit(Ocopy, k, TMP(R0), r, R);
             cty = 1;
@@ -860,10 +860,10 @@ pub fn apple_extsb(f: *Fn) void {
     var b_it: ?*Blk = f.start;
     while (b_it) |b| : (b_it = b.link) {
         all.curi = all.insbEnd();
-        const j: i32 = @intCast(b.jmp.type);
+        const j: i32 = b.jmp.type.int();
         if (isretbh(j)) {
             const r = newtmp("abi", Kw, f);
-            const op = Oextsb + (j - Jretsb);
+            const op = Oextsb + (j - Jretsb.int());
             emit(op, Kw, r, b.jmp.arg, R);
             b.jmp.arg = r;
             b.jmp.type = Jretw;

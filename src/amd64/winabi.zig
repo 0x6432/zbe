@@ -558,9 +558,9 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
 }
 
 fn lower_block_return(func: *Fn, block: *Blk) void {
-    const jmp_type: i32 = block.jmp.type;
+    const jmp_type: i32 = block.jmp.type.int();
 
-    if (!isret(jmp_type) or jmp_type == Jret0) {
+    if (!isret(jmp_type) or jmp_type == Jret0.int()) {
         return;
     }
 
@@ -571,7 +571,7 @@ fn lower_block_return(func: *Fn, block: *Blk) void {
 
     var reg_usage = std.mem.zeroes(RegisterUsage);
 
-    if (jmp_type == Jretc) {
+    if (jmp_type == Jretc.int()) {
         const @"type" = &all.typ[@intCast(func.retty)];
         if (type_is_by_copy(@"type")) {
             assert(rtype(func.retr) == RTmp);
@@ -583,7 +583,7 @@ fn lower_block_return(func: *Fn, block: *Blk) void {
         }
         reg_usage.rax_returned = true;
     } else {
-        const k = jmp_type - Jretw;
+        const k = jmp_type - Jretw.int();
         if (is_integer_type(k)) {
             emit(Ocopy, k, TMP(RAX), ret_arg, R);
             reg_usage.rax_returned = true;

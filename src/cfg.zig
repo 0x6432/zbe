@@ -28,6 +28,7 @@ const req = all.req;
 const uint = all.uint;
 const vgrow = all.vgrow;
 const vnewT = all.vnewT;
+const J = all.J;
 // -- end imports --
 
 const NOID: uint = std.math.maxInt(uint); // -1u
@@ -404,7 +405,7 @@ pub fn ifgraph(ifb: *Blk, pthenb_: **Blk, pelseb_: **Blk, pjoinb: **Blk) bool {
 }
 
 const Jmp = extern struct {
-    type: i32,
+    type: J,
     arg: Ref,
     s1: ?*Blk,
     s2: ?*Blk,
@@ -495,7 +496,7 @@ pub fn simplcfg(f: *Fn) void {
     while (b_it) |b| : (b_it = b.link)
         if (b.id != NOID) {
             const j = &jmp[b.id];
-            b.jmp.type = @intCast(j.type);
+            b.jmp.type = j.type;
             b.jmp.arg = j.arg;
             b.s1 = j.s1;
             b.s2 = j.s2;

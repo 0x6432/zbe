@@ -299,15 +299,15 @@ fn selret(b: *Blk, f: *Fn) void {
     var cr: Class = undefined;
     var cty: i32 = undefined;
 
-    const j: i32 = @intCast(b.jmp.type);
+    const j: i32 = b.jmp.type.int();
 
-    if (!isret(j) or j == Jret0)
+    if (!isret(j) or j == Jret0.int())
         return;
 
     const r = b.jmp.arg;
     b.jmp.type = Jret0;
 
-    if (j == Jretc) {
+    if (j == Jretc.int()) {
         typclass(&cr, &all.typ[@intCast(f.retty)], true, &gpreg, &fpreg);
         if ((cr.class & Cptr) != 0) {
             assert(rtype(f.retr) == RTmp);
@@ -319,7 +319,7 @@ fn selret(b: *Blk, f: *Fn) void {
             cty = (@as(i32, cr.nfp) << 2) | cr.ngp;
         }
     } else {
-        const k = j - Jretw;
+        const k = j - Jretw.int();
         if (KBASE(k) == 0) {
             emit(Ocopy, k, TMP(A0), r, R);
             cty = 1;

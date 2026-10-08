@@ -132,38 +132,80 @@ pub const Oxxx = ops.Oxxx;
 pub const NOp = ops.NOp;
 
 // enum J
-pub const Jxxx = 0;
-pub const Jretw = 1;
-pub const Jretl = 2;
-pub const Jrets = 3;
-pub const Jretd = 4;
-pub const Jretsb = 5;
-pub const Jretub = 6;
-pub const Jretsh = 7;
-pub const Jretuh = 8;
-pub const Jretc = 9;
-pub const Jret0 = 10;
-pub const Jjmp = 11;
-pub const Jjnz = 12;
-pub const Jjfieq = 13;
-pub const Jjfine = 14;
-pub const Jjfisge = 15;
-pub const Jjfisgt = 16;
-pub const Jjfisle = 17;
-pub const Jjfislt = 18;
-pub const Jjfiuge = 19;
-pub const Jjfiugt = 20;
-pub const Jjfiule = 21;
-pub const Jjfiult = 22;
-pub const Jjffeq = 23;
-pub const Jjffge = 24;
-pub const Jjffgt = 25;
-pub const Jjffle = 26;
-pub const Jjfflt = 27;
-pub const Jjffne = 28;
-pub const Jjffo = 29;
-pub const Jjffuo = 30;
-pub const Jhlt = 31;
+pub const J = enum(i16) {
+    xxx,
+    retw,
+    retl,
+    rets,
+    retd,
+    retsb,
+    retub,
+    retsh,
+    retuh,
+    retc,
+    ret0,
+    jmp,
+    jnz,
+    jfieq,
+    jfine,
+    jfisge,
+    jfisgt,
+    jfisle,
+    jfislt,
+    jfiuge,
+    jfiugt,
+    jfiule,
+    jfiult,
+    jffeq,
+    jffge,
+    jffgt,
+    jffle,
+    jfflt,
+    jffne,
+    jffo,
+    jffuo,
+    hlt,
+
+    /// offset into the jump kinds, e.g. `J.jfieq.add(cmp)` (C: Jjf + cmp)
+    pub inline fn add(j: J, n: anytype) J {
+        return @enumFromInt(@intFromEnum(j) + @as(i16, @intCast(n)));
+    }
+    pub inline fn int(j: J) i32 {
+        return @intFromEnum(j);
+    }
+};
+pub const Jxxx = J.xxx;
+pub const Jretw = J.retw;
+pub const Jretl = J.retl;
+pub const Jrets = J.rets;
+pub const Jretd = J.retd;
+pub const Jretsb = J.retsb;
+pub const Jretub = J.retub;
+pub const Jretsh = J.retsh;
+pub const Jretuh = J.retuh;
+pub const Jretc = J.retc;
+pub const Jret0 = J.ret0;
+pub const Jjmp = J.jmp;
+pub const Jjnz = J.jnz;
+pub const Jjfieq = J.jfieq;
+pub const Jjfine = J.jfine;
+pub const Jjfisge = J.jfisge;
+pub const Jjfisgt = J.jfisgt;
+pub const Jjfisle = J.jfisle;
+pub const Jjfislt = J.jfislt;
+pub const Jjfiuge = J.jfiuge;
+pub const Jjfiugt = J.jfiugt;
+pub const Jjfiule = J.jfiule;
+pub const Jjfiult = J.jfiult;
+pub const Jjffeq = J.jffeq;
+pub const Jjffge = J.jffge;
+pub const Jjffgt = J.jffgt;
+pub const Jjffle = J.jffle;
+pub const Jjfflt = J.jfflt;
+pub const Jjffne = J.jffne;
+pub const Jjffo = J.jffo;
+pub const Jjffuo = J.jffuo;
+pub const Jhlt = J.hlt;
 pub const NJmp = 32;
 pub const jmp_names = [_][:0]const u8{ "retw", "retl", "rets", "retd", "retsb", "retub", "retsh", "retuh", "retc", "ret0", "jmp", "jnz", "jfieq", "jfine", "jfisge", "jfisgt", "jfisle", "jfislt", "jfiuge", "jfiugt", "jfiule", "jfiult", "jffeq", "jffge", "jffgt", "jffle", "jfflt", "jffne", "jffo", "jffuo", "hlt" };
 
@@ -187,8 +229,16 @@ pub const Jjf = Jjfieq;
 pub const Jjf1 = Jjffuo;
 
 /// linear in x
-pub inline fn INRANGE(x: anytype, comptime l: comptime_int, comptime u: comptime_int) bool {
-    return @as(u32, @bitCast(@as(i32, @intCast(x)) -% l)) <= u - l;
+inline fn ordinal(x: anytype) i32 {
+    return switch (@typeInfo(@TypeOf(x))) {
+        .@"enum", .enum_literal => @intFromEnum(x),
+        else => @intCast(x),
+    };
+}
+pub inline fn INRANGE(x: anytype, comptime l: anytype, comptime u: anytype) bool {
+    const lo = comptime ordinal(l);
+    const hi = comptime ordinal(u);
+    return @as(u32, @bitCast(ordinal(x) -% lo)) <= hi - lo;
 }
 pub inline fn isstore(o: anytype) bool {
     return INRANGE(o, O.Ostoreb, O.Ostored);
@@ -274,7 +324,7 @@ pub const Blk = extern struct {
     ins: [*]Ins,
     nins: uint,
     jmp: extern struct {
-        type: i16,
+        type: J,
         arg: Ref,
     },
     s1: ?*Blk,

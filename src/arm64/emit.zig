@@ -711,7 +711,7 @@ pub fn arm64_emitfn(f: *Fn, out: *Writer) Writer.Error!void {
             },
             Jjmp => jmp = true,
             else => {
-                const c: i32 = @as(i32, @intCast(b.jmp.type)) - Jjf;
+                const c: i32 = b.jmp.type.int() - Jjf.int();
                 if (c < 0 or c > NCmp)
                     die("unhandled jump {d}", .{b.jmp.type});
                 var n: usize = undefined;

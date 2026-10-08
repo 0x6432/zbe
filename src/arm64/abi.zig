@@ -678,12 +678,12 @@ fn split(f: *Fn, b: [*c]Blk) [*c]Blk {
 }
 
 fn chpred(b: [*c]Blk, bp: [*c]Blk, bp1: [*c]Blk) void {
-    var p = b.*.phi;
-    while (p != null) : (p = p.*.link) {
+    var p_it: ?*Phi = b.*.phi;
+    while (p_it) |p| : (p_it = p.link) {
         var a: uint = 0;
-        while (p.*.blk[a] != bp) : (a += 1)
-            assert(a + 1 < p.*.narg);
-        p.*.blk[a] = bp1;
+        while (p.blk[a] != bp) : (a += 1)
+            assert(a + 1 < p.narg);
+        p.blk[a] = bp1;
     }
 }
 
@@ -826,13 +826,13 @@ fn arm64_selvastart(f: *Fn, p: Params, ap: Ref) void {
     emit(Oadd, Kl, r0, ap, getcon(28, f));
 }
 
-pub fn arm64_abi(f: [*c]Fn) void {
-    var b = f.*.start;
+pub fn arm64_abi(f: *Fn) void {
+    var b = f.start;
     while (b != null) : (b = b.*.link)
         b.*.visit = 0;
 
     // lower parameters
-    b = f.*.start;
+    b = f.start;
     var i = b.*.ins;
     while (i < b.*.ins + b.*.nins) : (i += 1) {
         if (!ispar(i.*.op))
@@ -849,11 +849,11 @@ pub fn arm64_abi(f: [*c]Fn) void {
 
     // lower calls, returns, and vararg instructions
     var il: [*c]Insl = null;
-    b = f.*.start;
+    b = f.start;
     while (true) {
         b = b.*.link;
         if (b == null)
-            b = f.*.start; // do it last
+            b = f.start; // do it last
         if (b.*.visit == 0) {
             all.curi = all.insbEnd();
             selret(b, f);
@@ -886,13 +886,13 @@ pub fn arm64_abi(f: [*c]Fn) void {
                     Oarg, Oargc => die("unreachable", .{}),
                 }
             }
-            if (b == f.*.start) {
+            if (b == f.start) {
                 while (il != null) : (il = il.*.link)
                     emiti(il.*.i);
             }
             idup(b, all.curi, @intCast(ptrdiff(all.insbEnd(), all.curi)));
         }
-        if (b == f.*.start) break;
+        if (b == f.start) break;
     }
 
     if (all.debug['A'] != 0) {
@@ -904,27 +904,27 @@ pub fn arm64_abi(f: [*c]Fn) void {
 /// abi0 for apple target; introduces
 /// necessary sign extensions in calls
 /// and returns
-pub fn apple_extsb(f: [*c]Fn) void {
-    var b = f.*.start;
-    while (b != null) : (b = b.*.link) {
+pub fn apple_extsb(f: *Fn) void {
+    var b_it: ?*Blk = f.start;
+    while (b_it) |b| : (b_it = b.link) {
         all.curi = all.insbEnd();
-        const j: i32 = @intCast(b.*.jmp.type);
+        const j: i32 = @intCast(b.jmp.type);
         if (isretbh(j)) {
             const r = newtmp("abi", Kw, f);
             const op = Oextsb + (j - Jretsb);
-            emit(op, Kw, r, b.*.jmp.arg, R);
-            b.*.jmp.arg = r;
-            b.*.jmp.type = Jretw;
+            emit(op, Kw, r, b.jmp.arg, R);
+            b.jmp.arg = r;
+            b.jmp.type = Jretw;
         }
-        var i = b.*.ins + b.*.nins;
-        while (i > b.*.ins) {
+        var i = b.ins + b.nins;
+        while (i > b.ins) {
             i -= 1;
             emiti(i.*);
             if (i.*.op != Ocall)
                 continue;
             const i_1 = i;
             var i_0 = i;
-            while (i_0 > b.*.ins) : (i_0 -= 1) {
+            while (i_0 > b.ins) : (i_0 -= 1) {
                 if (!isarg((i_0 - 1).*.op))
                     break;
             }

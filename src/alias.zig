@@ -11,6 +11,7 @@ const ASym = all.ASym;
 const AUnk = all.AUnk;
 const Alias = all.Alias;
 const BIT = all.BIT;
+const Blk = all.Blk;
 const CAddr = all.CAddr;
 const CBits = all.CBits;
 const Fn = all.Fn;
@@ -26,6 +27,7 @@ const Oargc = all.ops.Oargc;
 const Oblit0 = all.ops.Oblit0;
 const Oblit1 = all.ops.Oblit1;
 const Ocopy = all.ops.Ocopy;
+const Phi = all.Phi;
 const R = all.R;
 const RCon = all.RCon;
 const RInt = all.RInt;
@@ -152,20 +154,20 @@ fn store(r: Ref, sz: i32, f: *Fn) void {
     }
 }
 
-pub fn fillalias(f: [*c]Fn) void {
+pub fn fillalias(f: *Fn) void {
     var a0: Alias = undefined;
     var a1: Alias = undefined;
 
     var t: i32 = 0;
-    while (t < f.*.ntmp) : (t += 1)
-        f.*.tmp[@intCast(t)].alias.type = ABot;
+    while (t < f.ntmp) : (t += 1)
+        f.tmp[@intCast(t)].alias.type = ABot;
     var n: uint = 0;
-    while (n < f.*.nblk) : (n += 1) {
-        const b = f.*.rpo[n];
+    while (n < f.nblk) : (n += 1) {
+        const b = f.rpo[n];
         var p = b.*.phi;
         while (p != null) : (p = p.*.link) {
             assert(rtype(p.*.to) == RTmp);
-            const a = &f.*.tmp[p.*.to.val].alias;
+            const a = &f.tmp[p.*.to.val].alias;
             assert(a.*.type == ABot);
             a.*.type = AUnk;
             a.*.base = @intCast(p.*.to.val);
@@ -177,14 +179,14 @@ pub fn fillalias(f: [*c]Fn) void {
             var a: [*c]Alias = null;
             if (!req(i.*.to, R)) {
                 assert(rtype(i.*.to) == RTmp);
-                a = &f.*.tmp[i.*.to.val].alias;
+                a = &f.tmp[i.*.to.val].alias;
                 assert(a.*.type == ABot);
                 if (Oalloc <= i.*.op and i.*.op <= Oalloc1) {
                     a.*.type = ALoc;
                     a.*.slot = a;
                     a.*.u.loc.sz = -1;
                     if (rtype(i.*.arg[0]) == RCon) {
-                        const c = &f.*.con[i.*.arg[0].val];
+                        const c = &f.con[i.*.arg[0].val];
                         const x = c.*.bits.i;
                         if (c.*.type == CBits)
                             if (0 <= x and x <= NBit) {
@@ -234,13 +236,13 @@ pub fn fillalias(f: [*c]Fn) void {
         if (b.*.jmp.type != Jretc)
             esc(b.*.jmp.arg, f);
     }
-    var b = f.*.start;
-    while (b != null) : (b = b.*.link) {
-        var p = b.*.phi;
-        while (p != null) : (p = p.*.link) {
+    var b_it: ?*Blk = f.start;
+    while (b_it) |b| : (b_it = b.link) {
+        var p_it: ?*Phi = b.phi;
+        while (p_it) |p| : (p_it = p.link) {
             var k: uint = 0;
-            while (k < p.*.narg) : (k += 1)
-                esc(p.*.arg[k], f);
+            while (k < p.narg) : (k += 1)
+                esc(p.arg[k], f);
         }
     }
 }

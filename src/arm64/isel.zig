@@ -316,9 +316,9 @@ fn seljmp(b: [*c]Blk, f: *Fn) void {
     }
 }
 
-pub fn arm64_isel(f: [*c]Fn) void {
+pub fn arm64_isel(f: *Fn) void {
     // assign slots to fast allocs
-    var b = f.*.start;
+    var b = f.start;
     // specific to NAlign == 3
     // or change n=4 and sz /= 4 below
     var al: i32 = Oalloc;
@@ -332,19 +332,19 @@ pub fn arm64_isel(f: [*c]Fn) void {
             if (i.*.op == al) {
                 if (rtype(i.*.arg[0]) != RCon)
                     break;
-                var sz = f.*.con[i.*.arg[0].val].bits.i;
+                var sz = f.con[i.*.arg[0].val].bits.i;
                 if (sz < 0 or sz >= std.math.maxInt(i32) - 15)
                     err("invalid alloc size {d}", .{sz});
                 sz = (sz + n - 1) & -@as(i64, n);
                 sz = @divTrunc(sz, 4);
-                f.*.tmp[i.*.to.val].slot = f.*.slot;
-                f.*.slot += @intCast(sz);
+                f.tmp[i.*.to.val].slot = f.slot;
+                f.slot += @intCast(sz);
                 i.* = INS0(Onop);
             }
         }
     }
 
-    b = f.*.start;
+    b = f.start;
     while (b != null) : (b = b.*.link) {
         all.curi = all.insbEnd();
         const sb = [3][*c]Blk{ b.*.s1, b.*.s2, null };

@@ -683,13 +683,13 @@ fn selvastart(f: *Fn, p: Params, ap: Ref) void {
     emit(Oaddr, Kl, rsave, SLOT(-s), R);
 }
 
-pub fn rv64_abi(f: [*c]Fn) void {
-    var b = f.*.start;
+pub fn rv64_abi(f: *Fn) void {
+    var b = f.start;
     while (b != null) : (b = b.*.link)
         b.*.visit = 0;
 
     // lower parameters
-    b = f.*.start;
+    b = f.start;
     var i = b.*.ins;
     while (i < b.*.ins + b.*.nins) : (i += 1) {
         if (!ispar(i.*.op))
@@ -706,11 +706,11 @@ pub fn rv64_abi(f: [*c]Fn) void {
 
     // lower calls, returns, and vararg instructions
     var il: [*c]Insl = null;
-    b = f.*.start;
+    b = f.start;
     while (true) {
         b = b.*.link;
         if (b == null)
-            b = f.*.start; // do it last
+            b = f.start; // do it last
         if (b.*.visit == 0) {
             all.curi = all.insbEnd();
             selret(b, f);
@@ -733,13 +733,13 @@ pub fn rv64_abi(f: [*c]Fn) void {
                     Oarg, Oargc => die("unreachable", .{}),
                 }
             }
-            if (b == f.*.start) {
+            if (b == f.start) {
                 while (il != null) : (il = il.*.link)
                     emiti(il.*.i);
             }
             idup(b, all.curi, @intCast(ptrdiff(all.insbEnd(), all.curi)));
         }
-        if (b == f.*.start) break;
+        if (b == f.start) break;
     }
 
     if (all.debug['A'] != 0) {

@@ -94,6 +94,14 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    T1,T2 files: converts params w/o arithmetic/null/copy use; fn types
    `fn ([*c]Fn` -> `fn (*Fn`). DONE (4b): 21 pointer-walking loops ->
    `for (b.ins[0..b.nins]) |*i|` (tools/forloops.py).
+   DONE (4c): 41 linked-list walks -> `var b_it: ?*Blk = f.start;
+   while (b_it) |b| : (b_it = b.link)` (tools/listloops.py); ptrparams
+   fixed (var-copy check was too strict) -> 162 *Fn params total.
+   Audit note: for-over-slice evaluates bounds once (C re-reads nins/nuse
+   each iteration); converted loop bodies were checked not to grow the
+   iterated array. Index loops `while (n < f.ntmp)` are kept as while
+   loops on purpose (bodies may call newtmp and grow the bound).
+   Progress metric: `[*c]` 740 -> 694, `.*.` 3538 -> 3052.
    TODO: rest of `[*c]` -> `*T`/`?*T`/slices, enums for ops/classes/jumps.
    Notes: Zig forbids `<` on `[*]T` (only `[*c]`) and `&cptr[i]` is
    `*allowzero T` (won't coerce to *T) -> rewrite pointer loops to

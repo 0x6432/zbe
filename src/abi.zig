@@ -1,6 +1,7 @@
 //! One-to-one translation of abi.c
 // -- imports --
 const all = @import("all.zig");
+const Blk = all.Blk;
 const Fn = all.Fn;
 const Jretw = all.Jretw;
 const Oarg = all.ops.Oarg;
@@ -15,16 +16,16 @@ const isretbh = all.isretbh;
 /// treat char/short/... as
 /// words with arbitrary high
 /// bits
-pub fn elimsb(f: [*c]Fn) void {
-    var b = f.*.start;
-    while (b != null) : (b = b.*.link) {
-        for (b.*.ins[0..b.*.nins]) |*i| {
+pub fn elimsb(f: *Fn) void {
+    var b_it: ?*Blk = f.start;
+    while (b_it) |b| : (b_it = b.link) {
+        for (b.ins[0..b.nins]) |*i| {
             if (isargbh(i.op))
                 i.op = Oarg;
             if (isparbh(i.op))
                 i.op = Opar;
         }
-        if (isretbh(b.*.jmp.type))
-            b.*.jmp.type = Jretw;
+        if (isretbh(b.jmp.type))
+            b.jmp.type = Jretw;
     }
 }

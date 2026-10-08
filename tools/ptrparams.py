@@ -38,7 +38,7 @@ for f in files:
                 or re.search(r'(\+|-|<|>|==|!=)\s*' + n + r'\b(?!\.)', nb) \
                 or re.search(r'&' + n + r'\b(?!\.)', nb) \
                 or re.search(r'\b' + n + r'\s*=[^=]', nb) \
-                or re.search(r'\bvar \w+(: [^=]+)? = ' + n + r'\b', nb)
+                or re.search(r'\bvar \w+(: [^=]+)? = ' + n + r'\b(?!\.)', nb)
             if bad: continue
             newparams = re.sub(r'\b' + n + r': \[\*c\]' + pm.group(2) + r'\b', n + ': *' + pm.group(2), newparams)
             body = re.sub(r'\b' + n + r'\.\*\.', n + '.', body)

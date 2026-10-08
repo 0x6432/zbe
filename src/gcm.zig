@@ -110,11 +110,11 @@ fn earlyins(f: *Fn, b: [*c]Blk, i: [*c]Ins) uint {
 
 fn earlyblk(f: *Fn, bid: uint) void {
     const b = f.rpo[bid];
-    var p = b.*.phi;
-    while (p != null) : (p = p.*.link) {
+    var p_it: ?*Phi = b.*.phi;
+    while (p_it) |p| : (p_it = p.link) {
         var n: uint = 0;
-        while (n < p.*.narg) : (n += 1)
-            _ = schedearly(f, p.*.arg[n]);
+        while (n < p.narg) : (n += 1)
+            _ = schedearly(f, p.arg[n]);
     }
     for (b.*.ins[0..b.*.nins]) |*i| {
         if (pinned(i)) {
@@ -137,14 +137,14 @@ fn lcabid(f: *Fn, bid1: uint, bid2: uint) uint {
     return b.*.id;
 }
 
-fn bestbid(f: [*c]Fn, earlybid: uint, latebid: uint) uint {
+fn bestbid(f: *Fn, earlybid: uint, latebid: uint) uint {
     if (latebid == NOBID)
         return NOBID; // unused
 
     assert(earlybid != NOBID);
 
-    const earlyb = f.*.rpo[earlybid];
-    var curb = f.*.rpo[latebid];
+    const earlyb = f.rpo[earlybid];
+    var curb = f.rpo[latebid];
     var bestb = curb;
     assert(dom(earlyb, curb));
 
@@ -268,12 +268,12 @@ fn addgcmins(f: *Fn, vins: [*c]Ins, nins: uint) void {
 /// end of their target block; use-
 /// before-def errors are fixed by
 /// schedblk
-fn gcmmove(f: [*c]Fn) void {
+fn gcmmove(f: *Fn) void {
     var nins: uint = 0;
     var vins = vnewT(Ins, nins, PFn);
 
-    var t = f.*.tmp;
-    while (t < f.*.tmp + @as(usize, @intCast(f.*.ntmp))) : (t += 1) {
+    var t = f.tmp;
+    while (t < f.tmp + @as(usize, @intCast(f.ntmp))) : (t += 1) {
         if (t.*.def == null)
             continue;
         if (t.*.bid == t.*.gcmbid)
@@ -282,7 +282,7 @@ fn gcmmove(f: [*c]Fn) void {
         if (pinned(i) and !canelim(i))
             continue;
         assert(rtype(i.*.to) == RTmp);
-        assert(t == &f.*.tmp[i.*.to.val]);
+        assert(t == &f.tmp[i.*.to.val]);
         if (t.*.gcmbid != NOBID)
             addins(&vins, &nins, i);
         i.* = INS0(Onop);
@@ -316,13 +316,13 @@ fn schedins(f: *Fn, b: [*c]Blk, i_: [*c]Ins, pvins: *[*c]Ins, pnins: *uint) [*c]
 }
 
 /// order ins within a block
-fn schedblk(f: [*c]Fn) void {
+fn schedblk(f: *Fn) void {
     var vins = vnewT(Ins, 0, PHeap);
-    var b = f.*.start;
-    while (b != null) : (b = b.*.link) {
+    var b_it: ?*Blk = f.start;
+    while (b_it) |b| : (b_it = b.link) {
         var nins: uint = 0;
-        var i = b.*.ins;
-        while (i < b.*.ins + b.*.nins)
+        var i = b.ins;
+        while (i < b.ins + b.nins)
             i = schedins(f, b, i, &vins, &nins);
         idup(b, vins, nins);
     }
@@ -365,8 +365,8 @@ fn sinkref(f: *Fn, b: [*c]Blk, pr: *Ref) void {
 /// redistribute trivial ops to point of
 /// use to reduce register pressure
 /// requires rpo, use; breaks use
-fn sink(f: [*c]Fn) void {
-    var b = f.*.start;
+fn sink(f: *Fn) void {
+    var b = f.start;
     while (b != null) : (b = b.*.link) {
         var i = b.*.ins;
         while (i < b.*.ins + b.*.nins) : (i += 1) {
@@ -384,19 +384,19 @@ fn sink(f: [*c]Fn) void {
 /// requires use dom
 /// maintains rpo pred dom
 /// breaks use
-pub fn gcm(f: [*c]Fn) void {
+pub fn gcm(f: *Fn) void {
     filldepth(f);
     fillloop(f);
 
-    for (f.*.tmp[0..@as(usize, @intCast(f.*.ntmp))]) |*t| {
+    for (f.tmp[0..@as(usize, @intCast(f.ntmp))]) |*t| {
         t.visit = 0;
         t.gcmbid = NOBID;
     }
     var bid: uint = 0;
-    while (bid < f.*.nblk) : (bid += 1)
+    while (bid < f.nblk) : (bid += 1)
         earlyblk(f, bid);
     bid = 0;
-    while (bid < f.*.nblk) : (bid += 1)
+    while (bid < f.nblk) : (bid += 1)
         lateblk(f, bid);
 
     gcmmove(f);

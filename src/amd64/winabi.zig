@@ -676,9 +676,9 @@ fn lower_args_for_block(func: *Fn, block: [*c]Blk, param_reg_usage: *RegisterUsa
     // other blocks needed.
     const is_start_block = block == func.start;
     if (is_start_block) {
-        var ea = pextra_alloc.*;
-        while (ea != null) : (ea = ea.*.link) {
-            emiti(ea.*.instr);
+        var ea_it: ?*ExtraAlloc = pextra_alloc.*;
+        while (ea_it) |ea| : (ea_it = ea.link) {
+            emiti(ea.instr);
         }
     }
 
@@ -803,7 +803,7 @@ fn lower_func_parameters(func: *Fn) RegisterUsage {
 // https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention .
 //
 // (see winabi.c for the full description of differences from SysV)
-pub fn amd64_winabi_abi(func: [*c]Fn) void {
+pub fn amd64_winabi_abi(func: *Fn) void {
     // The first thing to do is lower incoming parameters to this function.
     var param_reg_usage = lower_func_parameters(func);
 
@@ -817,11 +817,11 @@ pub fn amd64_winabi_abi(func: [*c]Fn) void {
     // need to add stack allocas for copies when structs are passed or returned by
     // value.
     var extra_alloc: [*c]ExtraAlloc = null;
-    var block = func.*.start.*.link;
-    while (block != null) : (block = block.*.link) {
+    var block_it: ?*Blk = func.start.*.link;
+    while (block_it) |block| : (block_it = block.link) {
         lower_args_for_block(func, block, &param_reg_usage, &extra_alloc);
     }
-    lower_args_for_block(func, func.*.start, &param_reg_usage, &extra_alloc);
+    lower_args_for_block(func, func.start, &param_reg_usage, &extra_alloc);
 
     if (all.debug['A'] != 0) {
         dprint("\n> After ABI lowering:\n", .{});

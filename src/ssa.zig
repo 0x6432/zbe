@@ -87,15 +87,15 @@ pub fn adduse(tmp: [*c]Tmp, ty: i32, b: [*c]Blk, x: ?*anyopaque) void {
 
 /// fill usage, width, phi, and class information
 /// must not change .visit fields
-pub fn filluse(f: [*c]Fn) void {
+pub fn filluse(f: *Fn) void {
     var t: i32 = undefined;
     var tp: i32 = undefined;
     var w: i32 = undefined;
     var x: i32 = undefined;
 
-    const tmp = f.*.tmp;
+    const tmp = f.tmp;
     t = Tmp0;
-    while (t < f.*.ntmp) : (t += 1) {
+    while (t < f.ntmp) : (t += 1) {
         const tt = &tmp[@intCast(t)];
         tt.*.def = null;
         tt.*.bid = NOID;
@@ -107,27 +107,27 @@ pub fn filluse(f: [*c]Fn) void {
         if (tt.*.use == null)
             tt.*.use = vnewT(Use, 0, PFn);
     }
-    var b = f.*.start;
-    while (b != null) : (b = b.*.link) {
-        var p = b.*.phi;
-        while (p != null) : (p = p.*.link) {
-            assert(rtype(p.*.to) == RTmp);
-            tp = @intCast(p.*.to.val);
-            tmp[@intCast(tp)].bid = b.*.id;
+    var b_it: ?*Blk = f.start;
+    while (b_it) |b| : (b_it = b.link) {
+        var p_it: ?*Phi = b.phi;
+        while (p_it) |p| : (p_it = p.link) {
+            assert(rtype(p.to) == RTmp);
+            tp = @intCast(p.to.val);
+            tmp[@intCast(tp)].bid = b.id;
             tmp[@intCast(tp)].ndef += 1;
-            tmp[@intCast(tp)].cls = p.*.cls;
-            tp = phicls(tp, f.*.tmp);
+            tmp[@intCast(tp)].cls = p.cls;
+            tp = phicls(tp, f.tmp);
             var a: uint = 0;
-            while (a < p.*.narg) : (a += 1)
-                if (rtype(p.*.arg[a]) == RTmp) {
-                    t = @intCast(p.*.arg[a].val);
+            while (a < p.narg) : (a += 1)
+                if (rtype(p.arg[a]) == RTmp) {
+                    t = @intCast(p.arg[a].val);
                     adduse(&tmp[@intCast(t)], UPhi, b, @ptrCast(p));
-                    t = phicls(t, f.*.tmp);
+                    t = phicls(t, f.tmp);
                     if (t != tp)
                         tmp[@intCast(t)].phi = tp;
                 };
         }
-        for (b.*.ins[0..b.*.nins]) |*i| {
+        for (b.ins[0..b.nins]) |*i| {
             if (!req(i.to, R)) {
                 assert(rtype(i.to) == RTmp);
                 w = WFull;
@@ -146,7 +146,7 @@ pub fn filluse(f: [*c]Fn) void {
                 t = @intCast(i.to.val);
                 tmp[@intCast(t)].width = w;
                 tmp[@intCast(t)].def = i;
-                tmp[@intCast(t)].bid = b.*.id;
+                tmp[@intCast(t)].bid = b.id;
                 tmp[@intCast(t)].ndef += 1;
                 tmp[@intCast(t)].cls = @intCast(i.cls);
             }
@@ -157,8 +157,8 @@ pub fn filluse(f: [*c]Fn) void {
                     adduse(&tmp[@intCast(t)], UIns, b, @ptrCast(i));
                 };
         }
-        if (rtype(b.*.jmp.arg) == RTmp)
-            adduse(&tmp[b.*.jmp.arg.val], UJmp, b, null);
+        if (rtype(b.jmp.arg) == RTmp)
+            adduse(&tmp[b.jmp.arg.val], UJmp, b, null);
     }
 }
 
@@ -166,19 +166,19 @@ fn refindex(t: i32, f: *Fn) Ref {
     return newtmp(f.tmp[@intCast(t)].name, f.tmp[@intCast(t)].cls, f);
 }
 
-fn phiins(f: [*c]Fn) void {
+fn phiins(f: *Fn) void {
     var u: [1]BSet = undefined;
     var defs: [1]BSet = undefined;
     var k: i16 = undefined;
 
-    bsinit(&u, f.*.nblk);
-    bsinit(&defs, f.*.nblk);
-    const blist: [*c][*c]Blk = ealloc([*c]Blk, f.*.nblk);
-    const be = blist + f.*.nblk;
-    const nt = f.*.ntmp;
+    bsinit(&u, f.nblk);
+    bsinit(&defs, f.nblk);
+    const blist: [*c][*c]Blk = ealloc([*c]Blk, f.nblk);
+    const be = blist + f.nblk;
+    const nt = f.ntmp;
     var t: i32 = Tmp0;
     while (t < nt) : (t += 1) {
-        const tt = &f.*.tmp[@intCast(t)];
+        const tt = &f.tmp[@intCast(t)];
         tt.*.visit = 0;
         if (tt.*.phi != 0)
             continue;
@@ -191,13 +191,13 @@ fn phiins(f: [*c]Fn) void {
                 n -= 1;
                 ok = ok and (use.*.bid == defb);
             }
-            if (ok or defb == f.*.start.*.id)
+            if (ok or defb == f.start.*.id)
                 continue;
         }
         bszero(&u);
         k = Kx;
         var bp = be;
-        var b = f.*.start;
+        var b = f.start;
         while (b != null) : (b = b.*.link) {
             b.*.visit = 0;
             var r = R;
@@ -228,7 +228,7 @@ fn phiins(f: [*c]Fn) void {
         }
         bscopy(&defs, &u);
         while (bp != be) {
-            f.*.tmp[@intCast(t)].visit = t;
+            f.tmp[@intCast(t)].visit = t;
             b = bp.*;
             bp += 1;
             bsclr(&u, b.*.id);
@@ -354,35 +354,35 @@ fn renblk(b: [*c]Blk, stk: [*c][*c]Name, f: *Fn) void {
             }
         }
     }
-    var s = b.*.dom;
-    while (s != null) : (s = s.*.dlink)
+    var s_it: ?*Blk = b.*.dom;
+    while (s_it) |s| : (s_it = s.dlink)
         renblk(s, stk, f);
 }
 
 /// require rpo and use
-pub fn ssa(f: [*c]Fn) void {
-    var nt = f.*.ntmp;
+pub fn ssa(f: *Fn) void {
+    var nt = f.ntmp;
     const stk: [*c][*c]Name = ealloc([*c]Name, nt);
     const d = all.debug['L'];
     all.debug['L'] = 0;
     filldom(f);
     if (all.debug['N'] != 0) {
         dprint("\n> Dominators:\n", .{});
-        var b1 = f.*.start;
-        while (b1 != null) : (b1 = b1.*.link) {
-            if (b1.*.dom == null)
+        var b1_it: ?*Blk = f.start;
+        while (b1_it) |b1| : (b1_it = b1.link) {
+            if (b1.dom == null)
                 continue;
-            dprint("{s:>10}:", .{cs(b1.*.name)});
-            var b = b1.*.dom;
-            while (b != null) : (b = b.*.dlink)
-                dprint(" {s}", .{cs(b.*.name)});
+            dprint("{s:>10}:", .{cs(b1.name)});
+            var b_it: ?*Blk = b1.dom;
+            while (b_it) |b| : (b_it = b.dlink)
+                dprint(" {s}", .{cs(b.name)});
             dprint("\n", .{});
         }
     }
     fillfron(f);
     filllive(f);
     phiins(f);
-    renblk(f.*.start, stk, f);
+    renblk(f.start, stk, f);
     while (nt != 0) {
         nt -= 1;
         while (true) {
@@ -412,30 +412,30 @@ fn phicheck(p: [*c]Phi, b: [*c]Blk, t: Ref) bool {
 }
 
 /// require use and ssa
-pub fn ssacheck(f: [*c]Fn) void {
+pub fn ssacheck(f: *Fn) void {
     var t: [*c]Tmp = undefined;
     var bu: [*c]Blk = undefined;
     var r: Ref = undefined;
 
     errblk: {
-        t = &f.*.tmp[Tmp0];
-        while (ptrdiff(t, f.*.tmp) < f.*.ntmp) : (t += 1) {
+        t = &f.tmp[Tmp0];
+        while (ptrdiff(t, f.tmp) < f.ntmp) : (t += 1) {
             if (t.*.ndef > 1)
                 err("ssa temporary %{s} defined more than once", .{cs(t.*.name)});
             if (t.*.nuse > 0 and t.*.ndef == 0) {
-                bu = f.*.rpo[t.*.use[0].bid];
+                bu = f.rpo[t.*.use[0].bid];
                 break :errblk;
             }
         }
-        var b = f.*.start;
-        while (b != null) : (b = b.*.link) {
-            var p = b.*.phi;
-            while (p != null) : (p = p.*.link) {
-                r = p.*.to;
-                t = &f.*.tmp[r.val];
+        var b_it: ?*Blk = f.start;
+        while (b_it) |b| : (b_it = b.link) {
+            var p_it: ?*Phi = b.phi;
+            while (p_it) |p| : (p_it = p.link) {
+                r = p.to;
+                t = &f.tmp[r.val];
                 var u = t.*.use;
                 while (u < &t.*.use[t.*.nuse]) : (u += 1) {
-                    bu = f.*.rpo[u.*.bid];
+                    bu = f.rpo[u.*.bid];
                     if (u.*.type == UPhi) {
                         if (phicheck(u.*.u.phi, b, r))
                             break :errblk;
@@ -443,13 +443,13 @@ pub fn ssacheck(f: [*c]Fn) void {
                         break :errblk;
                 }
             }
-            for (b.*.ins[0..b.*.nins]) |*i| {
+            for (b.ins[0..b.nins]) |*i| {
                 if (rtype(i.to) != RTmp)
                     continue;
                 r = i.to;
-                t = &f.*.tmp[r.val];
+                t = &f.tmp[r.val];
                 for (t.*.use[0..t.*.nuse]) |*u| {
-                    bu = f.*.rpo[u.bid];
+                    bu = f.rpo[u.bid];
                     if (u.type == UPhi) {
                         if (phicheck(u.u.phi, b, r))
                             break :errblk;

@@ -637,12 +637,12 @@ fn split(f: *Fn, b: [*c]Blk) [*c]Blk {
 }
 
 fn chpred(b: [*c]Blk, bp: [*c]Blk, bp1: [*c]Blk) void {
-    var p = b.*.phi;
-    while (p != null) : (p = p.*.link) {
+    var p_it: ?*Phi = b.*.phi;
+    while (p_it) |p| : (p_it = p.link) {
         var a: uint = 0;
-        while (p.*.blk[a] != bp) : (a += 1)
-            assert(a + 1 < p.*.narg);
-        p.*.blk[a] = bp1;
+        while (p.blk[a] != bp) : (a += 1)
+            assert(a + 1 < p.narg);
+        p.blk[a] = bp1;
     }
 }
 
@@ -755,13 +755,13 @@ fn selvastart(f: *Fn, fa: i32, ap: Ref) void {
     emit(Ostorew, Kw, R, getcon(gp, f), ap);
 }
 
-pub fn amd64_sysv_abi(f: [*c]Fn) void {
-    var b = f.*.start;
+pub fn amd64_sysv_abi(f: *Fn) void {
+    var b = f.start;
     while (b != null) : (b = b.*.link)
         b.*.visit = 0;
 
     // lower parameters
-    b = f.*.start;
+    b = f.start;
     var i = b.*.ins;
     while (i < b.*.ins + b.*.nins) : (i += 1) {
         if (!ispar(i.*.op))
@@ -778,11 +778,11 @@ pub fn amd64_sysv_abi(f: [*c]Fn) void {
 
     // lower calls, returns, and vararg instructions
     var ral: [*c]RAlloc = null;
-    b = f.*.start;
+    b = f.start;
     while (true) {
         b = b.*.link;
         if (b == null)
-            b = f.*.start; // do it last
+            b = f.start; // do it last
         if (b.*.visit == 0) {
             all.curi = all.insbEnd();
             selret(b, f);
@@ -805,13 +805,13 @@ pub fn amd64_sysv_abi(f: [*c]Fn) void {
                     Oarg, Oargc => die("unreachable", .{}),
                 }
             }
-            if (b == f.*.start) {
+            if (b == f.start) {
                 while (ral != null) : (ral = ral.*.link)
                     emiti(ral.*.i);
             }
             idup(b, all.curi, @intCast(ptrdiff(all.insbEnd(), all.curi)));
         }
-        if (b == f.*.start) break;
+        if (b == f.start) break;
     }
 
     if (all.debug['A'] != 0) {

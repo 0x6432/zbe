@@ -199,7 +199,7 @@ fn negcon(cls: anytype, c: [*c]Con) bool {
     return foldint(c, Osub, cls != 0, &z, c);
 }
 
-fn assoccon(f: [*c]Fn, b: [*c]Blk, i_1: [*c]Ins) void {
+fn assoccon(f: *Fn, b: [*c]Blk, i_1: [*c]Ins) void {
     var c: Con = undefined;
 
     var op: i32 = @intCast(i_1.*.op);
@@ -208,16 +208,16 @@ fn assoccon(f: [*c]Fn, b: [*c]Blk, i_1: [*c]Ins) void {
 
     if (all.optab[@intCast(op)].assoc == 0 or KBASE(i_1.*.cls) != 0 or rtype(i_1.*.arg[0]) != RTmp or rtype(i_1.*.arg[1]) != RCon)
         return;
-    var c1 = f.*.con[i_1.*.arg[1].val];
+    var c1 = f.con[i_1.*.arg[1].val];
 
-    const t2 = &f.*.tmp[i_1.*.arg[0].val];
+    const t2 = &f.tmp[i_1.*.arg[0].val];
     if (t2.*.def == null)
         return;
     const i_2 = t2.*.def;
 
     if (op != (if (i_2.*.op == Osub) Oadd else i_2.*.op) or rtype(i_2.*.arg[1]) != RCon)
         return;
-    var c2 = f.*.con[i_2.*.arg[1].val];
+    var c2 = f.con[i_2.*.arg[1].val];
 
     assert(KBASE(i_2.*.cls) == 0);
     assert(KWIDE(i_2.*.cls) >= KWIDE(i_1.*.cls));
@@ -239,7 +239,7 @@ fn assoccon(f: [*c]Fn, b: [*c]Blk, i_1: [*c]Ins) void {
     i_1.*.op = @intCast(op);
     i_1.*.arg[0] = i_2.*.arg[0];
     i_1.*.arg[1] = newcon(&c, f);
-    adduse(&f.*.tmp[i_1.*.arg[0].val], UIns, b, @ptrCast(i_1));
+    adduse(&f.tmp[i_1.*.arg[0].val], UIns, b, @ptrCast(i_1));
 }
 
 fn killins(f: *Fn, i: [*c]Ins, r: Ref) void {
@@ -318,14 +318,14 @@ pub fn zeroval(f: *Fn, b: [*c]Blk, r: Ref, cls: i32, z: *i32) bool {
     var cls1: i32 = undefined;
     var eqval: i32 = undefined;
 
-    var d = b.*.idom;
-    while (d != null) : (d = d.*.idom) {
-        if (d.*.jmp.type != Jjnz)
+    var d_it: ?*Blk = b.*.idom;
+    while (d_it) |d| : (d_it = d.idom) {
+        if (d.jmp.type != Jjnz)
             continue;
-        if (req(r, d.*.jmp.arg) and cls == Kw and domzero(f, d, b, z)) {
+        if (req(r, d.jmp.arg) and cls == Kw and domzero(f, d, b, z)) {
             return true;
         }
-        if (cmpeqz(f, d.*.jmp.arg, &arg, &cls1, &eqval) and req(r, arg) and cls == cls1 and domzero(f, d, b, z)) {
+        if (cmpeqz(f, d.jmp.arg, &arg, &cls1, &eqval) and req(r, arg) and cls == cls1 and domzero(f, d, b, z)) {
             z.* ^= eqval;
             return true;
         }
@@ -433,16 +433,16 @@ fn rebuildcfg(f: *Fn) void {
 /// requires rpo pred ssa use
 /// recreates rpo preds
 /// breaks pred use dom ssa (GCM fixes ssa)
-pub fn gvn(f: [*c]Fn) void {
+pub fn gvn(f: *Fn) void {
     all.con01[0] = getcon(0, f);
     all.con01[1] = getcon(1, f);
 
     // copy.c uses the visit bit
-    var b = f.*.start;
+    var b = f.start;
     while (b != null) : (b = b.*.link) {
-        var p = b.*.phi;
-        while (p != null) : (p = p.*.link)
-            p.*.visit = 0;
+        var p_it: ?*Phi = b.*.phi;
+        while (p_it) |p| : (p_it = p.link)
+            p.visit = 0;
     }
 
     fillloop(f);
@@ -451,7 +451,7 @@ pub fn gvn(f: [*c]Fn) void {
     ssacheck(f);
 
     var nins: uint = 0;
-    b = f.*.start;
+    b = f.start;
     while (b != null) : (b = b.*.link) {
         b.*.visit = 0;
         nins += b.*.nins;
@@ -460,8 +460,8 @@ pub fn gvn(f: [*c]Fn) void {
     gvntbln = nins + nins / 2;
     gvntbl = ealloc([*c]Ins, gvntbln);
     var n: uint = 0;
-    while (n < f.*.nblk) : (n += 1) {
-        b = f.*.rpo[n];
+    while (n < f.nblk) : (n += 1) {
+        b = f.rpo[n];
         dedupphi(f, b);
         for (b.*.ins[0..b.*.nins]) |*i|
             dedupins(f, b, i);

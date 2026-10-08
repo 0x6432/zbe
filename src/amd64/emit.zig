@@ -5,6 +5,7 @@ const assert = std.debug.assert;
 const all = @import("../all.zig");
 const tgt = @import("all.zig");
 const BIT = all.BIT;
+const Blk = all.Blk;
 const CAddr = all.CAddr;
 const CBits = all.CBits;
 const CUndef = all.CUndef;
@@ -795,23 +796,23 @@ pub fn amd64_sysv_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
     }
 
     var lbl = false;
-    var b = f.*.start;
-    while (b != null) : (b = b.*.link) {
-        if (lbl or b.*.npred > 1) {
+    var b_it: ?*Blk = f.*.start;
+    while (b_it) |b| : (b_it = b.link) {
+        if (lbl or b.npred > 1) {
             var p: uint = 0;
-            while (p < b.*.npred) : (p += 1) {
-                if (b.*.pred[p].*.id >= b.*.id)
+            while (p < b.npred) : (p += 1) {
+                if (b.pred[p].*.id >= b.id)
                     break;
             }
-            if (p != b.*.npred)
+            if (p != b.npred)
                 try fp.print(".p2align 4\n", .{});
-            try fp.print("{s}bb{d}:\n", .{cs(&all.T.asloc), sysv_id0 + @as(i32, @intCast(b.*.id))});
+            try fp.print("{s}bb{d}:\n", .{cs(&all.T.asloc), sysv_id0 + @as(i32, @intCast(b.id))});
         }
-        var i = b.*.ins;
-        while (i != b.*.ins + b.*.nins) : (i += 1)
+        var i = b.ins;
+        while (i != b.ins + b.nins) : (i += 1)
             try emitins(i.*, e);
         lbl = true;
-        sw: switch (b.*.jmp.type) {
+        sw: switch (b.jmp.type) {
             Jhlt => try fp.print("\tud2\n", .{}),
             Jret0 => {
                 if (f.*.dynalloc != 0)
@@ -832,25 +833,25 @@ pub fn amd64_sysv_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
             },
             Jjmp => {
                 // Jmp:
-                if (b.*.s1 != b.*.link)
-                    try fp.print("\tjmp {s}bb{d}\n", .{cs(&all.T.asloc), sysv_id0 + @as(i32, @intCast(b.*.s1.*.id))})
+                if (b.s1 != b.link)
+                    try fp.print("\tjmp {s}bb{d}\n", .{cs(&all.T.asloc), sysv_id0 + @as(i32, @intCast(b.s1.*.id))})
                 else
                     lbl = false;
             },
             else => {
-                const c: i32 = @as(i32, @intCast(b.*.jmp.type)) - Jjf;
+                const c: i32 = @as(i32, @intCast(b.jmp.type)) - Jjf;
                 if (0 <= c and c <= NCmp) {
                     var n: usize = undefined;
-                    if (b.*.link == b.*.s2) {
-                        const s = b.*.s1;
-                        b.*.s1 = b.*.s2;
-                        b.*.s2 = s;
+                    if (b.link == b.s2) {
+                        const s = b.s1;
+                        b.s1 = b.s2;
+                        b.s2 = s;
                         n = 0;
                     } else n = 1;
-                    try fp.print("\tj{s} {s}bb{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), sysv_id0 + @as(i32, @intCast(b.*.s2.*.id))});
+                    try fp.print("\tj{s} {s}bb{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), sysv_id0 + @as(i32, @intCast(b.s2.*.id))});
                     continue :sw Jjmp;
                 }
-                die("unhandled jump {d}", .{b.*.jmp.type});
+                die("unhandled jump {d}", .{b.jmp.type});
             },
         }
     }
@@ -911,15 +912,15 @@ pub fn amd64_winabi_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
     }
 
     var lbl = false;
-    var b = f.*.start;
-    while (b != null) : (b = b.*.link) {
-        if (lbl or b.*.npred > 1)
-            try fp.print("{s}bb{d}:\n", .{cs(&all.T.asloc), winabi_id0 + @as(i32, @intCast(b.*.id))});
-        var i = b.*.ins;
-        while (i != b.*.ins + b.*.nins) : (i += 1)
+    var b_it: ?*Blk = f.*.start;
+    while (b_it) |b| : (b_it = b.link) {
+        if (lbl or b.npred > 1)
+            try fp.print("{s}bb{d}:\n", .{cs(&all.T.asloc), winabi_id0 + @as(i32, @intCast(b.id))});
+        var i = b.ins;
+        while (i != b.ins + b.nins) : (i += 1)
             try emitins(i.*, e);
         lbl = true;
-        sw: switch (b.*.jmp.type) {
+        sw: switch (b.jmp.type) {
             Jhlt => try fp.print("\tud2\n", .{}),
             Jret0 => {
                 if (f.*.dynalloc != 0)
@@ -940,25 +941,25 @@ pub fn amd64_winabi_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
             },
             Jjmp => {
                 // Jmp:
-                if (b.*.s1 != b.*.link)
-                    try fp.print("\tjmp {s}bb{d}\n", .{cs(&all.T.asloc), winabi_id0 + @as(i32, @intCast(b.*.s1.*.id))})
+                if (b.s1 != b.link)
+                    try fp.print("\tjmp {s}bb{d}\n", .{cs(&all.T.asloc), winabi_id0 + @as(i32, @intCast(b.s1.*.id))})
                 else
                     lbl = false;
             },
             else => {
-                const c: i32 = @as(i32, @intCast(b.*.jmp.type)) - Jjf;
+                const c: i32 = @as(i32, @intCast(b.jmp.type)) - Jjf;
                 if (0 <= c and c <= NCmp) {
                     var n: usize = undefined;
-                    if (b.*.link == b.*.s2 or c >= NCmpI) {
-                        const s = b.*.s1;
-                        b.*.s1 = b.*.s2;
-                        b.*.s2 = s;
+                    if (b.link == b.s2 or c >= NCmpI) {
+                        const s = b.s1;
+                        b.s1 = b.s2;
+                        b.s2 = s;
                         n = 0;
                     } else n = 1;
-                    try fp.print("\tj{s} {s}bb{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), winabi_id0 + @as(i32, @intCast(b.*.s2.*.id))});
+                    try fp.print("\tj{s} {s}bb{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), winabi_id0 + @as(i32, @intCast(b.s2.*.id))});
                     continue :sw Jjmp;
                 }
-                die("unhandled jump {d}", .{b.*.jmp.type});
+                die("unhandled jump {d}", .{b.jmp.type});
             },
         }
     }

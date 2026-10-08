@@ -14,6 +14,7 @@ const Ocall = all.ops.Ocall;
 const Ocopy = all.ops.Ocopy;
 const Oload = all.ops.Oload;
 const Ostorew = all.ops.Ostorew;
+const Phi = all.Phi;
 const R = all.R;
 const RCall = all.RCall;
 const RMem = all.RMem;
@@ -82,11 +83,11 @@ fn tmpuse(r: Ref, use: bool, loop: i32, f: *Fn) void {
 /// evaluate spill costs of temporaries,
 /// this also fills usage information
 /// requires rpo, preds
-pub fn fillcost(f: [*c]Fn) void {
+pub fn fillcost(f: *Fn) void {
     loopiter(f, &aggreg);
     if (all.debug['S'] != 0) {
         dprint("\n> Loop information:\n", .{});
-        var b = f.*.start;
+        var b = f.start;
         while (b != null) : (b = b.*.link) {
             var a: uint = 0;
             while (a < b.*.npred) : (a += 1) {
@@ -97,43 +98,43 @@ pub fn fillcost(f: [*c]Fn) void {
                 dprint("\t{s:<10}", .{cs(b.*.name)});
                 dprint(" ({f} ", .{cint(b.*.nlive[0], 3)});
                 dprint("{f}) ", .{cint(b.*.nlive[1], 3)});
-                dumpts(&b.*.gen, f.*.tmp, all.dbg) catch {};
+                dumpts(&b.*.gen, f.tmp, all.dbg) catch {};
             }
         }
     }
     var ti: i32 = 0;
-    while (ti < f.*.ntmp) : (ti += 1) {
-        const t = &f.*.tmp[@intCast(ti)];
+    while (ti < f.ntmp) : (ti += 1) {
+        const t = &f.tmp[@intCast(ti)];
         t.*.cost = if (ti < Tmp0) std.math.maxInt(uint) else 0;
         t.*.nuse = 0;
         t.*.ndef = 0;
     }
-    var b = f.*.start;
-    while (b != null) : (b = b.*.link) {
-        var p = b.*.phi;
-        while (p != null) : (p = p.*.link) {
-            const t = &f.*.tmp[p.*.to.val];
-            tmpuse(p.*.to, false, 0, f);
+    var b_it: ?*Blk = f.start;
+    while (b_it) |b| : (b_it = b.link) {
+        var p_it: ?*Phi = b.phi;
+        while (p_it) |p| : (p_it = p.link) {
+            const t = &f.tmp[p.to.val];
+            tmpuse(p.to, false, 0, f);
             var a: uint = 0;
-            while (a < p.*.narg) : (a += 1) {
-                const n = p.*.blk[a].*.loop;
+            while (a < p.narg) : (a += 1) {
+                const n = p.blk[a].*.loop;
                 t.*.cost +%= @bitCast(n);
-                tmpuse(p.*.arg[a], true, n, f);
+                tmpuse(p.arg[a], true, n, f);
             }
         }
-        const n = b.*.loop;
-        for (b.*.ins[0..b.*.nins]) |*i| {
+        const n = b.loop;
+        for (b.ins[0..b.nins]) |*i| {
             tmpuse(i.to, false, n, f);
             tmpuse(i.arg[0], true, n, f);
             tmpuse(i.arg[1], true, n, f);
         }
-        tmpuse(b.*.jmp.arg, true, n, f);
+        tmpuse(b.jmp.arg, true, n, f);
     }
     if (all.debug['S'] != 0) {
         dprint("\n> Spill costs:\n", .{});
         var n: i32 = Tmp0;
-        while (n < f.*.ntmp) : (n += 1)
-            dprint("\t{s:<10} {d}\n", .{cs(f.*.tmp[@intCast(n)].name), @as(i32, @bitCast(f.*.tmp[@intCast(n)].cost))});
+        while (n < f.ntmp) : (n += 1)
+            dprint("\t{s:<10} {d}\n", .{cs(f.tmp[@intCast(n)].name), @as(i32, @bitCast(f.tmp[@intCast(n)].cost))});
         dprint("\n", .{});
     }
 }
@@ -339,20 +340,20 @@ fn merge(u: [*c]BSet, bu: [*c]Blk, v: [*c]BSet, bv: [*c]Blk) void {
 /// Be careful with:
 /// - Ocopy instructions to ensure register
 ///   constraints
-pub fn spill(f: [*c]Fn) void {
+pub fn spill(f: *Fn) void {
     var lvarg: [2]bool = .{ false, false };
     var u: [1]BSet = undefined;
     var v: [1]BSet = undefined;
     var w: [1]BSet = undefined;
 
-    tmp = f.*.tmp;
-    ntmp = f.*.ntmp;
+    tmp = f.tmp;
+    ntmp = f.ntmp;
     bsinit(&u, @intCast(ntmp));
     bsinit(&v, @intCast(ntmp));
     bsinit(&w, @intCast(ntmp));
     bsinit(&mask[0], @intCast(ntmp));
     bsinit(&mask[1], @intCast(ntmp));
-    locs = f.*.slot;
+    locs = f.slot;
     slot4 = 0;
     slot8 = 0;
     var t: i32 = 0;
@@ -365,8 +366,8 @@ pub fn spill(f: [*c]Fn) void {
         bsset(&mask[@intCast(k)], t);
     }
 
-    var bp = f.*.rpo + f.*.nblk;
-    while (bp != f.*.rpo) {
+    var bp = f.rpo + f.nblk;
+    while (bp != f.rpo) {
         bp -= 1;
         const b = bp.*;
         // invariant: all blocks with bigger rpo got
@@ -470,7 +471,7 @@ pub fn spill(f: [*c]Fn) void {
                 switch (rtype(i.*.arg[n])) {
                     RMem => {
                         t = @intCast(i.*.arg[n].val);
-                        const m = &f.*.mem[@intCast(t)];
+                        const m = &f.mem[@intCast(t)];
                         if (rtype(m.*.base) == RTmp) {
                             bsset(&v, m.*.base.val);
                             bsset(&w, m.*.base.val);
@@ -521,21 +522,21 @@ pub fn spill(f: [*c]Fn) void {
             if (r != 0)
                 sethint(&v, r);
         }
-        if (b == f.*.start)
-            assert(v[0].t[0] == (all.T.rglob | f.*.reg))
+        if (b == f.start)
+            assert(v[0].t[0] == (all.T.rglob | f.reg))
         else
             assert(v[0].t[0] == all.T.rglob);
 
-        var p = b.*.phi;
-        while (p != null) : (p = p.*.link) {
-            assert(rtype(p.*.to) == RTmp);
-            t = @intCast(p.*.to.val);
+        var p_it: ?*Phi = b.*.phi;
+        while (p_it) |p| : (p_it = p.link) {
+            assert(rtype(p.to) == RTmp);
+            t = @intCast(p.to.val);
             if (bshas(&v, t)) {
                 bsclr(&v, t);
-                store(p.*.to, tmp[@intCast(t)].slot);
+                store(p.to, tmp[@intCast(t)].slot);
             } else if (bshas(&b.*.in, t))
                 // only if the phi is live
-                p.*.to = slot(@intCast(p.*.to.val));
+                p.to = slot(@intCast(p.to.val));
         }
         bscopy(&b.*.in, &v);
         idup(b, all.curi, @intCast(all.insbEnd() - all.curi));
@@ -544,14 +545,14 @@ pub fn spill(f: [*c]Fn) void {
     // align the locals to a 16 byte boundary
     // specific to NAlign == 3
     slot8 += slot8 & 3;
-    f.*.slot += slot8;
+    f.slot += slot8;
 
     if (all.debug['S'] != 0) {
         dprint("\n> Block information:\n", .{});
-        var b = f.*.start;
+        var b = f.start;
         while (b != null) : (b = b.*.link) {
             dprint("\t{s:<10} ({f}) ", .{ cs(b.*.name), cint(b.*.loop, 5) });
-            dumpts(&b.*.out, f.*.tmp, all.dbg) catch {};
+            dumpts(&b.*.out, f.tmp, all.dbg) catch {};
         }
         dprint("\n> After spilling:\n", .{});
         printfn(f, all.dbg) catch {};

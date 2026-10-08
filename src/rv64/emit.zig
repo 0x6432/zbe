@@ -7,6 +7,7 @@ const tgt = @import("all.zig");
 const A0 = tgt.A0;
 const A7 = tgt.A7;
 const BIT = all.BIT;
+const Blk = all.Blk;
 const CAddr = all.CAddr;
 const CBits = all.CBits;
 const Con = all.Con;
@@ -525,10 +526,10 @@ fn emitins(i: [*c]Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
 
 var id0: i32 = 0;
 
-pub fn rv64_emitfn(fn_: [*c]Fn, f: *Writer) Writer.Error!void {
-    try emitfnlnk(fn_.*.name, &fn_.*.lnk, f);
+pub fn rv64_emitfn(fn_: *Fn, f: *Writer) Writer.Error!void {
+    try emitfnlnk(fn_.name, &fn_.lnk, f);
 
-    if (fn_.*.vararg != 0) {
+    if (fn_.vararg != 0) {
         // TODO: only need space for registers
         // unused by named arguments
         try f.print("\tadd sp, sp, -64\n", .{});
@@ -540,10 +541,10 @@ pub fn rv64_emitfn(fn_: [*c]Fn, f: *Writer) Writer.Error!void {
     try f.print("\tsd ra, -8(sp)\n", .{});
     try f.print("\tadd fp, sp, -16\n", .{});
 
-    var frame: i32 = (16 + 4 * fn_.*.slot + 15) & ~@as(i32, 15);
+    var frame: i32 = (16 + 4 * fn_.slot + 15) & ~@as(i32, 15);
     var pr: [*c]i32 = rv64_rclob;
     while (pr.* >= 0) : (pr += 1) {
-        if ((fn_.*.reg & BIT(pr.*)) != 0)
+        if ((fn_.reg & BIT(pr.*)) != 0)
             frame += 8;
     }
     frame = (frame + 15) & ~@as(i32, 15);
@@ -555,26 +556,26 @@ pub fn rv64_emitfn(fn_: [*c]Fn, f: *Writer) Writer.Error!void {
     pr = rv64_rclob;
     var off: i32 = 0;
     while (pr.* >= 0) : (pr += 1) {
-        if ((fn_.*.reg & BIT(pr.*)) != 0) {
+        if ((fn_.reg & BIT(pr.*)) != 0) {
             try f.print("\t{s} {s}, {d}(sp)\n", .{cs(@as([*c]const u8, if (pr.* < FT0) "sd" else "fsd")), cs(rname[@intCast(pr.*)]), off});
             off += 8;
         }
     }
 
     var lbl = false;
-    var b = fn_.*.start;
-    while (b != null) : (b = b.*.link) {
-        if (lbl or b.*.npred > 1)
-            try f.print(".L{d}:\n", .{id0 + @as(i32, @intCast(b.*.id))});
-        var i = b.*.ins;
-        while (i != b.*.ins + b.*.nins) : (i += 1)
+    var b_it: ?*Blk = fn_.start;
+    while (b_it) |b| : (b_it = b.link) {
+        if (lbl or b.npred > 1)
+            try f.print(".L{d}:\n", .{id0 + @as(i32, @intCast(b.id))});
+        var i = b.ins;
+        while (i != b.ins + b.nins) : (i += 1)
             try emitins(i, fn_, f);
         lbl = true;
         var jmp = false;
-        switch (b.*.jmp.type) {
+        switch (b.jmp.type) {
             Jhlt => try f.print("\tebreak\n", .{}),
             Jret0 => {
-                if (fn_.*.dynalloc != 0) {
+                if (fn_.dynalloc != 0) {
                     if (frame - 16 <= 2048)
                         try f.print("\tadd sp, fp, -{d}\n", .{frame - 16})
                     else
@@ -583,41 +584,41 @@ pub fn rv64_emitfn(fn_: [*c]Fn, f: *Writer) Writer.Error!void {
                 pr = rv64_rclob;
                 off = 0;
                 while (pr.* >= 0) : (pr += 1) {
-                    if ((fn_.*.reg & BIT(pr.*)) != 0) {
+                    if ((fn_.reg & BIT(pr.*)) != 0) {
                         try f.print("\t{s} {s}, {d}(sp)\n", .{cs(@as([*c]const u8, if (pr.* < FT0) "ld" else "fld")), cs(rname[@intCast(pr.*)]), off});
                         off += 8;
                     }
                 }
-                try f.print("\tadd sp, fp, {d}\n" ++ "\tld ra, 8(fp)\n" ++ "\tld fp, 0(fp)\n" ++ "\tret\n", .{16 + @as(i32, fn_.*.vararg) * 64});
+                try f.print("\tadd sp, fp, {d}\n" ++ "\tld ra, 8(fp)\n" ++ "\tld fp, 0(fp)\n" ++ "\tret\n", .{16 + @as(i32, fn_.vararg) * 64});
             },
             Jjmp => jmp = true,
             Jjnz => {
                 var neg = false;
-                if (b.*.link == b.*.s2) {
-                    const s = b.*.s1;
-                    b.*.s1 = b.*.s2;
-                    b.*.s2 = s;
+                if (b.link == b.s2) {
+                    const s = b.s1;
+                    b.s1 = b.s2;
+                    b.s2 = s;
                     neg = true;
                 }
-                if (rtype(b.*.jmp.arg) == RSlot) {
+                if (rtype(b.jmp.arg) == RSlot) {
                     var ii = std.mem.zeroes(Ins);
-                    ii.arg[0] = b.*.jmp.arg;
+                    ii.arg[0] = b.jmp.arg;
                     try emitf("lw t6, %M0", &ii, fn_, f);
-                    b.*.jmp.arg = TMP(T6);
+                    b.jmp.arg = TMP(T6);
                 }
-                assert(isreg(b.*.jmp.arg));
-                try f.print("\tb{s}z {s}, .L{d}\n", .{cs(@as([*c]const u8, if (neg) "ne" else "eq")), cs(rname[b.*.jmp.arg.val]), id0 + @as(i32, @intCast(b.*.s2.*.id))});
+                assert(isreg(b.jmp.arg));
+                try f.print("\tb{s}z {s}, .L{d}\n", .{cs(@as([*c]const u8, if (neg) "ne" else "eq")), cs(rname[b.jmp.arg.val]), id0 + @as(i32, @intCast(b.s2.*.id))});
                 jmp = true;
             },
             else => {},
         }
         if (jmp) { // Jmp:
-            if (b.*.s1 != b.*.link)
-                try f.print("\tj .L{d}\n", .{id0 + @as(i32, @intCast(b.*.s1.*.id))})
+            if (b.s1 != b.link)
+                try f.print("\tj .L{d}\n", .{id0 + @as(i32, @intCast(b.s1.*.id))})
             else
                 lbl = false;
         }
     }
-    id0 += @intCast(fn_.*.nblk);
-    try elf_emitfnfin(fn_.*.name, f);
+    id0 += @intCast(fn_.nblk);
+    try elf_emitfnfin(fn_.name, f);
 }

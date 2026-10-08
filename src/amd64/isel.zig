@@ -950,9 +950,9 @@ fn amatch(a: [*c]Addr, tn: [*c]Num, r: Ref, f: *Fn) bool {
 
 /// instruction selection
 /// requires use counts (as given by parsing)
-pub fn amd64_isel(f: [*c]Fn) void {
+pub fn amd64_isel(f: *Fn) void {
     // assign slots to fast allocs
-    var b = f.*.start;
+    var b = f.start;
     // specific to NAlign == 3
     // or change n=4 and sz /= 4 below
     var al: i32 = Oalloc;
@@ -966,25 +966,25 @@ pub fn amd64_isel(f: [*c]Fn) void {
             if (i.*.op == al) {
                 if (rtype(i.*.arg[0]) != RCon)
                     break;
-                var sz = f.*.con[i.*.arg[0].val].bits.i;
+                var sz = f.con[i.*.arg[0].val].bits.i;
                 if (sz < 0 or sz >= std.math.maxInt(i32) - 15)
                     err("invalid alloc size {d}", .{sz});
                 sz = (sz + n - 1) & -@as(i64, n);
                 sz = @divTrunc(sz, 4);
-                if (sz > std.math.maxInt(i32) - f.*.slot)
+                if (sz > std.math.maxInt(i32) - f.slot)
                     die("alloc too large", .{});
-                f.*.tmp[i.*.to.val].slot = f.*.slot;
-                f.*.slot += @intCast(sz);
-                f.*.salign = 2 + al - Oalloc;
+                f.tmp[i.*.to.val].slot = f.slot;
+                f.slot += @intCast(sz);
+                f.salign = 2 + al - Oalloc;
                 i.* = INS0(Onop);
             }
         }
     }
 
     // process basic blocks
-    n = f.*.ntmp;
+    n = f.ntmp;
     const num: [*c]Num = ealloc(Num, n);
-    b = f.*.start;
+    b = f.start;
     while (b != null) : (b = b.*.link) {
         all.curi = all.insbEnd();
         const sb = [3][*c]Blk{ b.*.s1, b.*.s2, null };
@@ -999,7 +999,7 @@ pub fn amd64_isel(f: [*c]Fn) void {
             }
         }
         if (n != 0) @memset(num[0..@intCast(n)], std.mem.zeroes(Num));
-        anumber(num, b, f.*.con);
+        anumber(num, b, f.con);
         seljmp(b, f);
         var i = b.*.ins + b.*.nins;
         while (i != b.*.ins) {

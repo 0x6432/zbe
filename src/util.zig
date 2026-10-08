@@ -667,13 +667,13 @@ pub fn isconbits(f: *Fn, r: Ref, v: *i64) bool {
     return false;
 }
 
-pub fn salloc(rt: Ref, rs: Ref, f: [*c]Fn) void {
+pub fn salloc(rt: Ref, rs: Ref, f: *Fn) void {
     // we need to make sure
     // the stack remains aligned
     // (rsp = 0) mod 16
-    f.*.dynalloc = 1;
+    f.dynalloc = 1;
     if (rtype(rs) == RCon) {
-        var sz = f.*.con[rs.val].bits.i;
+        var sz = f.con[rs.val].bits.i;
         if (sz < 0 or sz >= std.math.maxInt(c_int) - 15)
             err("invalid alloc size {d}", .{sz});
         sz = (sz + 15) & -16;
@@ -685,8 +685,8 @@ pub fn salloc(rt: Ref, rs: Ref, f: [*c]Fn) void {
         emit(Osalloc, Kl, rt, r0, R);
         emit(Oand, Kl, r0, r1, getcon(-16, f));
         emit(Oadd, Kl, r1, rs, getcon(15, f));
-        if (f.*.tmp[rs.val].slot != -1)
-            err("unlikely alloc argument %{s} for %{s}", .{cs(f.*.tmp[rs.val].name), cs(f.*.tmp[rt.val].name)});
+        if (f.tmp[rs.val].slot != -1)
+            err("unlikely alloc argument %{s} for %{s}", .{cs(f.tmp[rs.val].name), cs(f.tmp[rt.val].name)});
     }
 }
 

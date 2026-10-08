@@ -19,6 +19,7 @@ const Ocall = all.ops.Ocall;
 const Ocopy = all.ops.Ocopy;
 const Oswap = all.ops.Oswap;
 const PFn = all.PFn;
+const Phi = all.Phi;
 const R = all.R;
 const RMem = all.RMem;
 const RSlot = all.RSlot;
@@ -495,7 +496,7 @@ fn prio2(t1: i32, t2: i32) i32 {
 
 /// register allocation
 /// depends on rpo, phi, cost, (and obviously spill)
-pub fn rega(f: [*c]Fn) void {
+pub fn rega(f: *Fn) void {
     var rl: [Tmp0]i32 = undefined;
     var cur: RMap = undefined;
     var old: RMap = undefined;
@@ -504,34 +505,34 @@ pub fn rega(f: [*c]Fn) void {
     stmov = 0;
     stblk = 0;
     regu = 0;
-    tmp = f.*.tmp;
-    mem = f.*.mem;
-    const blk: [*c][*c]Blk = palloc([*c]Blk, f.*.nblk);
-    const end: [*]RMap = palloc(RMap, f.*.nblk);
-    const beg: [*]RMap = palloc(RMap, f.*.nblk);
+    tmp = f.tmp;
+    mem = f.mem;
+    const blk: [*c][*c]Blk = palloc([*c]Blk, f.nblk);
+    const end: [*]RMap = palloc(RMap, f.nblk);
+    const beg: [*]RMap = palloc(RMap, f.nblk);
     var n: uint = 0;
-    while (n < f.*.nblk) : (n += 1) {
-        bsinit(&end[n].b, @intCast(f.*.ntmp));
-        bsinit(&beg[n].b, @intCast(f.*.ntmp));
+    while (n < f.nblk) : (n += 1) {
+        bsinit(&end[n].b, @intCast(f.ntmp));
+        bsinit(&beg[n].b, @intCast(f.ntmp));
     }
-    bsinit(&cur.b, @intCast(f.*.ntmp));
-    bsinit(&old.b, @intCast(f.*.ntmp));
+    bsinit(&cur.b, @intCast(f.ntmp));
+    bsinit(&old.b, @intCast(f.ntmp));
 
     loop = std.math.maxInt(i32);
     var t: i32 = 0;
-    while (t < f.*.ntmp) : (t += 1) {
+    while (t < f.ntmp) : (t += 1) {
         tmp[@intCast(t)].hint.r = if (t < Tmp0) t else -1;
         tmp[@intCast(t)].hint.w = loop;
         tmp[@intCast(t)].visit = -1;
     }
     var bp = blk;
-    var b = f.*.start;
+    var b = f.start;
     while (b != null) : (b = b.*.link) {
         bp.* = b;
         bp += 1;
     }
-    sort([*c]Blk, blk, f.*.nblk, carve);
-    b = f.*.start;
+    sort([*c]Blk, blk, f.nblk, carve);
+    b = f.start;
     var i = b.*.ins;
     while (i < b.*.ins + b.*.nins) : (i += 1) {
         if (i.*.op != Ocopy or !isreg(i.*.arg[0])) {
@@ -544,7 +545,7 @@ pub fn rega(f: [*c]Fn) void {
 
     // 2. assign registers
     bp = blk;
-    while (bp < blk + f.*.nblk) : (bp += 1) {
+    while (bp < blk + f.nblk) : (bp += 1) {
         b = bp.*;
         n = b.*.id;
         loop = b.*.loop;
@@ -586,7 +587,7 @@ pub fn rega(f: [*c]Fn) void {
 
     // 3. emit copies shared by multiple edges
     // to the same block
-    var s = f.*.start;
+    var s = f.start;
     while (s != null) : (s = s.*.link) {
         if (s.*.npred <= 1)
             continue;
@@ -668,8 +669,8 @@ pub fn rega(f: [*c]Fn) void {
     if (all.debug['R'] != 0) {
         dprint("\n> Register mappings:\n", .{});
         n = 0;
-        while (n < f.*.nblk) : (n += 1) {
-            b = f.*.rpo[n];
+        while (n < f.nblk) : (n += 1) {
+            b = f.rpo[n];
             dprint("\t{s:<10} beg", .{cs(b.*.name)});
             mdump(&beg[n]);
             dprint("\t           end", .{});
@@ -680,7 +681,7 @@ pub fn rega(f: [*c]Fn) void {
 
     // 4. emit remaining copies in new blocks
     var blist: [*c]Blk = null;
-    b = f.*.start;
+    b = f.start;
     while (true) : (b = b.*.link) {
         var zero: [*c]Blk = null;
         const psa = [3]*[*c]Blk{ &b.*.s1, &b.*.s2, &zero };
@@ -689,9 +690,9 @@ pub fn rega(f: [*c]Fn) void {
             s = psa[pi].*;
             if (s == null) break;
             npm = 0;
-            var p = s.*.phi;
-            while (p != null) : (p = p.*.link) {
-                var dst = p.*.to;
+            var p_it: ?*Phi = s.*.phi;
+            while (p_it) |p| : (p_it = p.link) {
+                var dst = p.to;
                 assert(rtype(dst) == RSlot or rtype(dst) == RTmp);
                 if (rtype(dst) == RTmp) {
                     const r = rfind(&beg[s.*.id], @intCast(dst.val));
@@ -700,12 +701,12 @@ pub fn rega(f: [*c]Fn) void {
                     dst = TMP(r);
                 }
                 var u: uint = 0;
-                while (p.*.blk[u] != b) : (u += 1)
-                    assert(u + 1 < p.*.narg);
-                var src = p.*.arg[u];
+                while (p.blk[u] != b) : (u += 1)
+                    assert(u + 1 < p.narg);
+                var src = p.arg[u];
                 if (rtype(src) == RTmp)
                     src = rref(&end[b.*.id], @intCast(src.val));
-                pmadd(src, dst, p.*.cls);
+                pmadd(src, dst, p.cls);
             }
             t = Tmp0;
             while (bsiter(&s.*.in, &t)) : (t += 1) {
@@ -721,7 +722,7 @@ pub fn rega(f: [*c]Fn) void {
             b1.*.loop = @divTrunc(b.*.loop + s.*.loop, 2);
             b1.*.link = blist;
             blist = b1;
-            f.*.nblk += 1;
+            f.nblk += 1;
             b1.*.name = strf(PFn, "{s}_{s}", .{ cs(b.*.name), cs(s.*.name) });
             stmov += @intCast(ptrdiff(all.insbEnd(), all.curi));
             stblk += 1;
@@ -735,10 +736,10 @@ pub fn rega(f: [*c]Fn) void {
             break;
         }
     }
-    b = f.*.start;
+    b = f.start;
     while (b != null) : (b = b.*.link)
         b.*.phi = null;
-    f.*.reg = regu;
+    f.reg = regu;
 
     if (all.debug['R'] != 0) {
         dprint("\n> Register allocation statistics:\n", .{});

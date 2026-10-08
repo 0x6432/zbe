@@ -108,13 +108,13 @@ fn bitwidth(v_: u64) i32 {
     return n + @as(i32, @intCast(v));
 }
 
-fn visit(f: [*c]Fn, r: Ref, w: i32, func: *const fn (*Fn, Ref, i32) bool) bool {
+fn visit(f: *Fn, r: Ref, w: i32, func: *const fn (*Fn, Ref, i32) bool) bool {
     const ret = func(f, r, w);
-    var b = f.*.start;
-    while (b != null) : (b = b.*.link) {
-        var p = b.*.phi;
-        while (p != null) : (p = p.*.link)
-            p.*.visit = 0;
+    var b_it: ?*Blk = f.start;
+    while (b_it) |b| : (b_it = b.link) {
+        var p_it: ?*Phi = b.phi;
+        while (p_it) |p| : (p_it = p.link)
+            p.visit = 0;
     }
     return ret;
 }
@@ -181,7 +181,7 @@ fn min(v1: i64, v2: i64) i32 {
     return @intCast(if (v1 < v2) v1 else v2);
 }
 
-fn dwl(f: [*c]Fn, r: Ref, w_: i32) bool {
+fn dwl(f: *Fn, r: Ref, w_: i32) bool {
     var w = w_;
     var e: Ext = undefined;
     var v: i64 = undefined;
@@ -193,13 +193,13 @@ fn dwl(f: [*c]Fn, r: Ref, w_: i32) bool {
         return false;
     if (rtype(r) != RTmp)
         return false;
-    const t = &f.*.tmp[r.val];
+    const t = &f.tmp[r.val];
     if (t.*.cls != Kw)
         return false;
 
     if (t.*.def == null) {
         // phi def
-        var p = f.*.rpo[t.*.bid].*.phi;
+        var p = f.rpo[t.*.bid].*.phi;
         while (p != null) : (p = p.*.link)
             if (req(p.*.to, r))
                 break;
@@ -268,12 +268,12 @@ fn isw1(f: *Fn, r: Ref) bool {
 /// loops
 ///
 /// needs use; breaks use
-pub fn narrowpars(f: [*c]Fn) void {
+pub fn narrowpars(f: *Fn) void {
     var e: Ins = undefined;
 
     // only useful for functions with loops
     var loop = false;
-    var b = f.*.start;
+    var b = f.start;
     while (b != null) : (b = b.*.link)
         if (b.*.loop > 1) {
             loop = true;
@@ -282,7 +282,7 @@ pub fn narrowpars(f: [*c]Fn) void {
     if (!loop)
         return;
 
-    b = f.*.start;
+    b = f.start;
 
     var npar: uint = 0;
     var i = b.*.ins;

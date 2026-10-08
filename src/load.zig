@@ -476,7 +476,7 @@ fn icmp(a: Insert, b: Insert) std.math.Order {
 }
 
 /// require rpo ssa alias
-pub fn loadopt(f: [*c]Fn) void {
+pub fn loadopt(f: *Fn) void {
     var i: [*c]Ins = undefined;
     var sl: Slice = undefined;
     var l: Loc = undefined;
@@ -485,7 +485,7 @@ pub fn loadopt(f: [*c]Fn) void {
     ilog = vnewT(Insert, 0, PHeap);
     nlog = 0;
     inum = 0;
-    var b = f.*.start;
+    var b = f.start;
     while (b != null) : (b = b.*.link) {
         i = b.*.ins;
         while (i < &b.*.ins[b.*.nins]) : (i += 1) {
@@ -500,12 +500,12 @@ pub fn loadopt(f: [*c]Fn) void {
     }
     sort(Insert, ilog, nlog, icmp);
     vgrow(&ilog, nlog + 1);
-    ilog[nlog].bid = f.*.nblk; // add a sentinel
+    ilog[nlog].bid = f.nblk; // add a sentinel
     var ib = vnewT(Ins, 0, PHeap);
     var ist = ilog;
     var n: uint = 0;
-    while (n < f.*.nblk) : (n += 1) {
-        b = f.*.rpo[n];
+    while (n < f.nblk) : (n += 1) {
+        b = f.rpo[n];
         while (ist.*.bid == n and ist.*.isphi != 0) : (ist += 1) {
             ist.*.new.phi.p.*.link = b.*.phi;
             b.*.phi = ist.*.new.phi.p;

@@ -5,6 +5,7 @@ const assert = std.debug.assert;
 const all = @import("../all.zig");
 const tgt = @import("all.zig");
 const BIT = all.BIT;
+const Blk = all.Blk;
 const CAddr = all.CAddr;
 const CBits = all.CBits;
 const Cfeq = all.Cfeq;
@@ -672,16 +673,16 @@ pub fn arm64_emitfn(f: [*c]Fn, out: *Writer) Writer.Error!void {
     }
 
     var lbl = false;
-    var b = e.@"fn".*.start;
-    while (b != null) : (b = b.*.link) {
-        if (lbl or b.*.npred > 1)
-            try e.f.print("{s}{d}:\n", .{cs(&all.T.asloc), id0 + @as(i32, @intCast(b.*.id))});
-        var i = b.*.ins;
-        while (i != b.*.ins + b.*.nins) : (i += 1)
+    var b_it: ?*Blk = e.@"fn".*.start;
+    while (b_it) |b| : (b_it = b.link) {
+        if (lbl or b.npred > 1)
+            try e.f.print("{s}{d}:\n", .{cs(&all.T.asloc), id0 + @as(i32, @intCast(b.id))});
+        var i = b.ins;
+        while (i != b.ins + b.nins) : (i += 1)
             try emitins(i, e);
         lbl = true;
         var jmp = false;
-        switch (b.*.jmp.type) {
+        switch (b.jmp.type) {
             Jhlt => try e.f.print("\tbrk\t#1000\n", .{}),
             Jret0 => {
                 s = @intCast((e.frame - e.padding) / 4);
@@ -710,23 +711,23 @@ pub fn arm64_emitfn(f: [*c]Fn, out: *Writer) Writer.Error!void {
             },
             Jjmp => jmp = true,
             else => {
-                const c: i32 = @as(i32, @intCast(b.*.jmp.type)) - Jjf;
+                const c: i32 = @as(i32, @intCast(b.jmp.type)) - Jjf;
                 if (c < 0 or c > NCmp)
-                    die("unhandled jump {d}", .{b.*.jmp.type});
+                    die("unhandled jump {d}", .{b.jmp.type});
                 var n: usize = undefined;
-                if (b.*.link == b.*.s2) {
-                    const t = b.*.s1;
-                    b.*.s1 = b.*.s2;
-                    b.*.s2 = t;
+                if (b.link == b.s2) {
+                    const t = b.s1;
+                    b.s1 = b.s2;
+                    b.s2 = t;
                     n = 0;
                 } else n = 1;
-                try e.f.print("\tb{s}\t{s}{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), id0 + @as(i32, @intCast(b.*.s2.*.id))});
+                try e.f.print("\tb{s}\t{s}{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), id0 + @as(i32, @intCast(b.s2.*.id))});
                 jmp = true;
             },
         }
         if (jmp) { // Jmp:
-            if (b.*.s1 != b.*.link)
-                try e.f.print("\tb\t{s}{d}\n", .{cs(&all.T.asloc), id0 + @as(i32, @intCast(b.*.s1.*.id))})
+            if (b.s1 != b.link)
+                try e.f.print("\tb\t{s}{d}\n", .{cs(&all.T.asloc), id0 + @as(i32, @intCast(b.s1.*.id))})
             else
                 lbl = false;
         }

@@ -16,6 +16,7 @@ const Onop = all.ops.Onop;
 const Osel0 = all.ops.Osel0;
 const Osel1 = all.ops.Osel1;
 const PHeap = all.PHeap;
+const Phi = all.Phi;
 const R = all.R;
 const addbins = all.addbins;
 const addins = all.addins;
@@ -49,9 +50,9 @@ fn okbranch(b: [*c]Blk) bool {
 
 fn okjoin(b: [*c]Blk) bool {
     var n: i32 = 0;
-    var p = b.*.phi;
-    while (p != null) : (p = p.*.link) {
-        if (KBASE(p.*.cls) != 0)
+    var p_it: ?*Phi = b.*.phi;
+    while (p_it) |p| : (p_it = p.link) {
+        if (KBASE(p.cls) != 0)
             return false;
         n += 1;
     }
@@ -84,10 +85,10 @@ fn convert(ifb: [*c]Blk, thenb: [*c]Blk, elseb: [*c]Blk, joinb: [*c]Blk) void {
         addins(&ins, &nins, &sel);
     }
     sel = INS0(Osel1);
-    var p = joinb.*.phi;
-    while (p != null) : (p = p.*.link) {
-        sel.to = p.*.to;
-        sel.cls = @intCast(p.*.cls);
+    var p_it: ?*Phi = joinb.*.phi;
+    while (p_it) |p| : (p_it = p.link) {
+        sel.to = p.to;
+        sel.cls = @intCast(p.cls);
         sel.arg[0] = phiarg(p, thenb);
         sel.arg[1] = phiarg(p, elseb);
         addins(&ins, &nins, &sel);
@@ -106,7 +107,7 @@ fn convert(ifb: [*c]Blk, thenb: [*c]Blk, elseb: [*c]Blk, joinb: [*c]Blk) void {
 /// eliminate if-then[-else] graphlets
 /// using sel instructions
 /// needs rpo pred use; breaks cfg use
-pub fn ifconvert(f: [*c]Fn) void {
+pub fn ifconvert(f: *Fn) void {
     var thenb: [*c]Blk = undefined;
     var elseb: [*c]Blk = undefined;
     var joinb: [*c]Blk = undefined;
@@ -114,12 +115,12 @@ pub fn ifconvert(f: [*c]Fn) void {
     if (all.debug['K'] != 0)
         dprint("\n> If-conversion:\n", .{});
 
-    var ifb = f.*.start;
-    while (ifb != null) : (ifb = ifb.*.link) {
+    var ifb_it: ?*Blk = f.start;
+    while (ifb_it) |ifb| : (ifb_it = ifb.link) {
         if (ifgraph(ifb, &thenb, &elseb, &joinb))
             if (okgraph(ifb, thenb, elseb, joinb)) {
                 if (all.debug['K'] != 0)
-                    dprint("    @{s} -> @{s}, @{s} -> @{s}\n", .{cs(ifb.*.name), cs(thenb.*.name), cs(elseb.*.name), cs(joinb.*.name)});
+                    dprint("    @{s} -> @{s}, @{s} -> @{s}\n", .{cs(ifb.name), cs(thenb.*.name), cs(elseb.*.name), cs(joinb.*.name)});
                 convert(ifb, thenb, elseb, joinb);
             };
     }

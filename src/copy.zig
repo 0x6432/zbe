@@ -78,34 +78,9 @@ fn ext(i: *Ins, e: *Ext) bool {
     return true;
 }
 
-fn bitwidth(v_: u64) i32 {
-    var v = v_;
-    var n: i32 = 0;
-    if ((v >> 32) != 0) {
-        n += 32;
-        v >>= 32;
-    }
-    if ((v >> 16) != 0) {
-        n += 16;
-        v >>= 16;
-    }
-    if ((v >> 8) != 0) {
-        n += 8;
-        v >>= 8;
-    }
-    if ((v >> 4) != 0) {
-        n += 4;
-        v >>= 4;
-    }
-    if ((v >> 2) != 0) {
-        n += 2;
-        v >>= 2;
-    }
-    if ((v >> 1) != 0) {
-        n += 1;
-        v >>= 1;
-    }
-    return n + @as(i32, @intCast(v));
+/// number of significant bits in v
+fn bitwidth(v: u64) i32 {
+    return 64 - @as(i32, @clz(v));
 }
 
 fn visit(f: *Fn, r: Ref, w: i32, func: *const fn (*Fn, Ref, i32) bool) bool {
@@ -177,7 +152,7 @@ fn usewidthle(f: *Fn, r: Ref, w: i32) bool {
 }
 
 fn min(v1: i64, v2: i64) i32 {
-    return @intCast(if (v1 < v2) v1 else v2);
+    return @intCast(@min(v1, v2));
 }
 
 fn dwl(f: *Fn, r: Ref, w_: i32) bool {
@@ -198,47 +173,45 @@ fn dwl(f: *Fn, r: Ref, w_: i32) bool {
 
     if (t.def == null) {
         // phi def
-        var p: ?*Phi = f.rpo[t.bid].phi;
-        while (p != null) : (p = p.?.link)
-            if (req(p.?.to, r))
-                break;
-        assert(p != null);
-        if (p.?.visit != 0 and p.?.visit <= w)
+        var p_it = f.rpo[t.bid].phi;
+        const p = while (p_it) |p| : (p_it = p.link) {
+            if (req(p.to, r)) break p;
+        } else unreachable;
+        if (p.visit != 0 and p.visit <= w)
             return true;
-        p.?.visit = w;
-        var n: uint = 0;
-        while (n < p.?.narg) : (n += 1)
-            if (!dwl(f, p.?.arg[n], w))
+        p.visit = w;
+        for (p.arg[0..p.narg]) |a|
+            if (!dwl(f, a, w))
                 return false;
         return true;
     }
 
-    const i: [*c]Ins = t.def;
-    if (i.*.op == Ocopy)
-        return dwl(f, i.*.arg[0], w);
-    if (i.*.op == Oshr or i.*.op == Osar) {
-        if (isconbits(f, i.*.arg[1], &v))
+    const i = t.def.?;
+    if (i.op == Ocopy)
+        return dwl(f, i.arg[0], w);
+    if (i.op == Oshr or i.op == Osar) {
+        if (isconbits(f, i.arg[1], &v))
             if (0 < v and v <= 32) {
-                if (i.*.op == Oshr and w + v >= 32)
+                if (i.op == Oshr and w + v >= 32)
                     return true;
                 if (w < 32) {
-                    if (i.*.op == Osar)
+                    if (i.op == Osar)
                         w = min(31, w + v)
                     else
                         w = min(32, w + v);
                 }
             };
-        return dwl(f, i.*.arg[0], w);
+        return dwl(f, i.arg[0], w);
     }
-    if (iscmp(i.*.op, &x, &x))
+    if (iscmp(i.op, &x, &x))
         return w >= 1;
-    if (i.*.op == Oand) {
-        if (dwl(f, i.*.arg[0], w) or dwl(f, i.*.arg[1], w))
+    if (i.op == Oand) {
+        if (dwl(f, i.arg[0], w) or dwl(f, i.arg[1], w))
             return true;
         return false;
     }
-    if (i.*.op == Oor or i.*.op == Oxor) {
-        if (dwl(f, i.*.arg[0], w) and dwl(f, i.*.arg[1], w))
+    if (i.op == Oor or i.op == Oxor) {
+        if (dwl(f, i.arg[0], w) and dwl(f, i.arg[1], w))
             return true;
         return false;
     }
@@ -246,7 +219,7 @@ fn dwl(f: *Fn, r: Ref, w_: i32) bool {
         if (e.zext != 0 and e.usew <= w)
             return true;
         w = min(w, e.nopw);
-        return dwl(f, i.*.arg[0], w);
+        return dwl(f, i.arg[0], w);
     }
 
     return false;
@@ -272,51 +245,48 @@ pub fn narrowpars(f: *Fn) void {
 
     // only useful for functions with loops
     var loop = false;
-    var b: ?*Blk = f.start;
-    while (b != null) : (b = b.?.link)
-        if (b.?.loop > 1) {
+    var b_it = f.start;
+    while (b_it) |b| : (b_it = b.link)
+        if (b.loop > 1) {
             loop = true;
             break;
         };
     if (!loop)
         return;
 
-    b = f.start;
+    const b = f.start.?;
 
     var npar: uint = 0;
-    var i: [*c]Ins = b.?.ins;
-    while (i < &b.?.ins[b.?.nins]) : (i += 1) {
-        if (!ispar(i.*.op))
+    for (b.ins[0..b.nins]) |*i| {
+        if (!ispar(i.op))
             break;
         npar += 1;
     }
     if (npar == 0)
         return;
 
-    const nins = b.?.nins + npar;
+    // make room for one (possibly nop) extension per par
+    const nins = b.nins + npar;
     const ins = vnewT(Ins, nins, PFn);
-    _ = icpy(ins, b.?.ins, npar);
-    _ = icpy(ins + 2 * npar, b.?.ins + npar, b.?.nins - npar);
-    b.?.ins = ins;
-    b.?.nins = nins;
+    _ = icpy(ins, b.ins, npar);
+    _ = icpy(ins + 2 * npar, b.ins + npar, b.nins - npar);
+    b.ins = ins;
+    b.nins = nins;
 
-    i = b.?.ins;
-    while (i < &b.?.ins[b.?.nins]) : (i += 1) {
-        if (!ispar(i.*.op))
-            break;
+    for (b.ins[0..npar], b.ins[npar .. 2 * npar]) |*i, *ext_slot| {
         e = INS0(Onop);
-        if (i.*.cls == Kw)
-            if (usewidthle(f, i.*.to, 16)) {
+        if (i.cls == Kw)
+            if (usewidthle(f, i.to, 16)) {
                 e.op = Oextuh;
-                if (usewidthle(f, i.*.to, 8))
+                if (usewidthle(f, i.to, 8))
                     e.op = Oextub;
-                const r = newtmp("vw", i.*.cls, f);
-                e.cls = i.*.cls;
-                e.to = i.*.to;
+                const r = newtmp("vw", i.cls, f);
+                e.cls = i.cls;
+                e.to = i.to;
                 e.arg[0] = r;
-                i.*.to = r;
+                i.to = r;
             };
-        (i + npar).* = e;
+        ext_slot.* = e;
     }
 }
 
@@ -405,51 +375,44 @@ fn phieq(pa: *Phi, pb: *Phi) bool {
     return true;
 }
 
-pub fn phicopyref(f: *Fn, b: *Blk, p: [*c]Phi) Ref {
-    var s: [2][*c]Blk = undefined;
-
+pub fn phicopyref(f: *Fn, b: *Blk, p: *Phi) Ref {
     // identical args
     var r = R;
-    var n: uint = 0;
-    while (n < p.*.narg) : (n += 1)
-        if (!req(p.*.arg[n], p.*.to)) {
+    for (p.arg[0..p.narg]) |a| {
+        if (!req(a, p.to)) {
             if (req(r, R))
-                r = p.*.arg[n]
-            else if (!req(p.*.arg[n], r))
+                r = a
+            else if (!req(a, r))
                 break;
-        };
-    if (n == p.*.narg)
-        return r;
+        }
+    } else return r;
 
     // same as a previous phi
-    var p1: [*c]Phi = b.phi;
-    while (p1 != p) : (p1 = p1.*.link) {
-        assert(p1 != null);
-        if (phieq(p1.?, p))
-            return p1.*.to;
+    var p1 = b.phi.?;
+    while (p1 != p) : (p1 = p1.link.?) {
+        if (phieq(p1, p))
+            return p1.to;
     }
 
     // can be replaced by a
     // dominating jnz arg
-    const d: [*c]Blk = b.idom;
-    if (p.*.narg != 2 or d.*.jmp.type != Jjnz or !isw1(f, d.*.jmp.arg))
+    const d = b.idom.?;
+    if (p.narg != 2 or d.jmp.type != Jjnz or !isw1(f, d.jmp.arg))
         return R;
 
-    s = .{ null, null };
-    n = 0;
-    while (n < 2) : (n += 1) {
-        var c: usize = 0;
-        while (c < 2) : (c += 1) {
-            if (req(p.*.arg[n], all.con01[c]))
-                s[c] = p.*.blk[n];
+    var s = [2]?*Blk{ null, null };
+    for (p.arg[0..2], p.blk[0..2]) |a, pb| {
+        for (0..2) |c| {
+            if (req(a, all.con01[c]))
+                s[c] = pb;
         }
     }
 
     // if s1 ends with a jnz on either b
     // or s2; the inference below is wrong
     // without the jump type checks
-    if (d.*.s1 == s[1] and d.*.s2 == s[0] and d.*.s1.?.jmp.type == Jjmp and d.*.s2.?.jmp.type == Jjmp)
-        return d.*.jmp.arg;
+    if (d.s1 == s[1] and d.s2 == s[0] and d.s1.?.jmp.type == Jjmp and d.s2.?.jmp.type == Jjmp)
+        return d.jmp.arg;
 
     return R;
 }

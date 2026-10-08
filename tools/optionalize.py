@@ -36,7 +36,17 @@ for f in files:
             m = re.match(r'^(\s*)(var|const) (\w+) = (\w+);', L[q])
             if m and m.group(4) in names:
                 names.append(m.group(3))
-        if not names: continue
+        body = '\n'.join(L[s+1:e+1])
+        names = [x for x in names if not re.search(r'(?<![.\w])' + x + r'\s*(\[|\+|-[^>]|<|>)', body)]
+        if not names:
+            L[s:e+1] = orig[f][s:e+1]
+            continue
+        # undo type rewrites for names that were filtered out
+        keep = set(names)
+        for q in range(s, e+1):
+            for m in re.finditer(r'(\w+): \?\*(' + tyalt + r')\b', L[q]):
+                if m.group(1) not in keep and '[*c]' in orig[f][q]:
+                    L[q] = L[q].replace(m.group(0), m.group(1) + ': [*c]' + m.group(2), 1)
         for q in range(s, e+1):
             for x in set(names):
                 L[q] = re.sub(r'(?<![.\w])' + x + r'\.\*\.(?=[\w@])', x + '.?.', L[q])
@@ -50,6 +60,7 @@ while True:
     it += 1
     r = subprocess.run(['zig', 'build'], cwd='..', capture_output=True, text=True)
     errs = re.findall(r'(?m)^src/(\S+?):(\d+):\d+: error:', r.stderr)
+    errs += re.findall(r'(?m)^src/(\S+?):(\d+):\d+: note: parameter type declared here', r.stderr)
     if not errs:
         if 'error' in r.stderr: print(r.stderr[-2000:]); sys.exit(1)
         print('clean after', it); break

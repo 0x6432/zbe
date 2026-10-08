@@ -243,7 +243,7 @@ pub fn cfloat(x: anytype) CFloat {
 
 /// qsort replacement: stable sort (glibc's qsort is a stable merge
 /// sort, so ties keep the same order as with the C version)
-pub fn sort(comptime T: type, p: [*c]T, n: usize, comptime order: fn (T, T) std.math.Order) void {
+pub fn sort(comptime T: type, p: [*]T, n: usize, comptime order: fn (T, T) std.math.Order) void {
     const S = struct {
         fn lt(_: void, a: T, b: T) bool {
             return order(a, b) == .lt;
@@ -325,11 +325,11 @@ pub fn vnew(len: ulong, esz: usize, pl: Pool) ?*anyopaque {
     var cap: ulong = VMin;
     while (cap < len) cap *= 2;
     const f = if (pl == PHeap) &emalloc else &alloc;
-    const v: [*c]Vec = @ptrCast(@alignCast(f(cap * esz + @sizeOf(Vec))));
-    v.*.mag = VMag;
-    v.*.cap = cap;
-    v.*.esz = esz;
-    v.*.pool = pl;
+    const v: [*]Vec = @ptrCast(@alignCast(f(cap * esz + @sizeOf(Vec))));
+    v[0].mag = VMag;
+    v[0].cap = cap;
+    v[0].esz = esz;
+    v[0].pool = pl;
     return @ptrCast(v + 1);
 }
 
@@ -339,21 +339,21 @@ pub inline fn vnewT(comptime T: type, len: anytype, pl: Pool) [*]T {
 }
 
 pub fn vfree(p: ?*anyopaque) void {
-    const v: [*c]Vec = @as([*c]Vec, @ptrCast(@alignCast(p))) - 1;
-    assert(v.*.mag == VMag);
-    if (v.*.pool == PHeap) {
-        v.*.mag = 0;
+    const v: [*]Vec = @as([*]Vec, @ptrCast(@alignCast(p))) - 1;
+    assert(v[0].mag == VMag);
+    if (v[0].pool == PHeap) {
+        v[0].mag = 0;
         efree(@ptrCast(v));
     }
 }
 
 pub fn vgrow(vp: anytype, len: anytype) void {
-    const v: [*c]Vec = @as([*c]Vec, @ptrCast(@alignCast(vp.*))) - 1;
-    assert(v.*.mag == VMag);
-    if (v.*.cap >= len)
+    const v: [*]Vec = @as([*]Vec, @ptrCast(@alignCast(vp.*))) - 1;
+    assert(v[0].mag == VMag);
+    if (v[0].cap >= len)
         return;
-    const v1 = vnew(@intCast(len), v.*.esz, v.*.pool);
-    const n = v.*.cap * v.*.esz;
+    const v1 = vnew(@intCast(len), v[0].esz, v[0].pool);
+    const n = v[0].cap * v[0].esz;
     if (n != 0) @memcpy(@as([*]u8, @ptrCast(v1))[0..n], @as([*]const u8, @ptrCast(v + 1))[0..n]);
     vfree(@ptrCast(v + 1));
     vp.* = @ptrCast(@alignCast(v1));
@@ -568,7 +568,7 @@ pub fn clsmerge(pk: *i16, k: i16) bool {
     return k1 != k;
 }
 
-pub fn phicls(t: i32, tmp: [*c]Tmp) i32 {
+pub fn phicls(t: i32, tmp: [*]Tmp) i32 {
     var t1 = tmp[@intCast(t)].phi;
     if (t1 == 0)
         return t;
@@ -820,7 +820,7 @@ pub fn bsiter(bs: *BSet, elt: *i32) bool {
     return true;
 }
 
-pub fn dumpts(bs: *BSet, tmp: [*c]Tmp, f: *Writer) Writer.Error!void {
+pub fn dumpts(bs: *BSet, tmp: [*]Tmp, f: *Writer) Writer.Error!void {
     try f.writeAll("[");
     var t: i32 = Tmp0;
     while (bsiter(bs, &t)) : (t += 1)

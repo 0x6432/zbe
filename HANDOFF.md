@@ -1,6 +1,6 @@
 # HANDOFF – QBE → Zig translation
 
-Updated: 20261008-114150 UTC
+Updated: 20261008-114856 UTC
 
 ## Goal
 Translate QBE (C, cloned at /data/qbe-c, HEAD e786f06) to latest Zig master.
@@ -169,6 +169,8 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    slices, gp/fp register cursors are indices into gpreg/fpreg,
    Class.t/type is ?*Typ; T.retregs/argregs take `?*[2]i32`.
    tools/abislices.py has the loop/deref regexes used for these.
+   DONE 5q/5r: amd64/sysv.zig and winabi.zig same treatment (all ABI files
+   now free of `[*c]`/`.*.`).
    NEXT FILES: emit files, ABI, isel.
    NEXT: rewrite remaining `[*c]Ins` pointer walks to index loops / slices
    (ABI selpar/selcall take [i0,i1) ranges -> should take `[]Ins`), manual

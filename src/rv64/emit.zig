@@ -262,14 +262,14 @@ fn emitaddr(c: *Con, f: *Writer) Writer.Error!void {
 
 const clschr = [_]u8{ 'w', 'l', 's', 'd' };
 
-fn emitf(s_: [*c]const u8, i: [*c]Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
+fn emitf(s_: [*c]const u8, i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
     var s = s_;
     var r: Ref = undefined;
     var c: u8 = undefined;
 
     try f.writeByte('\t');
     while (true) {
-        const k: i32 = @intCast(i.*.cls);
+        const k: i32 = @intCast(i.cls);
         while (true) {
             c = s.*;
             s += 1;
@@ -290,16 +290,16 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
                     try f.writeAll("ft11");
             },
             'k' => {
-                if (i.*.cls != Kl)
-                    try f.writeByte(clschr[i.*.cls]);
+                if (i.cls != Kl)
+                    try f.writeByte(clschr[i.cls]);
             },
             '=', '0' => {
-                r = if (c == '=') i.*.to else i.*.arg[0];
+                r = if (c == '=') i.to else i.arg[0];
                 assert(isreg(r));
                 try f.writeAll(cs(rname[r.val]));
             },
             '1' => {
-                r = i.*.arg[1];
+                r = i.arg[1];
                 switch (rtype(r)) {
                     else => die("invalid second argument", .{}),
                     RTmp => {
@@ -318,7 +318,7 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
                 c = s.*;
                 s += 1;
                 assert(c == '0' or c == '1');
-                r = i.*.arg[c - '0'];
+                r = i.arg[c - '0'];
                 switch (rtype(r)) {
                     else => die("invalid address argument", .{}),
                     RTmp => try f.print("0({s})", .{cs(rname[r.val])}),
@@ -326,8 +326,8 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
                         const pc = &fn_.con[r.val];
                         assert(pc.type == CAddr);
                         try emitaddr(pc, f);
-                        if (isstore(i.*.op) or
-                            (isload(i.*.op) and KBASE(i.*.cls) == 1))
+                        if (isstore(i.op) or
+                            (isload(i.op) and KBASE(i.cls) == 1))
                         {
                             // store (and float load)
                             // pseudo-instructions need a
@@ -352,7 +352,7 @@ fn loadaddr(c: *Con, rn: [*c]const u8, f: *Writer) Writer.Error!void {
 
     switch (c.sym.type) {
         SGlo, SExt => {
-            try f.print("\t{s} {s}, ", .{cs(@as([*c]const u8, if (c.sym.type == SExt) "lga" else "lla")), cs(rn)});
+            try f.print("\t{s} {s}, ", .{if (c.sym.type == SExt) "lga" else "lla", cs(rn)});
             try emitaddr(c, f);
             try f.writeByte('\n');
         },
@@ -384,7 +384,7 @@ fn loadcon(c: *Con, r: i32, k: i32, f: *Writer) Writer.Error!void {
     }
 }
 
-fn fixmem(pr: [*c]Ref, fn_: *Fn, f: *Writer) Writer.Error!void {
+fn fixmem(pr: *Ref, fn_: *Fn, f: *Writer) Writer.Error!void {
     const r = pr.*;
     if (rtype(r) == RCon) {
         const c = &fn_.con[r.val];
@@ -421,57 +421,57 @@ fn table(i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
     try emitf(omap[o].fmt, i, fn_, f);
 }
 
-fn emitins(i: [*c]Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
-    switch (i.*.op) {
+fn emitins(i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
+    switch (i.op) {
         else => {
-            if (isload(i.*.op))
-                try fixmem(&i.*.arg[0], fn_, f)
-            else if (isstore(i.*.op))
-                try fixmem(&i.*.arg[1], fn_, f);
+            if (isload(i.op))
+                try fixmem(&i.arg[0], fn_, f)
+            else if (isstore(i.op))
+                try fixmem(&i.arg[1], fn_, f);
             try table(i, fn_, f);
         },
         Ocopy => {
-            if (req(i.*.to, i.*.arg[0]))
+            if (req(i.to, i.arg[0]))
                 return;
-            if (rtype(i.*.to) == RSlot) {
-                switch (rtype(i.*.arg[0])) {
+            if (rtype(i.to) == RSlot) {
+                switch (rtype(i.arg[0])) {
                     RSlot, RCon => die("unimplemented", .{}),
                     else => {
-                        assert(isreg(i.*.arg[0]));
-                        i.*.arg[1] = i.*.to;
-                        i.*.to = R;
-                        switch (i.*.cls) {
-                            Kw => i.*.op = Ostorew,
-                            Kl => i.*.op = Ostorel,
-                            Ks => i.*.op = Ostores,
-                            Kd => i.*.op = Ostored,
+                        assert(isreg(i.arg[0]));
+                        i.arg[1] = i.to;
+                        i.to = R;
+                        switch (i.cls) {
+                            Kw => i.op = Ostorew,
+                            Kl => i.op = Ostorel,
+                            Ks => i.op = Ostores,
+                            Kd => i.op = Ostored,
                             else => {},
                         }
-                        try fixmem(&i.*.arg[1], fn_, f);
+                        try fixmem(&i.arg[1], fn_, f);
                         try table(i, fn_, f);
                     },
                 }
                 return;
             }
-            assert(isreg(i.*.to));
-            switch (rtype(i.*.arg[0])) {
-                RCon => try loadcon(&fn_.con[i.*.arg[0].val], @intCast(i.*.to.val), @intCast(i.*.cls), f),
+            assert(isreg(i.to));
+            switch (rtype(i.arg[0])) {
+                RCon => try loadcon(&fn_.con[i.arg[0].val], @intCast(i.to.val), @intCast(i.cls), f),
                 RSlot => {
-                    i.*.op = Oload;
-                    try fixmem(&i.*.arg[0], fn_, f);
+                    i.op = Oload;
+                    try fixmem(&i.arg[0], fn_, f);
                     try table(i, fn_, f);
                 },
                 else => {
-                    assert(isreg(i.*.arg[0]));
+                    assert(isreg(i.arg[0]));
                     try table(i, fn_, f);
                 },
             }
         },
         Onop => {},
         Oaddr => {
-            assert(rtype(i.*.arg[0]) == RSlot);
-            const rn = rname[i.*.to.val];
-            const s = slot(i.*.arg[0], fn_);
+            assert(rtype(i.arg[0]) == RSlot);
+            const rn = rname[i.to.val];
+            const s = slot(i.arg[0], fn_);
             if (-s < 2048) {
                 try f.print("\tadd {s}, fp, {d}\n", .{cs(rn), s});
             } else {
@@ -479,9 +479,9 @@ fn emitins(i: [*c]Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
             }
         },
         Ocall => {
-            switch (rtype(i.*.arg[0])) {
+            switch (rtype(i.arg[0])) {
                 RCon => {
-                    const con = &fn_.con[i.*.arg[0].val];
+                    const con = &fn_.con[i.arg[0].val];
                     if (con.type != CAddr or
                         (con.sym.type & SThr) != 0 or
                         con.bits.i != 0)
@@ -494,10 +494,10 @@ fn emitins(i: [*c]Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
         },
         Osalloc => {
             try emitf("sub sp, sp, %0", i, fn_, f);
-            if (!req(i.*.to, R))
+            if (!req(i.to, R))
                 try emitf("mv %=, sp", i, fn_, f);
         },
-        Odbgloc => try emitdbgloc(i.*.arg[0].val, i.*.arg[1].val, f),
+        Odbgloc => try emitdbgloc(i.arg[0].val, i.arg[1].val, f),
     }
 }
 
@@ -542,9 +542,9 @@ pub fn rv64_emitfn(fn_: *Fn, f: *Writer) Writer.Error!void {
     try f.print("\tadd fp, sp, -16\n", .{});
 
     var frame: i32 = (16 + 4 * fn_.slot + 15) & ~@as(i32, 15);
-    var pr: [*c]i32 = rv64_rclob;
-    while (pr.* >= 0) : (pr += 1) {
-        if ((fn_.reg & BIT(pr.*)) != 0)
+    for (rv64_rclob) |r| {
+        if (r < 0) break;
+        if ((fn_.reg & BIT(r)) != 0)
             frame += 8;
     }
     frame = (frame + 15) & ~@as(i32, 15);
@@ -553,11 +553,11 @@ pub fn rv64_emitfn(fn_: *Fn, f: *Writer) Writer.Error!void {
         try f.print("\tadd sp, sp, -{d}\n", .{frame})
     else
         try f.print("\tli t6, {d}\n" ++ "\tsub sp, sp, t6\n", .{frame});
-    pr = rv64_rclob;
     var off: i32 = 0;
-    while (pr.* >= 0) : (pr += 1) {
-        if ((fn_.reg & BIT(pr.*)) != 0) {
-            try f.print("\t{s} {s}, {d}(sp)\n", .{cs(@as([*c]const u8, if (pr.* < FT0) "sd" else "fsd")), cs(rname[@intCast(pr.*)]), off});
+    for (rv64_rclob) |r| {
+        if (r < 0) break;
+        if ((fn_.reg & BIT(r)) != 0) {
+            try f.print("\t{s} {s}, {d}(sp)\n", .{ if (r < FT0) "sd" else "fsd", cs(rname[@intCast(r)]), off });
             off += 8;
         }
     }
@@ -580,11 +580,11 @@ pub fn rv64_emitfn(fn_: *Fn, f: *Writer) Writer.Error!void {
                     else
                         try f.print("\tli t6, {d}\n" ++ "\tsub sp, fp, t6\n", .{frame - 16});
                 }
-                pr = rv64_rclob;
                 off = 0;
-                while (pr.* >= 0) : (pr += 1) {
-                    if ((fn_.reg & BIT(pr.*)) != 0) {
-                        try f.print("\t{s} {s}, {d}(sp)\n", .{cs(@as([*c]const u8, if (pr.* < FT0) "ld" else "fld")), cs(rname[@intCast(pr.*)]), off});
+                for (rv64_rclob) |r| {
+                    if (r < 0) break;
+                    if ((fn_.reg & BIT(r)) != 0) {
+                        try f.print("\t{s} {s}, {d}(sp)\n", .{ if (r < FT0) "ld" else "fld", cs(rname[@intCast(r)]), off });
                         off += 8;
                     }
                 }
@@ -606,7 +606,7 @@ pub fn rv64_emitfn(fn_: *Fn, f: *Writer) Writer.Error!void {
                     b.jmp.arg = TMP(T6);
                 }
                 assert(isreg(b.jmp.arg));
-                try f.print("\tb{s}z {s}, .L{d}\n", .{cs(@as([*c]const u8, if (neg) "ne" else "eq")), cs(rname[b.jmp.arg.val]), id0 + @as(i32, @intCast(b.s2.?.id))});
+                try f.print("\tb{s}z {s}, .L{d}\n", .{if (neg) "ne" else "eq", cs(rname[b.jmp.arg.val]), id0 + @as(i32, @intCast(b.s2.?.id))});
                 jmp = true;
             },
             else => {},

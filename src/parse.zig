@@ -1065,11 +1065,10 @@ fn typecheck(f: *Fn) void {
         var p_it: ?*Phi = b.phi;
         while (p_it) |p| : (p_it = p.link)
             f.tmp[p.to.val].cls = p.cls;
-        var i: [*c]Ins = b.ins;
-        while (i < &b.ins[b.nins]) : (i += 1)
-            if (rtype(i.*.to) == RTmp) {
-                t = &f.tmp[i.*.to.val];
-                if (clsmerge(&t.*.cls, @intCast(i.*.cls)))
+        for (b.ins[0..b.nins]) |*i|
+            if (rtype(i.to) == RTmp) {
+                t = &f.tmp[i.to.val];
+                if (clsmerge(&t.*.cls, @intCast(i.cls)))
                     err("temporary %{s} is assigned with multiple types", .{cs(t.*.name)});
             };
     }
@@ -1098,20 +1097,20 @@ fn typecheck(f: *Fn) void {
         for (b.ins[0..b.nins]) |*i| {
             n = 0;
             while (n < 2) : (n += 1) {
-                k = all.optab[i.*.op].argcls[n][i.*.cls];
-                r = i.*.arg[n];
+                k = all.optab[i.op].argcls[n][i.cls];
+                r = i.arg[n];
                 t = &f.tmp[r.val];
                 const which: [*c]const u8 = if (n == 1) "second" else "first";
                 if (k == Ke)
-                    err("invalid instruction type in {s}", .{cs(all.optab[i.*.op].name)});
+                    err("invalid instruction type in {s}", .{cs(all.optab[i.op].name)});
                 if (rtype(r) == RType)
                     continue;
                 if (rtype(r) != -1 and k == Kx)
-                    err("no {s} operand expected in {s}", .{cs(which), cs(all.optab[i.*.op].name)});
+                    err("no {s} operand expected in {s}", .{cs(which), cs(all.optab[i.op].name)});
                 if (rtype(r) == -1 and k != Kx)
-                    err("missing {s} operand in {s}", .{cs(which), cs(all.optab[i.*.op].name)});
+                    err("missing {s} operand in {s}", .{cs(which), cs(all.optab[i.op].name)});
                 if (!usecheck(r, k, f))
-                    err("invalid type for {s} operand %{s} in {s}", .{cs(which), cs(t.*.name), cs(all.optab[i.*.op].name)});
+                    err("invalid type for {s} operand %{s} in {s}", .{cs(which), cs(t.*.name), cs(all.optab[i.op].name)});
             }
         }
         r = b.jmp.arg;

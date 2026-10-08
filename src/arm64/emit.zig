@@ -677,8 +677,7 @@ pub fn arm64_emitfn(f: [*c]Fn, out: *Writer) Writer.Error!void {
     while (b_it) |b| : (b_it = b.link) {
         if (lbl or b.npred > 1)
             try e.f.print("{s}{d}:\n", .{cs(&all.T.asloc), id0 + @as(i32, @intCast(b.id))});
-        var i = b.ins;
-        while (i != b.ins + b.nins) : (i += 1)
+        for (b.ins[0..b.nins]) |*i|
             try emitins(i, e);
         lbl = true;
         var jmp = false;

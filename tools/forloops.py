@@ -6,7 +6,7 @@ into
     for (B[0..N]) |*X| ...                (|X| for pointer elements)
 when X is not used after the loop and the body does no arithmetic on X."""
 import re, sys
-loop = re.compile(r'^(\s*)while \((\w+) < (?:&(.+)\[(.+)\]|(.+?) \+ (.+))\) : \(\2 \+= 1\)(.*)$')
+loop = re.compile(r'^(\s*)while \((\w+) (?:<|!=) (?:&(.+)\[(.+)\]|(.+?) \+ (.+))\) : \(\2 \+= 1\)(.*)$')
 def norm(e): return e.replace('.*.', '.')
 total = 0
 for f in sys.argv[1:]:
@@ -40,7 +40,7 @@ for f in sys.argv[1:]:
         fe = end + 1
         while fe < len(L) and not (L[fe].strip().startswith('}') and len(L[fe]) - len(L[fe].lstrip()) < len(ind)): fe += 1
         after = '\n'.join(L[end+1:fe])
-        if bad or re.search(r'\b' + x + r'\b', after):
+        if bad or re.search(r'(?<![.\w])' + x + r'\b', after):
             k += 1; continue
         byval = re.search(r'\b' + x + r'\.\*\.\*', btxt) or re.search(r'(pred|rpo|fron|blk|stk)$', base)
         if byval:

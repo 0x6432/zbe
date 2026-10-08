@@ -312,9 +312,10 @@ pub fn rv64_isel(f: *Fn) void {
             }
         }
         seljmp(b, f);
-        var i: [*c]Ins = b.*.ins + b.*.nins;
-        while (i != b.*.ins) {
-            i -= 1;
+        var i_n = b.*.nins;
+        while (i_n > 0) {
+            i_n -= 1;
+            const i = &b.*.ins[i_n];
             sel(i.*, f);
         }
         idup(b, all.curi, @intCast(ptrdiff(all.insbEnd(), all.curi)));

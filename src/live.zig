@@ -110,11 +110,12 @@ pub fn filllive(f: *Fn) void {
             var k: usize = 0;
             while (k < 2) : (k += 1)
                 b.*.nlive[k] = nlv[k];
-            var i: [*c]Ins = b.*.ins + b.*.nins;
-            while (i != b.*.ins) {
-                i -= 1;
-                if (i.*.op == Ocall and rtype(i.*.arg[1]) == RCall) {
-                    b.*.in.t[0] &= ~all.T.retregs(i.*.arg[1], &m);
+            var i_n = b.*.nins;
+            while (i_n > 0) {
+                i_n -= 1;
+                const i = &b.*.ins[i_n];
+                if (i.op == Ocall and rtype(i.arg[1]) == RCall) {
+                    b.*.in.t[0] &= ~all.T.retregs(i.arg[1], &m);
                     k = 0;
                     while (k < 2) : (k += 1) {
                         nlv[k] -= m[k];
@@ -126,16 +127,16 @@ pub fn filllive(f: *Fn) void {
                         if (nlv[k] > b.*.nlive[k])
                             b.*.nlive[k] = nlv[k];
                     }
-                    b.*.in.t[0] |= all.T.argregs(i.*.arg[1], &m);
+                    b.*.in.t[0] |= all.T.argregs(i.arg[1], &m);
                     k = 0;
                     while (k < 2) : (k += 1) {
                         nlv[k] -= all.T.nrsave[k];
                         nlv[k] += m[k];
                     }
                 }
-                if (!req(i.*.to, R)) {
-                    assert(rtype(i.*.to) == RTmp);
-                    const tt = i.*.to.val;
+                if (!req(i.to, R)) {
+                    assert(rtype(i.to) == RTmp);
+                    const tt = i.to.val;
                     if (bshas(&b.*.in, tt))
                         nlv[@intCast(KBASE(f.tmp[tt].cls))] -= 1;
                     bsset(&b.*.gen, tt);
@@ -143,13 +144,13 @@ pub fn filllive(f: *Fn) void {
                 }
                 k = 0;
                 while (k < 2) : (k += 1) {
-                    switch (rtype(i.*.arg[k])) {
+                    switch (rtype(i.arg[k])) {
                         RMem => {
-                            const ma = &f.mem[i.*.arg[k].val];
+                            const ma = &f.mem[i.arg[k].val];
                             bset(ma.base, b, &nlv, f.tmp);
                             bset(ma.index, b, &nlv, f.tmp);
                         },
-                        else => bset(i.*.arg[k], b, &nlv, f.tmp),
+                        else => bset(i.arg[k], b, &nlv, f.tmp),
                     }
                 }
                 k = 0;

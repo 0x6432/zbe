@@ -420,9 +420,8 @@ fn rebuildcfg(f: *Fn) void {
             continue;
         // blk unreachable after GVN
         assert(b != s);
-        var i: [*c]Ins = b.*.ins;
-        while (i < &b.*.ins[b.*.nins]) : (i += 1)
-            if (all.optab[i.*.op].pinned == 0)
+        for (b.*.ins[0..b.*.nins]) |*i|
+            if (all.optab[i.op].pinned == 0)
                 if (gvndup(i, false) == i)
                     addins(&s.*.ins, &s.*.nins, i);
     }

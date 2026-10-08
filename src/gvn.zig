@@ -82,20 +82,15 @@ fn ieq(ia: *Ins, ib: *Ins) bool {
         req(ia.arg[0], ib.arg[0]) and req(ia.arg[1], ib.arg[1]);
 }
 
-var gvntbl: [*c][*c]Ins = null;
-var gvntbln: uint = 0;
+var gvntbl: []?*Ins = &.{};
 
-fn gvndup(i: *Ins, insert: bool) [*c]Ins {
-    var idx = ihash(i) % gvntbln;
-    while (true) {
-        const ii = gvntbl[idx];
-        if (ii == null)
-            break;
+fn gvndup(i: *Ins, insert: bool) ?*Ins {
+    var idx = ihash(i) % gvntbl.len;
+    while (gvntbl[idx]) |ii| {
         if (ieq(i, ii))
             return ii;
-
         idx += 1;
-        if (gvntbln <= idx)
+        if (idx == gvntbl.len)
             idx = 0;
     }
     if (insert)
@@ -104,9 +99,7 @@ fn gvndup(i: *Ins, insert: bool) [*c]Ins {
 }
 
 fn replaceuse(f: *Fn, u: *Use, r1: Ref, r2: Ref) void {
-    var t2: [*c]Tmp = null;
-    if (rtype(r2) == RTmp)
-        t2 = &f.tmp[r2.val];
+    const t2: ?*Tmp = if (rtype(r2) == RTmp) &f.tmp[r2.val] else null;
     const b = f.rpo[u.bid];
     switch (u.type) {
         UPhi => {
@@ -115,8 +108,8 @@ fn replaceuse(f: *Fn, u: *Use, r1: Ref, r2: Ref) void {
                 if (req(pr.*, r1)) {
                     pr.* = r2;
                 };
-            if (t2 != null)
-                adduse(t2, UPhi, b, @ptrCast(p));
+            if (t2) |t|
+                adduse(t, UPhi, b, @ptrCast(p));
         },
         UIns => {
             const i = u.u.ins;
@@ -125,14 +118,14 @@ fn replaceuse(f: *Fn, u: *Use, r1: Ref, r2: Ref) void {
                 if (req(i.arg[n], r1)) {
                     i.arg[n] = r2;
                 };
-            if (t2 != null)
-                adduse(t2, UIns, b, @ptrCast(i));
+            if (t2) |t|
+                adduse(t, UIns, b, @ptrCast(i));
         },
         UJmp => {
             if (req(b.jmp.arg, r1))
                 b.jmp.arg = r2;
-            if (t2 != null)
-                adduse(t2, UJmp, b, null);
+            if (t2) |t|
+                adduse(t, UJmp, b, null);
         },
         UXXX => die("unreachable", .{}),
         else => {},
@@ -148,16 +141,14 @@ fn replaceuses(f: *Fn, r1: Ref, r2: Ref) void {
 }
 
 fn dedupphi(f: *Fn, b: *Blk) void {
-    var pp: [*c][*c]Phi = &b.phi;
-    while (true) {
-        const p = pp.*;
-        if (p == null) break;
+    var pp: *?*Phi = &b.phi;
+    while (pp.*) |p| {
         const r = phicopyref(f, b, p);
         if (!req(r, R)) {
-            replaceuses(f, p.*.to, r);
-            p.*.to = R;
-            pp.* = p.*.link;
-        } else pp = &p.*.link;
+            replaceuses(f, p.to, r);
+            p.to = R;
+            pp.* = p.link;
+        } else pp = &p.link;
     }
 }
 
@@ -210,20 +201,18 @@ fn assoccon(f: *Fn, b: *Blk, i_1: *Ins) void {
     var c1 = f.con[i_1.arg[1].val];
 
     const t2 = &f.tmp[i_1.arg[0].val];
-    if (t2.def == null)
-        return;
-    const i_2: [*c]Ins = t2.def;
+    const i_2 = t2.def orelse return;
 
-    if (op != (if (i_2.*.op == Osub) Oadd else i_2.*.op) or rtype(i_2.*.arg[1]) != RCon)
+    if (op != (if (i_2.op == Osub) Oadd else i_2.op) or rtype(i_2.arg[1]) != RCon)
         return;
-    var c2 = f.con[i_2.*.arg[1].val];
+    var c2 = f.con[i_2.arg[1].val];
 
-    assert(KBASE(i_2.*.cls) == 0);
-    assert(KWIDE(i_2.*.cls) >= KWIDE(i_1.cls));
+    assert(KBASE(i_2.cls) == 0);
+    assert(KWIDE(i_2.cls) >= KWIDE(i_1.cls));
 
     if (i_1.op == Osub and negcon(i_1.cls, &c1))
         return;
-    if (i_2.*.op == Osub and negcon(i_2.*.cls, &c2))
+    if (i_2.op == Osub and negcon(i_2.cls, &c2))
         return;
     if (foldint(&c, op, i_1.cls != 0, &c1, &c2))
         return;
@@ -236,7 +225,7 @@ fn assoccon(f: *Fn, b: *Blk, i_1: *Ins) void {
         };
 
     i_1.op = @intCast(op);
-    i_1.arg[0] = i_2.*.arg[0];
+    i_1.arg[0] = i_2.arg[0];
     i_1.arg[1] = newcon(&c, f);
     adduse(&f.tmp[i_1.arg[0].val], UIns, b, @ptrCast(i_1));
 }
@@ -268,35 +257,25 @@ fn dedupins(f: *Fn, b: *Blk, i: *Ins) void {
         killins(f, i, r);
         return;
     }
-    const i_1 = gvndup(i, true);
-    if (i_1 != null) {
-        killins(f, i, i_1.*.to);
-        return;
-    }
+    if (gvndup(i, true)) |i_1|
+        killins(f, i, i_1.to);
 }
 
 pub fn cmpeqz(f: *Fn, r: Ref, arg: *Ref, cls: *i32, eqval: *i32) bool {
     if (rtype(r) != RTmp)
         return false;
-    const i: [*c]Ins = f.tmp[r.val].def;
-    if (i != null)
-        if (all.optab[i.*.op].cmpeqwl != 0)
-            if (req(i.*.arg[1], CON_Z)) {
-                arg.* = i.*.arg[0];
-                cls.* = argcls(i, 0);
-                eqval.* = all.optab[i.*.op].eqval;
-                return true;
-            };
-    return false;
+    const i = f.tmp[r.val].def orelse return false;
+    if (all.optab[i.op].cmpeqwl == 0 or !req(i.arg[1], CON_Z))
+        return false;
+    arg.* = i.arg[0];
+    cls.* = argcls(i, 0);
+    eqval.* = all.optab[i.op].eqval;
+    return true;
 }
 
-fn branchdom(f: *Fn, bif: [*c]Blk, bbr1: *Blk, bbr2: *Blk, b: [*c]Blk) bool {
-    assert(bif.*.jmp.type == Jjnz);
-
-    if (b != bif and dom(bbr1, b) and !reachesnotvia(f, bbr2, b, bif))
-        return true;
-
-    return false;
+fn branchdom(f: *Fn, bif: *Blk, bbr1: *Blk, bbr2: *Blk, b: *Blk) bool {
+    assert(bif.jmp.type == Jjnz);
+    return b != bif and dom(bbr1, b) and !reachesnotvia(f, bbr2, b, bif);
 }
 
 fn domzero(f: *Fn, d: *Blk, b: *Blk, z: *i32) bool {
@@ -384,7 +363,7 @@ fn dedupjmp(f: *Fn, b: *Blk) void {
     propjnz0(f, b, b.s2.?, b.s1.?, b.jmp.arg, Kw);
     // propagate cmp eq/ne 0 def of jmp arg as 0
     if (cmpeqz(f, b.jmp.arg, &arg, &cls, &eqval)) {
-        const ps = [2][*c]Blk{ b.s1, b.s2 };
+        const ps = [2]*Blk{ b.s1.?, b.s2.? };
         propjnz0(f, b, ps[@intCast(eqval ^ 1)], ps[@intCast(eqval)], arg, cls);
     }
 
@@ -402,9 +381,8 @@ fn dedupjmp(f: *Fn, b: *Blk) void {
 }
 
 fn rebuildcfg(f: *Fn) void {
-    const nblk = f.nblk;
-    const rpo: [*c][*c]Blk = ealloc([*c]Blk, nblk);
-    if (nblk != 0) @memcpy(rpo[0..nblk], f.rpo[0..nblk]);
+    const rpo = ealloc(*Blk, f.nblk)[0..f.nblk];
+    @memcpy(rpo, f.rpo[0..f.nblk]);
 
     fillcfg(f);
 
@@ -412,20 +390,18 @@ fn rebuildcfg(f: *Fn) void {
     // killed blocks and may be active
     // in the computation in the start
     // block
-    const s: ?*Blk = f.start;
-    var n: uint = 0;
-    while (n < nblk) : (n += 1) {
-        const b = rpo[n];
-        if (b.*.id != NOID)
+    const s = f.start.?;
+    for (rpo) |b| {
+        if (b.id != NOID)
             continue;
         // blk unreachable after GVN
         assert(b != s);
-        for (b.*.ins[0..b.*.nins]) |*i|
+        for (b.ins[0..b.nins]) |*i|
             if (all.optab[i.op].pinned == 0)
                 if (gvndup(i, false) == i)
-                    addins(&s.?.ins, &s.?.nins, i);
+                    addins(&s.ins, &s.nins, i);
     }
-    efree(@ptrCast(rpo));
+    efree(@ptrCast(rpo.ptr));
 }
 
 /// requires rpo pred ssa use
@@ -436,9 +412,9 @@ pub fn gvn(f: *Fn) void {
     all.con01[1] = getcon(1, f);
 
     // copy.c uses the visit bit
-    var b: [*c]Blk = f.start;
-    while (b != null) : (b = b.*.link) {
-        var p_it: ?*Phi = b.*.phi;
+    var b_it = f.start;
+    while (b_it) |b| : (b_it = b.link) {
+        var p_it = b.phi;
         while (p_it) |p| : (p_it = p.link)
             p.visit = 0;
     }
@@ -449,25 +425,24 @@ pub fn gvn(f: *Fn) void {
     ssacheck(f);
 
     var nins: uint = 0;
-    b = f.start;
-    while (b != null) : (b = b.*.link) {
-        b.*.visit = 0;
-        nins += b.*.nins;
+    b_it = f.start;
+    while (b_it) |b| : (b_it = b.link) {
+        b.visit = 0;
+        nins += b.nins;
     }
 
-    gvntbln = nins + nins / 2;
-    gvntbl = ealloc([*c]Ins, gvntbln);
-    var n: uint = 0;
-    while (n < f.nblk) : (n += 1) {
-        b = f.rpo[n];
+    const n = nins + nins / 2;
+    gvntbl = ealloc(?*Ins, n)[0..n];
+    @memset(gvntbl, null);
+    for (f.rpo[0..f.nblk]) |b| {
         dedupphi(f, b);
-        for (b.*.ins[0..b.*.nins]) |*i|
+        for (b.ins[0..b.nins]) |*i|
             dedupins(f, b, i);
         dedupjmp(f, b);
     }
     rebuildcfg(f);
-    efree(@ptrCast(gvntbl));
-    gvntbl = null;
+    efree(@ptrCast(gvntbl.ptr));
+    gvntbl = &.{};
 
     if (all.debug['G'] != 0) {
         dprint("\n> After GVN:\n", .{});

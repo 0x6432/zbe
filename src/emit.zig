@@ -18,8 +18,8 @@ const bits = all.bits;
 const cfloat = all.cfloat;
 const cs = all.cs;
 const die = all.die;
-const ealloc = all.ealloc;
 const efree = all.efree;
+const enew = all.enew;
 const err = all.err;
 const intern = all.intern;
 const uint = all.uint;
@@ -143,7 +143,7 @@ pub fn stashbits(n: bits, size: i32) i32 {
         if (size <= b.*.size and b.*.n == n)
             return i;
     }
-    const b: [*c]Asmbits = ealloc(Asmbits, 1);
+    const b = enew(Asmbits);
     b.*.n = n;
     b.*.size = size;
     b.*.link = null;

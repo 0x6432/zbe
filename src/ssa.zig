@@ -43,6 +43,7 @@ const dom = all.dom;
 const dprint = all.dprint;
 const ealloc = all.ealloc;
 const efree = all.efree;
+const enew = all.enew;
 const err = all.err;
 const filldom = all.filldom;
 const fillfron = all.fillfron;
@@ -52,8 +53,8 @@ const isext = all.isext;
 const isload = all.isload;
 const isparbh = all.isparbh;
 const newtmp = all.newtmp;
-const palloc = all.palloc;
 const phicls = all.phicls;
+const pnew = all.pnew;
 const printfn = all.printfn;
 const ptrdiff = all.ptrdiff;
 const req = all.req;
@@ -239,12 +240,12 @@ fn phiins(f: *Fn) void {
                 a.visit += 1;
                 if (v == 0)
                     if (bshas(&a.in, t)) {
-                        const p: [*c]Phi = palloc(Phi, 1);
-                        p.*.cls = k;
-                        p.*.to = TMP(t);
-                        p.*.link = a.phi;
-                        p.*.arg = vnewT(Ref, 0, PFn);
-                        p.*.blk = vnewT(*Blk, 0, PFn);
+                        const p = pnew(Phi);
+                        p.cls = k;
+                        p.to = TMP(t);
+                        p.link = a.phi;
+                        p.arg = vnewT(Ref, 0, PFn);
+                        p.blk = vnewT(*Blk, 0, PFn);
                         a.phi = p;
                         if (!bshas(&defs, a.id))
                             if (!bshas(&u, a.id)) {
@@ -275,7 +276,7 @@ fn nnew(r: Ref, b: ?*Blk, up: [*c]Name) [*c]Name {
     } else
         // could use alloc, here
         // but namel should be reset
-        n = ealloc(Name, 1);
+        n = enew(Name);
     n.*.r = r;
     n.*.b = b;
     n.*.up = up;

@@ -297,13 +297,24 @@ pub fn alloc(n: usize) ?*anyopaque {
 }
 
 /// typed zeroed allocation of n T's from the per-function pool
-pub fn palloc(comptime T: type, n: anytype) [*c]T {
+pub fn palloc(comptime T: type, n: anytype) [*]T {
+    if (n == 0) return @ptrFromInt(@alignOf(T)); // C alloc(0) is NULL, never dereferenced
     return @ptrCast(@alignCast(alloc(@as(usize, @intCast(n)) * @sizeOf(T))));
 }
 
+/// one T from the function pool
+pub fn pnew(comptime T: type) *T {
+    return @ptrCast(@alignCast(alloc(@sizeOf(T))));
+}
+
 /// typed zeroed heap allocation of n T's (release with efree)
-pub fn ealloc(comptime T: type, n: anytype) [*c]T {
+pub fn ealloc(comptime T: type, n: anytype) [*]T {
     return @ptrCast(@alignCast(emalloc(@as(usize, @intCast(n)) * @sizeOf(T))));
+}
+
+/// one zeroed T from the heap (release with efree)
+pub fn enew(comptime T: type) *T {
+    return @ptrCast(@alignCast(emalloc(@sizeOf(T))));
 }
 
 pub fn freeall() void {

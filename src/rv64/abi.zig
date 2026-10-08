@@ -93,6 +93,7 @@ const ispar = all.ispar;
 const isret = all.isret;
 const newtmp = all.newtmp;
 const palloc = all.palloc;
+const pnew = all.pnew;
 const printfn = all.printfn;
 const ptrdiff = all.ptrdiff;
 const req = all.req;
@@ -407,13 +408,13 @@ fn argsclass(i_0: [*c]Ins, i_1: [*c]Ins, carg: [*c]Class, retptr: bool) i32 {
 }
 
 fn stkblob(r: Ref, t: *Typ, f: *Fn, ilp: *[*c]Insl) void {
-    const il: [*c]Insl = palloc(Insl, 1);
+    const il = pnew(Insl);
     var al: i32 = t.@"align" - 2; // specific to NAlign == 3
     if (al < 0)
         al = 0;
     const sz: u64 = (t.size + 7) & ~@as(u64, 7);
-    il.*.i = INS(Oalloc + al, Kl, r, getcon(@bitCast(sz), f), R);
-    il.*.link = ilp.*;
+    il.i = INS(Oalloc + al, Kl, r, getcon(@bitCast(sz), f), R);
+    il.link = ilp.*;
     ilp.* = il;
 }
 

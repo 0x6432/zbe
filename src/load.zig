@@ -69,7 +69,7 @@ const isload = all.isload;
 const isstore = all.isstore;
 const newcon = all.newcon;
 const newtmp = all.newtmp;
-const palloc = all.palloc;
+const pnew = all.pnew;
 const printfn = all.printfn;
 const ptrdiff = all.ptrdiff;
 const req = all.req;
@@ -425,7 +425,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: [*c]Ins, il: [*c]Loc) ?Ref {
     }
 
     r = newtmp("ld", sl.cls, curf);
-    p = palloc(Phi, 1);
+    p = pnew(Phi);
     nlog += 1;
     vgrow(&ilog, nlog);
     ist = &ilog[nlog - 1];

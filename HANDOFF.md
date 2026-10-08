@@ -132,7 +132,17 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    not yet allocated, see ssa.zig). Locals doing Ins pointer arithmetic got
    explicit `[*c]Ins` (tools/fixinsptr.py, fed with `zig build` errors);
    pointer order comparisons between *T use @intFromPtr.
-   NEXT: rewrite those `[*c]Ins` pointer walks to index loops / slices.
+   DONE (4m-4o): tools/backloops.py (backward `i = b.ins + b.nins; while
+   (i != b.ins) { i -= 1; ...}` -> index loop with `const i = &b.ins[i_n]`),
+   forloops.py accepts `!=`; tools/optionalize.py T1,T2 (from src/): turns
+   `[*c]T` params/typed locals into `?*T` (`x.*.` -> `x.?.`), builds, and
+   restores every function that fails to compile. palloc/ealloc return
+   `[*]T` (palloc(T,0) returns a dangling non-null ptr; C returned NULL but
+   never dereferenced it), new pnew(T)/enew(T) return `*T` (zeroed).
+   NEXT: rewrite remaining `[*c]Ins` pointer walks to index loops / slices
+   (ABI selpar/selcall take [i0,i1) ranges -> should take `[]Ins`), manual
+   idiomatic rewrites of functions optionalize couldn't handle (e.g.
+   cfg.zig filldom/fillrpo/inter).
    TODO: rest of `[*c]` -> `*T`/`?*T`/slices (the `[*c]T` locals added by
    fixderef are candidates), enums for ops/classes/jumps.
    Notes: Zig forbids `<` on `[*]T` (only `[*c]`) and `&cptr[i]` is

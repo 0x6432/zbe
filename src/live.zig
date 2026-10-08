@@ -6,7 +6,6 @@ const all = @import("all.zig");
 const BSet = all.BSet;
 const Blk = all.Blk;
 const Fn = all.Fn;
-const Ins = all.Ins;
 const KBASE = all.KBASE;
 const Ocall = all.ops.Ocall;
 const Phi = all.Phi;

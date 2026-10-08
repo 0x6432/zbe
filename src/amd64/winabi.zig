@@ -91,6 +91,7 @@ const ispar = all.ispar;
 const isret = all.isret;
 const newtmp = all.newtmp;
 const palloc = all.palloc;
+const pnew = all.pnew;
 const printfn = all.printfn;
 const ptrdiff = all.ptrdiff;
 const req = all.req;
@@ -426,7 +427,7 @@ fn lower_call(func: *Fn, block: *Blk, call_instr: [*c]Ins, pextra_alloc: *[*c]Ex
 
     var return_pad: [*c]ExtraAlloc = null;
     if (is_struct_return) {
-        return_pad = palloc(ExtraAlloc, 1);
+        return_pad = pnew(ExtraAlloc);
         const ret_pad_ref = newtmp("abi.ret_pad", Kl, func);
         return_pad.*.instr = INS(Oalloc8, Kl, ret_pad_ref, getcon(ret_arg_class.size, func), R);
         return_pad.*.link = pextra_alloc.*;
@@ -439,9 +440,9 @@ fn lower_call(func: *Fn, block: *Blk, call_instr: [*c]Ins, pextra_alloc: *[*c]Ex
             // far as the calling convention is concerned it's not actually by
             // pointer, we need to store the return value into an alloca because
             // subsequent IL will still be treating the function return as a pointer.
-            const return_copy: [*c]ExtraAlloc = palloc(ExtraAlloc, 1);
-            return_copy.*.instr = INS(Oalloc8, Kl, call_instr.*.to, getcon(8, func), R);
-            return_copy.*.link = pextra_alloc.*;
+            const return_copy = pnew(ExtraAlloc);
+            return_copy.instr = INS(Oalloc8, Kl, call_instr.*.to, getcon(8, func), R);
+            return_copy.link = pextra_alloc.*;
             pextra_alloc.* = return_copy;
             const copy = newtmp("abi.copy", Kl, func);
             emit(Ostorel, 0, R, copy, call_instr.*.to);
@@ -530,10 +531,10 @@ fn lower_call(func: *Fn, block: *Blk, call_instr: [*c]Ins, pextra_alloc: *[*c]Ex
             .APS_CopyAndPointerInRegister, .APS_CopyAndPointerOnStack => {
                 // Alloca a space to copy into, and blit the value from the instr to the
                 // copied location.
-                const arg_copy: [*c]ExtraAlloc = palloc(ExtraAlloc, 1);
+                const arg_copy = pnew(ExtraAlloc);
                 const copy_ref = newtmp("abi.copy", Kl, func);
-                arg_copy.*.instr = INS(Oalloc8, Kl, copy_ref, getcon(arg.*.size, func), R);
-                arg_copy.*.link = pextra_alloc.*;
+                arg_copy.instr = INS(Oalloc8, Kl, copy_ref, getcon(arg.*.size, func), R);
+                arg_copy.link = pextra_alloc.*;
                 pextra_alloc.* = arg_copy;
                 emit(Oblit1, 0, R, INT(arg.*.size), R);
                 emit(Oblit0, 0, R, instr.*.arg[1], copy_ref);

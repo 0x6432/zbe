@@ -6,7 +6,7 @@ import re, sys
 total = 0
 def ty(init, decl):
     if decl:
-        m = re.match(r'\[\*c\](\w+)', decl)
+        m = re.match(r'(?:\[\*c\]|\?\*)(\w+)', decl)
         if m: return m.group(1)
     if re.search(r'phi$', init): return 'Phi'
     if re.search(r'(start|link|s1|s2|dlink|idom|dom)$', init): return 'Blk'
@@ -38,7 +38,7 @@ for f in sys.argv[1:]:
                         if not m0: j += 1; continue
                         i0, init0 = m0.group(1), m0.group(2)
                     if j+1 >= fe: ok = False; break
-                    m = re.match(r'^' + re.escape(i0) + r'while \(' + x + r' != null\) : \(' + x + r' = ' + x + r'\.\*\.(\w+)\)(.*)$', L[j+1])
+                    m = re.match(r'^' + re.escape(i0) + r'while \(' + x + r' != null\) : \(' + x + r' = ' + x + r'\.(?:\*|\?)\.(\w+)\)(.*)$', L[j+1])
                     if not m: ok = False; break
                     link, rest = m.groups()
                     if rest.strip() == '{':
@@ -72,7 +72,7 @@ for f in sys.argv[1:]:
                     L[s+1] = i0 + 'while (' + it + ') |' + x + '| : (' + it + ' = ' + x + '.' + link + ')' + rest
                     end = e if rest.strip() == '{' else e
                     for q in range(s+2, end+1):
-                        L[q] = re.sub(r'\b' + x + r'\.\*\.', x + '.', L[q])
+                        L[q] = re.sub(r'\b' + x + r'\.(?:\*|\?)\.', x + '.', L[q])
                 total += 1
                 changed = True
                 break

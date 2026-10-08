@@ -719,16 +719,16 @@ pub fn rega(f: *Fn) void {
             if (all.curi == all.insbEnd())
                 continue;
             const b1 = newblk();
-            b1.*.loop = @divTrunc(b.*.loop + s.*.loop, 2);
-            b1.*.link = blist;
+            b1.loop = @divTrunc(b.*.loop + s.*.loop, 2);
+            b1.link = blist;
             blist = b1;
             f.nblk += 1;
-            b1.*.name = strf(PFn, "{s}_{s}", .{ cs(b.*.name), cs(s.*.name) });
+            b1.name = strf(PFn, "{s}_{s}", .{ cs(b.*.name), cs(s.*.name) });
             stmov += @intCast(ptrdiff(all.insbEnd(), all.curi));
             stblk += 1;
             idup(b1, all.curi, @intCast(ptrdiff(all.insbEnd(), all.curi)));
-            b1.*.jmp.type = Jjmp;
-            b1.*.s1 = s;
+            b1.jmp.type = Jjmp;
+            b1.s1 = s;
             psa[pi].* = b1;
         }
         if (b.*.link == null) {

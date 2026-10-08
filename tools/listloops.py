@@ -8,7 +8,7 @@ into
 (T = Phi if INIT ends in 'phi', else Blk) when X is not reassigned in BODY
 and not used after the loop."""
 import re, sys
-loop = re.compile(r'^(\s*)while \((\w+) != null\) : \(\2 = \2\.\*\.(\w+)\)(.*)$')
+loop = re.compile(r'^(\s*)while \((\w+) != null\) : \(\2 = \2\.(?:\*|\?)\.(\w+)\)(.*)$')
 total = 0
 for f in sys.argv[1:]:
     L = open(f).read().split('\n')
@@ -40,7 +40,7 @@ for f in sys.argv[1:]:
             k += 1; continue
         T = 'Phi' if re.search(r'phi$', init) else 'Blk'
         it = x + '_it'
-        body = [re.sub(r'\b' + x + r'\.\*\.', x + '.', l) for l in body]
+        body = [re.sub(r'\b' + x + r'\.(?:\*|\?)\.', x + '.', l) for l in body]
         L[k-1:k+1] = [ind + 'var ' + it + ': ?*' + T + ' = ' + init + ';',
                       ind + 'while (' + it + ') |' + x + '| : (' + it + ' = ' + x + '.' + link + ')' + rest]
         L[k+1:end+1] = body + ([L[end]] if rest.strip() == '{' else [])

@@ -122,7 +122,7 @@ const isstore = all.isstore;
 const newblk = all.newblk;
 const newcon = all.newcon;
 const newtmp = all.newtmp;
-const palloc = all.palloc;
+const pnew = all.pnew;
 const ptrdiff = all.ptrdiff;
 const req = all.req;
 const rsval = all.rsval;
@@ -997,16 +997,16 @@ fn parseline(ps: PState) PState {
             Tphi => {
                 if (ps != PPhi or curb == curf.*.start)
                     err("unexpected phi instruction", .{});
-                const phi: ?*Phi = palloc(Phi, 1);
-                phi.?.to = r;
-                phi.?.cls = @intCast(k);
-                phi.?.arg = vnewT(Ref, i, PFn);
-                @memcpy(phi.?.arg[0..i], arg[0..i]);
-                phi.?.blk = vnewT(*Blk, i, PFn);
-                @memcpy(phi.?.blk[0..i], blk[0..i]);
-                phi.?.narg = @intCast(i);
+                const phi = pnew(Phi);
+                phi.to = r;
+                phi.cls = @intCast(k);
+                phi.arg = vnewT(Ref, i, PFn);
+                @memcpy(phi.arg[0..i], arg[0..i]);
+                phi.blk = vnewT(*Blk, i, PFn);
+                @memcpy(phi.blk[0..i], blk[0..i]);
+                phi.narg = @intCast(i);
                 plink.* = phi;
-                plink = &phi.?.link;
+                plink = &phi.link;
                 return PPhi;
             },
             Tblit => {
@@ -1140,7 +1140,7 @@ fn parsefn(lnk: [*c]Lnk) [*c]Fn {
     curb = null;
     nblk = 0;
     all.curi = &all.insb;
-    curf = palloc(Fn, 1);
+    curf = pnew(Fn);
     curf.*.ntmp = 0;
     curf.*.ncon = 2;
     curf.*.tmp = vnewT(Tmp, curf.*.ntmp, PFn);

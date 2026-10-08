@@ -114,6 +114,7 @@ const isretbh = all.isretbh;
 const newblk = all.newblk;
 const newtmp = all.newtmp;
 const palloc = all.palloc;
+const pnew = all.pnew;
 const printfn = all.printfn;
 const ptrdiff = all.ptrdiff;
 const req = all.req;
@@ -447,13 +448,13 @@ pub fn arm64_argregs(r: Ref, p: [*c]i32) bits {
 }
 
 fn stkblob(r: Ref, c: [*c]Class, f: *Fn, ilp: *[*c]Insl) void {
-    const il: [*c]Insl = palloc(Insl, 1);
+    const il = pnew(Insl);
     var al: i32 = c.*.t.*.@"align" - 2; // NAlign == 3
     if (al < 0)
         al = 0;
     const sz: u64 = if ((c.*.class & Cptr) != 0) c.*.t.*.size else c.*.size;
-    il.*.i = INS(Oalloc + al, Kl, r, getcon(@bitCast(sz), f), R);
-    il.*.link = ilp.*;
+    il.i = INS(Oalloc + al, Kl, r, getcon(@bitCast(sz), f), R);
+    il.link = ilp.*;
     ilp.* = il;
 }
 
@@ -669,10 +670,10 @@ fn split(f: *Fn, b: *Blk) [*c]Blk {
     idup(bn, all.curi, @intCast(ptrdiff(all.insbEnd(), all.curi)));
     all.curi = all.insbEnd();
     b.visit += 1;
-    bn.*.visit = b.visit;
-    bn.*.name = strf(PFn, "{s}.{d}", .{ cs(b.name), b.visit });
-    bn.*.loop = b.loop;
-    bn.*.link = b.link;
+    bn.visit = b.visit;
+    bn.name = strf(PFn, "{s}.{d}", .{ cs(b.name), b.visit });
+    bn.loop = b.loop;
+    bn.link = b.link;
     b.link = bn;
     return bn;
 }
@@ -764,7 +765,7 @@ fn arm64_selvaarg(f: *Fn, b: *Blk, i: [*c]Ins) void {
     bstk.*.jmp.type = Jjmp;
     bstk.*.s1 = b0;
 
-    b0.*.phi = palloc(Phi, 1);
+    b0.*.phi = pnew(Phi);
     b0.*.phi.?.* = std.mem.zeroes(Phi);
     b0.*.phi.?.cls = Kl;
     b0.*.phi.?.to = loc;

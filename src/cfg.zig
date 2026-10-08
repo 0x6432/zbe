@@ -20,9 +20,9 @@ const addins = all.addins;
 const dprint = all.dprint;
 const ealloc = all.ealloc;
 const efree = all.efree;
-const palloc = all.palloc;
 const phiarg = all.phiarg;
 const phiargn = all.phiargn;
+const pnew = all.pnew;
 const printfn = all.printfn;
 const req = all.req;
 const uint = all.uint;
@@ -32,11 +32,11 @@ const vnewT = all.vnewT;
 
 const NOID: uint = std.math.maxInt(uint); // -1u
 
-pub fn newblk() [*c]Blk {
-    const b: ?*Blk = palloc(Blk, 1);
-    b.?.* = std.mem.zeroes(Blk);
-    b.?.ins = vnewT(Ins, 0, PFn);
-    b.?.pred = vnewT(*Blk, 0, PFn);
+pub fn newblk() *Blk {
+    const b = pnew(Blk);
+    b.* = std.mem.zeroes(Blk);
+    b.ins = vnewT(Ins, 0, PFn);
+    b.pred = vnewT(*Blk, 0, PFn);
     return b;
 }
 
@@ -130,19 +130,19 @@ pub fn fillcfg(f: *Fn) void {
 // "A Simple, Fast Dominance Algorithm"
 // by K. Cooper, T. Harvey, and K. Kennedy.
 
-fn inter(b1_: [*c]Blk, b2_: [*c]Blk) [*c]Blk {
+fn inter(b1_: ?*Blk, b2_: ?*Blk) [*c]Blk {
     var b1 = b1_;
     var b2 = b2_;
     if (b1 == null)
         return b2;
     while (b1 != b2) {
-        if (b1.*.id < b2.*.id) {
+        if (b1.?.id < b2.?.id) {
             const bt = b1;
             b1 = b2;
             b2 = bt;
         }
-        while (b1.*.id > b2.*.id) {
-            b1 = b1.*.idom;
+        while (b1.?.id > b2.?.id) {
+            b1 = b1.?.idom;
             assert(b1 != null);
         }
     }
@@ -186,13 +186,13 @@ pub fn filldom(f: *Fn) void {
     }
 }
 
-pub fn sdom(b1: [*c]Blk, b2_: [*c]Blk) bool {
+pub fn sdom(b1: ?*Blk, b2_: ?*Blk) bool {
     var b2 = b2_;
     assert(b1 != null and b2 != null);
     if (b1 == b2)
         return false;
-    while (b2.*.id > b1.*.id)
-        b2 = b2.*.idom;
+    while (b2.?.id > b1.?.id)
+        b2 = b2.?.idom;
     return b1 == b2;
 }
 
@@ -287,20 +287,20 @@ pub fn filldepth(f: *Fn) void {
 }
 
 /// least common ancestor in dom tree
-pub fn lca(b1_: [*c]Blk, b2_: [*c]Blk) [*c]Blk {
+pub fn lca(b1_: ?*Blk, b2_: ?*Blk) [*c]Blk {
     var b1 = b1_;
     var b2 = b2_;
     if (b1 == null)
         return b2;
     if (b2 == null)
         return b1;
-    while (b1.*.depth > b2.*.depth)
-        b1 = b1.*.idom;
-    while (b2.*.depth > b1.*.depth)
-        b2 = b2.*.idom;
+    while (b1.?.depth > b2.?.depth)
+        b1 = b1.?.idom;
+    while (b2.?.depth > b1.?.depth)
+        b2 = b2.?.idom;
     while (b1 != b2) {
-        b1 = b1.*.idom;
-        b2 = b2.*.idom;
+        b1 = b1.?.idom;
+        b2 = b2.?.idom;
     }
     return b1;
 }
@@ -328,9 +328,9 @@ fn uffind(pb: [*c][*c]Blk, uf: [*c][*c]Blk) void {
 /// requires rpo and no phis, breaks cfg
 pub fn simpljmp(f: *Fn) void {
     const ret = newblk();
-    ret.*.id = f.nblk;
+    ret.id = f.nblk;
     f.nblk += 1;
-    ret.*.jmp.type = Jret0;
+    ret.jmp.type = Jret0;
     const uf: [*c][*c]Blk = ealloc([*c]Blk, f.nblk); // union-find
     var b: ?*Blk = f.start;
     while (b != null) : (b = b.?.link) {

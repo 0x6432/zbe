@@ -76,7 +76,9 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    floats via scanflt() (scanf "_%f"-like prefix scan + std.fmt.parseFloat,
    sign handled manually so -nan keeps its sign). corpus.sh: when both
    binaries fail, compares stderr (C "file.c: dying:" prefix normalized,
-   C assert vs zig panic treated equal).
+   C assert vs zig panic treated equal). DONE (2b): own getopt-compatible
+   (GNU permuting) arg parser in main.zig, matches C qbe on -h/-x/-t?/
+   missing arg/unknown target/-o/stdin; inpath is a slice.
 3. TODO: memory: pools/vnew/vgrow -> allocators/arenas + slices, drop
    qsort/memcpy.
 4. TODO: `[*c]` -> `*T`/`?*T`/slices, enums; drop libc entirely.

@@ -1,7 +1,6 @@
 //! One-to-one translation of main.c
 const std = @import("std");
 const assert = std.debug.assert;
-const C = @import("libc.zig");
 const amd64 = @import("amd64/all.zig");
 const arm64 = @import("arm64/all.zig");
 const rv64 = @import("rv64/all.zig");
@@ -168,10 +167,17 @@ fn dbgfile(f: [*c]u8) void {
     emitdbgfile(f, outf) catch writeFailed();
 }
 
+fn fail(comptime fmt: []const u8, args: anytype) noreturn {
+    dprint(fmt, args);
+    all.dbg.flush() catch {};
+    std.process.exit(1);
+}
+
 pub fn main(init: std.process.Init) u8 {
     const io = init.io;
-    const av: [*c][*c]u8 = @ptrCast(@constCast(init.minimal.args.vector.ptr));
-    const ac: c_int = @intCast(init.minimal.args.vector.len);
+    const arena = init.arena.allocator();
+    const argv = init.minimal.args.vector;
+    const prog = std.mem.span(argv[0]);
 
     err_fw = std.Io.File.stderr().writerStreaming(io, &stderr_buf);
     all.dbg = &err_fw.interface;
@@ -181,81 +187,87 @@ pub fn main(init: std.process.Init) u8 {
 
     inittargets();
     all.T = Deftgt().*;
-    while (true) {
-        const c = C.getopt(ac, av, "hd:o:t:");
-        if (c == -1) break;
-        switch (c) {
-            'd' => {
-                while (C.optarg.* != 0) : (C.optarg += 1) {
-                    if (C.isalpha(C.optarg.*) != 0) {
-                        all.debug[@intCast(C.toupper(C.optarg.*))] = 1;
+
+    // command line, getopt("hd:o:t:")-compatible (GNU style: options and
+    // operands may be mixed, "--" ends options)
+    var files: std.ArrayList([]const u8) = .empty;
+    var a: usize = 1;
+    var noopts = false;
+    while (a < argv.len) : (a += 1) {
+        const arg = std.mem.span(argv[a]);
+        if (noopts or arg.len < 2 or arg[0] != '-') {
+            files.append(arena, arg) catch fail("out of memory\n", .{});
+            continue;
+        }
+        if (std.mem.eql(u8, arg, "--")) {
+            noopts = true;
+            continue;
+        }
+        var k: usize = 1;
+        while (k < arg.len) : (k += 1) {
+            const c = arg[k];
+            var optarg: []const u8 = "";
+            if (c == 'd' or c == 'o' or c == 't') {
+                if (k + 1 < arg.len) {
+                    optarg = arg[k + 1 ..];
+                } else if (a + 1 < argv.len) {
+                    a += 1;
+                    optarg = std.mem.span(argv[a]);
+                } else {
+                    dprint("{s}: option requires an argument -- '{c}'\n", .{ prog, c });
+                    usageExit(prog, 1);
+                }
+                k = arg.len;
+            }
+            switch (c) {
+                'd' => for (optarg) |ch| {
+                    if (std.ascii.isAlphabetic(ch)) {
+                        all.debug[std.ascii.toUpper(ch)] = 1;
                         dbg = true;
                     }
-                }
-            },
-            'o' => {
-                if (C.strcmp(C.optarg, "-") != 0) {
-                    const file = std.Io.Dir.cwd().createFile(io, cs(C.optarg), .{}) catch {
-                        dprint("cannot open '{s}'\n", .{cs(C.optarg)});
-                        all.dbg.flush() catch {};
-                        std.process.exit(1);
-                    };
+                },
+                'o' => if (!std.mem.eql(u8, optarg, "-")) {
+                    const file = std.Io.Dir.cwd().createFile(io, optarg, .{}) catch
+                        fail("cannot open '{s}'\n", .{optarg});
                     out_fw = file.writerStreaming(io, &stdout_buf);
-                }
-            },
-            't' => {
-                if (C.strcmp(C.optarg, "?") == 0) {
-                    outf.print("{s}\n", .{cs(&all.T.name)}) catch writeFailed();
-                    outf.flush() catch writeFailed();
-                    std.process.exit(0);
-                }
-                var t: usize = 0;
-                while (true) : (t += 1) {
-                    if (t == tlist.len or tlist[t] == null) {
-                        dprint("unknown target '{s}'\n", .{cs(C.optarg)});
-                        all.dbg.flush() catch {};
-                        std.process.exit(1);
+                },
+                't' => {
+                    if (std.mem.eql(u8, optarg, "?")) {
+                        outf.print("{s}\n", .{cs(&all.T.name)}) catch writeFailed();
+                        outf.flush() catch writeFailed();
+                        std.process.exit(0);
                     }
-                    if (C.strcmp(C.optarg, &tlist[t].?.name) == 0) {
-                        all.T = tlist[t].?.*;
-                        break;
+                    for (tlist) |tp| {
+                        const t = tp orelse fail("unknown target '{s}'\n", .{optarg});
+                        if (std.mem.eql(u8, optarg, cs(&t.name))) {
+                            all.T = t.*;
+                            break;
+                        }
                     }
-                }
-            },
-            else => {
-                const hf = if (c != 'h') all.dbg else outf;
-                usage(hf, cs(av[0])) catch writeFailed();
-                hf.flush() catch writeFailed();
-                std.process.exit(@intFromBool(c != 'h'));
-            },
+                },
+                'h' => usageExit(prog, 0),
+                else => {
+                    dprint("{s}: invalid option -- '{c}'\n", .{ prog, c });
+                    usageExit(prog, 1);
+                },
+            }
         }
     }
+    if (files.items.len == 0)
+        files.append(arena, "-") catch fail("out of memory\n", .{});
 
-    const arena = init.arena.allocator();
-    while (true) {
-        const f: [*c]u8 = av[@intCast(C.optind)];
-        var path: []const u8 = undefined;
+    for (files.items) |path| {
         var text: []const u8 = undefined;
-        if (f == null or C.strcmp(f, "-") == 0) {
-            path = "-";
+        if (std.mem.eql(u8, path, "-")) {
             var rbuf: [4096]u8 = undefined;
             var r = std.Io.File.stdin().readerStreaming(io, &rbuf);
-            text = r.interface.allocRemaining(arena, .unlimited) catch {
-                dprint("cannot read stdin\n", .{});
-                all.dbg.flush() catch {};
-                std.process.exit(1);
-            };
+            text = r.interface.allocRemaining(arena, .unlimited) catch
+                fail("cannot read stdin\n", .{});
         } else {
-            path = cs(f);
-            text = std.Io.Dir.cwd().readFileAlloc(io, path, arena, .unlimited) catch {
-                dprint("cannot open '{s}'\n", .{path});
-                all.dbg.flush() catch {};
-                std.process.exit(1);
-            };
+            text = std.Io.Dir.cwd().readFileAlloc(io, path, arena, .unlimited) catch
+                fail("cannot open '{s}'\n", .{path});
         }
-        parse(text, @ptrCast(path.ptr), &dbgfile, &data, &func);
-        C.optind += 1;
-        if (!(C.optind < ac)) break;
+        parse(text, path, &dbgfile, &data, &func);
     }
 
     if (!dbg)
@@ -264,6 +276,13 @@ pub fn main(init: std.process.Init) u8 {
     outf.flush() catch writeFailed();
     all.dbg.flush() catch {};
     return 0;
+}
+
+fn usageExit(prog: []const u8, code: u8) noreturn {
+    const hf = if (code != 0) all.dbg else outf;
+    usage(hf, prog) catch writeFailed();
+    hf.flush() catch writeFailed();
+    std.process.exit(code);
 }
 
 fn usage(hf: *Writer, prog: []const u8) Writer.Error!void {

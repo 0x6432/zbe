@@ -398,7 +398,7 @@ fn scanflt(comptime F: type, out: *F) bool {
     return true;
 }
 
-var inpath: [*c]const u8 = null;
+var inpath: []const u8 = "";
 var thead: i32 = 0;
 var tokval: struct {
     chr: u8,
@@ -421,7 +421,7 @@ var rcls: i32 = 0;
 var ntyp: uint = 0;
 
 pub fn err(comptime fmt: []const u8, args: anytype) noreturn {
-    dprint("qbe:{s}:{d}: " ++ fmt ++ "\n", .{ cs(inpath), lnum } ++ args);
+    dprint("qbe:{s}:{d}: " ++ fmt ++ "\n", .{ inpath, lnum } ++ args);
     all.dbg.flush() catch {};
     if (all.outw) |w| w.flush() catch {};
     std.process.exit(1);
@@ -1465,7 +1465,7 @@ fn parselnk(lnk: [*c]Lnk) i32 {
     }
 }
 
-pub fn parse(text: []const u8, path: [*c]const u8, dbgfile: *const fn ([*c]u8) void, data: *const fn ([*c]Dat) void, func: *const fn ([*c]Fn) void) void {
+pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*c]u8) void, data: *const fn ([*c]Dat) void, func: *const fn ([*c]Fn) void) void {
     var lnk: Lnk = undefined;
 
     lexinit();

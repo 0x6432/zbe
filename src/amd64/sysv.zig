@@ -124,8 +124,8 @@ const vgrow = all.vgrow;
 const vnewT = all.vnewT;
 // -- end imports --
 
-const AClass = extern struct {
-    type: [*c]Typ,
+const AClass = struct {
+    type: ?*Typ,
     inmem: i32,
     @"align": i32,
     size: uint,
@@ -133,7 +133,7 @@ const AClass = extern struct {
     ref: [2]Ref,
 };
 
-const RAlloc = extern struct {
+const RAlloc = struct {
     i: Ins,
     link: ?*RAlloc,
 };
@@ -146,28 +146,28 @@ fn classify(a: *AClass, t: *Typ, s_: uint) void {
         n += 1;
         s = s1;
     }) {
-        var f: [*c]Field = &t.fields[n];
-        while (f.*.type != FEnd) : (f += 1) {
+        for (&t.fields[n]) |*f| {
+            if (f.type == FEnd) break;
             assert(s <= 16);
             const cls = &a.cls[s / 8];
-            switch (f.*.type) {
+            switch (f.type) {
                 FEnd => die("unreachable", .{}),
                 FPad => {
                     // don't change anything
-                    s += f.*.len;
+                    s += f.len;
                 },
                 Fs, Fd => {
                     if (cls.* == Kx)
                         cls.* = Kd;
-                    s += f.*.len;
+                    s += f.len;
                 },
                 Fb, Fh, Fw, Fl => {
                     cls.* = Kl;
-                    s += f.*.len;
+                    s += f.len;
                 },
                 FTyp => {
-                    classify(a, &all.typ[f.*.len], s);
-                    s += @intCast(all.typ[f.*.len].size);
+                    classify(a, &all.typ[f.len], s);
+                    s += @intCast(all.typ[f.len].size);
                 },
                 else => {},
             }
@@ -236,7 +236,7 @@ fn selret(b: *Blk, f: *Fn) void {
         if (aret.inmem != 0) {
             assert(rtype(f.retr) == RTmp);
             emit(Ocopy, Kl, TMP(RAX), f.retr, R);
-            emit(Oblit1, 0, R, INT(aret.type.*.size), R);
+            emit(Oblit1, 0, R, INT(aret.type.?.size), R);
             emit(Oblit0, 0, R, r0, f.retr);
             ca = 1;
         } else {
@@ -262,42 +262,37 @@ fn selret(b: *Blk, f: *Fn) void {
     b.jmp.arg = CALL(ca);
 }
 
-fn argsclass(i_0: [*c]Ins, i_1: [*c]Ins, ac: [*c]AClass, op: i32, aret: [*c]AClass, env: *Ref) i32 {
+fn argsclass(ins: []const Ins, ac: []AClass, op: i32, aret: ?*const AClass, env: *Ref) i32 {
     var nint: i32 = undefined;
-    if (aret != null and aret.*.inmem != 0)
+    if (aret != null and aret.?.inmem != 0)
         nint = 5 // hidden argument
     else
         nint = 6;
     var nsse: i32 = 8;
     var varc: i32 = 0;
     var envc: i32 = 0;
-    var i = i_0;
-    var a = ac;
-    while (i < i_1) : ({
-        i += 1;
-        a += 1;
-    }) {
-        switch (@as(i32, @intCast(i.*.op)) - op + Oarg) {
+    for (ins, ac) |*i, *a| {
+        switch (@as(i32, @intCast(i.op)) - op + Oarg) {
             Oarg => {
-                const pn: *i32 = if (KBASE(i.*.cls) == 0) &nint else &nsse;
+                const pn: *i32 = if (KBASE(i.cls) == 0) &nint else &nsse;
                 if (pn.* > 0) {
                     pn.* -= 1;
-                    a.*.inmem = 0;
-                } else a.*.inmem = 2;
-                a.*.@"align" = 3;
-                a.*.size = 8;
-                a.*.cls[0] = @intCast(i.*.cls);
+                    a.inmem = 0;
+                } else a.inmem = 2;
+                a.@"align" = 3;
+                a.size = 8;
+                a.cls[0] = @intCast(i.cls);
             },
             Oargc => {
-                const n0 = i.*.arg[0].val;
+                const n0 = i.arg[0].val;
                 typclass(a, &all.typ[n0]);
-                if (a.*.inmem != 0)
+                if (a.inmem != 0)
                     continue;
                 var ni: i32 = 0;
                 var ns: i32 = 0;
                 var n: usize = 0;
-                while (n * 8 < a.*.size) : (n += 1) {
-                    if (KBASE(a.*.cls[n]) == 0)
+                while (n * 8 < a.size) : (n += 1) {
+                    if (KBASE(a.cls[n]) == 0)
                         ni += 1
                     else
                         ns += 1;
@@ -305,14 +300,14 @@ fn argsclass(i_0: [*c]Ins, i_1: [*c]Ins, ac: [*c]AClass, op: i32, aret: [*c]ACla
                 if (nint >= ni and nsse >= ns) {
                     nint -= ni;
                     nsse -= ns;
-                } else a.*.inmem = 1;
+                } else a.inmem = 1;
             },
             Oarge => {
                 envc = 1;
                 if (op == Opar)
-                    env.* = i.*.to
+                    env.* = i.to
                 else
-                    env.* = i.*.arg[0];
+                    env.* = i.arg[0];
             },
             Oargv => varc = 1,
             else => die("unreachable", .{}),
@@ -395,7 +390,8 @@ fn rarg(ty: i32, ni: *i32, ns: *i32) Ref {
     }
 }
 
-fn selcall(f: *Fn, i_0: [*c]Ins, i_1: [*c]Ins, rap: *[*c]RAlloc) void {
+/// lowers the call i_1 with its arguments ins
+fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
     var aret: AClass = undefined;
     var reg: [2]Ref = undefined;
     var ca: i32 = undefined;
@@ -404,24 +400,24 @@ fn selcall(f: *Fn, i_0: [*c]Ins, i_1: [*c]Ins, rap: *[*c]RAlloc) void {
     var ra: ?*RAlloc = undefined;
 
     var env = R;
-    const nac: usize = @intCast(ptrdiff(i_1, i_0));
-    const ac: [*c]AClass = palloc(AClass, nac);
+    const ac = palloc(AClass, ins.len)[0..ins.len];
 
-    if (!req(i_1.*.arg[1], R)) {
-        assert(rtype(i_1.*.arg[1]) == RType);
-        typclass(&aret, &all.typ[i_1.*.arg[1].val]);
-        ca = argsclass(i_0, i_1, ac, Oarg, &aret, &env);
-    } else ca = argsclass(i_0, i_1, ac, Oarg, null, &env);
+    if (!req(i_1.arg[1], R)) {
+        assert(rtype(i_1.arg[1]) == RType);
+        typclass(&aret, &all.typ[i_1.arg[1].val]);
+        ca = argsclass(ins, ac, Oarg, &aret, &env);
+    } else ca = argsclass(ins, ac, Oarg, null, &env);
 
     var stk: uint = 0;
-    var a = ac + nac;
-    while (a > ac) {
-        a -= 1;
-        if (a.*.inmem != 0) {
-            if (a.*.@"align" > 4)
+    var k = ac.len;
+    while (k > 0) {
+        k -= 1;
+        const a = &ac[k];
+        if (a.inmem != 0) {
+            if (a.@"align" > 4)
                 err("sysv abi requires alignments of 16 or less", .{});
-            stk += a.*.size;
-            if (a.*.@"align" == 4)
+            stk += a.size;
+            if (a.@"align" == 4)
                 stk += stk & 15;
         }
     }
@@ -431,12 +427,12 @@ fn selcall(f: *Fn, i_0: [*c]Ins, i_1: [*c]Ins, rap: *[*c]RAlloc) void {
         emit(Osalloc, Kl, R, r, R);
     }
 
-    if (!req(i_1.*.arg[1], R)) {
+    if (!req(i_1.arg[1], R)) {
         if (aret.inmem != 0) {
             // get the return location from eax
             // it saves one callee-save reg
             r1 = newtmp("abi", Kl, f);
-            emit(Ocopy, Kl, i_1.*.to, TMP(RAX), R);
+            emit(Ocopy, Kl, i_1.to, TMP(RAX), R);
             ca += 1;
         } else {
             // todo, may read out of bounds.
@@ -446,35 +442,36 @@ fn selcall(f: *Fn, i_0: [*c]Ins, i_1: [*c]Ins, rap: *[*c]RAlloc) void {
                 r = newtmp("abi", Kl, f);
                 aret.ref[1] = newtmp("abi", aret.cls[1], f);
                 emit(Ostorel, 0, R, aret.ref[1], r);
-                emit(Oadd, Kl, r, i_1.*.to, getcon(8, f));
+                emit(Oadd, Kl, r, i_1.to, getcon(8, f));
             }
             aret.ref[0] = newtmp("abi", aret.cls[0], f);
-            emit(Ostorel, 0, R, aret.ref[0], i_1.*.to);
+            emit(Ostorel, 0, R, aret.ref[0], i_1.to);
             ca += retr(&reg, &aret);
             if (aret.size > 8)
                 emit(Ocopy, aret.cls[1], aret.ref[1], reg[1], R);
             emit(Ocopy, aret.cls[0], aret.ref[0], reg[0], R);
-            r1 = i_1.*.to;
+            r1 = i_1.to;
         }
         // allocate return pad
-        ra = pnew(RAlloc);
+        const ra1 = pnew(RAlloc);
         // specific to NAlign == 3
         const al: i32 = if (aret.@"align" >= 2) aret.@"align" - 2 else 0;
-        ra.?.i = INS(Oalloc + al, Kl, r1, getcon(aret.size, f), R);
-        ra.?.link = rap.*;
-        rap.* = ra;
+        ra1.i = INS(Oalloc + al, Kl, r1, getcon(aret.size, f), R);
+        ra1.link = rap.*;
+        rap.* = ra1;
+        ra = ra1;
     } else {
         ra = null;
-        if (KBASE(i_1.*.cls) == 0) {
-            emit(Ocopy, i_1.*.cls, i_1.*.to, TMP(RAX), R);
+        if (KBASE(i_1.cls) == 0) {
+            emit(Ocopy, i_1.cls, i_1.to, TMP(RAX), R);
             ca += 1;
         } else {
-            emit(Ocopy, i_1.*.cls, i_1.*.to, TMP(XMM0), R);
+            emit(Ocopy, i_1.cls, i_1.to, TMP(XMM0), R);
             ca += 1 << 2;
         }
     }
 
-    emit(Ocall, i_1.*.cls, R, i_1.*.arg[0], CALL(ca));
+    emit(Ocall, i_1.cls, R, i_1.arg[0], CALL(ca));
 
     if (!req(R, env))
         emit(Ocopy, Kl, TMP(RAX), env, R)
@@ -486,89 +483,73 @@ fn selcall(f: *Fn, i_0: [*c]Ins, i_1: [*c]Ins, rap: *[*c]RAlloc) void {
     if (ra != null and aret.inmem != 0)
         emit(Ocopy, Kl, rarg(Kl, &ni, &ns), ra.?.i.to, R); // pass hidden argument
 
-    var i = i_0;
-    a = ac;
-    while (i < i_1) : ({
-        i += 1;
-        a += 1;
-    }) {
-        if (i.*.op >= Oarge or a.*.inmem != 0)
+    for (ins, ac) |*i, *a| {
+        if (i.op >= Oarge or a.inmem != 0)
             continue;
-        r1 = rarg(a.*.cls[0], &ni, &ns);
-        if (i.*.op == Oargc) {
-            if (a.*.size > 8) {
-                const r2 = rarg(a.*.cls[1], &ni, &ns);
+        r1 = rarg(a.cls[0], &ni, &ns);
+        if (i.op == Oargc) {
+            if (a.size > 8) {
+                const r2 = rarg(a.cls[1], &ni, &ns);
                 r = newtmp("abi", Kl, f);
-                emit(Oload, a.*.cls[1], r2, r, R);
-                emit(Oadd, Kl, r, i.*.arg[1], getcon(8, f));
+                emit(Oload, a.cls[1], r2, r, R);
+                emit(Oadd, Kl, r, i.arg[1], getcon(8, f));
             }
-            emit(Oload, a.*.cls[0], r1, i.*.arg[1], R);
-        } else emit(Ocopy, i.*.cls, r1, i.*.arg[0], R);
+            emit(Oload, a.cls[0], r1, i.arg[1], R);
+        } else emit(Ocopy, i.cls, r1, i.arg[0], R);
     }
 
     if (stk == 0)
         return;
 
     r = newtmp("abi", Kl, f);
-    i = i_0;
-    a = ac;
     var off: uint = 0;
-    while (i < i_1) : ({
-        i += 1;
-        a += 1;
-    }) {
-        if (i.*.op >= Oarge or a.*.inmem == 0)
+    for (ins, ac) |*i, *a| {
+        if (i.op >= Oarge or a.inmem == 0)
             continue;
         r1 = newtmp("abi", Kl, f);
-        if (i.*.op == Oargc) {
-            if (a.*.@"align" == 4)
+        if (i.op == Oargc) {
+            if (a.@"align" == 4)
                 off += off & 15;
-            emit(Oblit1, 0, R, INT(a.*.type.*.size), R);
-            emit(Oblit0, 0, R, i.*.arg[1], r1);
-        } else emit(Ostorel, 0, R, i.*.arg[0], r1);
+            emit(Oblit1, 0, R, INT(a.type.?.size), R);
+            emit(Oblit0, 0, R, i.arg[1], r1);
+        } else emit(Ostorel, 0, R, i.arg[0], r1);
         emit(Oadd, Kl, r1, r, getcon(off, f));
-        off += a.*.size;
+        off += a.size;
     }
     emit(Osalloc, Kl, r, getcon(stk, f), R);
 }
 
-fn selpar(f: *Fn, i_0: [*c]Ins, i_1: [*c]Ins) i32 {
+fn selpar(f: *Fn, ins: []Ins) i32 {
     var aret: AClass = undefined;
     var fa: i32 = undefined;
     var r: Ref = undefined;
 
     var env = R;
-    const nac: usize = @intCast(ptrdiff(i_1, i_0));
-    const ac: [*c]AClass = palloc(AClass, nac);
+    const ac = palloc(AClass, ins.len)[0..ins.len];
     all.curi = all.insbEnd();
     var ni: i32 = 0;
     var ns: i32 = 0;
 
     if (f.retty >= 0) {
         typclass(&aret, &all.typ[@intCast(f.retty)]);
-        fa = argsclass(i_0, i_1, ac, Opar, &aret, &env);
-    } else fa = argsclass(i_0, i_1, ac, Opar, null, &env);
+        fa = argsclass(ins, ac, Opar, &aret, &env);
+    } else fa = argsclass(ins, ac, Opar, null, &env);
     f.reg = amd64_sysv_argregs(CALL(fa), null);
 
-    var i = i_0;
-    var a = ac;
-    while (i < i_1) : ({
-        i += 1;
-        a += 1;
-    }) {
-        if (i.*.op != Oparc or a.*.inmem != 0)
+    for (ins, ac) |*i, *a| {
+        if (i.op != Oparc or a.inmem != 0)
             continue;
-        if (a.*.size > 8) {
+        if (a.size > 8) {
             r = newtmp("abi", Kl, f);
-            a.*.ref[1] = newtmp("abi", Kl, f);
-            emit(Ostorel, 0, R, a.*.ref[1], r);
-            emit(Oadd, Kl, r, i.*.to, getcon(8, f));
+            a.ref[1] = newtmp("abi", Kl, f);
+            emit(Ostorel, 0, R, a.ref[1], r);
+            emit(Oadd, Kl, r, i.to, getcon(8, f));
         }
-        a.*.ref[0] = newtmp("abi", Kl, f);
-        emit(Ostorel, 0, R, a.*.ref[0], i.*.to);
+        a.ref[0] = newtmp("abi", Kl, f);
+        emit(Ostorel, 0, R, a.ref[0], i.to);
         // specific to NAlign == 3
-        const al: i32 = if (a.*.@"align" >= 2) a.*.@"align" - 2 else 0;
-        emit(Oalloc + al, Kl, i.*.to, getcon(a.*.size, f), R);
+        const al: i32 = if (a.@"align" >= 2) a.@"align" - 2 else 0;
+        emit(Oalloc + al, Kl, i.to, getcon(a.size, f), R);
     }
 
     if (f.retty >= 0 and aret.inmem != 0) {
@@ -577,40 +558,35 @@ fn selpar(f: *Fn, i_0: [*c]Ins, i_1: [*c]Ins) i32 {
         f.retr = r;
     }
 
-    i = i_0;
-    a = ac;
     var s: i32 = 4;
-    while (i < i_1) : ({
-        i += 1;
-        a += 1;
-    }) {
-        switch (a.*.inmem) {
+    for (ins, ac) |*i, *a| {
+        switch (a.inmem) {
             1 => {
-                if (a.*.@"align" > 4)
+                if (a.@"align" > 4)
                     err("sysv abi requires alignments of 16 or less", .{});
-                if (a.*.@"align" == 4)
+                if (a.@"align" == 4)
                     s = (s + 3) & -4;
-                f.tmp[i.*.to.val].slot = -s;
-                s += @intCast(a.*.size / 4);
+                f.tmp[i.to.val].slot = -s;
+                s += @intCast(a.size / 4);
                 continue;
             },
             2 => {
-                emit(Oload, i.*.cls, i.*.to, SLOT(-s), R);
+                emit(Oload, i.cls, i.to, SLOT(-s), R);
                 s += 2;
                 continue;
             },
             else => {},
         }
-        if (i.*.op == Opare)
+        if (i.op == Opare)
             continue;
-        r = rarg(a.*.cls[0], &ni, &ns);
-        if (i.*.op == Oparc) {
-            emit(Ocopy, a.*.cls[0], a.*.ref[0], r, R);
-            if (a.*.size > 8) {
-                r = rarg(a.*.cls[1], &ni, &ns);
-                emit(Ocopy, a.*.cls[1], a.*.ref[1], r, R);
+        r = rarg(a.cls[0], &ni, &ns);
+        if (i.op == Oparc) {
+            emit(Ocopy, a.cls[0], a.ref[0], r, R);
+            if (a.size > 8) {
+                r = rarg(a.cls[1], &ni, &ns);
+                emit(Ocopy, a.cls[1], a.ref[1], r, R);
             }
-        } else emit(Ocopy, i.*.cls, i.*.to, r, R);
+        } else emit(Ocopy, i.cls, i.to, r, R);
     }
 
     if (!req(R, env))
@@ -619,7 +595,7 @@ fn selpar(f: *Fn, i_0: [*c]Ins, i_1: [*c]Ins) i32 {
     return fa | (s * 4) << 12;
 }
 
-fn split(f: *Fn, b: *Blk) [*c]Blk {
+fn split(f: *Fn, b: *Blk) *Blk {
     f.nblk += 1;
     const bn = newblk();
     idup(bn, all.curi, @intCast(all.insbTail()));
@@ -674,9 +650,9 @@ fn selvaarg(f: *Fn, b: *Blk, i: *Ins) void {
     const loc = newtmp("abi", Kl, f);
     emit(Oload, i.cls, i.to, loc, R);
     const b0 = split(f, b);
-    b0.*.jmp = b.jmp;
-    b0.*.s1 = b.s1;
-    b0.*.s2 = b.s2;
+    b0.jmp = b.jmp;
+    b0.s1 = b.s1;
+    b0.s2 = b.s2;
     if (b.s1 != null)
         chpred(b.s1.?, b, b0);
     if (b.s2 != null and b.s2 != b.s1)
@@ -695,8 +671,8 @@ fn selvaarg(f: *Fn, b: *Blk, i: *Ins) void {
     emit(Oload, Kl, r1, r0, R);
     emit(Oadd, Kl, r0, ap, c16);
     const breg = split(f, b);
-    breg.*.jmp.type = Jjmp;
-    breg.*.s1 = b0;
+    breg.jmp.type = Jjmp;
+    breg.s1 = b0;
 
     const lstk = newtmp("abi", Kl, f);
     r0 = newtmp("abi", Kl, f);
@@ -706,20 +682,21 @@ fn selvaarg(f: *Fn, b: *Blk, i: *Ins) void {
     emit(Oload, Kl, lstk, r0, R);
     emit(Oadd, Kl, r0, ap, c8);
     const bstk = split(f, b);
-    bstk.*.jmp.type = Jjmp;
-    bstk.*.s1 = b0;
+    bstk.jmp.type = Jjmp;
+    bstk.s1 = b0;
 
-    b0.*.phi = pnew(Phi);
-    b0.*.phi.?.* = std.mem.zeroes(Phi);
-    b0.*.phi.?.cls = Kl;
-    b0.*.phi.?.to = loc;
-    b0.*.phi.?.narg = 2;
-    b0.*.phi.?.blk = vnewT(*Blk, 2, PFn);
-    b0.*.phi.?.arg = vnewT(Ref, 2, PFn);
-    b0.*.phi.?.blk[0] = bstk;
-    b0.*.phi.?.blk[1] = breg;
-    b0.*.phi.?.arg[0] = lstk;
-    b0.*.phi.?.arg[1] = lreg;
+    const p = pnew(Phi);
+    p.* = std.mem.zeroes(Phi);
+    p.cls = Kl;
+    p.to = loc;
+    p.narg = 2;
+    p.blk = vnewT(*Blk, 2, PFn);
+    p.arg = vnewT(Ref, 2, PFn);
+    p.blk[0] = bstk;
+    p.blk[1] = breg;
+    p.arg[0] = lstk;
+    p.arg[1] = lreg;
+    b0.phi = p;
     r0 = newtmp("abi", Kl, f);
     r1 = newtmp("abi", Kw, f);
     b.jmp.type = Jjnz;
@@ -753,62 +730,56 @@ fn selvastart(f: *Fn, fa: i32, ap: Ref) void {
 }
 
 pub fn amd64_sysv_abi(f: *Fn) void {
-    var b: [*c]Blk = f.start;
-    while (b != null) : (b = b.*.link)
-        b.*.visit = 0;
+    var b_it = f.start;
+    while (b_it) |b| : (b_it = b.link)
+        b.visit = 0;
 
     // lower parameters
-    b = f.start;
-    var i: [*c]Ins = b.*.ins;
-    while (i < b.*.ins + b.*.nins) : (i += 1) {
-        if (!ispar(i.*.op))
-            break;
-    }
-    const fa = selpar(f, b.*.ins, i);
+    const start = f.start.?;
+    var np: uint = 0;
+    while (np < start.nins and ispar(start.ins[np].op))
+        np += 1;
+    const fa = selpar(f, start.ins[0..np]);
     const n0: uint = @intCast(all.insbTail());
-    const ioff: uint = @intCast(ptrdiff(i, b.*.ins));
-    const n1: uint = b.*.nins - ioff;
-    vgrow(&b.*.ins, n0 + n1);
-    _ = icpy(b.*.ins + n0, b.*.ins + ioff, n1);
-    _ = icpy(b.*.ins, all.curi, n0);
-    b.*.nins = n0 + n1;
+    const n1: uint = start.nins - np;
+    vgrow(&start.ins, n0 + n1);
+    _ = icpy(start.ins + n0, start.ins + np, n1);
+    _ = icpy(start.ins, all.curi, n0);
+    start.nins = n0 + n1;
 
     // lower calls, returns, and vararg instructions
-    var ral: [*c]RAlloc = null;
-    b = f.start;
+    var ral: ?*RAlloc = null;
+    var b = start;
     while (true) {
-        b = b.*.link;
-        if (b == null)
-            b = f.start; // do it last
-        if (b.*.visit == 0) {
+        b = b.link orelse start; // do the start block last
+        if (b.visit == 0) {
             all.curi = all.insbEnd();
             selret(b, f);
-            i = b.*.ins + b.*.nins;
-            while (i != b.*.ins) {
-                i -= 1;
-                switch (i.*.op) {
+            var n = b.nins;
+            while (n != 0) {
+                n -= 1;
+                const i = &b.ins[n];
+                switch (i.op) {
                     else => emiti(i.*),
                     Ocall => {
-                        var i_0 = i;
-                        while (i_0 > b.*.ins) : (i_0 -= 1) {
-                            if (!isarg((i_0 - 1).*.op))
-                                break;
-                        }
-                        selcall(f, i_0, i, &ral);
-                        i = i_0;
+                        var n0_ = n;
+                        while (n0_ > 0 and isarg(b.ins[n0_ - 1].op))
+                            n0_ -= 1;
+                        selcall(f, b.ins[n0_..n], i, &ral);
+                        n = n0_;
                     },
-                    Ovastart => selvastart(f, fa, i.*.arg[0]),
+                    Ovastart => selvastart(f, fa, i.arg[0]),
                     Ovaarg => selvaarg(f, b, i),
                     Oarg, Oargc => die("unreachable", .{}),
                 }
             }
-            if (b == f.start) {
-                while (ral != null) : (ral = ral.*.link)
-                    emiti(ral.*.i);
+            if (b == start) {
+                while (ral) |l| : (ral = l.link)
+                    emiti(l.i);
             }
             idup(b, all.curi, @intCast(all.insbTail()));
         }
-        if (b == f.start) break;
+        if (b == start) break;
     }
 
     if (all.debug['A'] != 0) {

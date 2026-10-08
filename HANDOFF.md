@@ -1,6 +1,6 @@
 # HANDOFF – QBE → Zig translation
 
-Updated: 20261008-205355 UTC (backup 33)
+Updated: 20261008-215219 UTC (backup 34)
 
 ## Goal
 Translate QBE (C, cloned at /data/qbe-c, HEAD e786f06) to latest Zig master.
@@ -188,7 +188,7 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    `*allowzero T` (won't coerce to *T) -> rewrite pointer loops to
    slices/indices before converting struct fields to `[*]T`.
 
-## Next steps (current as of stage 5z, all checks green)
+## Next steps (current as of stage 6d, all checks green)
 DONE 5t (redone after sandbox reset): arm64/isel.zig (fixarg(pr: *Ref),
 selcmp(arg: *[2]Ref), seljmp backward index search with ?*Ins, list walks)
 and rv64/isel.zig (memarg/immarg/fixarg take *Ref/?*Ins). All isel files
@@ -214,9 +214,15 @@ DONE 5y: emit.zig: stash is a `?*Asmbits` list (stashbits walks `*?*Asmbits`),
 Dat.lnk is `?*Lnk`. Left in emit.zig: C strings + `file` u32 vector.
 DONE 5z: util.zig: Vec header via `[*]Vec` (v[0].f), phicls/dumpts take
 `[*]Tmp`, sort takes `[*]T`.
-NEXT: simpl.zig ins() pointer walk, spill.zig tmp/limit_tarr, all.zig
-Target.rsave / Tmp.use, cfg.zig 1 deref. Strings ([*c]u8 names, fmt tables)
-remain C strings deliberately.
+DONE 6a: simpl.zig ins() takes a block index instead of walking [*c]Ins.
+DONE 6b: spill.zig `tmp: [*]Tmp`, `limit_tarr: ?[*]i32` (`orelse return`:
+null only when nt == 0 with k < 0 -- an earlier `.?` crashed hare corpus),
+Target.rsave `[*]i32`.
+DONE 6c: Tmp.use is `?[*]Use` (vector, null until filluse); users do `.use.?[..]`.
+DONE 6d: emit.zig `file: ?[*]u32`.
+Remaining `[*c]` are C strings (names, fmt tables, sec names, kwmap) kept
+deliberately; cfg.zig `pb.*.id` is a legit `**Blk` deref.
+NEXT (optional polish): enums for ops/classes/jumps; slices for strings.
 NOTE: the sandbox can stop mid-session (files in /data survived once, but the
 last edits before the stop were partly lost) -> commit + back up often.
 2. Emit files (arm64/emit ~70 `.*.`, rv64/emit ~57, amd64/emit ~35,
@@ -242,7 +248,7 @@ indices/slices); pointer subtraction on `[*]T` works; tmph needs
 > /data/qbe-c/qbe); build corpus with `sh tools/mkcorpus.sh` (Hare/cproc IR,
 > see Status section). Read HANDOFF.md fully first.
 > State: 1:1 translation done and verified (git tag `v1-literal`). Canonical
-> rewrite in progress, stages 1-5z done (see "Canonical rewrite").
+> rewrite in progress, stages 1-6d done (see "Canonical rewrite").
 > Verify after EVERY change: `sh tools/all.sh > /tmp/all.log 2>&1; head -1
 > /tmp/all.log; tail -8 /tmp/all.log` (FUZZ=1 also runs abifuzz/irfuzz).
 > Expected: "All is fine!", 0/76 differ on 6 targets + debug dumps, corpus
@@ -250,3 +256,10 @@ indices/slices); pointer subtraction on `[*]T` works; tmph needs
 > Commit each stage ("stage 5x: ..."). Every 10-15 min: update HANDOFF.md
 > (required), run `sh /data/backup.sh`, download qbe-zig-backup-N.tar.gz.
 > Continue with "Next steps" above. Output must stay byte-identical to C QBE.
+
+## Backups (since backup 34): GitHub, not tarballs
+`sh /data/backup.sh` refuses if HANDOFF.md is >20 min old, stamps the
+Updated line, commits "wip: periodic backup N", and pushes HEAD to
+github.com/0x6432/zbe (main). The token lives in /data/.gh_token (chmod 600,
+never committed). A copy of backup.sh is kept in tools/backup.sh.
+Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.

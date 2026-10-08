@@ -1491,9 +1491,9 @@ pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*:0]const 
                 while (n < ntyp) : (n += 1) {
                     efree(@ptrCast(all.typ[n].name));
                     if (all.typ[n].nunion != 0)
-                        vfree(@ptrCast(all.typ[n].fields));
+                        vfree(all.typ[n].fields);
                 }
-                vfree(@ptrCast(all.typ));
+                vfree(all.typ);
                 return;
             },
             else => err("top-level definition expected", .{}),

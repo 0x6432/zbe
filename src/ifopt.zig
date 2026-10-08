@@ -101,7 +101,7 @@ fn convert(ifb: *Blk, thenb: *Blk, elseb: *Blk, joinb: *Blk) void {
     joinb.npred = 1;
     joinb.pred[0] = ifb;
     joinb.phi = null;
-    vfree(@ptrCast(ins));
+    vfree(ins);
 }
 
 /// eliminate if-then[-else] graphlets

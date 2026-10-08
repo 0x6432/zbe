@@ -537,8 +537,8 @@ pub fn loadopt(f: *Fn) void {
         }
         idup(b, ib, nt);
     }
-    vfree(@ptrCast(ib));
-    vfree(@ptrCast(ilog));
+    vfree(ib);
+    vfree(ilog);
     if (all.debug['M'] != 0) {
         dprint("\n> After load elimination:\n", .{});
         printfn(f, all.dbg) catch {};

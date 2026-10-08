@@ -82,10 +82,10 @@ const uint = all.uint;
 const ulong = all.ulong;
 // -- end imports --
 
+/// header stored just before the elements of every vector
 const Vec = extern struct {
     mag: ulong align(16),
     pool: Pool,
-    esz: usize,
     cap: ulong,
 };
 
@@ -320,42 +320,61 @@ pub fn freeall() void {
     _ = pool.reset(.retain_capacity);
 }
 
-pub fn vnew(len: ulong, esz: usize, pl: Pool) ?*anyopaque {
+/// element type of a vector pointer type ([*]T, [*:0]T or ?[*]T)
+fn VElem(comptime P: type) type {
+    return switch (@typeInfo(P)) {
+        .optional => |o| VElem(o.child),
+        .pointer => |ptr| blk: {
+            if (ptr.size != .many) @compileError("vector must be a many-pointer");
+            break :blk ptr.child;
+        },
+        else => @compileError("vector must be a many-pointer"),
+    };
+}
+
+fn vhdr(p: anytype) *Vec {
+    const v: [*]Vec = @ptrCast(@alignCast(@constCast(p)));
+    const h = &(v - 1)[0];
+    assert(h.mag == VMag);
+    return h;
+}
+
+/// new growable array of at least len T's in pool pl (C: vnew)
+pub fn vnewT(comptime T: type, len: anytype, pl: Pool) [*]T {
     var cap: ulong = VMin;
     while (cap < len) cap *= 2;
     const f = if (pl == PHeap) &emalloc else &alloc;
-    const v: [*]Vec = @ptrCast(@alignCast(f(cap * esz + @sizeOf(Vec))));
-    v[0].mag = VMag;
-    v[0].cap = cap;
-    v[0].esz = esz;
-    v[0].pool = pl;
-    return @ptrCast(v + 1);
+    const v: [*]Vec = @ptrCast(@alignCast(f(cap * @sizeOf(T) + @sizeOf(Vec))));
+    v[0] = .{ .mag = VMag, .pool = pl, .cap = cap };
+    return @ptrCast(@alignCast(v + 1));
 }
 
-/// typed convenience wrapper: (T *)vnew(len, sizeof(T), pool)
-pub inline fn vnewT(comptime T: type, len: anytype, pl: Pool) [*]T {
-    return @ptrCast(@alignCast(vnew(@intCast(len), @sizeOf(T), pl)));
+/// capacity of vector p
+pub fn vcap(p: anytype) ulong {
+    return vhdr(p).cap;
 }
 
-pub fn vfree(p: ?*anyopaque) void {
-    const v: [*]Vec = @as([*]Vec, @ptrCast(@alignCast(p))) - 1;
-    assert(v[0].mag == VMag);
-    if (v[0].pool == PHeap) {
-        v[0].mag = 0;
-        efree(@ptrCast(v));
+/// release vector p (no-op for function-pool vectors)
+pub fn vfree(p: anytype) void {
+    const h = vhdr(p);
+    if (h.pool == PHeap) {
+        h.mag = 0;
+        efree(@ptrCast(h));
     }
 }
 
+/// make *vp hold at least len elements, preserving contents
 pub fn vgrow(vp: anytype, len: anytype) void {
-    const v: [*]Vec = @as([*]Vec, @ptrCast(@alignCast(vp.*))) - 1;
-    assert(v[0].mag == VMag);
-    if (v[0].cap >= len)
+    const T = VElem(@TypeOf(vp.*));
+    const old = vp.*;
+    const h = vhdr(old);
+    if (h.cap >= len)
         return;
-    const v1 = vnew(@intCast(len), v[0].esz, v[0].pool);
-    const n = v[0].cap * v[0].esz;
-    if (n != 0) @memcpy(@as([*]u8, @ptrCast(v1))[0..n], @as([*]const u8, @ptrCast(v + 1))[0..n]);
-    vfree(@ptrCast(v + 1));
-    vp.* = @ptrCast(@alignCast(v1));
+    const n = vnewT(T, len, h.pool);
+    const src: [*]const T = @ptrCast(old);
+    @memcpy(n[0..h.cap], src[0..h.cap]);
+    vfree(old);
+    vp.* = @ptrCast(n);
 }
 
 pub fn addins(pvins: *[*]Ins, pnins: *uint, i: *Ins) void {

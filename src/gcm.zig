@@ -322,7 +322,7 @@ fn schedblk(f: *Fn) void {
             n = schedins(f, b, n, &vins, &nins);
         idup(b, vins, nins);
     }
-    vfree(@ptrCast(vins));
+    vfree(vins);
 }
 
 fn cheap(i: *Ins) bool {

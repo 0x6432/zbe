@@ -368,7 +368,7 @@ pub fn coalesce(f: *Fn) void {
         for (sl) |*s| {
             total +%= @bitCast(s.sz);
             if (s.r.b == 0) {
-                vfree(@ptrCast(s.st));
+                vfree(s.st);
                 nstk += 1;
                 vgrow(&stk, nstk);
                 stk[nstk - 1] = s.t;
@@ -423,7 +423,7 @@ pub fn coalesce(f: *Fn) void {
             }
         }
     }
-    vfree(@ptrCast(stk));
+    vfree(stk);
 
     // fuse slots by decreasing size
     std.sort.block(Slot, sl, {}, scmpLess);
@@ -504,7 +504,7 @@ pub fn coalesce(f: *Fn) void {
                         }
                     };
     }
-    vfree(@ptrCast(bl));
+    vfree(bl);
 
     if (all.debug['M'] != 0) {
         for (sl, 0..) |*s0, n| {
@@ -527,6 +527,6 @@ pub fn coalesce(f: *Fn) void {
     }
 
     for (sl) |*s|
-        vfree(@ptrCast(s.st));
-    vfree(@ptrCast(slv));
+        vfree(s.st);
+    vfree(slv);
 }

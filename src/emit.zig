@@ -31,14 +31,14 @@ const SecText = 0;
 const SecData = 1;
 const SecBss = 2;
 
-const lnk_sec = [2][3][*c]const u8{
+const lnk_sec = [2][3][*:0]const u8{
     .{ ".text", ".data", ".bss" },
     .{ ".abort \"unreachable\"", ".section .tdata,\"awT\"", ".section .tbss,\"awT\"" },
 };
 
 pub fn emitlnk(n: [*c]u8, l: *Lnk, s: i32, f: *Writer) Writer.Error!void {
-    const pfx: [*c]const u8 = if (n[0] == '"') "" else &all.T.assym;
-    var sfx: [*c]const u8 = "";
+    const pfx: [*:0]const u8 = if (n[0] == '"') "" else @ptrCast(&all.T.assym);
+    var sfx: [*:0]const u8 = "";
     if (all.T.apple != 0 and l.thread != 0) {
         l.sec = @constCast("__DATA");
         l.secf = @constCast("__thread_data,thread_local_regular");
@@ -66,7 +66,7 @@ pub fn emitfnlnk(n: [*c]u8, l: *Lnk, f: *Writer) Writer.Error!void {
 }
 
 const DatInfo = struct {
-    decl: [*c]const u8,
+    decl: [*:0]const u8,
     mask: i64,
 };
 const di = blk: {
@@ -86,7 +86,7 @@ pub fn emitdat(d: *Dat, f: *Writer) Writer.Error!void {
             if (d.lnk.?.common != 0) {
                 if (emitdat_zero == -1)
                     die("invalid common data definition", .{});
-                const p: [*c]const u8 = if (d.name[0] == '"') "" else &all.T.assym;
+                const p: [*:0]const u8 = if (d.name[0] == '"') "" else @ptrCast(&all.T.assym);
                 try f.print(".comm {s}{s},{d}", .{cs(p), cs(d.name), emitdat_zero});
                 if (d.lnk.?.@"align" != 0)
                     try f.print(",{d}", .{d.lnk.?.@"align"});
@@ -114,7 +114,7 @@ pub fn emitdat(d: *Dat, f: *Writer) Writer.Error!void {
                     err("strings only supported for 'b' currently", .{});
                 try f.print("\t.ascii {s}\n", .{cs(d.u.str)});
             } else if (d.isref != 0) {
-                const p: [*c]const u8 = if (d.u.ref.name[0] == '"') "" else &all.T.assym;
+                const p: [*:0]const u8 = if (d.u.ref.name[0] == '"') "" else @ptrCast(&all.T.assym);
                 try f.print("{s} {s}{s}{d:1}\n", .{cs(di[@intCast(d.type)].decl), cs(p), cs(d.u.ref.name), d.u.ref.off});
             } else {
                 try f.print("{s} {d}\n", .{cs(di[@intCast(d.type)].decl), d.u.num & di[@intCast(d.type)].mask});
@@ -150,7 +150,7 @@ pub fn stashbits(n: bits, size: i32) i32 {
     return i;
 }
 
-fn emitfin(f: *Writer, sec: *const [3][*c]const u8) Writer.Error!void {
+fn emitfin(f: *Writer, sec: *const [3][*:0]const u8) Writer.Error!void {
     if (stash == null)
         return;
     try f.print("/* floating point constants */\n", .{});
@@ -185,7 +185,7 @@ fn emitfin(f: *Writer, sec: *const [3][*c]const u8) Writer.Error!void {
 }
 
 pub fn elf_emitfin(f: *Writer) Writer.Error!void {
-    const sec = [3][*c]const u8{ ".rodata", ".rodata", ".rodata" };
+    const sec = [3][*:0]const u8{ ".rodata", ".rodata", ".rodata" };
 
     try emitfin(f, &sec);
     try f.print(".section .note.GNU-stack,\"\",@progbits\n", .{});
@@ -197,7 +197,7 @@ pub fn elf_emitfnfin(fname: [*c]u8, f: *Writer) Writer.Error!void {
 }
 
 pub fn macho_emitfin(f: *Writer) Writer.Error!void {
-    const sec = [3][*c]const u8{
+    const sec = [3][*:0]const u8{
         "__TEXT,__literal4,4byte_literals",
         "__TEXT,__literal8,8byte_literals",
         "__TEXT,__literal16,16byte_literals",
@@ -207,7 +207,7 @@ pub fn macho_emitfin(f: *Writer) Writer.Error!void {
 }
 
 pub fn pe_emitfin(f: *Writer) Writer.Error!void {
-    const sec = [3][*c]const u8{ ".rodata", ".rodata", ".rodata" };
+    const sec = [3][*:0]const u8{ ".rodata", ".rodata", ".rodata" };
 
     try emitfin(f, &sec);
 }

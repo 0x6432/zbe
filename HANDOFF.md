@@ -42,9 +42,16 @@ live, spill, rega, emit, amd64/*, arm64/*, rv64/*, main.zig, build.zig.
   76 tests for amd64_sysv, amd64_apple, amd64_win, arm64, arm64_apple, rv64.
 x86_64 va_list: pass by pointer (libc.VaListArg).
 
+External testing (done, all passing with zig qbe):
+- cproc (/data/cproc): `make bootstrap` with zig qbe as `qbe` in PATH
+  (/data/zbin/qbe symlink): stage2 == stage3; `make check-stage2` 196/196.
+- harec (/data/harec): `make check` 39/39 with zig qbe.
+- tools/corpus.sh over /data/corpus (cproc test .qbe, IL of cproc + qbe C
+  sources, harec .ssa): 0 diffs vs C qbe across all 6 targets.
+- tools/mkcorpus.sh regenerates all of this after a sandbox reset.
+
 ## Next steps
-1. Execution tests for arm64/rv64 if qemu + cross cc available.
-2. Hare / cproc test suites (diff Zig qbe vs C qbe output on their .ssa
-   output), abifuzz, own tests in test/ or tests/.
+1. Optional: hare stdlib (`hare` repo) make check with zig qbe.
+2. Own tests: tests in test/ (e.g. edge cases); abifuzz (qbe-c/tools/abifuzz.sh).
 3. Canonical Zig rewrite (slices, optionals, enums, std.Io.Writer, no libc),
-   keep tools/cmp.sh passing for all targets after each step.
+   keep tools/cmp.sh + tools/corpus.sh passing after each step.

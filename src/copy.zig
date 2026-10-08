@@ -136,30 +136,29 @@ fn uwl(f: *Fn, r: Ref, w: i32) bool {
                 // uses are added to the
                 // replacement temp uses and
                 // Phi.to is set to R
-                if (p.*.visit != 0 or req(p.*.to, R))
+                if (p.visit != 0 or req(p.to, R))
                     continue;
-                p.*.visit = 1;
-                if (uwl(f, p.*.to, w))
+                p.visit = 1;
+                if (uwl(f, p.to, w))
                     continue;
             },
             UIns => {
                 const i = u.u.ins;
-                assert(i != null);
-                if (i.*.op == Ocopy)
-                    if (uwl(f, i.*.to, w))
+                if (i.op == Ocopy)
+                    if (uwl(f, i.to, w))
                         continue;
                 if (ext(i, &e)) {
                     if (e.usew <= w)
                         continue;
-                    if (uwl(f, i.*.to, w))
+                    if (uwl(f, i.to, w))
                         continue;
                 }
-                if (i.*.op == Oand) {
-                    if (req(r, i.*.arg[0]))
-                        rc = i.*.arg[1]
+                if (i.op == Oand) {
+                    if (req(r, i.arg[0]))
+                        rc = i.arg[1]
                     else {
-                        assert(req(r, i.*.arg[1]));
-                        rc = i.*.arg[0];
+                        assert(req(r, i.arg[1]));
+                        rc = i.arg[0];
                     }
                     if (isconbits(f, rc, &v) and bitwidth(@bitCast(v)) <= w)
                         continue;
@@ -214,7 +213,7 @@ fn dwl(f: *Fn, r: Ref, w_: i32) bool {
         return true;
     }
 
-    const i = t.def;
+    const i: [*c]Ins = t.def;
     if (i.*.op == Ocopy)
         return dwl(f, i.*.arg[0], w);
     if (i.*.op == Oshr or i.*.op == Osar) {
@@ -385,7 +384,7 @@ pub fn copyref(f: *Fn, b: *Blk, i: [*c]Ins) Ref {
         // inserted in the start block; their
         // point is to make further extensions
         // redundant
-        if ((t.def == null or !ispar(t.def.*.op)) and usewidthle(f, i.*.to, e.usew))
+        if ((t.def == null or !ispar(t.def.?.op)) and usewidthle(f, i.*.to, e.usew))
             return i.*.arg[0];
 
         if (defwidthle(f, i.*.arg[0], e.nopw))

@@ -111,8 +111,7 @@ fn replaceuse(f: *Fn, u: *Use, r1: Ref, r2: Ref) void {
     switch (u.type) {
         UPhi => {
             const p = u.u.phi;
-            var pr = p.*.arg;
-            while (pr < &p.*.arg[p.*.narg]) : (pr += 1)
+            for (p.arg[0..p.narg]) |*pr|
                 if (req(pr.*, r1)) {
                     pr.* = r2;
                 };
@@ -123,8 +122,8 @@ fn replaceuse(f: *Fn, u: *Use, r1: Ref, r2: Ref) void {
             const i = u.u.ins;
             var n: usize = 0;
             while (n < 2) : (n += 1)
-                if (req(i.*.arg[n], r1)) {
-                    i.*.arg[n] = r2;
+                if (req(i.arg[n], r1)) {
+                    i.arg[n] = r2;
                 };
             if (t2 != null)
                 adduse(t2, UIns, b, @ptrCast(i));
@@ -213,7 +212,7 @@ fn assoccon(f: *Fn, b: *Blk, i_1: [*c]Ins) void {
     const t2 = &f.tmp[i_1.*.arg[0].val];
     if (t2.def == null)
         return;
-    const i_2 = t2.def;
+    const i_2: [*c]Ins = t2.def;
 
     if (op != (if (i_2.*.op == Osub) Oadd else i_2.*.op) or rtype(i_2.*.arg[1]) != RCon)
         return;
@@ -279,7 +278,7 @@ fn dedupins(f: *Fn, b: *Blk, i: [*c]Ins) void {
 pub fn cmpeqz(f: *Fn, r: Ref, arg: *Ref, cls: *i32, eqval: *i32) bool {
     if (rtype(r) != RTmp)
         return false;
-    const i = f.tmp[r.val].def;
+    const i: [*c]Ins = f.tmp[r.val].def;
     if (i != null)
         if (all.optab[i.*.op].cmpeqwl != 0)
             if (req(i.*.arg[1], CON_Z)) {
@@ -337,18 +336,18 @@ fn usecls(u: *Use, r: Ref, cls: i32) i32 {
     switch (u.type) {
         UIns => {
             var k: i32 = Kx; // widest use
-            if (req(u.u.ins.*.arg[0], r))
+            if (req(u.u.ins.arg[0], r))
                 k = argcls(u.u.ins, 0);
-            if (req(u.u.ins.*.arg[1], r))
+            if (req(u.u.ins.arg[1], r))
                 if (k == Kx or KWIDE(k) == 0) {
                     k = argcls(u.u.ins, 1);
                 };
             return if (k == Kx) cls else k;
         },
         UPhi => {
-            if (req(u.u.phi.*.to, R))
+            if (req(u.u.phi.to, R))
                 return cls; // eliminated
-            return u.u.phi.*.cls;
+            return u.u.phi.cls;
         },
         UJmp => return Kw,
         else => {},

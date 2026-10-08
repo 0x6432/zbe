@@ -47,7 +47,7 @@ pub const Tmp0 = NBit; // first non-reg temporary
 
 pub const BSet = extern struct {
     nt: uint,
-    t: [*c]bits,
+    t: [*]bits,
 };
 
 pub const Ref = packed struct(u32) {
@@ -264,7 +264,7 @@ pub const Phi = extern struct {
     cls: i16,
     visit: i32,
     narg: uint,
-    arg: [*c]Ref,
+    arg: [*]Ref,
     blk: [*]*Blk,
     link: ?*Phi,
 };
@@ -310,8 +310,8 @@ pub const Use = extern struct {
     type: i32,
     bid: uint,
     u: extern union {
-        ins: [*c]Ins,
-        phi: [*c]Phi,
+        ins: *Ins,
+        phi: *Phi,
     },
 };
 
@@ -358,7 +358,7 @@ pub const Alias = extern struct {
             m: bits,
         },
     },
-    slot: [*c]Alias,
+    slot: ?*Alias,
 };
 
 pub const WFull = 0;
@@ -371,7 +371,7 @@ pub const Wuw = 6;
 
 pub const Tmp = extern struct {
     name: [*c]u8,
-    def: [*c]Ins,
+    def: ?*Ins,
     use: [*c]Use,
     ndef: uint,
     nuse: uint,
@@ -467,7 +467,7 @@ pub const Typ = extern struct {
     @"align": i32,
     size: u64,
     nunion: uint,
-    fields: [*c][NField + 1]Field,
+    fields: [*][NField + 1]Field,
 };
 
 pub const DStart = 0;

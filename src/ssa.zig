@@ -454,7 +454,7 @@ pub fn ssacheck(f: *Fn) void {
                     } else {
                         if (bu == b) {
                             if (u.type == UIns)
-                                if (u.u.ins <= i)
+                                if (@intFromPtr(u.u.ins) <= @intFromPtr(i))
                                     break :errblk;
                         } else if (!sdom(b, bu))
                             break :errblk;

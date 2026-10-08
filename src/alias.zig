@@ -52,7 +52,7 @@ pub fn getalias(a: *Alias, r: Ref, f: *Fn) void {
         RTmp => {
             a.* = f.tmp[r.val].alias;
             if (astack(a.type) != 0)
-                a.type = a.slot.*.type;
+                a.type = a.slot.?.type;
             assert(a.type != ABot);
         },
         RCon => {
@@ -125,7 +125,7 @@ pub fn escapes(r: Ref, f: *Fn) bool {
     if (rtype(r) != RTmp)
         return true;
     const a = &f.tmp[r.val].alias;
-    return astack(a.type) == 0 or a.slot.*.type == AEsc;
+    return astack(a.type) == 0 or a.slot.?.type == AEsc;
 }
 
 fn esc(r: Ref, f: *Fn) void {
@@ -133,7 +133,7 @@ fn esc(r: Ref, f: *Fn) void {
     if (rtype(r) == RTmp) {
         const a = &f.tmp[r.val].alias;
         if (astack(a.type) != 0)
-            a.slot.*.type = AEsc;
+            a.slot.?.type = AEsc;
     }
 }
 
@@ -149,7 +149,7 @@ fn store(r: Ref, sz: i32, f: *Fn) void {
                 m = @bitCast(@as(i64, -1))
             else
                 m = (BIT(sz) -% 1) << @intCast(off);
-            a.slot.*.u.loc.m |= m;
+            a.slot.?.u.loc.m |= m;
         }
     }
 }

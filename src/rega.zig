@@ -308,7 +308,7 @@ fn regcpy(i: [*c]Ins) bool {
 
 fn dopm(b: [*c]Blk, i_: [*c]Ins, m: *RMap) [*c]Ins {
     var m0 = m.*; // okay since we don't use m0.b
-    m0.b.t = null;
+    m0.b.t = undefined;
     var i = i_ + 1;
     const i_1 = i;
     while (true) {

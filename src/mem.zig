@@ -488,15 +488,15 @@ pub fn coalesce(f: *Fn) void {
         assert(t.*.ndef == 1 and t.*.def != null);
         if (s.*.s == s)
             continue;
-        t.*.def.* = INS0(Onop);
+        t.*.def.?.* = INS0(Onop);
         const ts = &f.tmp[@intCast(s.*.s.*.t)];
         assert(t.*.bid == ts.bid);
-        if (t.*.def < ts.def) {
+        if (@intFromPtr(t.*.def) < @intFromPtr(ts.def)) {
             // make sure the slot we
             // selected has a def that
             // dominates its new uses
-            t.*.def.* = ts.def.*;
-            ts.def.* = INS0(Onop);
+            t.*.def.?.* = ts.def.?.*;
+            ts.def.?.* = INS0(Onop);
             ts.def = t.*.def;
         }
         for (t.*.use[0..t.*.nuse]) |*u| {
@@ -506,7 +506,7 @@ pub fn coalesce(f: *Fn) void {
                 continue;
             }
             assert(u.type == UIns);
-            arg = &u.u.ins.*.arg;
+            arg = &u.u.ins.arg;
             n = 0;
             while (n < 2) : (n += 1) {
                 if (req(arg[@intCast(n)], TMP(s.*.t)))

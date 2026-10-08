@@ -277,7 +277,7 @@ fn gcmmove(f: *Fn) void {
             continue;
         if (t.bid == t.gcmbid)
             continue;
-        const i = t.def;
+        const i: [*c]Ins = t.def;
         if (pinned(i) and !canelim(i))
             continue;
         assert(rtype(i.*.to) == RTmp);
@@ -350,7 +350,7 @@ fn sinkref(f: *Fn, b: *Blk, pr: *Ref) void {
         return;
 
     // sink t->def to b
-    var i = t.def.*;
+    var i = t.def.?.*;
     const r = newtmp("snk", t.cls, f);
     // t invalidated
     pr.* = r;

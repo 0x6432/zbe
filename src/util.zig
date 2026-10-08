@@ -89,9 +89,9 @@ const Vec = extern struct {
     cap: ulong,
 };
 
-const Bucket = extern struct {
+const Bucket = struct {
     nstr: uint,
-    str: [*c][*c]u8,
+    str: [*][*:0]u8, // vector, valid once nstr > 0
 };
 
 const VMin = 2;
@@ -110,7 +110,7 @@ const Hdr = extern struct {
     size: usize align(16),
 };
 
-var itbl: [IMask + 1]Bucket = @splat(.{ .nstr = 0, .str = null }); // string interning table
+var itbl: [IMask + 1]Bucket = @splat(.{ .nstr = 0, .str = undefined }); // string interning table
 
 /// helper for C pointer subtraction (p - q)
 pub inline fn ptrdiff(p: anytype, q: @TypeOf(p)) isize {
@@ -118,11 +118,10 @@ pub inline fn ptrdiff(p: anytype, q: @TypeOf(p)) isize {
     return @divExact(@as(isize, @bitCast(@intFromPtr(p) -% @intFromPtr(q))), @sizeOf(T));
 }
 
-pub fn hash(s0: [*c]const u8) u32 {
-    var s = s0;
+pub fn hash(s: [*:0]const u8) u32 {
     var h: u32 = 0;
-    while (s.* != 0) : (s += 1)
-        h = @as(u32, s.*) +% 17 *% h;
+    for (std.mem.span(s)) |c|
+        h = @as(u32, c) +% 17 *% h;
     return h;
 }
 
@@ -373,15 +372,15 @@ pub fn addbins(pvins: *[*]Ins, pnins: *uint, b: *Blk) void {
 }
 
 /// allocate a NUL-terminated formatted string in pool pl
-pub fn strf(pl: Pool, comptime fmt: []const u8, args: anytype) [*c]u8 {
+pub fn strf(pl: Pool, comptime fmt: []const u8, args: anytype) [*:0]u8 {
     const n = std.fmt.count(fmt, args);
-    const p: [*c]u8 = @ptrCast((if (pl == PFn) &alloc else &emalloc)(@intCast(n + 1)));
+    const p: [*]u8 = @ptrCast((if (pl == PFn) &alloc else &emalloc)(@intCast(n + 1)));
     _ = std.fmt.bufPrint(p[0..n], fmt, args) catch unreachable;
     p[n] = 0;
-    return p;
+    return p[0..n :0];
 }
 
-pub fn intern(s: [*c]const u8) u32 {
+pub fn intern(s: [*:0]const u8) u32 {
     const h = hash(s) & IMask;
     const b = &itbl[h];
     const n = b.nstr;
@@ -394,18 +393,20 @@ pub fn intern(s: [*c]const u8) u32 {
     if (n == 1 << (32 - IBits))
         die("interning table overflow", .{});
     if (n == 0)
-        b.str = vnewT([*c]u8, 1, PHeap)
+        b.str = vnewT([*:0]u8, 1, PHeap)
     else if ((n & (n -% 1)) == 0)
         vgrow(&b.str, n + n);
 
-    const ss = cs(s);
-    b.str[n] = @ptrCast(emalloc(ss.len + 1));
+    const ss = std.mem.span(s);
+    const d: [*]u8 = @ptrCast(emalloc(ss.len + 1));
+    @memcpy(d[0..ss.len], ss);
+    d[ss.len] = 0;
+    b.str[n] = d[0..ss.len :0];
     b.nstr = n + 1;
-    @memcpy(b.str[n][0..ss.len], ss);
     return h + (n << IBits);
 }
 
-pub fn str(id: u32) [*c]u8 {
+pub fn str(id: u32) [*:0]u8 {
     assert(id >> IBits < itbl[id & IMask].nstr);
     return itbl[id & IMask].str[id >> IBits];
 }
@@ -594,7 +595,7 @@ pub fn phiarg(p: *Phi, b: *Blk) Ref {
 }
 
 var newtmp_n: i32 = 0;
-pub fn newtmp(prfx: [*c]const u8, k: anytype, f: *Fn) Ref {
+pub fn newtmp(prfx: ?[*:0]const u8, k: anytype, f: *Fn) Ref {
     const t: usize = @intCast(f.ntmp);
     f.ntmp += 1;
     vgrow(&f.tmp, f.ntmp);

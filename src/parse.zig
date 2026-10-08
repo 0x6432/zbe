@@ -636,7 +636,7 @@ fn tmpref() Ref {
         tmph = ealloc(i32, tmphcap);
         t = Tmp0;
         while (t < curf.ntmp) : (t += 1) {
-            i = @bitCast(hash(curf.tmp[@intCast(t)].name) & @as(u32, @intCast(tmphcap - 1)));
+            i = @bitCast(hash(curf.tmp[@intCast(t)].name.?) & @as(u32, @intCast(tmphcap - 1)));
             while (tmph[@intCast(i)] != 0) : (i = (i + 1) & (tmphcap - 1)) {}
             tmph[@intCast(i)] = t;
         }

@@ -183,7 +183,7 @@ fn fixarg(pr: *Ref, k: i32, phi: bool, f: *Fn) void {
                 bufPrintZ(&buf, "\"{s}fp{d}\"", .{cs(&all.T.asloc), n});
                 c.* = std.mem.zeroes(Con);
                 c.type = CAddr;
-                c.sym.id = intern(&buf);
+                c.sym.id = intern(@ptrCast(&buf));
                 r2 = newtmp("isel", Kl, f);
                 emit(Oload, k, r1, r2, R);
                 emit(Ocopy, Kl, r2, CON(ci), R);

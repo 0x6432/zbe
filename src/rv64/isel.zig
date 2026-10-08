@@ -127,7 +127,7 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
                 bufPrintZ(&buf, "\"{s}fp{d}\"", .{cs(&all.T.asloc), n});
                 c.* = std.mem.zeroes(Con);
                 c.type = CAddr;
-                c.sym.id = intern(&buf);
+                c.sym.id = intern(@ptrCast(&buf));
                 emit(Oload, k, r1, CON(ci), R);
                 break :blk;
             }

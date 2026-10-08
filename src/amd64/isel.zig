@@ -224,7 +224,7 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
         // add symbol prefixes on the apple
         // target variant
         bufPrintZ(&buf, "\"{s}fp{d}\"", .{cs(&all.T.asloc), n});
-        a.offset.sym.id = intern(&buf);
+        a.offset.sym.id = intern(@ptrCast(&buf));
         f.mem[@intCast(f.nmem - 1)] = a;
     } else if (op == Ocall and r == &i.?.arg[0] and
         rtype(r0) == RCon and f.con[r0.val].type != CAddr)

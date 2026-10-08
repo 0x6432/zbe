@@ -209,7 +209,7 @@ const Ka = -2; // matches all classes
 const OMap = struct {
     op: i16,
     cls: i16,
-    fmt: [*c]const u8,
+    fmt: ?[*:0]const u8,
 };
 const omap = blk: {
     const base = [_]OMap{
@@ -278,21 +278,21 @@ const omap = blk: {
 };
 
 const cmov = blk: {
-    var t: [NCmp][2][*c]const u8 = @splat(.{ "", "" });
+    var t: [NCmp][2][*:0]const u8 = @splat(.{ "", "" });
     for (CMP) |x|
         t[x.c] = .{ "cmov" ++ x.s0 ++ " %0, %=", "cmov" ++ x.s1 ++ " %1, %=" };
     break :blk t;
 };
 
 const ctoa = blk: {
-    var t: [NCmp][2][*c]const u8 = @splat(.{ null, null });
+    var t: [NCmp][2]?[*:0]const u8 = @splat(.{ null, null });
     for (CMP) |x|
         t[x.c] = .{ x.s0 ++ "", x.s1 ++ "" };
     break :blk t;
 };
 
 const rname = blk: {
-    var t: [XMM0][4][*c]const u8 = @splat(.{ null, null, null, null });
+    var t: [XMM0][4]?[*:0]const u8 = @splat(.{ null, null, null, null });
     t[RAX] = .{ "rax", "eax", "ax", "al" };
     t[RBX] = .{ "rbx", "ebx", "bx", "bl" };
     t[RCX] = .{ "rcx", "ecx", "cx", "cl" };
@@ -335,7 +335,7 @@ fn emitcon(con: *Con, e: *E) Writer.Error!void {
     switch (con.type) {
         CAddr => {
             const l = str(con.sym.id);
-            const p: [*c]const u8 = if (l[0] == '"') "" else &all.T.assym;
+            const p: [*:0]const u8 = if (l[0] == '"') "" else @ptrCast(&all.T.assym);
             if (con.sym.type == SThr) {
                 assert(all.T.apple == 0);
                 try e.f.print("%fs:{s}{s}@tpoff", .{cs(p), cs(l)});
@@ -353,11 +353,11 @@ fn emitcon(con: *Con, e: *E) Writer.Error!void {
 
 var regtoa_buf: [6]u8 = undefined;
 
-fn regtoa(reg: i32, sz: i32) [*c]const u8 {
+fn regtoa(reg: i32, sz: i32) ?[*:0]const u8 {
     assert(reg <= XMM15);
     if (reg >= XMM0) {
         bufPrintZ(&regtoa_buf, "xmm{d}", .{reg - XMM0});
-        return &regtoa_buf;
+        return @ptrCast(&regtoa_buf);
     } else return rname[@intCast(reg)][@intCast(sz)];
 }
 
@@ -380,7 +380,7 @@ fn emitcopy(r1: Ref, r2: Ref, k: i32, e: *E) Writer.Error!void {
     try emitins(icp, e);
 }
 
-const clstoa = [_][*c]const u8{ "l", "q", "ss", "sd" };
+const clstoa = [_][*:0]const u8{ "l", "q", "ss", "sd" };
 
 fn emitmem(ref: Ref, e: *E) Writer.Error!void {
     var off: Con = undefined;
@@ -403,14 +403,14 @@ fn emitmem(ref: Ref, e: *E) Writer.Error!void {
     try e.f.writeByte(')');
 }
 
-fn emitf(s_: [*c]const u8, i: *Ins, e: *E) Writer.Error!void {
+fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
     var s = s_;
     var c: u8 = undefined;
     var sz: i32 = undefined;
 
-    switch (s.*) {
+    switch (s[0]) {
         '+', '-' => {
-            if (s.* == '+') {
+            if (s[0] == '+') {
                 if (req(i.arg[1], i.to)) {
                     const ref = i.arg[0];
                     i.arg[0] = i.arg[1];
@@ -428,7 +428,7 @@ fn emitf(s_: [*c]const u8, i: *Ins, e: *E) Writer.Error!void {
     try e.f.writeByte('\t');
     while (true) { // Next:
         while (true) {
-            c = s.*;
+            c = s[0];
             s += 1;
             if (c == '%') break;
             if (c == 0) {
@@ -436,7 +436,7 @@ fn emitf(s_: [*c]const u8, i: *Ins, e: *E) Writer.Error!void {
                 return;
             } else try e.f.writeByte(c);
         }
-        c = s.*;
+        c = s[0];
         s += 1;
         var doref = false;
         switch (c) {
@@ -468,7 +468,7 @@ fn emitf(s_: [*c]const u8, i: *Ins, e: *E) Writer.Error!void {
                 doref = true;
             },
             'M' => {
-                c = s.*;
+                c = s[0];
                 s += 1;
                 const ref = getarg(c, i);
                 switch (rtype(ref)) {
@@ -490,7 +490,7 @@ fn emitf(s_: [*c]const u8, i: *Ins, e: *E) Writer.Error!void {
             else => die("invalid format specifier %{c}", .{c}),
         }
         if (doref) { // Ref:
-            c = s.*;
+            c = s[0];
             s += 1;
             const ref = getarg(c, i);
             switch (rtype(ref)) {
@@ -533,7 +533,7 @@ fn emittable(i: *Ins, e: *E) Writer.Error!void {
                 (omap[o].cls == Ka))
                 break;
     }
-    try emitf(omap[o].fmt, i, e);
+    try emitf(omap[o].fmt.?, i, e);
 }
 
 fn emitins(i_: Ins, e: *E) Writer.Error!void {
@@ -660,7 +660,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             const con = &e.@"fn".con[i.arg[0].val];
             assert(isreg(i.to) and con.type == CAddr);
             const sym = str(con.sym.id);
-            const pfx: [*c]const u8 = if (sym[0] == '"') "" else &all.T.assym;
+            const pfx: [*:0]const u8 = if (sym[0] == '"') "" else @ptrCast(&all.T.assym);
             if (all.T.apple != 0 and (con.sym.type & SThr) != 0) {
                 try e.f.print("\tmovq {s}{s}@tlvp(%rip), %{s}\n", .{cs(pfx), cs(sym), cs(regtoa(@intCast(i.to.val), SLong))});
                 return;

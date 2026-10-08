@@ -400,14 +400,10 @@ pub fn ssa(f: *Fn) void {
     }
 }
 
-fn phicheck(p: *Phi, b: ?*Blk, t: Ref) bool {
-    var n: uint = 0;
-    while (n < p.narg) : (n += 1)
-        if (req(p.arg[n], t)) {
-            const b1 = p.blk[n];
-            if (b1 != b and !sdom(b, b1))
-                return true;
-        };
+fn phicheck(p: *Phi, b: *Blk, t: Ref) bool {
+    for (p.arg[0..p.narg], p.blk[0..p.narg]) |a, b1|
+        if (req(a, t) and b1 != b and !sdom(b, b1))
+            return true;
     return false;
 }
 
@@ -438,7 +434,7 @@ pub fn ssacheck(f: *Fn) void {
                     if (u.type == UPhi) {
                         if (phicheck(u.u.phi, b, r))
                             break :errblk;
-                    } else if (bu != b and !sdom(b, bu))
+                    } else if (bu != b and !sdom(b, bu.?))
                         break :errblk;
                 }
             }
@@ -457,7 +453,7 @@ pub fn ssacheck(f: *Fn) void {
                             if (u.type == UIns)
                                 if (@intFromPtr(u.u.ins) <= @intFromPtr(i))
                                     break :errblk;
-                        } else if (!sdom(b, bu))
+                        } else if (!sdom(b, bu.?))
                             break :errblk;
                     }
                 }

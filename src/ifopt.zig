@@ -59,7 +59,7 @@ fn okjoin(b: *Blk) bool {
     return n <= MaxPhis;
 }
 
-fn okgraph(ifb: [*c]Blk, thenb: [*c]Blk, elseb: [*c]Blk, joinb: *Blk) bool {
+fn okgraph(ifb: *Blk, thenb: *Blk, elseb: *Blk, joinb: *Blk) bool {
     if (joinb.npred != 2 or !okjoin(joinb))
         return false;
     assert(thenb != elseb);
@@ -70,7 +70,7 @@ fn okgraph(ifb: [*c]Blk, thenb: [*c]Blk, elseb: [*c]Blk, joinb: *Blk) bool {
     return true;
 }
 
-fn convert(ifb: [*c]Blk, thenb: [*c]Blk, elseb: [*c]Blk, joinb: *Blk) void {
+fn convert(ifb: *Blk, thenb: *Blk, elseb: *Blk, joinb: *Blk) void {
     var ins = vnewT(Ins, 0, PHeap);
     var nins: uint = 0;
     addbins(&ins, &nins, ifb);
@@ -108,9 +108,9 @@ fn convert(ifb: [*c]Blk, thenb: [*c]Blk, elseb: [*c]Blk, joinb: *Blk) void {
 /// using sel instructions
 /// needs rpo pred use; breaks cfg use
 pub fn ifconvert(f: *Fn) void {
-    var thenb: [*c]Blk = undefined;
-    var elseb: [*c]Blk = undefined;
-    var joinb: [*c]Blk = undefined;
+    var thenb: *Blk = undefined;
+    var elseb: *Blk = undefined;
+    var joinb: *Blk = undefined;
 
     if (all.debug['K'] != 0)
         dprint("\n> If-conversion:\n", .{});

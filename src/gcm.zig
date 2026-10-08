@@ -134,7 +134,7 @@ fn lcabid(f: *Fn, bid1: uint, bid2: uint) uint {
 
     const b = lca(f.rpo[bid1], f.rpo[bid2]);
     assert(b != null);
-    return b.*.id;
+    return b.?.id;
 }
 
 fn bestbid(f: *Fn, earlybid: uint, latebid: uint) uint {

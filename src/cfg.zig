@@ -82,39 +82,37 @@ pub fn fillpreds(f: *Fn) void {
     }
 }
 
-fn porec(b: ?*Blk, npo: *uint) void {
-    if (b == null or b.?.id != NOID)
+fn porec(b_: ?*Blk, npo: *uint) void {
+    const b = b_ orelse return;
+    if (b.id != NOID)
         return;
-    b.?.id = 0; // marker
-    var s1: ?*Blk = b.?.s1;
-    var s2: ?*Blk = b.?.s2;
-    if (s1 != null and s2 != null and s1.?.loop > s2.?.loop) {
-        s1 = b.?.s2;
-        s2 = b.?.s1;
-    }
+    b.id = 0; // marker
+    var s1 = b.s1;
+    var s2 = b.s2;
+    if (s1 != null and s2 != null and s1.?.loop > s2.?.loop)
+        std.mem.swap(?*Blk, &s1, &s2);
     porec(s1, npo);
     porec(s2, npo);
-    b.?.id = npo.*;
+    b.id = npo.*;
     npo.* += 1;
 }
 
 fn fillrpo(f: *Fn) void {
-    var b: [*c]Blk = f.start;
-    while (b != null) : (b = b.*.link)
-        b.*.id = NOID;
+    var b_it = f.start;
+    while (b_it) |b| : (b_it = b.link)
+        b.id = NOID;
     f.nblk = 0;
     porec(f.start, &f.nblk);
     vgrow(&f.rpo, f.nblk);
-    var p: [*c][*c]Blk = &f.start;
-    while (true) {
-        b = p.*;
-        if (b == null) break;
-        if (b.*.id == NOID) {
-            p.* = b.*.link;
+    // unlink dead blocks, number live ones in reverse post-order
+    var p: *?*Blk = &f.start;
+    while (p.*) |b| {
+        if (b.id == NOID) {
+            p.* = b.link;
         } else {
-            b.*.id = f.nblk - b.*.id - 1;
-            f.rpo[b.*.id] = b;
-            p = &b.*.link;
+            b.id = f.nblk - b.id - 1;
+            f.rpo[b.id] = b;
+            p = &b.link;
         }
     }
 }
@@ -130,108 +128,89 @@ pub fn fillcfg(f: *Fn) void {
 // "A Simple, Fast Dominance Algorithm"
 // by K. Cooper, T. Harvey, and K. Kennedy.
 
-fn inter(b1_: ?*Blk, b2_: ?*Blk) [*c]Blk {
-    var b1 = b1_;
+fn inter(b1_: ?*Blk, b2_: *Blk) *Blk {
+    var b1 = b1_ orelse return b2_;
     var b2 = b2_;
-    if (b1 == null)
-        return b2;
     while (b1 != b2) {
-        if (b1.?.id < b2.?.id) {
-            const bt = b1;
-            b1 = b2;
-            b2 = bt;
-        }
-        while (b1.?.id > b2.?.id) {
-            b1 = b1.?.idom;
-            assert(b1 != null);
-        }
+        if (b1.id < b2.id)
+            std.mem.swap(*Blk, &b1, &b2);
+        while (b1.id > b2.id)
+            b1 = b1.idom.?;
     }
     return b1;
 }
 
 pub fn filldom(f: *Fn) void {
-    var b: ?*Blk = f.start;
-    var d: ?*Blk = undefined;
-    while (b != null) : (b = b.?.link) {
-        b.?.idom = null;
-        b.?.dom = null;
-        b.?.dlink = null;
+    var b_it = f.start;
+    while (b_it) |b| : (b_it = b.link) {
+        b.idom = null;
+        b.dom = null;
+        b.dlink = null;
     }
     while (true) {
         var ch: i32 = 0;
         var n: uint = 1;
         while (n < f.nblk) : (n += 1) {
-            b = f.rpo[n];
-            d = null;
-            var p: uint = 0;
-            while (p < b.?.npred) : (p += 1)
-                if (b.?.pred[p].idom != null or b.?.pred[p] == f.start) {
-                    d = inter(d, b.?.pred[p]);
+            const b = f.rpo[n];
+            var d: ?*Blk = null;
+            for (b.pred[0..b.npred]) |p|
+                if (p.idom != null or p == f.start) {
+                    d = inter(d, p);
                 };
-            if (d != b.?.idom) {
+            if (d != b.idom) {
                 ch += 1;
-                b.?.idom = d;
+                b.idom = d;
             }
         }
         if (ch == 0) break;
     }
-    b = f.start;
-    while (b != null) : (b = b.?.link) {
-        d = b.?.idom;
-        if (d != null) {
+    b_it = f.start;
+    while (b_it) |b| : (b_it = b.link) {
+        if (b.idom) |d| {
             assert(d != b);
-            b.?.dlink = d.?.dom;
-            d.?.dom = b;
+            b.dlink = d.dom;
+            d.dom = b;
         }
     }
 }
 
-pub fn sdom(b1: ?*Blk, b2_: ?*Blk) bool {
+pub fn sdom(b1: *Blk, b2_: *Blk) bool {
     var b2 = b2_;
-    assert(b1 != null and b2 != null);
     if (b1 == b2)
         return false;
-    while (b2.?.id > b1.?.id)
-        b2 = b2.?.idom;
+    while (b2.id > b1.id)
+        b2 = b2.idom.?;
     return b1 == b2;
 }
 
-pub fn dom(b1: ?*Blk, b2: ?*Blk) bool {
+pub fn dom(b1: *Blk, b2: *Blk) bool {
     return b1 == b2 or sdom(b1, b2);
 }
 
-fn addfron(a: *Blk, b: [*c]Blk) void {
-    var n: uint = 0;
-    while (n < a.nfron) : (n += 1)
-        if (a.fron[n] == b)
+fn addfron(a: *Blk, b: *Blk) void {
+    for (a.fron[0..a.nfron]) |x|
+        if (x == b)
             return;
-    if (a.nfron == 0) {
-        a.nfron += 1;
-        a.fron = vnewT(*Blk, a.nfron, PFn);
-    } else {
-        a.nfron += 1;
+    a.nfron += 1;
+    if (a.nfron == 1)
+        a.fron = vnewT(*Blk, a.nfron, PFn)
+    else
         vgrow(&a.fron, a.nfron);
-    }
     a.fron[a.nfron - 1] = b;
 }
 
 /// fill the dominance frontier
 pub fn fillfron(f: *Fn) void {
-    var b_it: ?*Blk = f.start;
+    var b_it = f.start;
     while (b_it) |b| : (b_it = b.link)
         b.nfron = 0;
     b_it = f.start;
     while (b_it) |b| : (b_it = b.link) {
-        var a: [*c]Blk = undefined;
-        if (b.s1 != null) {
-            a = b;
-            while (!sdom(a, b.s1)) : (a = a.*.idom)
-                addfron(a, b.s1);
-        }
-        if (b.s2 != null) {
-            a = b;
-            while (!sdom(a, b.s2)) : (a = a.*.idom)
-                addfron(a, b.s2);
+        for ([2]?*Blk{ b.s1, b.s2 }) |s_| {
+            const s = s_ orelse continue;
+            var a = b;
+            while (!sdom(a, s)) : (a = a.idom.?)
+                addfron(a, s);
         }
     }
 }
@@ -241,28 +220,24 @@ fn loopmark(hd: *Blk, b: *Blk, f: *const fn (*Blk, *Blk) void) void {
         return;
     b.visit = hd.id;
     f(hd, b);
-    var p: uint = 0;
-    while (p < b.npred) : (p += 1)
-        loopmark(hd, b.pred[p], f);
+    for (b.pred[0..b.npred]) |p|
+        loopmark(hd, p, f);
 }
 
 pub fn loopiter(f: *Fn, func: *const fn (*Blk, *Blk) void) void {
-    var b: [*c]Blk = f.start;
-    while (b != null) : (b = b.*.link)
-        b.*.visit = NOID;
-    var n: uint = 0;
-    while (n < f.nblk) : (n += 1) {
-        b = f.rpo[n];
-        var p: uint = 0;
-        while (p < b.*.npred) : (p += 1)
-            if (b.*.pred[p].id >= n)
-                loopmark(b, b.*.pred[p], func);
+    var b_it = f.start;
+    while (b_it) |b| : (b_it = b.link)
+        b.visit = NOID;
+    for (f.rpo[0..f.nblk], 0..) |b, n| {
+        for (b.pred[0..b.npred]) |p|
+            if (p.id >= n)
+                loopmark(b, p, func);
     }
 }
 
 /// dominator tree depth
 pub fn filldepth(f: *Fn) void {
-    var b_it: ?*Blk = f.start;
+    var b_it = f.start;
     while (b_it) |b| : (b_it = b.link)
         b.depth = -1;
 
@@ -273,34 +248,30 @@ pub fn filldepth(f: *Fn) void {
         if (b.depth != -1)
             continue;
         var depth: i32 = 1;
-        var d: ?*Blk = b.idom;
-        while (d.?.depth == -1) : (d = d.?.idom)
+        var d = b.idom.?;
+        while (d.depth == -1) : (d = d.idom.?)
             depth += 1;
-        depth += d.?.depth;
+        depth += d.depth;
         b.depth = depth;
-        d = b.idom;
-        while (d.?.depth == -1) : (d = d.?.idom) {
+        d = b.idom.?;
+        while (d.depth == -1) : (d = d.idom.?) {
             depth -= 1;
-            d.?.depth = depth;
+            d.depth = depth;
         }
     }
 }
 
 /// least common ancestor in dom tree
-pub fn lca(b1_: ?*Blk, b2_: ?*Blk) [*c]Blk {
-    var b1 = b1_;
-    var b2 = b2_;
-    if (b1 == null)
-        return b2;
-    if (b2 == null)
-        return b1;
-    while (b1.?.depth > b2.?.depth)
-        b1 = b1.?.idom;
-    while (b2.?.depth > b1.?.depth)
-        b2 = b2.?.idom;
+pub fn lca(b1_: ?*Blk, b2_: ?*Blk) ?*Blk {
+    var b1 = b1_ orelse return b2_;
+    var b2 = b2_ orelse return b1;
+    while (b1.depth > b2.depth)
+        b1 = b1.idom.?;
+    while (b2.depth > b1.depth)
+        b2 = b2.idom.?;
     while (b1 != b2) {
-        b1 = b1.?.idom;
-        b2 = b2.?.idom;
+        b1 = b1.idom.?;
+        b2 = b2.idom.?;
     }
     return b1;
 }
@@ -317,9 +288,8 @@ pub fn fillloop(f: *Fn) void {
     loopiter(f, multloop);
 }
 
-fn uffind(pb: [*c][*c]Blk, uf: [*c][*c]Blk) void {
-    const pb1 = &uf[pb.*.*.id];
-    if (pb1.* != null) {
+fn uffind(pb: **Blk, uf: []?*Blk) void {
+    if (uf[pb.*.id]) |*pb1| {
         uffind(pb1, uf);
         pb.* = pb1.*;
     }
@@ -331,36 +301,34 @@ pub fn simpljmp(f: *Fn) void {
     ret.id = f.nblk;
     f.nblk += 1;
     ret.jmp.type = Jret0;
-    const uf: [*c][*c]Blk = ealloc([*c]Blk, f.nblk); // union-find
-    var b: ?*Blk = f.start;
-    while (b != null) : (b = b.?.link) {
-        assert(b.?.phi == null);
-        if (b.?.jmp.type == Jret0) {
-            b.?.jmp.type = Jjmp;
-            b.?.s1 = ret;
+    const uf = ealloc(?*Blk, f.nblk)[0..f.nblk]; // union-find
+    var b_it = f.start;
+    while (b_it) |b| : (b_it = b.link) {
+        assert(b.phi == null);
+        if (b.jmp.type == Jret0) {
+            b.jmp.type = Jjmp;
+            b.s1 = ret;
         }
-        if (b.?.nins == 0)
-            if (b.?.jmp.type == Jjmp) {
-                uffind(&b.?.s1, uf);
-                if (b.?.s1 != b)
-                    uf[b.?.id] = b.?.s1;
+        if (b.nins == 0)
+            if (b.jmp.type == Jjmp) {
+                uffind(@ptrCast(&b.s1), uf);
+                if (b.s1 != b)
+                    uf[b.id] = b.s1;
             };
     }
-    var p: [*c][*c]Blk = &f.start;
-    while (true) : (p = &b.?.link) {
-        b = p.*;
-        if (b == null) break;
-        if (b.?.s1 != null)
-            uffind(&b.?.s1, uf);
-        if (b.?.s2 != null)
-            uffind(&b.?.s2, uf);
-        if (b.?.s1 != null and b.?.s1 == b.?.s2) {
-            b.?.jmp.type = Jjmp;
-            b.?.s2 = null;
+    var p: *?*Blk = &f.start;
+    while (p.*) |b| : (p = &b.link) {
+        if (b.s1 != null)
+            uffind(@ptrCast(&b.s1), uf);
+        if (b.s2 != null)
+            uffind(@ptrCast(&b.s2), uf);
+        if (b.s1 != null and b.s1 == b.s2) {
+            b.jmp.type = Jjmp;
+            b.s2 = null;
         }
     }
     p.* = ret;
-    efree(@ptrCast(uf));
+    efree(@ptrCast(uf.ptr));
 }
 
 fn reachrec(b: ?*Blk, to: ?*Blk) bool {
@@ -395,30 +363,27 @@ pub fn reachesnotvia(f: *Fn, b: *Blk, to: *Blk, excl: *Blk) bool {
     return reaches(f, b, to);
 }
 
-pub fn ifgraph(ifb: ?*Blk, pthenb_: *[*c]Blk, pelseb_: *[*c]Blk, pjoinb: *[*c]Blk) bool {
+pub fn ifgraph(ifb: *Blk, pthenb_: **Blk, pelseb_: **Blk, pjoinb: **Blk) bool {
     var pthenb = pthenb_;
     var pelseb = pelseb_;
-    if (ifb.?.jmp.type != Jjnz)
+    if (ifb.jmp.type != Jjnz)
         return false;
 
-    var s1: ?*Blk = ifb.?.s1;
-    var s2: ?*Blk = ifb.?.s2;
-    if (s1.?.id > s2.?.id) {
-        s1 = ifb.?.s2;
-        s2 = ifb.?.s1;
-        const t = pthenb;
-        pthenb = pelseb;
-        pelseb = t;
+    var s1 = ifb.s1.?;
+    var s2 = ifb.s2.?;
+    if (s1.id > s2.id) {
+        std.mem.swap(*Blk, &s1, &s2);
+        std.mem.swap(**Blk, &pthenb, &pelseb);
     }
     if (s1 == s2)
         return false;
 
-    if (s1.?.jmp.type != Jjmp or s1.?.npred != 1)
+    if (s1.jmp.type != Jjmp or s1.npred != 1)
         return false;
 
-    if (s1.?.s1 == s2) {
+    if (s1.s1 == s2) {
         // if-then / if-else
-        if (s2.?.npred != 2)
+        if (s2.npred != 2)
             return false;
         pthenb.* = s1;
         pelseb.* = ifb;
@@ -426,15 +391,15 @@ pub fn ifgraph(ifb: ?*Blk, pthenb_: *[*c]Blk, pelseb_: *[*c]Blk, pjoinb: *[*c]Bl
         return true;
     }
 
-    if (s2.?.jmp.type != Jjmp or s2.?.npred != 1)
+    if (s2.jmp.type != Jjmp or s2.npred != 1)
         return false;
-    if (s1.?.s1 != s2.?.s1 or s1.?.s1.?.npred != 2)
+    if (s1.s1 != s2.s1 or s1.s1.?.npred != 2)
         return false;
 
-    assert(s1.?.s1 != ifb);
+    assert(s1.s1 != ifb);
     pthenb.* = s1;
     pelseb.* = s2;
-    pjoinb.* = s1.?.s1;
+    pjoinb.* = s1.s1.?;
     return true;
 }
 
@@ -445,14 +410,14 @@ const Jmp = extern struct {
     s2: ?*Blk,
 };
 
-fn jmpeq(a: [*c]Jmp, b: [*c]Jmp) bool {
-    return a.*.type == b.*.type and req(a.*.arg, b.*.arg) and a.*.s1 == b.*.s1 and a.*.s2 == b.*.s2;
+fn jmpeq(a: *const Jmp, b: *const Jmp) bool {
+    return a.type == b.type and req(a.arg, b.arg) and a.s1 == b.s1 and a.s2 == b.s2;
 }
 
-fn jmpnophi(j: [*c]Jmp) bool {
-    if (j.*.s1 != null and j.*.s1.?.phi != null)
+fn jmpnophi(j: *const Jmp) bool {
+    if (j.s1 != null and j.s1.?.phi != null)
         return false;
-    if (j.*.s2 != null and j.*.s2.?.phi != null)
+    if (j.s2 != null and j.s2.?.phi != null)
         return false;
     return true;
 }
@@ -466,62 +431,56 @@ pub fn simplcfg(f: *Fn) void {
 
     var cpy = std.mem.zeroes(Ins);
     cpy.op = Ocopy;
-    var b: [*c]Blk = f.start;
-    while (b != null) : (b = b.*.link)
-        if (b.*.npred == 1) {
-            const bb = b.*.pred[0];
-            var p_it: ?*Phi = b.*.phi;
+    var b_it = f.start;
+    while (b_it) |b| : (b_it = b.link)
+        if (b.npred == 1) {
+            const bb = b.pred[0];
+            var p_it = b.phi;
             while (p_it) |p| : (p_it = p.link) {
                 cpy.cls = @intCast(p.cls);
                 cpy.to = p.to;
                 cpy.arg[0] = phiarg(p, bb);
-                addins(&bb.*.ins, &bb.*.nins, &cpy);
+                addins(&bb.ins, &bb.nins, &cpy);
             }
-            b.*.phi = null;
+            b.phi = null;
         };
 
-    const jmp: [*c]Jmp = ealloc(Jmp, f.nblk);
-    const empty: [*c]i32 = ealloc(i32, f.nblk);
-    b = f.start;
-    while (b != null) : (b = b.*.link) {
-        jmp[b.*.id].type = b.*.jmp.type;
-        jmp[b.*.id].arg = b.*.jmp.arg;
-        jmp[b.*.id].s1 = b.*.s1;
-        jmp[b.*.id].s2 = b.*.s2;
-        empty[b.*.id] = @intFromBool(b.*.phi == null);
-        for (b.*.ins[0..b.*.nins]) |*i|
+    const jmp = ealloc(Jmp, f.nblk)[0..f.nblk];
+    const empty = ealloc(bool, f.nblk)[0..f.nblk];
+    b_it = f.start;
+    while (b_it) |b| : (b_it = b.link) {
+        jmp[b.id] = .{ .type = b.jmp.type, .arg = b.jmp.arg, .s1 = b.s1, .s2 = b.s2 };
+        empty[b.id] = b.phi == null;
+        for (b.ins[0..b.nins]) |*i|
             if (i.op != Onop and i.op != Odbgloc) {
-                empty[b.*.id] = 0;
+                empty[b.id] = false;
                 break;
             };
     }
 
     while (true) {
         var done = true;
-        b = f.start;
-        while (b != null) : (b = b.*.link) {
-            if (b.*.id == NOID)
+        b_it = f.start;
+        while (b_it) |b| : (b_it = b.link) {
+            if (b.id == NOID)
                 continue;
-            const j = &jmp[b.*.id];
+            const j = &jmp[b.id];
             if (j.type == Jjmp and j.s1.?.npred == 1) {
-                assert(j.s1.?.phi == null);
-                addbins(&b.*.ins, &b.*.nins, j.s1.?);
-                empty[b.*.id] &= empty[j.s1.?.id];
-                const jj = &jmp[j.s1.?.id];
-                var pbuf = [3][*c]Blk{ jj.s1, jj.s2, null };
-                var pb: [*c][*c]Blk = &pbuf;
-                while (pb.* != null) : (pb += 1) {
-                    const bb = pb.*;
-                    var p_it: ?*Phi = bb.*.phi;
-                    while (p_it) |p| : (p_it = p.link) {
-                        const n = phiargn(p, j.s1);
-                        p.blk[n] = b;
-                    }
+                const s = j.s1.?;
+                assert(s.phi == null);
+                addbins(&b.ins, &b.nins, s);
+                empty[b.id] = empty[b.id] and empty[s.id];
+                const jj = &jmp[s.id];
+                for ([2]?*Blk{ jj.s1, jj.s2 }) |bb_| {
+                    const bb = bb_ orelse break;
+                    var p_it = bb.phi;
+                    while (p_it) |p| : (p_it = p.link)
+                        p.blk[phiargn(p, s)] = b;
                 }
-                j.s1.?.id = NOID;
+                s.id = NOID;
                 j.* = jj.*;
                 done = false;
-            } else if (j.type == Jjnz and empty[j.s1.?.id] != 0 and empty[j.s2.?.id] != 0 and
+            } else if (j.type == Jjnz and empty[j.s1.?.id] and empty[j.s2.?.id] and
                 jmpeq(&jmp[j.s1.?.id], &jmp[j.s2.?.id]) and
                 jmpnophi(&jmp[j.s1.?.id]))
             {
@@ -532,21 +491,21 @@ pub fn simplcfg(f: *Fn) void {
         if (done) break;
     }
 
-    b = f.start;
-    while (b != null) : (b = b.*.link)
-        if (b.*.id != NOID) {
-            const j = &jmp[b.*.id];
-            b.*.jmp.type = @intCast(j.type);
-            b.*.jmp.arg = j.arg;
-            b.*.s1 = j.s1;
-            b.*.s2 = j.s2;
+    b_it = f.start;
+    while (b_it) |b| : (b_it = b.link)
+        if (b.id != NOID) {
+            const j = &jmp[b.id];
+            b.jmp.type = @intCast(j.type);
+            b.jmp.arg = j.arg;
+            b.s1 = j.s1;
+            b.s2 = j.s2;
             assert(j.s1 == null or j.s1.?.id != NOID);
             assert(j.s2 == null or j.s2.?.id != NOID);
         };
 
     fillcfg(f);
-    efree(@ptrCast(empty));
-    efree(@ptrCast(jmp));
+    efree(@ptrCast(empty.ptr));
+    efree(@ptrCast(jmp.ptr));
 
     if (all.debug['C'] != 0) {
         dprint("\n> After CFG simplification:\n", .{});

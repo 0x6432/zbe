@@ -140,7 +140,7 @@ const uint = all.uint;
 
 const E = struct {
     f: *Writer,
-    @"fn": [*c]Fn,
+    @"fn": *Fn,
     frame: u64,
     padding: uint,
 };
@@ -286,7 +286,7 @@ fn slot(r: Ref, e: *E) u64 {
         return 16 + e.frame;
     if (s < 0) {
         const s2: u64 = @bitCast(@as(i64, s + 2));
-        if (e.@"fn".*.vararg != 0 and all.T.apple == 0)
+        if (e.@"fn".vararg != 0 and all.T.apple == 0)
             return (16 + e.frame + 192) -% s2
         else
             return (16 + e.frame) -% s2;
@@ -356,7 +356,7 @@ fn emitf(s_: [*c]const u8, i: *Ins, e: *E) Writer.Error!void {
                             try e.f.writeAll(cs(rname(@intCast(r.val), k)));
                         },
                         RCon => {
-                            const pc = &e.@"fn".*.con[r.val];
+                            const pc = &e.@"fn".con[r.val];
                             const n: u64 = @bitCast(pc.bits.i);
                             assert(pc.type == CBits);
                             if ((n >> 24) != 0) {
@@ -526,7 +526,7 @@ fn emitins(i: [*c]Ins, e: *E) Writer.Error!void {
             assert(isreg(i.*.to));
             switch (rtype(i.*.arg[0])) {
                 RCon => {
-                    const c = &e.@"fn".*.con[i.*.arg[0].val];
+                    const c = &e.@"fn".con[i.*.arg[0].val];
                     try loadcon(c, @intCast(i.*.to.val), @intCast(i.*.cls), e);
                 },
                 RSlot => {
@@ -555,7 +555,7 @@ fn emitins(i: [*c]Ins, e: *E) Writer.Error!void {
                 try table(i, e);
                 return;
             }
-            const c = &e.@"fn".*.con[i.*.arg[0].val];
+            const c = &e.@"fn".con[i.*.arg[0].val];
             if (c.type != CAddr or
                 (c.sym.type & SThr) != 0 or
                 c.bits.i != 0)
@@ -595,11 +595,11 @@ fn framelayout(e: *E) void {
     var o: uint = 0;
     var r: [*c]i32 = arm64_rclob;
     while (r.* >= 0) : (r += 1)
-        o += @intCast(1 & (e.@"fn".*.reg >> @intCast(r.*)));
-    var f: u64 = @intCast(e.@"fn".*.slot);
+        o += @intCast(1 & (e.@"fn".reg >> @intCast(r.*)));
+    var f: u64 = @intCast(e.@"fn".slot);
     f = (f + 3) & ~@as(u64, 3);
     o += o & 1;
-    e.padding = @truncate(4 * (f - @as(u64, @intCast(e.@"fn".*.slot))));
+    e.padding = @truncate(4 * (f - @as(u64, @intCast(e.@"fn".slot))));
     e.frame = 4 * f + 8 * @as(u64, o);
 }
 
@@ -635,16 +635,16 @@ const ctoa = blk: {
 
 var id0: i32 = 0;
 
-pub fn arm64_emitfn(f: ?*Fn, out: *Writer) Writer.Error!void {
+pub fn arm64_emitfn(f: *Fn, out: *Writer) Writer.Error!void {
     var e_ = E{ .f = out, .@"fn" = f, .frame = 0, .padding = 0 };
     const e = &e_;
     if (all.T.apple != 0)
-        e.@"fn".*.lnk.@"align" = 4;
-    try emitfnlnk(e.@"fn".*.name, &e.@"fn".*.lnk, e.f);
+        e.@"fn".lnk.@"align" = 4;
+    try emitfnlnk(e.@"fn".name, &e.@"fn".lnk, e.f);
     try e.f.writeAll("\thint\t#34\n");
     framelayout(e);
 
-    if (e.@"fn".*.vararg != 0 and all.T.apple == 0) {
+    if (e.@"fn".vararg != 0 and all.T.apple == 0) {
         var n: i32 = 7;
         while (n >= 0) : (n -= 1)
             try e.f.print("\tstr\tq{d}, [sp, -16]!\n", .{n});
@@ -665,7 +665,7 @@ pub fn arm64_emitfn(f: ?*Fn, out: *Writer) Writer.Error!void {
     var s: i32 = @intCast((e.frame - e.padding) / 4);
     var r: [*c]i32 = arm64_rclob;
     while (r.* >= 0) : (r += 1) {
-        if ((e.@"fn".*.reg & BIT(r.*)) != 0) {
+        if ((e.@"fn".reg & BIT(r.*)) != 0) {
             s -= 2;
             var i = INS(@as(i32, if (r.* >= V0) Ostored else Ostorel), 0, R, TMP(r.*), SLOT(s));
             try emitins(&i, e);
@@ -673,7 +673,7 @@ pub fn arm64_emitfn(f: ?*Fn, out: *Writer) Writer.Error!void {
     }
 
     var lbl = false;
-    var b_it: ?*Blk = e.@"fn".*.start;
+    var b_it: ?*Blk = e.@"fn".start;
     while (b_it) |b| : (b_it = b.link) {
         if (lbl or b.npred > 1)
             try e.f.print("{s}{d}:\n", .{cs(&all.T.asloc), id0 + @as(i32, @intCast(b.id))});
@@ -687,16 +687,16 @@ pub fn arm64_emitfn(f: ?*Fn, out: *Writer) Writer.Error!void {
                 s = @intCast((e.frame - e.padding) / 4);
                 r = arm64_rclob;
                 while (r.* >= 0) : (r += 1) {
-                    if ((e.@"fn".*.reg & BIT(r.*)) != 0) {
+                    if ((e.@"fn".reg & BIT(r.*)) != 0) {
                         s -= 2;
                         var in = INS(Oload, @as(i32, if (r.* >= V0) Kd else Kl), TMP(r.*), SLOT(s), R);
                         try emitins(&in, e);
                     }
                 }
-                if (e.@"fn".*.dynalloc != 0)
+                if (e.@"fn".dynalloc != 0)
                     try e.f.writeAll("\tmov sp, x29\n");
                 var o = e.frame + 16;
-                if (e.@"fn".*.vararg != 0 and all.T.apple == 0)
+                if (e.@"fn".vararg != 0 and all.T.apple == 0)
                     o += 192;
                 if (o <= 504)
                     try e.f.print("\tldp\tx29, x30, [sp], {d}\n", .{o})
@@ -731,7 +731,7 @@ pub fn arm64_emitfn(f: ?*Fn, out: *Writer) Writer.Error!void {
                 lbl = false;
         }
     }
-    id0 += @intCast(e.@"fn".*.nblk);
+    id0 += @intCast(e.@"fn".nblk);
     if (all.T.apple == 0)
-        try elf_emitfnfin(f.?.name, out);
+        try elf_emitfnfin(f.name, out);
 }

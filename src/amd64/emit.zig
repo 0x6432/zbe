@@ -147,7 +147,7 @@ const uint = all.uint;
 
 const E = extern struct {
     f: *Writer,
-    @"fn": [*c]Fn,
+    @"fn": *Fn,
     fp: i32,
     fsz: u64,
     nclob: i32,
@@ -314,7 +314,7 @@ const rname = blk: {
 
 fn slot(r: Ref, e: *E) i32 {
     const s = rsval(r);
-    assert(s <= e.@"fn".*.slot);
+    assert(s <= e.@"fn".slot);
     // specific to NAlign == 3
     if (s < 0) {
         if (e.fp == RSP)
@@ -323,12 +323,12 @@ fn slot(r: Ref, e: *E) i32 {
             return 4 * -s;
     } else if (e.fp == RSP) {
         return 4 * s + e.nclob * 8;
-    } else if (e.@"fn".*.vararg != 0) {
+    } else if (e.@"fn".vararg != 0) {
         if (all.T.windows != 0)
-            return -4 * (e.@"fn".*.slot - s)
+            return -4 * (e.@"fn".slot - s)
         else
-            return -176 + -4 * (e.@"fn".*.slot - s);
-    } else return -4 * (e.@"fn".*.slot - s);
+            return -176 + -4 * (e.@"fn".slot - s);
+    } else return -4 * (e.@"fn".slot - s);
 }
 
 fn emitcon(con: *Con, e: *E) Writer.Error!void {
@@ -384,7 +384,7 @@ const clstoa = [_][*c]const u8{ "l", "q", "ss", "sd" };
 
 fn emitmem(ref: Ref, e: *E) Writer.Error!void {
     var off: Con = undefined;
-    const m = &e.@"fn".*.mem[ref.val];
+    const m = &e.@"fn".mem[ref.val];
     if (rtype(m.base) == RSlot) {
         off.type = CBits;
         off.bits.i = slot(m.base, e);
@@ -475,7 +475,7 @@ fn emitf(s_: [*c]const u8, i: *Ins, e: *E) Writer.Error!void {
                     RMem => try emitmem(ref, e),
                     RSlot => try e.f.print("{d}(%{s})", .{slot(ref, e), cs(regtoa(e.fp, SLong))}),
                     RCon => {
-                        var off = e.@"fn".*.con[ref.val];
+                        var off = e.@"fn".con[ref.val];
                         try emitcon(&off, e);
                         if (off.type == CAddr and off.sym.type != SThr)
                             try e.f.print("(%rip)", .{});
@@ -502,7 +502,7 @@ fn emitf(s_: [*c]const u8, i: *Ins, e: *E) Writer.Error!void {
                 RMem => try emitmem(ref, e),
                 RCon => {
                     try e.f.writeByte('$');
-                    try emitcon(&e.@"fn".*.con[ref.val], e);
+                    try emitcon(&e.@"fn".con[ref.val], e);
                 },
                 else => die("unreachable", .{}),
             }
@@ -617,9 +617,9 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             const t0 = rtype(i.arg[0]);
             if (i.cls == Kl and
                 t0 == RCon and
-                e.@"fn".*.con[i.arg[0].val].type == CBits)
+                e.@"fn".con[i.arg[0].val].type == CBits)
             {
-                const val = e.@"fn".*.con[i.arg[0].val].bits.i;
+                const val = e.@"fn".con[i.arg[0].val].bits.i;
                 if (isreg(i.to))
                     if (val >= 0 and val <= std.math.maxInt(u32)) {
                         try emitf("movl %W0, %W=", &i, e);
@@ -634,7 +634,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             }
             if (isreg(i.to) and
                 t0 == RCon and
-                e.@"fn".*.con[i.arg[0].val].type == CAddr)
+                e.@"fn".con[i.arg[0].val].type == CAddr)
             {
                 try emitf("lea%k %M0, %=", &i, e);
                 return;
@@ -657,7 +657,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
                 try emittable(&i, e);
                 return;
             }
-            const con = &e.@"fn".*.con[i.arg[0].val];
+            const con = &e.@"fn".con[i.arg[0].val];
             assert(isreg(i.to) and con.type == CAddr);
             const sym = str(con.sym.id);
             const pfx: [*c]const u8 = if (sym[0] == '"') "" else &all.T.assym;
@@ -697,7 +697,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             // assembly...
             switch (rtype(i.arg[0])) {
                 RCon => {
-                    const con = &e.@"fn".*.con[i.arg[0].val];
+                    const con = &e.@"fn".con[i.arg[0].val];
                     try e.f.print("\tcallq ", .{});
                     try emitcon(con, e);
                     if (con.type == CAddr and
@@ -737,41 +737,41 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
 fn sysv_framesz(e: *E) void {
     // specific to NAlign == 3
     var o: u64 = 0;
-    if (e.@"fn".*.leaf == 0) {
+    if (e.@"fn".leaf == 0) {
         var i: usize = 0;
         o = 0;
         while (i < NCLR_SYSV) : (i += 1)
-            o ^= e.@"fn".*.reg >> @intCast(tgt.sysv.amd64_sysv_rclob[i]);
+            o ^= e.@"fn".reg >> @intCast(tgt.sysv.amd64_sysv_rclob[i]);
         o &= 1;
     }
-    var f: u64 = @intCast(e.@"fn".*.slot);
+    var f: u64 = @intCast(e.@"fn".slot);
     f = (f + 3) & ~@as(u64, 3);
     if (f > 0 and
         e.fp == RSP and
-        e.@"fn".*.salign == 4)
+        e.@"fn".salign == 4)
         f += 2;
-    e.fsz = 4 * f + 8 * o + 176 * @as(u64, @intCast(e.@"fn".*.vararg));
+    e.fsz = 4 * f + 8 * o + 176 * @as(u64, @intCast(e.@"fn".vararg));
 }
 
 var sysv_id0: i32 = 0;
 
-pub fn amd64_sysv_emitfn(f: ?*Fn, fp: *Writer) Writer.Error!void {
+pub fn amd64_sysv_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
     var itmp: Ins = undefined;
     var e_ = E{ .f = fp, .@"fn" = f, .fp = 0, .fsz = 0, .nclob = 0 };
     const e = &e_;
     const rclob: [*c]i32 = &tgt.sysv.amd64_sysv_rclob;
     const rsave: [*c]i32 = &tgt.sysv.amd64_sysv_rsave;
 
-    try emitfnlnk(f.?.name, &f.?.lnk, fp);
+    try emitfnlnk(f.name, &f.lnk, fp);
     try fp.writeAll("\tendbr64\n");
-    if (f.?.leaf == 0 or f.?.vararg != 0 or f.?.dynalloc != 0) {
+    if (f.leaf == 0 or f.vararg != 0 or f.dynalloc != 0) {
         e.fp = RBP;
         try fp.writeAll("\tpushq %rbp\n\tmovq %rsp, %rbp\n");
     } else e.fp = RSP;
     sysv_framesz(e);
     if (e.fsz != 0)
         try fp.print("\tsubq ${d}, %rsp\n", .{e.fsz});
-    if (f.?.vararg != 0) {
+    if (f.vararg != 0) {
         var o: i32 = -176;
         var r = rsave;
         while (r < rsave + 6) : ({
@@ -788,7 +788,7 @@ pub fn amd64_sysv_emitfn(f: ?*Fn, fp: *Writer) Writer.Error!void {
     }
     var r = rclob;
     while (r < rclob + NCLR_SYSV) : (r += 1) {
-        if ((f.?.reg & BIT(r.*)) != 0) {
+        if ((f.reg & BIT(r.*)) != 0) {
             itmp.arg[0] = TMP(r.*);
             try emitf("pushq %L0", &itmp, e);
             e.nclob += 1;
@@ -796,7 +796,7 @@ pub fn amd64_sysv_emitfn(f: ?*Fn, fp: *Writer) Writer.Error!void {
     }
 
     var lbl = false;
-    var b_it: ?*Blk = f.?.start;
+    var b_it: ?*Blk = f.start;
     while (b_it) |b| : (b_it = b.link) {
         if (lbl or b.npred > 1) {
             var p: uint = 0;
@@ -814,12 +814,12 @@ pub fn amd64_sysv_emitfn(f: ?*Fn, fp: *Writer) Writer.Error!void {
         sw: switch (b.jmp.type) {
             Jhlt => try fp.print("\tud2\n", .{}),
             Jret0 => {
-                if (f.?.dynalloc != 0)
+                if (f.dynalloc != 0)
                     try fp.print("\tmovq %rbp, %rsp\n" ++ "\tsubq ${d}, %rsp\n", .{e.fsz + @as(u64, @intCast(e.nclob)) * 8});
                 r = rclob + NCLR_SYSV;
                 while (r > rclob) {
                     r -= 1;
-                    if ((f.?.reg & BIT(r.*)) != 0) {
+                    if ((f.reg & BIT(r.*)) != 0) {
                         itmp.arg[0] = TMP(r.*);
                         try emitf("popq %L0", &itmp, e);
                     }
@@ -854,47 +854,47 @@ pub fn amd64_sysv_emitfn(f: ?*Fn, fp: *Writer) Writer.Error!void {
             },
         }
     }
-    sysv_id0 += @intCast(f.?.nblk);
+    sysv_id0 += @intCast(f.nblk);
     if (all.T.apple == 0)
-        try elf_emitfnfin(f.?.name, fp);
+        try elf_emitfnfin(f.name, fp);
 }
 
 fn winabi_framesz(e: *E) void {
     // specific to NAlign == 3
     var o: u64 = 0;
-    if (e.@"fn".*.leaf == 0) {
+    if (e.@"fn".leaf == 0) {
         var i: usize = 0;
         o = 0;
         while (i < NCLR_WIN) : (i += 1)
-            o ^= e.@"fn".*.reg >> @intCast(tgt.winabi.amd64_winabi_rclob[i]);
+            o ^= e.@"fn".reg >> @intCast(tgt.winabi.amd64_winabi_rclob[i]);
         o &= 1;
     }
-    var f: u64 = @intCast(e.@"fn".*.slot);
+    var f: u64 = @intCast(e.@"fn".slot);
     f = (f + 3) & ~@as(u64, 3);
     if (f > 0 and
         e.fp == RSP and
-        e.@"fn".*.salign == 4)
+        e.@"fn".salign == 4)
         f += 2;
     e.fsz = 4 * f + 8 * o;
 }
 
 var winabi_id0: i32 = 0;
 
-pub fn amd64_winabi_emitfn(f: ?*Fn, fp: *Writer) Writer.Error!void {
+pub fn amd64_winabi_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
     var itmp: Ins = undefined;
     var e_ = E{ .f = fp, .@"fn" = f, .fp = 0, .fsz = 0, .nclob = 0 };
     const e = &e_;
     const rclob: [*c]i32 = &tgt.winabi.amd64_winabi_rclob;
 
-    try emitfnlnk(f.?.name, &f.?.lnk, fp);
+    try emitfnlnk(f.name, &f.lnk, fp);
     try fp.writeAll("\tendbr64\n");
-    if (f.?.vararg != 0) {
+    if (f.vararg != 0) {
         try fp.print("\tmovq %rcx, 0x8(%rsp)\n", .{});
         try fp.print("\tmovq %rdx, 0x10(%rsp)\n", .{});
         try fp.print("\tmovq %r8, 0x18(%rsp)\n", .{});
         try fp.print("\tmovq %r9, 0x20(%rsp)\n", .{});
     }
-    if (f.?.leaf == 0 or f.?.vararg != 0 or f.?.dynalloc != 0) {
+    if (f.leaf == 0 or f.vararg != 0 or f.dynalloc != 0) {
         e.fp = RBP;
         try fp.writeAll("\tpushq %rbp\n\tmovq %rsp, %rbp\n");
     } else e.fp = RSP;
@@ -903,7 +903,7 @@ pub fn amd64_winabi_emitfn(f: ?*Fn, fp: *Writer) Writer.Error!void {
         try fp.print("\tsubq ${d}, %rsp\n", .{e.fsz});
     var r = rclob;
     while (r < rclob + NCLR_WIN) : (r += 1) {
-        if ((f.?.reg & BIT(r.*)) != 0) {
+        if ((f.reg & BIT(r.*)) != 0) {
             itmp.arg[0] = TMP(r.*);
             try emitf("pushq %L0", &itmp, e);
             e.nclob += 1;
@@ -911,7 +911,7 @@ pub fn amd64_winabi_emitfn(f: ?*Fn, fp: *Writer) Writer.Error!void {
     }
 
     var lbl = false;
-    var b_it: ?*Blk = f.?.start;
+    var b_it: ?*Blk = f.start;
     while (b_it) |b| : (b_it = b.link) {
         if (lbl or b.npred > 1)
             try fp.print("{s}bb{d}:\n", .{cs(&all.T.asloc), winabi_id0 + @as(i32, @intCast(b.id))});
@@ -921,12 +921,12 @@ pub fn amd64_winabi_emitfn(f: ?*Fn, fp: *Writer) Writer.Error!void {
         sw: switch (b.jmp.type) {
             Jhlt => try fp.print("\tud2\n", .{}),
             Jret0 => {
-                if (f.?.dynalloc != 0)
+                if (f.dynalloc != 0)
                     try fp.print("\tmovq %rbp, %rsp\n" ++ "\tsubq ${d}, %rsp\n", .{e.fsz + @as(u64, @intCast(e.nclob)) * 8});
                 r = rclob + NCLR_WIN;
                 while (r > rclob) {
                     r -= 1;
-                    if ((f.?.reg & BIT(r.*)) != 0) {
+                    if ((f.reg & BIT(r.*)) != 0) {
                         itmp.arg[0] = TMP(r.*);
                         try emitf("popq %L0", &itmp, e);
                     }
@@ -961,5 +961,5 @@ pub fn amd64_winabi_emitfn(f: ?*Fn, fp: *Writer) Writer.Error!void {
             },
         }
     }
-    winabi_id0 += @intCast(f.?.nblk);
+    winabi_id0 += @intCast(f.nblk);
 }

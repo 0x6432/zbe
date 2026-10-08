@@ -365,7 +365,7 @@ fn sinkref(f: *Fn, b: *Blk, pr: *Ref) void {
 /// use to reduce register pressure
 /// requires rpo, use; breaks use
 fn sink(f: *Fn) void {
-    var b = f.start;
+    var b: [*c]Blk = f.start;
     while (b != null) : (b = b.*.link) {
         var i = b.*.ins;
         while (i < b.*.ins + b.*.nins) : (i += 1) {

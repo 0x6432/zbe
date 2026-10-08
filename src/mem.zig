@@ -77,7 +77,7 @@ pub fn promote(f: *Fn) void {
     var k: i32 = undefined;
 
     // promote uniform stack slots to temporaries
-    const b = f.start;
+    const b: [*c]Blk = f.start;
     var i = b.*.ins;
     outer: while (i < &b.*.ins[b.*.nins]) : (i += 1) {
         if (Oalloc > i.*.op or i.*.op > Oalloc1)
@@ -273,7 +273,7 @@ pub fn coalesce(f: *Fn) void {
         t.*.visit = -1;
         if (t.*.alias.type == ALoc)
             if (t.*.alias.slot == &t.*.alias)
-                if (t.*.bid == f.start.*.id)
+                if (t.*.bid == f.start.?.id)
                     if (t.*.alias.u.loc.sz != -1) {
                         t.*.visit = nsl;
                         nsl += 1;

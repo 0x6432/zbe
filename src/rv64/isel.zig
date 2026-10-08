@@ -53,6 +53,7 @@ const Onop = all.ops.Onop;
 const Oreqz = all.ops.Oreqz;
 const Ornez = all.ops.Ornez;
 const Oxor = all.ops.Oxor;
+const Phi = all.Phi;
 const R = all.R;
 const RCon = all.RCon;
 const RTmp = all.RTmp;
@@ -269,7 +270,7 @@ fn seljmp(b: *Blk, f: *Fn) void {
 
 pub fn rv64_isel(f: *Fn) void {
     // assign slots to fast allocs
-    var b = f.start;
+    var b: [*c]Blk = f.start;
     // specific to NAlign == 3
     // or change n=4 and sz /= 4 below
     var al: i32 = Oalloc;
@@ -303,7 +304,7 @@ pub fn rv64_isel(f: *Fn) void {
         const sb = [3][*c]Blk{ b.*.s1, b.*.s2, null };
         var si: usize = 0;
         while (sb[si] != null) : (si += 1) {
-            var p = sb[si].*.phi;
+            var p: [*c]Phi = sb[si].*.phi;
             while (p != null) : (p = p.*.link) {
                 var a: uint = 0;
                 while (p.*.blk[a] != b) : (a += 1)

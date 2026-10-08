@@ -87,7 +87,7 @@ pub fn fillcost(f: *Fn) void {
     loopiter(f, &aggreg);
     if (all.debug['S'] != 0) {
         dprint("\n> Loop information:\n", .{});
-        var b = f.start;
+        var b: [*c]Blk = f.start;
         while (b != null) : (b = b.*.link) {
             var a: uint = 0;
             while (a < b.*.npred) : (a += 1) {
@@ -376,8 +376,8 @@ pub fn spill(f: *Fn) void {
         // 1. find temporaries in registers at
         // the end of the block (put them in v)
         all.curi = null;
-        const s1 = b.*.s1;
-        const s2 = b.*.s2;
+        const s1: [*c]Blk = b.*.s1;
+        const s2: [*c]Blk = b.*.s2;
         var hd: [*c]Blk = null;
         if (s1 != null and s1.*.id <= b.*.id)
             hd = s1;
@@ -549,7 +549,7 @@ pub fn spill(f: *Fn) void {
 
     if (all.debug['S'] != 0) {
         dprint("\n> Block information:\n", .{});
-        var b = f.start;
+        var b: [*c]Blk = f.start;
         while (b != null) : (b = b.*.link) {
             dprint("\t{s:<10} ({f}) ", .{ cs(b.*.name), cint(b.*.loop, 5) });
             dumpts(&b.*.out, f.tmp, all.dbg) catch {};

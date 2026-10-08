@@ -37,6 +37,7 @@ const Ocopy = all.ops.Ocopy;
 const Oflag = all.Oflag;
 const Oload = all.ops.Oload;
 const Onop = all.ops.Onop;
+const Phi = all.Phi;
 const R = all.R;
 const R0 = tgt.R0;
 const RCon = all.RCon;
@@ -318,7 +319,7 @@ fn seljmp(b: *Blk, f: *Fn) void {
 
 pub fn arm64_isel(f: *Fn) void {
     // assign slots to fast allocs
-    var b = f.start;
+    var b: [*c]Blk = f.start;
     // specific to NAlign == 3
     // or change n=4 and sz /= 4 below
     var al: i32 = Oalloc;
@@ -350,7 +351,7 @@ pub fn arm64_isel(f: *Fn) void {
         const sb = [3][*c]Blk{ b.*.s1, b.*.s2, null };
         var si: usize = 0;
         while (sb[si] != null) : (si += 1) {
-            var p = sb[si].*.phi;
+            var p: [*c]Phi = sb[si].*.phi;
             while (p != null) : (p = p.*.link) {
                 var a: uint = 0;
                 while (p.*.blk[a] != b) : (a += 1)

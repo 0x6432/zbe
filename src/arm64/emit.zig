@@ -721,13 +721,13 @@ pub fn arm64_emitfn(f: [*c]Fn, out: *Writer) Writer.Error!void {
                     b.s2 = t;
                     n = 0;
                 } else n = 1;
-                try e.f.print("\tb{s}\t{s}{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), id0 + @as(i32, @intCast(b.s2.*.id))});
+                try e.f.print("\tb{s}\t{s}{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), id0 + @as(i32, @intCast(b.s2.?.id))});
                 jmp = true;
             },
         }
         if (jmp) { // Jmp:
             if (b.s1 != b.link)
-                try e.f.print("\tb\t{s}{d}\n", .{cs(&all.T.asloc), id0 + @as(i32, @intCast(b.s1.*.id))})
+                try e.f.print("\tb\t{s}{d}\n", .{cs(&all.T.asloc), id0 + @as(i32, @intCast(b.s1.?.id))})
             else
                 lbl = false;
         }

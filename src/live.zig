@@ -8,6 +8,7 @@ const Blk = all.Blk;
 const Fn = all.Fn;
 const KBASE = all.KBASE;
 const Ocall = all.ops.Ocall;
+const Phi = all.Phi;
 const R = all.R;
 const RCall = all.RCall;
 const RMem = all.RMem;
@@ -33,19 +34,19 @@ const uint = all.uint;
 
 pub fn liveon(v: *BSet, b: [*c]Blk, s: *Blk) void {
     bscopy(v, &s.in);
-    var p = s.phi;
-    while (p != null) : (p = p.*.link) {
-        if (rtype(p.*.to) == RTmp)
-            bsclr(v, p.*.to.val);
+    var p_it: ?*Phi = s.phi;
+    while (p_it) |p| : (p_it = p.link) {
+        if (rtype(p.to) == RTmp)
+            bsclr(v, p.to.val);
     }
-    p = s.phi;
-    while (p != null) : (p = p.*.link) {
+    p_it = s.phi;
+    while (p_it) |p| : (p_it = p.link) {
         var a: uint = 0;
-        while (a < p.*.narg) : (a += 1) {
-            if (p.*.blk[a] == b)
-                if (rtype(p.*.arg[a]) == RTmp) {
-                    bsset(v, p.*.arg[a].val);
-                    bsset(&b.*.gen, p.*.arg[a].val);
+        while (a < p.narg) : (a += 1) {
+            if (p.blk[a] == b)
+                if (rtype(p.arg[a]) == RTmp) {
+                    bsset(v, p.arg[a].val);
+                    bsset(&b.*.gen, p.arg[a].val);
                 };
         }
     }
@@ -71,7 +72,7 @@ pub fn filllive(f: *Fn) void {
 
     bsinit(&u, @intCast(f.ntmp));
     bsinit(&v, @intCast(f.ntmp));
-    var b = f.start;
+    var b: [*c]Blk = f.start;
     while (b != null) : (b = b.*.link) {
         bsinit(&b.*.in, @intCast(f.ntmp));
         bsinit(&b.*.out, @intCast(f.ntmp));
@@ -85,11 +86,11 @@ pub fn filllive(f: *Fn) void {
 
             bscopy(&u, &b.*.out);
             if (b.*.s1 != null) {
-                liveon(&v, b, b.*.s1);
+                liveon(&v, b, b.*.s1.?);
                 bsunion(&b.*.out, &v);
             }
             if (b.*.s2 != null) {
-                liveon(&v, b, b.*.s2);
+                liveon(&v, b, b.*.s2.?);
                 bsunion(&b.*.out, &v);
             }
             chg = chg or !bsequal(&b.*.out, &u);

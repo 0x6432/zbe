@@ -266,27 +266,27 @@ pub const Phi = extern struct {
     narg: uint,
     arg: [*c]Ref,
     blk: [*c][*c]Blk,
-    link: [*c]Phi,
+    link: ?*Phi,
 };
 
 pub const Blk = extern struct {
-    phi: [*c]Phi,
+    phi: ?*Phi,
     ins: [*c]Ins,
     nins: uint,
     jmp: extern struct {
         type: i16,
         arg: Ref,
     },
-    s1: [*c]Blk,
-    s2: [*c]Blk,
-    link: [*c]Blk,
+    s1: ?*Blk,
+    s2: ?*Blk,
+    link: ?*Blk,
 
     id: uint,
     visit: uint,
 
-    idom: [*c]Blk,
-    dom: [*c]Blk,
-    dlink: [*c]Blk,
+    idom: ?*Blk,
+    dom: ?*Blk,
+    dlink: ?*Blk,
     fron: [*c][*c]Blk,
     nfron: uint,
     depth: i32,
@@ -424,7 +424,7 @@ pub const Lnk = extern struct {
 };
 
 pub const Fn = extern struct {
-    start: [*c]Blk,
+    start: ?*Blk,
     tmp: [*]Tmp,
     con: [*]Con,
     mem: [*]Mem,

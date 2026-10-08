@@ -199,7 +199,7 @@ fn dwl(f: *Fn, r: Ref, w_: i32) bool {
 
     if (t.*.def == null) {
         // phi def
-        var p = f.rpo[t.*.bid].*.phi;
+        var p: [*c]Phi = f.rpo[t.*.bid].*.phi;
         while (p != null) : (p = p.*.link)
             if (req(p.*.to, r))
                 break;
@@ -273,7 +273,7 @@ pub fn narrowpars(f: *Fn) void {
 
     // only useful for functions with loops
     var loop = false;
-    var b = f.start;
+    var b: [*c]Blk = f.start;
     while (b != null) : (b = b.*.link)
         if (b.*.loop > 1) {
             loop = true;
@@ -423,16 +423,16 @@ pub fn phicopyref(f: *Fn, b: *Blk, p: [*c]Phi) Ref {
         return r;
 
     // same as a previous phi
-    var p1 = b.phi;
+    var p1: [*c]Phi = b.phi;
     while (p1 != p) : (p1 = p1.*.link) {
         assert(p1 != null);
-        if (phieq(p1, p))
+        if (phieq(p1.?, p))
             return p1.*.to;
     }
 
     // can be replaced by a
     // dominating jnz arg
-    const d = b.idom;
+    const d: [*c]Blk = b.idom;
     if (p.*.narg != 2 or d.*.jmp.type != Jjnz or !isw1(f, d.*.jmp.arg))
         return R;
 
@@ -449,7 +449,7 @@ pub fn phicopyref(f: *Fn, b: *Blk, p: [*c]Phi) Ref {
     // if s1 ends with a jnz on either b
     // or s2; the inference below is wrong
     // without the jump type checks
-    if (d.*.s1 == s[1] and d.*.s2 == s[0] and d.*.s1.*.jmp.type == Jjmp and d.*.s2.*.jmp.type == Jjmp)
+    if (d.*.s1 == s[1] and d.*.s2 == s[0] and d.*.s1.?.jmp.type == Jjmp and d.*.s2.?.jmp.type == Jjmp)
         return d.*.jmp.arg;
 
     return R;

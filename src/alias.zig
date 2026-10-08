@@ -164,7 +164,7 @@ pub fn fillalias(f: *Fn) void {
     var n: uint = 0;
     while (n < f.nblk) : (n += 1) {
         const b = f.rpo[n];
-        var p = b.*.phi;
+        var p: [*c]Phi = b.*.phi;
         while (p != null) : (p = p.*.link) {
             assert(rtype(p.*.to) == RTmp);
             const a = &f.tmp[p.*.to.val].alias;

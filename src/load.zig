@@ -403,7 +403,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: [*c]Ins, il: [*c]Loc) ?Ref {
                         return r;
                     };
 
-    var p = b.phi;
+    var p: [*c]Phi = b.phi;
     while (p != null) : (p = p.*.link)
         if (killsl(p.*.to, sl))
             // scanning predecessors in that
@@ -485,7 +485,7 @@ pub fn loadopt(f: *Fn) void {
     ilog = vnewT(Insert, 0, PHeap);
     nlog = 0;
     inum = 0;
-    var b = f.start;
+    var b: [*c]Blk = f.start;
     while (b != null) : (b = b.*.link) {
         i = b.*.ins;
         while (i < &b.*.ins[b.*.nins]) : (i += 1) {

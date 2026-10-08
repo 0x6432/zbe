@@ -146,7 +146,7 @@ const Class = struct {
 
 const Insl = struct {
     i: Ins,
-    link: [*c]Insl,
+    link: ?*Insl,
 };
 
 const Params = struct {
@@ -735,9 +735,9 @@ fn arm64_selvaarg(f: *Fn, b: *Blk, i: [*c]Ins) void {
     b0.*.s1 = b.s1;
     b0.*.s2 = b.s2;
     if (b.s1 != null)
-        chpred(b.s1, b, b0);
+        chpred(b.s1.?, b, b0);
     if (b.s2 != null and b.s2 != b.s1)
-        chpred(b.s2, b, b0);
+        chpred(b.s2.?, b, b0);
 
     const lreg = newtmp("abi", Kl, f);
     const nr = newtmp("abi", Kl, f);
@@ -765,16 +765,16 @@ fn arm64_selvaarg(f: *Fn, b: *Blk, i: [*c]Ins) void {
     bstk.*.s1 = b0;
 
     b0.*.phi = palloc(Phi, 1);
-    b0.*.phi.* = std.mem.zeroes(Phi);
-    b0.*.phi.*.cls = Kl;
-    b0.*.phi.*.to = loc;
-    b0.*.phi.*.narg = 2;
-    b0.*.phi.*.blk = vnewT([*c]Blk, 2, PFn);
-    b0.*.phi.*.arg = vnewT(Ref, 2, PFn);
-    b0.*.phi.*.blk[0] = bstk;
-    b0.*.phi.*.blk[1] = breg;
-    b0.*.phi.*.arg[0] = lstk;
-    b0.*.phi.*.arg[1] = lreg;
+    b0.*.phi.?.* = std.mem.zeroes(Phi);
+    b0.*.phi.?.cls = Kl;
+    b0.*.phi.?.to = loc;
+    b0.*.phi.?.narg = 2;
+    b0.*.phi.?.blk = vnewT([*c]Blk, 2, PFn);
+    b0.*.phi.?.arg = vnewT(Ref, 2, PFn);
+    b0.*.phi.?.blk[0] = bstk;
+    b0.*.phi.?.blk[1] = breg;
+    b0.*.phi.?.arg[0] = lstk;
+    b0.*.phi.?.arg[1] = lreg;
     r0 = newtmp("abi", Kl, f);
     r1 = newtmp("abi", Kw, f);
     b.jmp.type = Jjnz;
@@ -827,7 +827,7 @@ fn arm64_selvastart(f: *Fn, p: Params, ap: Ref) void {
 }
 
 pub fn arm64_abi(f: *Fn) void {
-    var b = f.start;
+    var b: [*c]Blk = f.start;
     while (b != null) : (b = b.*.link)
         b.*.visit = 0;
 

@@ -126,7 +126,7 @@ pub fn emitdat(d: *Dat, f: *Writer) Writer.Error!void {
 const Asmbits = extern struct {
     n: bits,
     size: i32,
-    link: [*c]Asmbits,
+    link: ?*Asmbits,
 };
 
 var stash: [*c]Asmbits = null;

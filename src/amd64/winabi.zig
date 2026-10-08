@@ -120,7 +120,7 @@ const ArgClass = extern struct {
 
 const ExtraAlloc = extern struct {
     instr: Ins,
-    link: [*c]ExtraAlloc,
+    link: ?*ExtraAlloc,
 };
 
 inline fn ALIGN_DOWN(n: anytype, a: @TypeOf(n)) @TypeOf(n) {
@@ -701,7 +701,7 @@ fn find_end_of_func_parameters(start_block: *Blk) [*c]Ins {
 // Copy from registers/stack into values.
 fn lower_func_parameters(func: *Fn) RegisterUsage {
     // This is half-open, so end points after the last Opar.
-    const start_block = func.start;
+    const start_block: [*c]Blk = func.start;
     const start_of_params = start_block.*.ins;
     const end_of_params = find_end_of_func_parameters(start_block);
 
@@ -817,7 +817,7 @@ pub fn amd64_winabi_abi(func: *Fn) void {
     // need to add stack allocas for copies when structs are passed or returned by
     // value.
     var extra_alloc: [*c]ExtraAlloc = null;
-    var block_it: ?*Blk = func.start.*.link;
+    var block_it: ?*Blk = func.start.?.link;
     while (block_it) |block| : (block_it = block.link) {
         lower_args_for_block(func, block, &param_reg_usage, &extra_alloc);
     }

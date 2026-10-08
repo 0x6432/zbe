@@ -107,7 +107,17 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    Metric now `[*c]` 560, `.*.` 2594. Failed/skipped: BSet params (C
    `[1]BSet` array-of-one idiom must become plain BSet first), Num (null
    arg in amd64 isel sel()).
-   TODO: rest of `[*c]` -> `*T`/`?*T`/slices, enums for ops/classes/jumps.
+   DONE (4e): `[1]BSet` idiom -> plain `BSet` fields/locals, all BSet params
+   `*BSet` (spill limit()/fst use `?*BSet`).
+   DONE (4f): linked-list fields are optionals: Blk.s1/s2/link/idom/dom/dlink,
+   Blk.phi, Phi.link, Fn.start, Asmbits/RAlloc/ExtraAlloc/Insl.link,
+   cfg.zig jump struct s1/s2 -> `?*T`. Sed rewrote `.FIELD.*.` -> `.FIELD.?.`;
+   locals inferred from these got explicit `[*c]T` via tools/fixderef.py
+   (pipe zig errors into it); tools/listloops2.py converts variables reused
+   for several list walks in one function. NOTE Use.u.phi is still [*c]Phi
+   (don't apply `.phi.?` there).
+   TODO: rest of `[*c]` -> `*T`/`?*T`/slices (the `[*c]T` locals added by
+   fixderef are candidates), enums for ops/classes/jumps.
    Notes: Zig forbids `<` on `[*]T` (only `[*c]`) and `&cptr[i]` is
    `*allowzero T` (won't coerce to *T) -> rewrite pointer loops to
    slices/indices before converting struct fields to `[*]T`.

@@ -834,7 +834,7 @@ pub fn amd64_sysv_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
             Jjmp => {
                 // Jmp:
                 if (b.s1 != b.link)
-                    try fp.print("\tjmp {s}bb{d}\n", .{cs(&all.T.asloc), sysv_id0 + @as(i32, @intCast(b.s1.*.id))})
+                    try fp.print("\tjmp {s}bb{d}\n", .{cs(&all.T.asloc), sysv_id0 + @as(i32, @intCast(b.s1.?.id))})
                 else
                     lbl = false;
             },
@@ -848,7 +848,7 @@ pub fn amd64_sysv_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
                         b.s2 = s;
                         n = 0;
                     } else n = 1;
-                    try fp.print("\tj{s} {s}bb{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), sysv_id0 + @as(i32, @intCast(b.s2.*.id))});
+                    try fp.print("\tj{s} {s}bb{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), sysv_id0 + @as(i32, @intCast(b.s2.?.id))});
                     continue :sw Jjmp;
                 }
                 die("unhandled jump {d}", .{b.jmp.type});
@@ -942,7 +942,7 @@ pub fn amd64_winabi_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
             Jjmp => {
                 // Jmp:
                 if (b.s1 != b.link)
-                    try fp.print("\tjmp {s}bb{d}\n", .{cs(&all.T.asloc), winabi_id0 + @as(i32, @intCast(b.s1.*.id))})
+                    try fp.print("\tjmp {s}bb{d}\n", .{cs(&all.T.asloc), winabi_id0 + @as(i32, @intCast(b.s1.?.id))})
                 else
                     lbl = false;
             },
@@ -956,7 +956,7 @@ pub fn amd64_winabi_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
                         b.s2 = s;
                         n = 0;
                     } else n = 1;
-                    try fp.print("\tj{s} {s}bb{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), winabi_id0 + @as(i32, @intCast(b.s2.*.id))});
+                    try fp.print("\tj{s} {s}bb{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), winabi_id0 + @as(i32, @intCast(b.s2.?.id))});
                     continue :sw Jjmp;
                 }
                 die("unhandled jump {d}", .{b.jmp.type});

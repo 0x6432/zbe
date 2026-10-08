@@ -1060,9 +1060,9 @@ fn typecheck(f: *Fn) void {
     fillpreds(f);
     bsinit(&pb, f.nblk);
     bsinit(&ppb, f.nblk);
-    var b = f.start;
+    var b: [*c]Blk = f.start;
     while (b != null) : (b = b.*.link) {
-        var p = b.*.phi;
+        var p: [*c]Phi = b.*.phi;
         while (p != null) : (p = p.*.link)
             f.tmp[p.*.to.val].cls = p.*.cls;
         var i = b.*.ins;
@@ -1128,10 +1128,10 @@ fn typecheck(f: *Fn) void {
         }
         if (jerr or (b.*.jmp.type == Jjnz and !usecheck(r, Kw, f)))
             err("invalid type for jump argument %{s} in block @{s}", .{cs(f.tmp[r.val].name), cs(b.*.name)});
-        if (b.*.s1 != null and b.*.s1.*.jmp.type == Jxxx)
-            err("block @{s} is used undefined", .{cs(b.*.s1.*.name)});
-        if (b.*.s2 != null and b.*.s2.*.jmp.type == Jxxx)
-            err("block @{s} is used undefined", .{cs(b.*.s2.*.name)});
+        if (b.*.s1 != null and b.*.s1.?.jmp.type == Jxxx)
+            err("block @{s} is used undefined", .{cs(b.*.s1.?.name)});
+        if (b.*.s2 != null and b.*.s2.?.jmp.type == Jxxx)
+            err("block @{s} is used undefined", .{cs(b.*.s2.?.name)});
     }
 }
 
@@ -1183,7 +1183,7 @@ fn parsefn(lnk: [*c]Lnk) [*c]Fn {
     curf.*.nmem = 0;
     curf.*.nblk = @intCast(nblk);
     curf.*.rpo = vnewT([*c]Blk, nblk, PFn);
-    var b = curf.*.start;
+    var b: [*c]Blk = curf.*.start;
     while (b != null) : (b = b.*.link)
         b.*.dlink = null; // was trashed by findblk()
     i = 0;
@@ -1635,7 +1635,7 @@ pub fn printfn(f: *Fn, fp: *Writer) Writer.Error!void {
             Jhlt => try fp.print("\thlt\n", .{}),
             Jjmp => {
                 if (b.s1 != b.link)
-                    try fp.print("\tjmp @{s}\n", .{cs(b.s1.*.name)});
+                    try fp.print("\tjmp @{s}\n", .{cs(b.s1.?.name)});
             },
             else => {
                 try fp.print("\t{s} ", .{cs(jtoa[@intCast(b.jmp.type - 1)].ptr)});
@@ -1644,7 +1644,7 @@ pub fn printfn(f: *Fn, fp: *Writer) Writer.Error!void {
                     try fp.print(", ", .{});
                 }
                 assert(b.s1 != null and b.s2 != null);
-                try fp.print("@{s}, @{s}\n", .{cs(b.s1.*.name), cs(b.s2.*.name)});
+                try fp.print("@{s}, @{s}\n", .{cs(b.s1.?.name), cs(b.s2.?.name)});
             },
         }
     }

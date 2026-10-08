@@ -120,7 +120,7 @@ const Class = struct {
 
 const Insl = struct {
     i: Ins,
-    link: [*c]Insl,
+    link: ?*Insl,
 };
 
 const Params = struct {
@@ -684,7 +684,7 @@ fn selvastart(f: *Fn, p: Params, ap: Ref) void {
 }
 
 pub fn rv64_abi(f: *Fn) void {
-    var b = f.start;
+    var b: [*c]Blk = f.start;
     while (b != null) : (b = b.*.link)
         b.*.visit = 0;
 

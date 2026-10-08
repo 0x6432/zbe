@@ -607,14 +607,14 @@ pub fn rv64_emitfn(fn_: *Fn, f: *Writer) Writer.Error!void {
                     b.jmp.arg = TMP(T6);
                 }
                 assert(isreg(b.jmp.arg));
-                try f.print("\tb{s}z {s}, .L{d}\n", .{cs(@as([*c]const u8, if (neg) "ne" else "eq")), cs(rname[b.jmp.arg.val]), id0 + @as(i32, @intCast(b.s2.*.id))});
+                try f.print("\tb{s}z {s}, .L{d}\n", .{cs(@as([*c]const u8, if (neg) "ne" else "eq")), cs(rname[b.jmp.arg.val]), id0 + @as(i32, @intCast(b.s2.?.id))});
                 jmp = true;
             },
             else => {},
         }
         if (jmp) { // Jmp:
             if (b.s1 != b.link)
-                try f.print("\tj .L{d}\n", .{id0 + @as(i32, @intCast(b.s1.*.id))})
+                try f.print("\tj .L{d}\n", .{id0 + @as(i32, @intCast(b.s1.?.id))})
             else
                 lbl = false;
         }

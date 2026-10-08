@@ -191,13 +191,13 @@ fn phiins(f: *Fn) void {
                 n -= 1;
                 ok = ok and (use.*.bid == defb);
             }
-            if (ok or defb == f.start.*.id)
+            if (ok or defb == f.start.?.id)
                 continue;
         }
         bszero(&u);
         k = Kx;
         var bp = be;
-        var b = f.start;
+        var b: [*c]Blk = f.start;
         while (b != null) : (b = b.*.link) {
             b.*.visit = 0;
             var r = R;
@@ -315,7 +315,7 @@ fn renblk(b: *Blk, stk: [*c][*c]Name, f: *Fn) void {
     var succ: [3][*c]Blk = undefined;
     var t: i32 = undefined;
 
-    var p = b.phi;
+    var p: [*c]Phi = b.phi;
     while (p != null) : (p = p.*.link)
         rendef(&p.*.to, b, stk, f);
     var i = b.ins;
@@ -382,7 +382,7 @@ pub fn ssa(f: *Fn) void {
     fillfron(f);
     filllive(f);
     phiins(f);
-    renblk(f.start, stk, f);
+    renblk(f.start.?, stk, f);
     while (nt != 0) {
         nt -= 1;
         while (true) {

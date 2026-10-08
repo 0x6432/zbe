@@ -301,11 +301,11 @@ fn branchdom(f: *Fn, bif: [*c]Blk, bbr1: *Blk, bbr2: *Blk, b: [*c]Blk) bool {
 }
 
 fn domzero(f: *Fn, d: *Blk, b: *Blk, z: *i32) bool {
-    if (branchdom(f, d, d.s1, d.s2, b)) {
+    if (branchdom(f, d, d.s1.?, d.s2.?, b)) {
         z.* = 0;
         return true;
     }
-    if (branchdom(f, d, d.s2, d.s1, b)) {
+    if (branchdom(f, d, d.s2.?, d.s1.?, b)) {
         z.* = 1;
         return true;
     }
@@ -382,7 +382,7 @@ fn dedupjmp(f: *Fn, b: *Blk) void {
         return;
 
     // propagate jmp arg as 0 through s2
-    propjnz0(f, b, b.s2, b.s1, b.jmp.arg, Kw);
+    propjnz0(f, b, b.s2.?, b.s1.?, b.jmp.arg, Kw);
     // propagate cmp eq/ne 0 def of jmp arg as 0
     if (cmpeqz(f, b.jmp.arg, &arg, &cls, &eqval)) {
         const ps = [2][*c]Blk{ b.s1, b.s2 };
@@ -413,7 +413,7 @@ fn rebuildcfg(f: *Fn) void {
     // killed blocks and may be active
     // in the computation in the start
     // block
-    const s = f.start;
+    const s: [*c]Blk = f.start;
     var n: uint = 0;
     while (n < nblk) : (n += 1) {
         const b = rpo[n];
@@ -438,7 +438,7 @@ pub fn gvn(f: *Fn) void {
     all.con01[1] = getcon(1, f);
 
     // copy.c uses the visit bit
-    var b = f.start;
+    var b: [*c]Blk = f.start;
     while (b != null) : (b = b.*.link) {
         var p_it: ?*Phi = b.*.phi;
         while (p_it) |p| : (p_it = p.link)

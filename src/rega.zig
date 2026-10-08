@@ -526,7 +526,7 @@ pub fn rega(f: *Fn) void {
         tmp[@intCast(t)].visit = -1;
     }
     var bp = blk;
-    var b = f.start;
+    var b: [*c]Blk = f.start;
     while (b != null) : (b = b.*.link) {
         bp.* = b;
         bp += 1;
@@ -577,7 +577,7 @@ pub fn rega(f: *Fn) void {
         rcopy(&end[n], &cur);
         doblk(b, &cur);
         bscopy(&b.*.in, &cur.b);
-        var p = b.*.phi;
+        var p: [*c]Phi = b.*.phi;
         while (p != null) : (p = p.*.link) {
             if (rtype(p.*.to) == RTmp)
                 bsclr(&b.*.in, p.*.to.val);
@@ -587,7 +587,7 @@ pub fn rega(f: *Fn) void {
 
     // 3. emit copies shared by multiple edges
     // to the same block
-    var s = f.start;
+    var s: [*c]Blk = f.start;
     while (s != null) : (s = s.*.link) {
         if (s.*.npred <= 1)
             continue;
@@ -601,7 +601,7 @@ pub fn rega(f: *Fn) void {
         // to find the register of a phi in a
         // predecessor, we have to find the
         // corresponding argument
-        var p = s.*.phi;
+        var p: [*c]Phi = s.*.phi;
         while (p != null) : (p = p.*.link) {
             if (rtype(p.*.to) != RTmp)
                 continue;

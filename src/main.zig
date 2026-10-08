@@ -4,6 +4,7 @@ const assert = std.debug.assert;
 const C = @import("libc.zig");
 const amd64 = @import("amd64/all.zig");
 const arm64 = @import("arm64/all.zig");
+const rv64 = @import("rv64/all.zig");
 // -- imports --
 const all = @import("all.zig");
 const DEnd = all.DEnd;
@@ -55,13 +56,14 @@ var tlist: [7]?*Target = undefined;
 fn inittargets() void {
     amd64.targ.init();
     arm64.targ.init();
+    rv64.targ.init();
     tlist = .{
         &amd64.targ.T_amd64_sysv,
         &amd64.targ.T_amd64_apple,
         &amd64.targ.T_amd64_win,
         &arm64.targ.T_arm64,
         &arm64.targ.T_arm64_apple,
-        null, // T_rv64 (todo)
+        &rv64.targ.T_rv64,
         null,
     };
 }

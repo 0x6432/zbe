@@ -1,19 +1,17 @@
 # HANDOFF – QBE → Zig translation
 
-Updated: 20261008-220121 UTC (backup 35)
+Updated: 20261008-220131 UTC (backup 36)
 
 ## Goal
 Translate QBE (C, cloned at /data/qbe-c, HEAD e786f06) to latest Zig master.
 Phase 1: 1:1 translation (src/*.zig, C pointers, libc). Phase 2: test with QBE
 tests, Hare, cproc, own tests. Phase 3: canonical/idiomatic Zig rewrite.
-Backups every 10–15 min: ALWAYS update HANDOFF.md first (backup.sh refuses
-if it is unchanged since the last backup), then run /data/backup.sh and
-download /data/backups/qbe-zig-backup-N.tar.gz (N = backup number, counted
-from "wip: periodic backup" commits). The tarball holds qbe-zig/ (with
-HANDOFF.md), backup.sh and a top-level copy of HANDOFF.md.
+Backups every 10–15 min: ALWAYS update HANDOFF.md first, then run
+/data/backup.sh, which commits and pushes to github.com/0x6432/zbe (see
+"Backups" at the end). Tarballs are no longer used.
 
 ## Restore after sandbox reset
-1. Extract tarball into /data (gives /data/qbe-zig and /data/backup.sh).
+1. git clone https://github.com/0x6432/zbe /data/qbe-zig; cp tools/backup.sh /data/.
 2. Install Zig master into /data/tools/zig (0.18.0-dev.35+5e754304d was used).
 3. git clone git://c9x.me/qbe.git (https fails) /data/qbe-c && make (reference binary).
 
@@ -188,7 +186,7 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    `*allowzero T` (won't coerce to *T) -> rewrite pointer loops to
    slices/indices before converting struct fields to `[*]T`.
 
-## Next steps (current as of stage 6d, all checks green)
+## Next steps (current as of stage 6f, all checks green)
 DONE 5t (redone after sandbox reset): arm64/isel.zig (fixarg(pr: *Ref),
 selcmp(arg: *[2]Ref), seljmp backward index search with ?*Ins, list walks)
 and rv64/isel.zig (memarg/immarg/fixarg take *Ref/?*Ins). All isel files
@@ -222,7 +220,15 @@ DONE 6c: Tmp.use is `?[*]Use` (vector, null until filluse); users do `.use.?[..]
 DONE 6d: emit.zig `file: ?[*]u32`.
 Remaining `[*c]` are C strings (names, fmt tables, sec names, kwmap) kept
 deliberately; cfg.zig `pb.*.id` is a legit `**Blk` deref.
-NEXT (optional polish): enums for ops/classes/jumps; slices for strings.
+DONE 6e/6f: target emit files: string tables/params are `[*:0]const u8`
+(`?[*:0]const u8` where a table has holes, e.g. ctoa/rname, omap.fmt ends
+with null -> callers use `.fmt.?`); fmt walkers use `s[0]` instead of `s.*`;
+`&all.T.assym` / bufPrintZ buffers passed via `@ptrCast`.
+Fuzzers rerun at 6d: abifuzz 60/60, irfuzz 100/100.
+PLAN (user approved, in order): (1) strings -> sentinel/slices: emit.zig,
+then core names (all.zig name fields, util intern/str/strf/hash/newtmp,
+parse, main); (2) vectors (vnew/vgrow) -> typed growable arrays;
+(3) enums for ops/classes/jumps; (4) cut casts.
 NOTE: the sandbox can stop mid-session (files in /data survived once, but the
 last edits before the stop were partly lost) -> commit + back up often.
 2. Emit files (arm64/emit ~70 `.*.`, rv64/emit ~57, amd64/emit ~35,
@@ -241,20 +247,21 @@ indices/slices); pointer subtraction on `[*]T` works; tmph needs
 
 ## Prompt for the next agent
 > You are continuing a QBE (C compiler backend) -> Zig master translation.
-> Restore: extract qbe-zig-backup.tar.gz into /data (gives /data/qbe-zig git
-> repo + /data/backup.sh); install Zig master to /data/tools/zig and
+> Restore: `git clone https://github.com/0x6432/zbe /data/qbe-zig` and
+> `cp /data/qbe-zig/tools/backup.sh /data/` (put a GitHub token in
+> /data/.gh_token); install Zig master to /data/tools/zig and
 > `export PATH=/data/tools/zig:$PATH` in every shell; clone
 > git://c9x.me/qbe.git to /data/qbe-c and `make` (reference binary
 > /data/qbe-c/qbe); build corpus with `sh tools/mkcorpus.sh` (Hare/cproc IR,
 > see Status section). Read HANDOFF.md fully first.
 > State: 1:1 translation done and verified (git tag `v1-literal`). Canonical
-> rewrite in progress, stages 1-6d done (see "Canonical rewrite").
+> rewrite in progress, stages 1-6f done (see "Canonical rewrite").
 > Verify after EVERY change: `sh tools/all.sh > /tmp/all.log 2>&1; head -1
 > /tmp/all.log; tail -8 /tmp/all.log` (FUZZ=1 also runs abifuzz/irfuzz).
 > Expected: "All is fine!", 0/76 differ on 6 targets + debug dumps, corpus
 > 1608 runs 0 differ 104 both-failed, abifuzz 60/60, irfuzz 100/100.
 > Commit each stage ("stage 5x: ..."). Every 10-15 min: update HANDOFF.md
-> (required), run `sh /data/backup.sh`, download qbe-zig-backup-N.tar.gz.
+> (required), run `sh /data/backup.sh` (pushes to GitHub).
 > Continue with "Next steps" above. Output must stay byte-identical to C QBE.
 
 ## Backups (since backup 34): GitHub, not tarballs

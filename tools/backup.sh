@@ -6,6 +6,9 @@ cd /data/qbe-zig
 H=HANDOFF.md
 if [ $(( $(date +%s) - $(stat -c %Y $H) )) -gt 1200 ]; then
   echo "REFUSING: $H older than 20 min; update it first" >&2; exit 1; fi
+LAST=$(git log -1 --format=%H --grep='wip: periodic backup')
+if [ -n "$LAST" ] && git diff --quiet "$LAST" -I '^Updated: ' -- $H; then
+  echo "REFUSING: $H unchanged since last backup; update it first" >&2; exit 1; fi
 N=$(( $(git log --oneline | grep -c 'wip: periodic backup') + 1 ))
 TS=$(date -u +%Y%m%d-%H%M%S)
 sed -i "s/^Updated: .*/Updated: $TS UTC (backup $N)/" $H

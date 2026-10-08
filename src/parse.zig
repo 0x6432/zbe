@@ -603,8 +603,8 @@ fn nextnl() i32 {
     return t;
 }
 
-const ttoa: [Ntok][*c]const u8 = blk: {
-    var m: [Ntok][*c]const u8 = @splat(null);
+const ttoa: [Ntok]?[]const u8 = blk: {
+    var m: [Ntok]?[]const u8 = @splat(null);
     m[Tlbl] = "label";
     m[Tcomma] = ",";
     m[Teq] = "=";
@@ -621,9 +621,9 @@ fn expect(t: i32) void {
     const t1 = next();
     if (t == t1)
         return;
-    const s1: [*c]const u8 = if (ttoa[@intCast(t)] != null) ttoa[@intCast(t)] else "??";
-    const s2: [*c]const u8 = if (ttoa[@intCast(t1)] != null) ttoa[@intCast(t1)] else "??";
-    err("{s} expected, got {s} instead", .{ cs(s1), cs(s2) });
+    const s1 = ttoa[@intCast(t)] orelse "??";
+    const s2 = ttoa[@intCast(t1)] orelse "??";
+    err("{s} expected, got {s} instead", .{ s1, s2 });
 }
 
 fn tmpref() Ref {
@@ -868,11 +868,11 @@ fn parseline(ps: PState) PState {
                 curb.?.jmp.type = Jjmp;
                 curb.?.s1 = b;
             }
-            if (b.*.jmp.type != Jxxx)
-                err("multiple definitions of block @{s}", .{cs(b.*.name)});
+            if (b.jmp.type != Jxxx)
+                err("multiple definitions of block @{s}", .{cs(b.name)});
             blink.* = b;
             curb = b;
-            plink = &curb.?.phi;
+            plink = &b.phi;
             expect(Tnl);
             return PPhi;
         },
@@ -1100,17 +1100,17 @@ fn typecheck(f: *Fn) void {
                 k = all.optab[i.op].argcls[n][i.cls];
                 r = i.arg[n];
                 t = &f.tmp[r.val];
-                const which: [*c]const u8 = if (n == 1) "second" else "first";
+                const which: []const u8 = if (n == 1) "second" else "first";
                 if (k == Ke)
                     err("invalid instruction type in {s}", .{cs(all.optab[i.op].name)});
                 if (rtype(r) == RType)
                     continue;
                 if (rtype(r) != -1 and k == Kx)
-                    err("no {s} operand expected in {s}", .{cs(which), cs(all.optab[i.op].name)});
+                    err("no {s} operand expected in {s}", .{which, cs(all.optab[i.op].name)});
                 if (rtype(r) == -1 and k != Kx)
-                    err("missing {s} operand in {s}", .{cs(which), cs(all.optab[i.op].name)});
+                    err("missing {s} operand in {s}", .{which, cs(all.optab[i.op].name)});
                 if (!usecheck(r, k, f))
-                    err("invalid type for {s} operand %{s} in {s}", .{cs(which), cs(t.?.name), cs(all.optab[i.op].name)});
+                    err("invalid type for {s} operand %{s} in {s}", .{which, cs(t.?.name), cs(all.optab[i.op].name)});
             }
         }
         r = b.jmp.arg;
@@ -1191,9 +1191,9 @@ fn parsefn(lnk: *Lnk) *Fn {
     return curf;
 }
 
-fn parsefields(fld: [*c]Field, ty: *Typ, t_: i32) void {
+fn parsefields(fld: *[NField + 1]Field, ty: *Typ, t_: i32) void {
     var t = t_;
-    var ty1: [*c]Typ = undefined;
+    var ty1: usize = undefined; // index of the member type
     var c: i32 = undefined;
     var a: i32 = undefined;
     var @"type": i32 = undefined;
@@ -1203,7 +1203,6 @@ fn parsefields(fld: [*c]Field, ty: *Typ, t_: i32) void {
     var sz: u64 = 0;
     var al = ty.@"align";
     while (t != Trbrace) {
-        ty1 = null;
         switch (t) {
             Td => {
                 @"type" = Fd;
@@ -1237,9 +1236,9 @@ fn parsefields(fld: [*c]Field, ty: *Typ, t_: i32) void {
             },
             Ttyp => {
                 @"type" = FTyp;
-                ty1 = &all.typ[@intCast(findtyp(@as(i32, @intCast(ntyp)) - 1))];
-                s = ty1.*.size;
-                a = ty1.*.@"align";
+                ty1 = @intCast(findtyp(@as(i32, @intCast(ntyp)) - 1));
+                s = all.typ[ty1].size;
+                a = all.typ[ty1].@"align";
             },
             else => err("invalid type member specifier", .{}),
         }
@@ -1263,7 +1262,7 @@ fn parsefields(fld: [*c]Field, ty: *Typ, t_: i32) void {
         } else c = 1;
         sz +%= @as(u64, @bitCast(@as(i64, a))) +% @as(u64, @bitCast(@as(i64, c))) *% s;
         if (@"type" == FTyp)
-            s = @intCast(ptrdiff(ty1, all.typ));
+            s = ty1;
         while (c > 0 and n < NField) : ({
             c -= 1;
             n += 1;

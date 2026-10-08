@@ -1,6 +1,6 @@
 # HANDOFF – QBE → Zig translation
 
-Updated: 20261008-105715 UTC
+Updated: 20261008-110847 UTC
 
 ## Goal
 Translate QBE (C, cloned at /data/qbe-c, HEAD e786f06) to latest Zig master.
@@ -153,6 +153,9 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    DONE 5e/5f: live.zig idiomatic; spill dopm index-based; util.igroup(b, n)
    returns index range `.{lo, hi}`, util.insidx(b, i) (asserting) maps an
    *Ins back to its index; gcm schedins/schedblk index-based.
+   DONE 5g-5i: alias.zig fillalias, ssa.zig (phiins work stack, Name
+   stack, renblk), copy.zig, gvn.zig (gvntbl `[]?*Ins`) idiomatic.
+   NEXT FILES: rega, load, mem, parse, emit files, ABI, isel.
    NEXT: rewrite remaining `[*c]Ins` pointer walks to index loops / slices
    (ABI selpar/selcall take [i0,i1) ranges -> should take `[]Ins`), manual
    idiomatic rewrites of functions optionalize couldn't handle (e.g.

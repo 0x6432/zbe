@@ -1,6 +1,6 @@
 # HANDOFF – QBE → Zig translation
 
-Updated: 20261008-110847 UTC
+Updated: 20261008-111955 UTC
 
 ## Goal
 Translate QBE (C, cloned at /data/qbe-c, HEAD e786f06) to latest Zig master.
@@ -155,7 +155,11 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    *Ins back to its index; gcm schedins/schedblk index-based.
    DONE 5g-5i: alias.zig fillalias, ssa.zig (phiins work stack, Name
    stack, renblk), copy.zig, gvn.zig (gvntbl `[]?*Ins`) idiomatic.
-   NEXT FILES: rega, load, mem, parse, emit files, ABI, isel.
+   DONE 5j-5l: rega.zig (dopm index-based like spill), load.zig (def takes
+   an ins index ?uint), mem.zig (coalesce slices; Store.i/bl are `[*]Ins`
+   so blit pairs use i[1]). NOTE: when building structs with `undefined`
+   fields, remember the C code relied on zeroed memory (Debug fills 0xaa).
+   NEXT FILES: parse, emit files, ABI, isel.
    NEXT: rewrite remaining `[*c]Ins` pointer walks to index loops / slices
    (ABI selpar/selcall take [i0,i1) ranges -> should take `[]Ins`), manual
    idiomatic rewrites of functions optionalize couldn't handle (e.g.

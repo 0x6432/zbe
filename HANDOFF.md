@@ -1,6 +1,6 @@
 # HANDOFF – QBE → Zig translation
 
-Updated: 20261008-100916 UTC
+Updated: 20261008-102019 UTC
 
 ## Goal
 Translate QBE (C, cloned at /data/qbe-c, HEAD e786f06) to latest Zig master.
@@ -126,6 +126,13 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    `zig build` first and aborts on failure (check_tmp.zig misses main.zig!).
    Metric: `[*c]` 547, `.*.` 2088 (remaining `.*.` are on C pointers; they
    disappear as C pointers are converted -- rerun derefdots after each step).
+   DONE (4j-4l): Blk.pred/fron, Fn.rpo, Phi.blk -> `[*]*Blk`; Phi.arg,
+   BSet.t, Typ.fields, Blk.ins -> `[*]T`; vnewT returns `[*]T`; Use.u.ins/phi
+   -> `*T`; Tmp.def, Alias.slot -> `?*T`. Tmp.use stays `[*c]Use` (null =
+   not yet allocated, see ssa.zig). Locals doing Ins pointer arithmetic got
+   explicit `[*c]Ins` (tools/fixinsptr.py, fed with `zig build` errors);
+   pointer order comparisons between *T use @intFromPtr.
+   NEXT: rewrite those `[*c]Ins` pointer walks to index loops / slices.
    TODO: rest of `[*c]` -> `*T`/`?*T`/slices (the `[*c]T` locals added by
    fixderef are candidates), enums for ops/classes/jumps.
    Notes: Zig forbids `<` on `[*]T` (only `[*c]`) and `&cptr[i]` is

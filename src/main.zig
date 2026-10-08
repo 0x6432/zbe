@@ -93,9 +93,9 @@ fn data(d: [*c]Dat) void {
     }
 }
 
-fn func(f: [*c]Fn) void {
+fn func(f: *Fn) void {
     if (dbg)
-        dprint("**** Function {s} ****", .{cs(f.*.name)});
+        dprint("**** Function {s} ****", .{cs(f.name)});
     if (all.debug['P'] != 0) {
         dprint("\n> After parsing:\n", .{});
         printfn(f, all.dbg) catch {};
@@ -145,17 +145,17 @@ fn func(f: [*c]Fn) void {
     fillcfg(f);
     simpljmp(f);
     fillcfg(f);
-    assert(f.*.rpo[0] == f.*.start);
+    assert(f.rpo[0] == f.start);
     var n: uint = 0;
     while (true) : (n += 1) {
-        if (n == f.*.nblk - 1) {
-            f.*.rpo[n].*.link = null;
+        if (n == f.nblk - 1) {
+            f.rpo[n].*.link = null;
             break;
-        } else f.*.rpo[n].*.link = f.*.rpo[n + 1];
+        } else f.rpo[n].*.link = f.rpo[n + 1];
     }
     if (!dbg) {
         all.T.emitfn(f, outf) catch writeFailed();
-        outf.print("/* end function {s} */\n\n", .{cs(f.*.name)}) catch writeFailed();
+        outf.print("/* end function {s} */\n\n", .{cs(f.name)}) catch writeFailed();
     } else {
         dprint("\n", .{});
         all.dbg.flush() catch {};

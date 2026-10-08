@@ -70,21 +70,21 @@ const vnewT = all.vnewT;
 // -- end imports --
 
 /// require use, maintains use counts
-pub fn promote(f: [*c]Fn) void {
+pub fn promote(f: *Fn) void {
     var t: [*c]Tmp = undefined;
     var l: [*c]Ins = undefined;
     var s: i32 = undefined;
     var k: i32 = undefined;
 
     // promote uniform stack slots to temporaries
-    const b = f.*.start;
+    const b = f.start;
     var i = b.*.ins;
     outer: while (i < &b.*.ins[b.*.nins]) : (i += 1) {
         if (Oalloc > i.*.op or i.*.op > Oalloc1)
             continue;
         // specific to NAlign == 3
         assert(rtype(i.*.to) == RTmp);
-        t = &f.*.tmp[i.*.to.val];
+        t = &f.tmp[i.*.to.val];
         if (t.*.ndef != 1)
             continue :outer; // goto Skip
         k = -1;
@@ -125,7 +125,7 @@ pub fn promote(f: [*c]Fn) void {
                 t.*.ndef += 1;
             } else {
                 if (k == -1)
-                    err("slot %{s} is read but never stored to", .{cs(f.*.tmp[l.*.arg[0].val].name)});
+                    err("slot %{s} is read but never stored to", .{cs(f.tmp[l.*.arg[0].val].name)});
                 // try to turn loads into copies so we
                 // can eliminate them later
                 sw: switch (l.*.op) {
@@ -192,13 +192,13 @@ fn radd(r: *Range, n: i32) void {
         r.b = n + 1;
 }
 
-fn slot(ps: *[*c]Slot, off: *i64, r: Ref, f: [*c]Fn, sl: [*c]Slot) bool {
+fn slot(ps: *[*c]Slot, off: *i64, r: Ref, f: *Fn, sl: [*c]Slot) bool {
     var a: Alias = undefined;
 
     getalias(&a, r, f);
     if (a.type != ALoc)
         return false;
-    const t = &f.*.tmp[@intCast(a.base)];
+    const t = &f.tmp[@intCast(a.base)];
     if (t.*.visit < 0)
         return false;
     off.* = a.offset;
@@ -206,7 +206,7 @@ fn slot(ps: *[*c]Slot, off: *i64, r: Ref, f: [*c]Fn, sl: [*c]Slot) bool {
     return true;
 }
 
-fn load(r: Ref, x: bits, ip: i32, f: [*c]Fn, sl: [*c]Slot) void {
+fn load(r: Ref, x: bits, ip: i32, f: *Fn, sl: [*c]Slot) void {
     var off: i64 = undefined;
     var s: [*c]Slot = undefined;
 
@@ -218,7 +218,7 @@ fn load(r: Ref, x: bits, ip: i32, f: [*c]Fn, sl: [*c]Slot) void {
     }
 }
 
-fn store(r: Ref, x: bits, ip: i32, i: [*c]Ins, f: [*c]Fn, sl: [*c]Slot) void {
+fn store(r: Ref, x: bits, ip: i32, i: [*c]Ins, f: *Fn, sl: [*c]Slot) void {
     var off: i64 = undefined;
     var s: [*c]Slot = undefined;
 
@@ -247,7 +247,7 @@ fn maxrpo(hd: [*c]Blk, b: [*c]Blk) void {
         hd.*.loop = @intCast(b.*.id);
 }
 
-pub fn coalesce(f: [*c]Fn) void {
+pub fn coalesce(f: *Fn) void {
     var r: Range = undefined;
     var s: [*c]Slot = undefined;
     var s0: [*c]Slot = undefined;
@@ -268,12 +268,12 @@ pub fn coalesce(f: [*c]Fn) void {
     var nsl: i32 = 0;
     var sl = vnewT(Slot, 0, PHeap);
     n = Tmp0;
-    while (n < f.*.ntmp) : (n += 1) {
-        t = &f.*.tmp[@intCast(n)];
+    while (n < f.ntmp) : (n += 1) {
+        t = &f.tmp[@intCast(n)];
         t.*.visit = -1;
         if (t.*.alias.type == ALoc)
             if (t.*.alias.slot == &t.*.alias)
-                if (t.*.bid == f.*.start.*.id)
+                if (t.*.bid == f.start.*.id)
                     if (t.*.alias.u.loc.sz != -1) {
                         t.*.visit = nsl;
                         nsl += 1;
@@ -289,17 +289,17 @@ pub fn coalesce(f: [*c]Fn) void {
     }
 
     // one-pass liveness analysis
-    b = f.*.start;
+    b = f.start;
     while (b != null) : (b = b.*.link)
         b.*.loop = -1;
     loopiter(f, maxrpo);
     var nbl: i32 = 0;
     var bl = vnewT([*c]Ins, 0, PHeap);
-    const br: [*c]Range = ealloc(Range, f.*.nblk);
+    const br: [*c]Range = ealloc(Range, f.nblk);
     var ip: i32 = std.math.maxInt(c_int) - 1;
-    n = @as(i32, @intCast(f.*.nblk)) - 1;
+    n = @as(i32, @intCast(f.nblk)) - 1;
     while (n >= 0) : (n -= 1) {
-        b = f.*.rpo[@intCast(n)];
+        b = f.rpo[@intCast(n)];
         succ[0] = b.*.s1;
         succ[1] = b.*.s2;
         succ[2] = null;
@@ -405,13 +405,13 @@ pub fn coalesce(f: [*c]Fn) void {
             dprint("\tkill [", .{});
             m = 0;
             while (m < n) : (m += 1)
-                dprint(" %{s}", .{cs(f.*.tmp[@intCast(stk[@intCast(m)])].name)});
+                dprint(" %{s}", .{cs(f.tmp[@intCast(stk[@intCast(m)])].name)});
             dprint(" ]\n", .{});
         }
     }
     while (n != 0) {
         n -= 1;
-        t = &f.*.tmp[@intCast(stk[@intCast(n)])];
+        t = &f.tmp[@intCast(stk[@intCast(n)])];
         assert(t.*.ndef == 1 and t.*.def != null);
         i = t.*.def;
         if (isload(i.*.op)) {
@@ -423,7 +423,7 @@ pub fn coalesce(f: [*c]Fn) void {
         var u = t.*.use;
         while (u < &t.*.use[t.*.nuse]) : (u += 1) {
             if (u.*.type == UJmp) {
-                b = f.*.rpo[u.*.bid];
+                b = f.rpo[u.*.bid];
                 assert(isret(b.*.jmp.type));
                 b.*.jmp.type = Jret0;
                 b.*.jmp.arg = R;
@@ -481,7 +481,7 @@ pub fn coalesce(f: [*c]Fn) void {
     // substitute fused slots
     s = sl;
     while (s < &sl[@intCast(nsl)]) : (s += 1) {
-        t = &f.*.tmp[@intCast(s.*.t)];
+        t = &f.tmp[@intCast(s.*.t)];
         // the visit link is stale,
         // reset it before the slot()
         // calls below
@@ -490,7 +490,7 @@ pub fn coalesce(f: [*c]Fn) void {
         if (s.*.s == s)
             continue;
         t.*.def.* = INS0(Onop);
-        const ts = &f.*.tmp[@intCast(s.*.s.*.t)];
+        const ts = &f.tmp[@intCast(s.*.s.*.t)];
         assert(t.*.bid == ts.*.bid);
         if (t.*.def < ts.*.def) {
             // make sure the slot we
@@ -503,7 +503,7 @@ pub fn coalesce(f: [*c]Fn) void {
         var u = t.*.use;
         while (u < &t.*.use[t.*.nuse]) : (u += 1) {
             if (u.*.type == UJmp) {
-                b = f.*.rpo[u.*.bid];
+                b = f.rpo[u.*.bid];
                 b.*.jmp.arg = TMP(s.*.s.*.t);
                 continue;
             }
@@ -547,7 +547,7 @@ pub fn coalesce(f: [*c]Fn) void {
             while (s < &sl[@intCast(nsl)]) : (s += 1) {
                 if (s.*.s != s0)
                     continue;
-                dprint(" %{s}", .{cs(f.*.tmp[@intCast(s.*.t)].name)});
+                dprint(" %{s}", .{cs(f.tmp[@intCast(s.*.t)].name)});
                 if (s.*.r.b != 0)
                     dprint("[{d},{d})", .{s.*.r.a - ip, s.*.r.b - ip})
                 else

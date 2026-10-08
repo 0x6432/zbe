@@ -96,7 +96,7 @@ fn immarg(r: [*c]Ref, op: i32, i: [*c]Ins) bool {
     return rv64_op[@intCast(op)].imm != 0 and i != null and r == &i.*.arg[1];
 }
 
-fn fixarg(r: [*c]Ref, k: i32, i: [*c]Ins, f: [*c]Fn) void {
+fn fixarg(r: [*c]Ref, k: i32, i: [*c]Ins, f: *Fn) void {
     var buf: [32]u8 = undefined;
 
     const r0 = r.*;
@@ -104,7 +104,7 @@ fn fixarg(r: [*c]Ref, k: i32, i: [*c]Ins, f: [*c]Fn) void {
     const op: i32 = if (i != null) @intCast(i.*.op) else Ocopy;
     switch (rtype(r0)) {
         RCon => blk: {
-            var c: [*c]Con = &f.*.con[r0.val];
+            var c: [*c]Con = &f.con[r0.val];
             if (c.*.type == CAddr and memarg(r, op, i))
                 break :blk;
             if (KBASE(k) == 0 and c.*.type == CBits and immarg(r, op, i) and
@@ -117,14 +117,14 @@ fn fixarg(r: [*c]Ref, k: i32, i: [*c]Ins, f: [*c]Fn) void {
                 // immediates
                 assert(c.*.type == CBits);
                 const n = stashbits(@bitCast(c.*.bits.i), if (KWIDE(k) != 0) 8 else 4);
-                f.*.ncon += 1;
-                vgrow(&f.*.con, f.*.ncon);
-                c = &f.*.con[@intCast(f.*.ncon - 1)];
+                f.ncon += 1;
+                vgrow(&f.con, f.ncon);
+                c = &f.con[@intCast(f.ncon - 1)];
                 bufPrintZ(&buf, "\"{s}fp{d}\"", .{cs(&all.T.asloc), n});
                 c.* = std.mem.zeroes(Con);
                 c.*.type = CAddr;
                 c.*.sym.id = intern(&buf);
-                emit(Oload, k, r1, CON(ptrdiff(c, f.*.con)), R);
+                emit(Oload, k, r1, CON(ptrdiff(c, f.con)), R);
                 break :blk;
             }
             emit(Ocopy, k, r1, r0, R);
@@ -132,7 +132,7 @@ fn fixarg(r: [*c]Ref, k: i32, i: [*c]Ins, f: [*c]Fn) void {
         RTmp => blk: {
             if (isreg(r0))
                 break :blk;
-            const s = f.*.tmp[r0.val].slot;
+            const s = f.tmp[r0.val].slot;
             if (s != -1) {
                 // aggregate passed by value on
                 // stack, or fast local address,
@@ -145,13 +145,13 @@ fn fixarg(r: [*c]Ref, k: i32, i: [*c]Ins, f: [*c]Fn) void {
                 emit(Oaddr, k, r1, SLOT(s), R);
                 break :blk;
             }
-            if (k == Kw and f.*.tmp[r0.val].cls == Kl) {
+            if (k == Kw and f.tmp[r0.val].cls == Kl) {
                 // TODO: this sign extension isn't needed
                 // for 32-bit arithmetic instructions
                 r1 = newtmp("isel", k, f);
                 emit(Oextsw, Kl, r1, r0, R);
             } else {
-                assert(k == f.*.tmp[r0.val].cls);
+                assert(k == f.tmp[r0.val].cls);
             }
         },
         else => {},
@@ -159,19 +159,19 @@ fn fixarg(r: [*c]Ref, k: i32, i: [*c]Ins, f: [*c]Fn) void {
     r.* = r1;
 }
 
-fn negate(pr: *Ref, f: [*c]Fn) void {
+fn negate(pr: *Ref, f: *Fn) void {
     const r = newtmp("isel", Kw, f);
     emit(Oxor, Kw, pr.*, r, getcon(1, f));
     pr.* = r;
 }
 
-fn fixcmp(k: i32, f: [*c]Fn) void {
+fn fixcmp(k: i32, f: *Fn) void {
     const icmp = all.curi;
     fixarg(&icmp.*.arg[0], k, icmp, f);
     fixarg(&icmp.*.arg[1], k, icmp, f);
 }
 
-fn selcmp(i_: Ins, k: i32, op_: i32, f: [*c]Fn) void {
+fn selcmp(i_: Ins, k: i32, op_: i32, f: *Fn) void {
     var i = i_;
     var op = op_;
     var sign = false;
@@ -238,7 +238,7 @@ fn selcmp(i_: Ins, k: i32, op_: i32, f: [*c]Fn) void {
     fixcmp(k, f);
 }
 
-fn sel(i_: Ins, f: [*c]Fn) void {
+fn sel(i_: Ins, f: *Fn) void {
     var i = i_;
     var ck: i32 = undefined;
     var cc: i32 = undefined;
@@ -261,7 +261,7 @@ fn sel(i_: Ins, f: [*c]Fn) void {
     }
 }
 
-fn seljmp(b: [*c]Blk, f: [*c]Fn) void {
+fn seljmp(b: [*c]Blk, f: *Fn) void {
     // TODO: replace cmp+jnz with beq/bne/blt[u]/bge[u]
     if (b.*.jmp.type == Jjnz)
         fixarg(&b.*.jmp.arg, Kw, null, f);

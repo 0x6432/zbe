@@ -159,10 +159,10 @@ const vgrow = all.vgrow;
 //            is not so trivial, maybe the
 //            dce should be moved out...
 
-fn noimm(r: Ref, f: [*c]Fn) bool {
+fn noimm(r: Ref, f: *Fn) bool {
     if (rtype(r) != RCon)
         return false;
-    switch (f.*.con[r.val].type) {
+    switch (f.con[r.val].type) {
         CAddr => {
             // we only support the 'small'
             // code model of the ABI, this
@@ -171,34 +171,34 @@ fn noimm(r: Ref, f: [*c]Fn) bool {
             return false;
         },
         CBits => {
-            const val = f.*.con[r.val].bits.i;
+            const val = f.con[r.val].bits.i;
             return (val < std.math.minInt(i32) or val > std.math.maxInt(i32));
         },
         else => die("invalid constant", .{}),
     }
 }
 
-fn rslot(r: Ref, f: [*c]Fn) i32 {
+fn rslot(r: Ref, f: *Fn) i32 {
     if (rtype(r) != RTmp)
         return -1;
-    return f.*.tmp[r.val].slot;
+    return f.tmp[r.val].slot;
 }
 
-fn hascon(r: Ref, pc: *[*c]Con, f: [*c]Fn) bool {
+fn hascon(r: Ref, pc: *[*c]Con, f: *Fn) bool {
     switch (rtype(r)) {
         RCon => {
-            pc.* = &f.*.con[r.val];
+            pc.* = &f.con[r.val];
             return true;
         },
         RMem => {
-            pc.* = &f.*.mem[r.val].offset;
+            pc.* = &f.mem[r.val].offset;
             return true;
         },
         else => return false,
     }
 }
 
-fn fixarg(r: [*c]Ref, k: i32, i: [*c]Ins, f: [*c]Fn) void {
+fn fixarg(r: [*c]Ref, k: i32, i: [*c]Ins, f: *Fn) void {
     var buf: [32]u8 = undefined;
     var a: Addr = undefined;
     var cc: Con = undefined;
@@ -212,20 +212,20 @@ fn fixarg(r: [*c]Ref, k: i32, i: [*c]Ins, f: [*c]Fn) void {
         // load floating points from memory
         // slots, they can't be used as
         // immediates
-        r1 = MEM(f.*.nmem);
-        f.*.nmem += 1;
-        vgrow(&f.*.mem, f.*.nmem);
+        r1 = MEM(f.nmem);
+        f.nmem += 1;
+        vgrow(&f.mem, f.nmem);
         a = std.mem.zeroes(Addr);
         a.offset.type = CAddr;
-        const n = stashbits(@bitCast(f.*.con[r0.val].bits.i), if (KWIDE(k) != 0) 8 else 4);
+        const n = stashbits(@bitCast(f.con[r0.val].bits.i), if (KWIDE(k) != 0) 8 else 4);
         // quote the name so that we do not
         // add symbol prefixes on the apple
         // target variant
         bufPrintZ(&buf, "\"{s}fp{d}\"", .{cs(&all.T.asloc), n});
         a.offset.sym.id = intern(&buf);
-        f.*.mem[@intCast(f.*.nmem - 1)] = a;
+        f.mem[@intCast(f.nmem - 1)] = a;
     } else if (op == Ocall and r == &i.*.arg[0] and
-        rtype(r0) == RCon and f.*.con[r0.val].type != CAddr)
+        rtype(r0) == RCon and f.con[r0.val].type != CAddr)
     {
         // use a temporary register so that we
         // produce an indirect call
@@ -271,14 +271,14 @@ fn fixarg(r: [*c]Ref, k: i32, i: [*c]Ins, f: [*c]Fn) void {
         r3 = newcon(&cc, f);
         emit(Oaddr, Kl, r2, r3, R);
         if (rtype(r0) == RMem) {
-            const m = &f.*.mem[r0.val];
+            const m = &f.mem[r0.val];
             m.*.offset.type = CUndef;
             m.*.base = r1;
             r1 = r0;
         }
     } else if (!(isstore(op) and r == &i.*.arg[1]) and
         !isload(op) and op != Ocall and rtype(r0) == RCon and
-        f.*.con[r0.val].type == CAddr)
+        f.con[r0.val].type == CAddr)
     {
         // turn address operands into
         // lea/mov instructions
@@ -287,7 +287,7 @@ fn fixarg(r: [*c]Ref, k: i32, i: [*c]Ins, f: [*c]Fn) void {
     } else if (rtype(r0) == RMem) {
         // eliminate memory operands of
         // the form $foo(%rip, ...)
-        const m = &f.*.mem[r0.val];
+        const m = &f.mem[r0.val];
         if (req(m.*.base, R))
             if (m.*.offset.type == CAddr) {
                 r0 = newtmp("isel", Kl, f);
@@ -302,7 +302,7 @@ fn fixarg(r: [*c]Ref, k: i32, i: [*c]Ins, f: [*c]Fn) void {
     r.* = r1;
 }
 
-fn seladdr(r: [*c]Ref, tn: [*c]Num, f: [*c]Fn) void {
+fn seladdr(r: [*c]Ref, tn: [*c]Num, f: *Fn) void {
     var a: Addr = undefined;
 
     const r0 = r.*;
@@ -325,12 +325,12 @@ fn seladdr(r: [*c]Ref, tn: [*c]Num, f: [*c]Fn) void {
                 }
             };
         chuse(r0, -1, f);
-        f.*.nmem += 1;
-        vgrow(&f.*.mem, f.*.nmem);
-        f.*.mem[@intCast(f.*.nmem - 1)] = a;
+        f.nmem += 1;
+        vgrow(&f.mem, f.nmem);
+        f.mem[@intCast(f.nmem - 1)] = a;
         chuse(a.base, 1, f);
         chuse(a.index, 1, f);
-        r.* = MEM(f.*.nmem - 1);
+        r.* = MEM(f.nmem - 1);
     }
 }
 
@@ -343,7 +343,7 @@ fn cmpswap(arg: [*c]Ref, op: i32) bool {
     return rtype(arg[0]) == RCon;
 }
 
-fn selcmp(arg: [*c]Ref, k: i32, swap: bool, f: [*c]Fn) void {
+fn selcmp(arg: [*c]Ref, k: i32, swap: bool, f: *Fn) void {
     if (swap) {
         const r = arg[1];
         arg[1] = arg[0];
@@ -361,7 +361,7 @@ fn selcmp(arg: [*c]Ref, k: i32, swap: bool, f: [*c]Fn) void {
     fixarg(&icmp.*.arg[1], k, icmp, f);
 }
 
-fn sel(i_: Ins, tn: [*c]Num, f: [*c]Fn) void {
+fn sel(i_: Ins, tn: [*c]Num, f: *Fn) void {
     var i = i_;
     var r0: Ref = undefined;
     var r1: Ref = undefined;
@@ -372,7 +372,7 @@ fn sel(i_: Ins, tn: [*c]Num, f: [*c]Fn) void {
 
     if (rtype(i.to) == RTmp)
         if (!isreg(i.to) and !isreg(i.arg[0]) and !isreg(i.arg[1]))
-            if (f.*.tmp[i.to.val].nuse == 0) {
+            if (f.tmp[i.to.val].nuse == 0) {
                 chuse(i.arg[0], -1, f);
                 chuse(i.arg[1], -1, f);
                 return;
@@ -397,8 +397,8 @@ fn sel(i_: Ins, tn: [*c]Num, f: [*c]Fn) void {
                 // divisions in x86
                 r0 = newtmp("isel", k, f);
             } else r0 = i.arg[1];
-            if (f.*.tmp[r0.val].slot != -1)
-                err("unlikely argument %{s} in {s}", .{cs(f.*.tmp[r0.val].name), cs(all.optab[i.op].name)});
+            if (f.tmp[r0.val].slot != -1)
+                err("unlikely argument %{s} in {s}", .{cs(f.tmp[r0.val].name), cs(all.optab[i.op].name)});
             if (i.op == Odiv or i.op == Orem) {
                 emit(Oxidiv, k, R, r0, R);
                 emit(Osign, k, TMP(RDX), TMP(RAX), R);
@@ -415,8 +415,8 @@ fn sel(i_: Ins, tn: [*c]Num, f: [*c]Fn) void {
             r0 = i.arg[1];
             if (rtype(r0) == RCon)
                 continue :sw Ocopy; // goto Emit
-            if (f.*.tmp[r0.val].slot != -1)
-                err("unlikely argument %{s} in {s}", .{cs(f.*.tmp[r0.val].name), cs(all.optab[i.op].name)});
+            if (f.tmp[r0.val].slot != -1)
+                err("unlikely argument %{s} in {s}", .{cs(f.tmp[r0.val].name), cs(all.optab[i.op].name)});
             i.arg[1] = TMP(RCX);
             emit(Ocopy, Kw, R, TMP(RCX), R);
             emiti(i);
@@ -594,7 +594,7 @@ fn flagi(i_0: [*c]Ins, i_: [*c]Ins) [*c]Ins {
     return null;
 }
 
-fn selsel(f: [*c]Fn, b: [*c]Blk, i: [*c]Ins, tn: [*c]Num) [*c]Ins {
+fn selsel(f: *Fn, b: [*c]Blk, i: [*c]Ins, tn: [*c]Num) [*c]Ins {
     var cr: [2]Ref = undefined;
 
     assert(i.*.op == Osel1);
@@ -607,7 +607,7 @@ fn selsel(f: [*c]Fn, b: [*c]Blk, i: [*c]Ins, tn: [*c]Num) [*c]Ins {
     assert(isel0.*.op == Osel0);
     var r = isel0.*.arg[0];
     assert(rtype(r) == RTmp);
-    const t = &f.*.tmp[r.val];
+    const t = &f.tmp[r.val];
     const fi = flagi(b.*.ins, isel0);
     cr[0] = R;
     cr[1] = R;
@@ -677,7 +677,7 @@ fn selsel(f: [*c]Fn, b: [*c]Blk, i: [*c]Ins, tn: [*c]Num) [*c]Ins {
     return isel0;
 }
 
-fn seljmp(b: [*c]Blk, f: [*c]Fn) void {
+fn seljmp(b: [*c]Blk, f: *Fn) void {
     var k: i32 = undefined;
     var c: i32 = undefined;
 
@@ -687,7 +687,7 @@ fn seljmp(b: [*c]Blk, f: [*c]Fn) void {
         return;
     assert(b.*.jmp.type == Jjnz);
     var r = b.*.jmp.arg;
-    const t = &f.*.tmp[r.val];
+    const t = &f.tmp[r.val];
     b.*.jmp.arg = R;
     assert(rtype(r) == RTmp);
     if (b.*.s1 == b.*.s2) {
@@ -856,31 +856,30 @@ const matcher = blk: {
 // end of generated code
 
 fn anumber(tn: [*c]Num, b: [*c]Blk, con: [*c]Con) void {
-    var i = b.*.ins;
-    while (i < b.*.ins + b.*.nins) : (i += 1) {
-        if (rtype(i.*.to) != RTmp)
+    for (b.*.ins[0..b.*.nins]) |*i| {
+        if (rtype(i.to) != RTmp)
             continue;
-        const n = &tn[i.*.to.val];
-        n.*.l = i.*.arg[0];
-        n.*.r = i.*.arg[1];
+        const n = &tn[i.to.val];
+        n.*.l = i.arg[0];
+        n.*.r = i.arg[1];
         n.*.nl = @truncate(@as(u32, @bitCast(refn(n.*.l, tn, con))));
         n.*.nr = @truncate(@as(u32, @bitCast(refn(n.*.r, tn, con))));
-        n.*.n = @truncate(@as(u32, @bitCast(opn(@intCast(i.*.op), n.*.nl, n.*.nr))));
+        n.*.n = @truncate(@as(u32, @bitCast(opn(@intCast(i.op), n.*.nl, n.*.nr))));
     }
 }
 
-fn adisp(c: [*c]Con, tn: [*c]Num, r_: Ref, f: [*c]Fn, s: i32) Ref {
+fn adisp(c: [*c]Con, tn: [*c]Num, r_: Ref, f: *Fn, s: i32) Ref {
     var v: [2]Ref = undefined;
     var r = r_;
 
     while (!req(r, R)) {
         assert(rtype(r) == RTmp);
-        const n = refn(r, tn, f.*.con);
+        const n = refn(r, tn, f.con);
         if ((match[@intCast(n)] & BIT(Pob)) == 0)
             break;
         runmatch(matcher[Pob], tn, r, &v);
         assert(rtype(v[0]) == RCon);
-        _ = addcon(c, &f.*.con[v[0].val], s);
+        _ = addcon(c, &f.con[v[0].val], s);
         r = v[1];
     }
     return r;
@@ -888,14 +887,14 @@ fn adisp(c: [*c]Con, tn: [*c]Num, r_: Ref, f: [*c]Fn, s: i32) Ref {
 
 const pat = [_]i32{ Pobis, Pobi1, Pbis, Pois, Pbi1, -1 };
 
-fn amatch(a: [*c]Addr, tn: [*c]Num, r: Ref, f: [*c]Fn) bool {
+fn amatch(a: [*c]Addr, tn: [*c]Num, r: Ref, f: *Fn) bool {
     var v: [4]Ref = undefined;
     var co: Con = undefined;
 
     if (rtype(r) != RTmp)
         return false;
 
-    const n = refn(r, tn, f.*.con);
+    const n = refn(r, tn, f.con);
     v = @splat(std.mem.zeroes(Ref));
     var p: usize = 0;
     while (pat[p] >= 0) : (p += 1) {
@@ -919,13 +918,13 @@ fn amatch(a: [*c]Addr, tn: [*c]Num, r: Ref, f: [*c]Fn) bool {
             return addcon(&a.*.offset, &co, 1);
     if (!req(ro, R)) {
         assert(rtype(ro) == RCon);
-        const c = &f.*.con[ro.val];
+        const c = &f.con[ro.val];
         if (!addcon(&co, c, 1))
             return false;
     }
     if (!req(rs, R)) {
         assert(rtype(rs) == RCon);
-        const c = &f.*.con[rs.val];
+        const c = &f.con[rs.val];
         assert(c.*.type == CBits);
         s = @truncate(c.*.bits.i);
     }
@@ -933,16 +932,16 @@ fn amatch(a: [*c]Addr, tn: [*c]Num, r: Ref, f: [*c]Fn) bool {
     a.* = .{ .offset = co, .base = rb, .index = ri, .scale = s };
 
     if (rtype(ri) == RTmp)
-        if (f.*.tmp[ri.val].slot != -1) {
+        if (f.tmp[ri.val].slot != -1) {
             if (a.*.scale != 1 or
-                f.*.tmp[rb.val].slot != -1)
+                f.tmp[rb.val].slot != -1)
                 return false;
             a.*.base = ri;
             a.*.index = rb;
         };
     if (!req(a.*.base, R)) {
         assert(rtype(a.*.base) == RTmp);
-        s = f.*.tmp[a.*.base.val].slot;
+        s = f.tmp[a.*.base.val].slot;
         if (s != -1)
             a.*.base = SLOT(s);
     }

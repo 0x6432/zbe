@@ -297,7 +297,7 @@ fn foldflt(res: [*c]Con, op: i32, w: bool, cl: [*c]Con, cr: [*c]Con) void {
     }
 }
 
-fn opfold(op: i32, cls: i32, cl: [*c]Con, cr: [*c]Con, f: [*c]Fn) Ref {
+fn opfold(op: i32, cls: i32, cl: [*c]Con, cr: [*c]Con, f: *Fn) Ref {
     var c: Con = undefined;
 
     if (cls == Kw or cls == Kl) {
@@ -312,19 +312,19 @@ fn opfold(op: i32, cls: i32, cl: [*c]Con, cr: [*c]Con, f: [*c]Fn) Ref {
 }
 
 /// used by GVN
-pub fn foldref(f: [*c]Fn, i: [*c]Ins) Ref {
+pub fn foldref(f: *Fn, i: [*c]Ins) Ref {
     if (rtype(i.*.to) != RTmp)
         return R;
     if (all.optab[i.*.op].canfold != 0) {
         if (rtype(i.*.arg[0]) != RCon)
             return R;
-        const cl = &f.*.con[i.*.arg[0].val];
+        const cl = &f.con[i.*.arg[0].val];
         var rr = i.*.arg[1];
         if (req(rr, R))
             rr = CON_Z;
         if (rtype(rr) != RCon)
             return R;
-        const cr = &f.*.con[rr.val];
+        const cr = &f.con[rr.val];
 
         return opfold(@intCast(i.*.op), @intCast(i.*.cls), cl, cr, f);
     }

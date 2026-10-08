@@ -75,15 +75,15 @@ fn canelim(i: [*c]Ins) bool {
     return isload(i.*.op) or isalloc(i.*.op) or isdivwl(i);
 }
 
-fn schedearly(f: [*c]Fn, r: Ref) uint {
+fn schedearly(f: *Fn, r: Ref) uint {
     if (rtype(r) != RTmp)
         return 0;
 
-    const t = &f.*.tmp[r.val];
+    const t = &f.tmp[r.val];
     if (t.*.gcmbid != NOBID)
         return t.*.gcmbid;
 
-    const b = f.*.rpo[t.*.bid];
+    const b = f.rpo[t.*.bid];
     if (t.*.def != null) {
         assert(b.*.ins <= t.*.def and t.*.def < b.*.ins + b.*.nins);
         t.*.gcmbid = 0; // mark as visiting
@@ -96,44 +96,43 @@ fn schedearly(f: [*c]Fn, r: Ref) uint {
     return t.*.gcmbid;
 }
 
-fn earlyins(f: [*c]Fn, b: [*c]Blk, i: [*c]Ins) uint {
+fn earlyins(f: *Fn, b: [*c]Blk, i: [*c]Ins) uint {
     var b0 = schedearly(f, i.*.arg[0]);
     assert(b0 != NOBID);
     const b1 = schedearly(f, i.*.arg[1]);
     assert(b1 != NOBID);
-    if (f.*.rpo[b0].*.depth < f.*.rpo[b1].*.depth) {
-        assert(dom(f.*.rpo[b0], f.*.rpo[b1]));
+    if (f.rpo[b0].*.depth < f.rpo[b1].*.depth) {
+        assert(dom(f.rpo[b0], f.rpo[b1]));
         b0 = b1;
     }
     return if (pinned(i)) b.*.id else b0;
 }
 
-fn earlyblk(f: [*c]Fn, bid: uint) void {
-    const b = f.*.rpo[bid];
+fn earlyblk(f: *Fn, bid: uint) void {
+    const b = f.rpo[bid];
     var p = b.*.phi;
     while (p != null) : (p = p.*.link) {
         var n: uint = 0;
         while (n < p.*.narg) : (n += 1)
             _ = schedearly(f, p.*.arg[n]);
     }
-    var i = b.*.ins;
-    while (i < b.*.ins + b.*.nins) : (i += 1) {
+    for (b.*.ins[0..b.*.nins]) |*i| {
         if (pinned(i)) {
-            _ = schedearly(f, i.*.arg[0]);
-            _ = schedearly(f, i.*.arg[1]);
+            _ = schedearly(f, i.arg[0]);
+            _ = schedearly(f, i.arg[1]);
         }
     }
     _ = schedearly(f, b.*.jmp.arg);
 }
 
 /// least common ancestor in dom tree
-fn lcabid(f: [*c]Fn, bid1: uint, bid2: uint) uint {
+fn lcabid(f: *Fn, bid1: uint, bid2: uint) uint {
     if (bid1 == NOBID)
         return bid2;
     if (bid2 == NOBID)
         return bid1;
 
-    const b = lca(f.*.rpo[bid1], f.*.rpo[bid2]);
+    const b = lca(f.rpo[bid1], f.rpo[bid2]);
     assert(b != null);
     return b.*.id;
 }
@@ -158,11 +157,11 @@ fn bestbid(f: [*c]Fn, earlybid: uint, latebid: uint) uint {
 }
 
 /// return lca bid of ref uses
-fn schedlate(f: [*c]Fn, r: Ref) uint {
+fn schedlate(f: *Fn, r: Ref) uint {
     if (rtype(r) != RTmp)
         return NOBID;
 
-    const t = &f.*.tmp[r.val];
+    const t = &f.tmp[r.val];
     if (t.*.visit != 0)
         return t.*.gcmbid;
 
@@ -174,15 +173,14 @@ fn schedlate(f: [*c]Fn, r: Ref) uint {
     // reuse gcmbid for late bid
     t.*.gcmbid = t.*.bid;
     var latebid: uint = NOBID;
-    var u = t.*.use;
-    while (u < t.*.use + t.*.nuse) : (u += 1) {
-        assert(u.*.bid < f.*.nblk);
-        const b = f.*.rpo[u.*.bid];
+    for (t.*.use[0..t.*.nuse]) |*u| {
+        assert(u.bid < f.nblk);
+        const b = f.rpo[u.bid];
         var uselatebid: uint = undefined;
-        switch (u.*.type) {
+        switch (u.type) {
             UXXX => die("unreachable", .{}),
-            UPhi => uselatebid = latephi(f, u.*.u.phi, r),
-            UIns => uselatebid = lateins(f, b, u.*.u.ins, r),
+            UPhi => uselatebid = latephi(f, u.u.phi, r),
+            UIns => uselatebid = lateins(f, b, u.u.ins, r),
             UJmp => uselatebid = latejmp(b, r),
             else => unreachable,
         }
@@ -202,7 +200,7 @@ fn schedlate(f: [*c]Fn, r: Ref) uint {
 
 /// returns lca bid of uses or NOBID if
 /// the definition can be eliminated
-fn lateins(f: [*c]Fn, b: [*c]Blk, i: [*c]Ins, r: Ref) uint {
+fn lateins(f: *Fn, b: [*c]Blk, i: [*c]Ins, r: Ref) uint {
     assert(b.*.ins <= i and i < b.*.ins + b.*.nins);
     assert(req(i.*.arg[0], r) or req(i.*.arg[1], r));
 
@@ -217,7 +215,7 @@ fn lateins(f: [*c]Fn, b: [*c]Blk, i: [*c]Ins, r: Ref) uint {
     return latebid;
 }
 
-fn latephi(f: [*c]Fn, p: [*c]Phi, r: Ref) uint {
+fn latephi(f: *Fn, p: [*c]Phi, r: Ref) uint {
     if (p.*.narg == 0)
         return NOBID; // marked as unused
 
@@ -241,8 +239,8 @@ fn latejmp(b: [*c]Blk, r: Ref) uint {
     }
 }
 
-fn lateblk(f: [*c]Fn, bid: uint) void {
-    const b = f.*.rpo[bid];
+fn lateblk(f: *Fn, bid: uint) void {
+    const b = f.rpo[bid];
     var pp: *[*c]Phi = &b.*.phi;
     while (pp.* != null) {
         if (schedlate(f, pp.*.*.to) == NOBID) {
@@ -251,19 +249,17 @@ fn lateblk(f: [*c]Fn, bid: uint) void {
         } else pp = &pp.*.*.link;
     }
 
-    var i = b.*.ins;
-    while (i < b.*.ins + b.*.nins) : (i += 1) {
+    for (b.*.ins[0..b.*.nins]) |*i| {
         if (pinned(i))
-            _ = schedlate(f, i.*.to);
+            _ = schedlate(f, i.to);
     }
 }
 
-fn addgcmins(f: [*c]Fn, vins: [*c]Ins, nins: uint) void {
-    var i = vins;
-    while (i < vins + nins) : (i += 1) {
-        assert(rtype(i.*.to) == RTmp);
-        const t = &f.*.tmp[i.*.to.val];
-        const b = f.*.rpo[t.*.gcmbid];
+fn addgcmins(f: *Fn, vins: [*c]Ins, nins: uint) void {
+    for (vins[0..nins]) |*i| {
+        assert(rtype(i.to) == RTmp);
+        const t = &f.tmp[i.to.val];
+        const b = f.rpo[t.*.gcmbid];
         addins(&b.*.ins, &b.*.nins, i);
     }
 }
@@ -295,7 +291,7 @@ fn gcmmove(f: [*c]Fn) void {
 }
 
 /// dfs ordering
-fn schedins(f: [*c]Fn, b: [*c]Blk, i_: [*c]Ins, pvins: *[*c]Ins, pnins: *uint) [*c]Ins {
+fn schedins(f: *Fn, b: [*c]Blk, i_: [*c]Ins, pvins: *[*c]Ins, pnins: *uint) [*c]Ins {
     var i_0: [*c]Ins = undefined;
     var i_1: [*c]Ins = undefined;
     igroup(b, i_, &i_0, &i_1);
@@ -305,7 +301,7 @@ fn schedins(f: [*c]Fn, b: [*c]Blk, i_: [*c]Ins, pvins: *[*c]Ins, pnins: *uint) [
         while (n < 2) : (n += 1) {
             if (rtype(i.*.arg[n]) != RTmp)
                 continue;
-            const t = &f.*.tmp[i.*.arg[n].val];
+            const t = &f.tmp[i.*.arg[n].val];
             if (t.*.bid != b.*.id or t.*.def == null)
                 continue;
             _ = schedins(f, b, t.*.def, pvins, pnins);
@@ -344,10 +340,10 @@ fn cheap(i: [*c]Ins) bool {
     };
 }
 
-fn sinkref(f: [*c]Fn, b: [*c]Blk, pr: *Ref) void {
+fn sinkref(f: *Fn, b: [*c]Blk, pr: *Ref) void {
     if (rtype(pr.*) != RTmp)
         return;
-    const t = &f.*.tmp[pr.*.val];
+    const t = &f.tmp[pr.*.val];
     if (t.*.def == null or
         t.*.bid == b.*.id or
         pinned(t.*.def) or
@@ -360,7 +356,7 @@ fn sinkref(f: [*c]Fn, b: [*c]Blk, pr: *Ref) void {
     // t invalidated
     pr.* = r;
     i.to = r;
-    f.*.tmp[r.val].gcmbid = b.*.id;
+    f.tmp[r.val].gcmbid = b.*.id;
     emiti(i);
     sinkref(f, b, &i.arg[0]);
     sinkref(f, b, &i.arg[1]);
@@ -392,10 +388,9 @@ pub fn gcm(f: [*c]Fn) void {
     filldepth(f);
     fillloop(f);
 
-    var t = f.*.tmp;
-    while (t < f.*.tmp + @as(usize, @intCast(f.*.ntmp))) : (t += 1) {
-        t.*.visit = 0;
-        t.*.gcmbid = NOBID;
+    for (f.*.tmp[0..@as(usize, @intCast(f.*.ntmp))]) |*t| {
+        t.visit = 0;
+        t.gcmbid = NOBID;
     }
     var bid: uint = 0;
     while (bid < f.*.nblk) : (bid += 1)

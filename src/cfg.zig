@@ -119,7 +119,7 @@ fn fillrpo(f: [*c]Fn) void {
 }
 
 /// fill rpo, preds; prune dead blks
-pub fn fillcfg(f: [*c]Fn) void {
+pub fn fillcfg(f: *Fn) void {
     fillrpo(f);
     fillpreds(f);
     fixphis(f);
@@ -389,7 +389,7 @@ pub fn reaches(f: [*c]Fn, b_: [*c]Blk, to: [*c]Blk) bool {
 
 /// can b reach 'to' not through excl
 /// Blk.visit needs to be clear at entry
-pub fn reachesnotvia(f: [*c]Fn, b: [*c]Blk, to: [*c]Blk, excl: [*c]Blk) bool {
+pub fn reachesnotvia(f: *Fn, b: [*c]Blk, to: [*c]Blk, excl: [*c]Blk) bool {
     excl.*.visit = 1;
     return reaches(f, b, to);
 }

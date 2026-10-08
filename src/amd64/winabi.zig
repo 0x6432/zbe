@@ -361,7 +361,7 @@ fn register_for_arg(cls: i32, counter: i32) Ref {
     }
 }
 
-fn lower_call(func: [*c]Fn, block: [*c]Blk, call_instr: [*c]Ins, pextra_alloc: *[*c]ExtraAlloc) [*c]Ins {
+fn lower_call(func: *Fn, block: [*c]Blk, call_instr: [*c]Ins, pextra_alloc: *[*c]ExtraAlloc) [*c]Ins {
     // Call arguments are instructions. Walk through them to find the end of the
     // call+args that we need to process (and return the instruction past the body
     // of the instruction for continuing processing).
@@ -572,7 +572,7 @@ fn lower_call(func: [*c]Fn, block: [*c]Blk, call_instr: [*c]Ins, pextra_alloc: *
     return instr_past_args;
 }
 
-fn lower_block_return(func: [*c]Fn, block: [*c]Blk) void {
+fn lower_block_return(func: *Fn, block: [*c]Blk) void {
     const jmp_type: i32 = block.*.jmp.type;
 
     if (!isret(jmp_type) or jmp_type == Jret0) {
@@ -587,12 +587,12 @@ fn lower_block_return(func: [*c]Fn, block: [*c]Blk) void {
     var reg_usage = std.mem.zeroes(RegisterUsage);
 
     if (jmp_type == Jretc) {
-        const @"type" = &all.typ[@intCast(func.*.retty)];
+        const @"type" = &all.typ[@intCast(func.retty)];
         if (type_is_by_copy(@"type")) {
-            assert(rtype(func.*.retr) == RTmp);
-            emit(Ocopy, Kl, TMP(RAX), func.*.retr, R);
+            assert(rtype(func.retr) == RTmp);
+            emit(Ocopy, Kl, TMP(RAX), func.retr, R);
             emit(Oblit1, 0, R, INT(@"type".*.size), R);
-            emit(Oblit0, 0, R, ret_arg, func.*.retr);
+            emit(Oblit0, 0, R, ret_arg, func.retr);
         } else {
             emit(Oload, Kl, TMP(RAX), ret_arg, R);
         }
@@ -610,8 +610,8 @@ fn lower_block_return(func: [*c]Fn, block: [*c]Blk) void {
     block.*.jmp.arg = CALL(register_usage_to_call_arg_value(reg_usage));
 }
 
-fn lower_vastart(func: [*c]Fn, param_reg_usage: *RegisterUsage, valist: Ref) void {
-    assert(func.*.vararg != 0);
+fn lower_vastart(func: *Fn, param_reg_usage: *RegisterUsage, valist: Ref) void {
+    assert(func.vararg != 0);
     // In varargs functions:
     // 1. the int registers are already dumped to the shadow stack space;
     // 2. any parameters passed in floating point registers have
@@ -629,7 +629,7 @@ fn lower_vastart(func: [*c]Fn, param_reg_usage: *RegisterUsage, valist: Ref) voi
     emit(Oadd, Kl, offset, TMP(RBP), getcon(param_reg_usage.num_named_args_passed * 8 + 16, func));
 }
 
-fn lower_vaarg(func: [*c]Fn, vaarg_instr: [*c]Ins) void {
+fn lower_vaarg(func: *Fn, vaarg_instr: [*c]Ins) void {
     // va_list is just a void** on winx64, so load the pointer, then load the
     // argument from that pointer, then increment the pointer to the next arg.
     // (All emitted backwards as usual.)
@@ -641,7 +641,7 @@ fn lower_vaarg(func: [*c]Fn, vaarg_instr: [*c]Ins) void {
     emit(Oload, Kl, ptr, vaarg_instr.*.arg[0], R);
 }
 
-fn lower_args_for_block(func: [*c]Fn, block: [*c]Blk, param_reg_usage: *RegisterUsage, pextra_alloc: *[*c]ExtraAlloc) void {
+fn lower_args_for_block(func: *Fn, block: [*c]Blk, param_reg_usage: *RegisterUsage, pextra_alloc: *[*c]ExtraAlloc) void {
     // global temporary buffer used by emit. Reset to the end, and predecremented
     // when adding to it.
     all.curi = all.insbEnd();
@@ -674,7 +674,7 @@ fn lower_args_for_block(func: [*c]Fn, block: [*c]Blk, param_reg_usage: *Register
 
     // This it the start block, which is processed last. Add any allocas that
     // other blocks needed.
-    const is_start_block = block == func.*.start;
+    const is_start_block = block == func.start;
     if (is_start_block) {
         var ea = pextra_alloc.*;
         while (ea != null) : (ea = ea.*.link) {
@@ -699,9 +699,9 @@ fn find_end_of_func_parameters(start_block: [*c]Blk) [*c]Ins {
 }
 
 // Copy from registers/stack into values.
-fn lower_func_parameters(func: [*c]Fn) RegisterUsage {
+fn lower_func_parameters(func: *Fn) RegisterUsage {
     // This is half-open, so end points after the last Opar.
-    const start_block = func.*.start;
+    const start_block = func.start;
     const start_of_params = start_block.*.ins;
     const end_of_params = find_end_of_func_parameters(start_block);
 
@@ -715,19 +715,19 @@ fn lower_func_parameters(func: [*c]Fn) RegisterUsage {
 
     var reg_counter: i32 = 0;
     var reg_usage = std.mem.zeroes(RegisterUsage);
-    if (func.*.retty >= 0) {
-        const by_copy = type_is_by_copy(&all.typ[@intCast(func.*.retty)]);
+    if (func.retty >= 0) {
+        const by_copy = type_is_by_copy(&all.typ[@intCast(func.retty)]);
         if (by_copy) {
             assign_register_or_stack(&reg_usage, &arg_ret, false, by_copy);
             const ret_ref = newtmp("abi.ret", Kl, func);
             emit(Ocopy, Kl, ret_ref, TMP(RCX), R);
-            func.*.retr = ret_ref;
+            func.retr = ret_ref;
             reg_counter += 1;
         }
     }
     var env = R;
     classify_arguments(&reg_usage, start_of_params, end_of_params, arg_classes, &env);
-    func.*.reg = amd64_winabi_argregs(CALL(register_usage_to_call_arg_value(reg_usage)), null);
+    func.reg = amd64_winabi_argregs(CALL(register_usage_to_call_arg_value(reg_usage)), null);
 
     // Copy from the registers or stack slots into the named parameters. Depending
     // on how they're passed, they either need to be copied or loaded.

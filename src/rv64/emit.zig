@@ -239,13 +239,13 @@ const rname = blk: {
     break :blk t;
 };
 
-fn slot(r: Ref, f: [*c]Fn) i64 {
+fn slot(r: Ref, f: *Fn) i64 {
     const s = rsval(r);
-    assert(s <= f.*.slot);
+    assert(s <= f.slot);
     if (s < 0)
         return 8 * -@as(i64, s)
     else
-        return -4 * @as(i64, f.*.slot - s);
+        return -4 * @as(i64, f.slot - s);
 }
 
 fn emitaddr(c: [*c]Con, f: *Writer) Writer.Error!void {
@@ -261,7 +261,7 @@ fn emitaddr(c: [*c]Con, f: *Writer) Writer.Error!void {
 
 const clschr = [_]u8{ 'w', 'l', 's', 'd' };
 
-fn emitf(s_: [*c]const u8, i: [*c]Ins, fn_: [*c]Fn, f: *Writer) Writer.Error!void {
+fn emitf(s_: [*c]const u8, i: [*c]Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
     var s = s_;
     var r: Ref = undefined;
     var c: u8 = undefined;
@@ -306,7 +306,7 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, fn_: [*c]Fn, f: *Writer) Writer.Error!voi
                         try f.writeAll(cs(rname[r.val]));
                     },
                     RCon => {
-                        const pc = &fn_.*.con[r.val];
+                        const pc = &fn_.con[r.val];
                         assert(pc.*.type == CBits);
                         assert(pc.*.bits.i >= -2048 and pc.*.bits.i < 2048);
                         try f.print("{d}", .{pc.*.bits.i});
@@ -322,7 +322,7 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, fn_: [*c]Fn, f: *Writer) Writer.Error!voi
                     else => die("invalid address argument", .{}),
                     RTmp => try f.print("0({s})", .{cs(rname[r.val])}),
                     RCon => {
-                        const pc = &fn_.*.con[r.val];
+                        const pc = &fn_.con[r.val];
                         assert(pc.*.type == CAddr);
                         try emitaddr(pc, f);
                         if (isstore(i.*.op) or
@@ -383,10 +383,10 @@ fn loadcon(c: [*c]Con, r: i32, k: i32, f: *Writer) Writer.Error!void {
     }
 }
 
-fn fixmem(pr: [*c]Ref, fn_: [*c]Fn, f: *Writer) Writer.Error!void {
+fn fixmem(pr: [*c]Ref, fn_: *Fn, f: *Writer) Writer.Error!void {
     const r = pr.*;
     if (rtype(r) == RCon) {
-        const c = &fn_.*.con[r.val];
+        const c = &fn_.con[r.val];
         if (c.*.type == CAddr and c.*.sym.type != SGlo) {
             try loadcon(c, T6, Kl, f);
             pr.* = TMP(T6);
@@ -405,7 +405,7 @@ fn fixmem(pr: [*c]Ref, fn_: [*c]Fn, f: *Writer) Writer.Error!void {
 /// Table: most instructions are just pulled out of
 /// the table omap[], some special cases are
 /// detailed in emitins
-fn table(i: [*c]Ins, fn_: [*c]Fn, f: *Writer) Writer.Error!void {
+fn table(i: [*c]Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
     var o: usize = 0;
     while (true) : (o += 1) {
         // this linear search should really be a binary
@@ -420,7 +420,7 @@ fn table(i: [*c]Ins, fn_: [*c]Fn, f: *Writer) Writer.Error!void {
     try emitf(omap[o].fmt, i, fn_, f);
 }
 
-fn emitins(i: [*c]Ins, fn_: [*c]Fn, f: *Writer) Writer.Error!void {
+fn emitins(i: [*c]Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
     switch (i.*.op) {
         else => {
             if (isload(i.*.op))
@@ -454,7 +454,7 @@ fn emitins(i: [*c]Ins, fn_: [*c]Fn, f: *Writer) Writer.Error!void {
             }
             assert(isreg(i.*.to));
             switch (rtype(i.*.arg[0])) {
-                RCon => try loadcon(&fn_.*.con[i.*.arg[0].val], @intCast(i.*.to.val), @intCast(i.*.cls), f),
+                RCon => try loadcon(&fn_.con[i.*.arg[0].val], @intCast(i.*.to.val), @intCast(i.*.cls), f),
                 RSlot => {
                     i.*.op = Oload;
                     try fixmem(&i.*.arg[0], fn_, f);
@@ -480,7 +480,7 @@ fn emitins(i: [*c]Ins, fn_: [*c]Fn, f: *Writer) Writer.Error!void {
         Ocall => {
             switch (rtype(i.*.arg[0])) {
                 RCon => {
-                    const con = &fn_.*.con[i.*.arg[0].val];
+                    const con = &fn_.con[i.*.arg[0].val];
                     if (con.*.type != CAddr or
                         (con.*.sym.type & SThr) != 0 or
                         con.*.bits.i != 0)

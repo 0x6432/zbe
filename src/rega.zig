@@ -630,9 +630,8 @@ pub fn rega(f: [*c]Fn) void {
             const ru: usize = @intCast(m.*.r[j]);
             if (rl[ru] != 0 or t < Tmp0) // todo, remove this
                 continue;
-            var pp = s.*.pred;
-            while (pp < s.*.pred + s.*.npred) : (pp += 1) {
-                const x = rfind(&end[pp.*.*.id], t);
+            for (s.*.pred[0..s.*.npred]) |pp| {
+                const x = rfind(&end[pp.*.id], t);
                 if (x == -1) // spilled
                     continue;
                 rl[ru] = if (rl[ru] == 0 or rl[ru] == x) x else -1;

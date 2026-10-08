@@ -90,7 +90,11 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    copyForwards/Backwards (guard n==0: null [*c] can't be sliced).
    tools/all.sh runs every check (FUZZ=1 adds fuzzers).
    TODO (3c): vectors (vnew/vgrow) -> typed growable arrays.
-4. TODO: `[*c]` -> `*T`/`?*T`/slices, enums for ops/classes/jumps.
+4. Pointers. DONE (4a): 116 `[*c]Fn` params -> `*Fn` (tools/ptrparams.py
+   T1,T2 files: converts params w/o arithmetic/null/copy use; fn types
+   `fn ([*c]Fn` -> `fn (*Fn`). DONE (4b): 21 pointer-walking loops ->
+   `for (b.ins[0..b.nins]) |*i|` (tools/forloops.py).
+   TODO: rest of `[*c]` -> `*T`/`?*T`/slices, enums for ops/classes/jumps.
    Notes: Zig forbids `<` on `[*]T` (only `[*c]`) and `&cptr[i]` is
    `*allowzero T` (won't coerce to *T) -> rewrite pointer loops to
    slices/indices before converting struct fields to `[*]T`.

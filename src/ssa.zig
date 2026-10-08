@@ -127,34 +127,33 @@ pub fn filluse(f: [*c]Fn) void {
                         tmp[@intCast(t)].phi = tp;
                 };
         }
-        var i = b.*.ins;
-        while (i < &b.*.ins[b.*.nins]) : (i += 1) {
-            if (!req(i.*.to, R)) {
-                assert(rtype(i.*.to) == RTmp);
+        for (b.*.ins[0..b.*.nins]) |*i| {
+            if (!req(i.to, R)) {
+                assert(rtype(i.to) == RTmp);
                 w = WFull;
-                if (isparbh(i.*.op))
-                    w = @intCast(Wsb + (i.*.op - Oparsb));
-                if (isload(i.*.op) and i.*.op != Oload)
-                    w = @intCast(Wsb + (i.*.op - Oloadsb));
-                if (isext(i.*.op))
-                    w = @intCast(Wsb + (i.*.op - Oextsb));
-                if (iscmp(i.*.op, &x, &x))
+                if (isparbh(i.op))
+                    w = @intCast(Wsb + (i.op - Oparsb));
+                if (isload(i.op) and i.op != Oload)
+                    w = @intCast(Wsb + (i.op - Oloadsb));
+                if (isext(i.op))
+                    w = @intCast(Wsb + (i.op - Oextsb));
+                if (iscmp(i.op, &x, &x))
                     w = Wub;
                 if (w == Wsw or w == Wuw)
-                    if (i.*.cls == Kw) {
+                    if (i.cls == Kw) {
                         w = WFull;
                     };
-                t = @intCast(i.*.to.val);
+                t = @intCast(i.to.val);
                 tmp[@intCast(t)].width = w;
                 tmp[@intCast(t)].def = i;
                 tmp[@intCast(t)].bid = b.*.id;
                 tmp[@intCast(t)].ndef += 1;
-                tmp[@intCast(t)].cls = @intCast(i.*.cls);
+                tmp[@intCast(t)].cls = @intCast(i.cls);
             }
             var m: usize = 0;
             while (m < 2) : (m += 1)
-                if (rtype(i.*.arg[m]) == RTmp) {
-                    t = @intCast(i.*.arg[m].val);
+                if (rtype(i.arg[m]) == RTmp) {
+                    t = @intCast(i.arg[m].val);
                     adduse(&tmp[@intCast(t)], UIns, b, @ptrCast(i));
                 };
         }
@@ -163,8 +162,8 @@ pub fn filluse(f: [*c]Fn) void {
     }
 }
 
-fn refindex(t: i32, f: [*c]Fn) Ref {
-    return newtmp(f.*.tmp[@intCast(t)].name, f.*.tmp[@intCast(t)].cls, f);
+fn refindex(t: i32, f: *Fn) Ref {
+    return newtmp(f.tmp[@intCast(t)].name, f.tmp[@intCast(t)].cls, f);
 }
 
 fn phiins(f: [*c]Fn) void {
@@ -202,25 +201,24 @@ fn phiins(f: [*c]Fn) void {
         while (b != null) : (b = b.*.link) {
             b.*.visit = 0;
             var r = R;
-            var i = b.*.ins;
-            while (i < &b.*.ins[b.*.nins]) : (i += 1) {
+            for (b.*.ins[0..b.*.nins]) |*i| {
                 if (!req(r, R)) {
-                    if (req(i.*.arg[0], TMP(t)))
-                        i.*.arg[0] = r;
-                    if (req(i.*.arg[1], TMP(t)))
-                        i.*.arg[1] = r;
+                    if (req(i.arg[0], TMP(t)))
+                        i.arg[0] = r;
+                    if (req(i.arg[1], TMP(t)))
+                        i.arg[1] = r;
                 }
-                if (req(i.*.to, TMP(t))) {
+                if (req(i.to, TMP(t))) {
                     if (!bshas(&b.*.out, t)) {
                         r = refindex(t, f);
-                        i.*.to = r;
+                        i.to = r;
                     } else {
                         if (!bshas(&u, b.*.id)) {
                             bsset(&u, b.*.id);
                             bp -= 1;
                             bp.* = b;
                         }
-                        if (clsmerge(&k, @intCast(i.*.cls)))
+                        if (clsmerge(&k, @intCast(i.cls)))
                             die("invalid input", .{});
                     }
                 }
@@ -289,12 +287,12 @@ fn nfree(n: [*c]Name) void {
     namel = n;
 }
 
-fn rendef(r: *Ref, b: [*c]Blk, stk: [*c][*c]Name, f: [*c]Fn) void {
+fn rendef(r: *Ref, b: [*c]Blk, stk: [*c][*c]Name, f: *Fn) void {
     const t = r.*.val;
-    if (req(r.*, R) or f.*.tmp[t].visit == 0)
+    if (req(r.*, R) or f.tmp[t].visit == 0)
         return;
     const r1 = refindex(@intCast(t), f);
-    f.*.tmp[r1.val].visit = @intCast(t);
+    f.tmp[r1.val].visit = @intCast(t);
     stk[t] = nnew(r1, b, stk[t]);
     r.* = r1;
 }
@@ -313,7 +311,7 @@ fn getstk(t: anytype, b: [*c]Blk, stk: [*c][*c]Name) Ref {
     } else return n.*.r;
 }
 
-fn renblk(b: [*c]Blk, stk: [*c][*c]Name, f: [*c]Fn) void {
+fn renblk(b: [*c]Blk, stk: [*c][*c]Name, f: *Fn) void {
     var succ: [3][*c]Blk = undefined;
     var t: i32 = undefined;
 
@@ -326,7 +324,7 @@ fn renblk(b: [*c]Blk, stk: [*c][*c]Name, f: [*c]Fn) void {
         while (m < 2) : (m += 1) {
             const tv = i.*.arg[m].val;
             if (rtype(i.*.arg[m]) == RTmp)
-                if (f.*.tmp[tv].visit != 0) {
+                if (f.tmp[tv].visit != 0) {
                     i.*.arg[m] = getstk(tv, b, stk);
                 };
         }
@@ -334,7 +332,7 @@ fn renblk(b: [*c]Blk, stk: [*c][*c]Name, f: [*c]Fn) void {
     }
     const jv = b.*.jmp.arg.val;
     if (rtype(b.*.jmp.arg) == RTmp)
-        if (f.*.tmp[jv].visit != 0) {
+        if (f.tmp[jv].visit != 0) {
             b.*.jmp.arg = getstk(jv, b, stk);
         };
     succ[0] = b.*.s1;
@@ -345,7 +343,7 @@ fn renblk(b: [*c]Blk, stk: [*c][*c]Name, f: [*c]Fn) void {
         const s = ps.*;
         p = s.*.phi;
         while (p != null) : (p = p.*.link) {
-            t = f.*.tmp[p.*.to.val].visit;
+            t = f.tmp[p.*.to.val].visit;
             if (t != 0) {
                 const m = p.*.narg;
                 p.*.narg += 1;
@@ -445,22 +443,20 @@ pub fn ssacheck(f: [*c]Fn) void {
                         break :errblk;
                 }
             }
-            var i = b.*.ins;
-            while (i < &b.*.ins[b.*.nins]) : (i += 1) {
-                if (rtype(i.*.to) != RTmp)
+            for (b.*.ins[0..b.*.nins]) |*i| {
+                if (rtype(i.to) != RTmp)
                     continue;
-                r = i.*.to;
+                r = i.to;
                 t = &f.*.tmp[r.val];
-                var u = t.*.use;
-                while (u < &t.*.use[t.*.nuse]) : (u += 1) {
-                    bu = f.*.rpo[u.*.bid];
-                    if (u.*.type == UPhi) {
-                        if (phicheck(u.*.u.phi, b, r))
+                for (t.*.use[0..t.*.nuse]) |*u| {
+                    bu = f.*.rpo[u.bid];
+                    if (u.type == UPhi) {
+                        if (phicheck(u.u.phi, b, r))
                             break :errblk;
                     } else {
                         if (bu == b) {
-                            if (u.*.type == UIns)
-                                if (u.*.u.ins <= i)
+                            if (u.type == UIns)
+                                if (u.u.ins <= i)
                                     break :errblk;
                         } else if (!sdom(b, bu))
                             break :errblk;

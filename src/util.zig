@@ -357,8 +357,7 @@ pub fn addins(pvins: *[*c]Ins, pnins: *uint, i: [*c]Ins) void {
 }
 
 pub fn addbins(pvins: *[*c]Ins, pnins: *uint, b: [*c]Blk) void {
-    var i = b.*.ins;
-    while (i < &b.*.ins[b.*.nins]) : (i += 1)
+    for (b.*.ins[0..b.*.nins]) |*i|
         addins(pvins, pnins, i);
 }
 
@@ -588,54 +587,54 @@ pub fn phiarg(p: [*c]Phi, b: [*c]Blk) Ref {
 }
 
 var newtmp_n: i32 = 0;
-pub fn newtmp(prfx: [*c]const u8, k: anytype, f: [*c]Fn) Ref {
-    const t: usize = @intCast(f.*.ntmp);
-    f.*.ntmp += 1;
-    vgrow(&f.*.tmp, f.*.ntmp);
-    f.*.tmp[t] = std.mem.zeroes(Tmp);
+pub fn newtmp(prfx: [*c]const u8, k: anytype, f: *Fn) Ref {
+    const t: usize = @intCast(f.ntmp);
+    f.ntmp += 1;
+    vgrow(&f.tmp, f.ntmp);
+    f.tmp[t] = std.mem.zeroes(Tmp);
     if (prfx != null) {
         newtmp_n += 1;
-        f.*.tmp[t].name = strf(PFn, "{s}.{d}", .{ cs(prfx), newtmp_n });
+        f.tmp[t].name = strf(PFn, "{s}.{d}", .{ cs(prfx), newtmp_n });
     }
-    f.*.tmp[t].cls = @intCast(k);
-    f.*.tmp[t].slot = -1;
-    f.*.tmp[t].nuse = 1;
-    f.*.tmp[t].ndef = 1;
+    f.tmp[t].cls = @intCast(k);
+    f.tmp[t].slot = -1;
+    f.tmp[t].nuse = 1;
+    f.tmp[t].ndef = 1;
     return TMP(t);
 }
 
-pub fn chuse(r: Ref, du: i32, f: [*c]Fn) void {
+pub fn chuse(r: Ref, du: i32, f: *Fn) void {
     if (rtype(r) == RTmp)
-        f.*.tmp[r.val].nuse = @bitCast(@as(i32, @bitCast(f.*.tmp[r.val].nuse)) +% du);
+        f.tmp[r.val].nuse = @bitCast(@as(i32, @bitCast(f.tmp[r.val].nuse)) +% du);
 }
 
 pub fn symeq(s0: Sym, s1: Sym) bool {
     return s0.type == s1.type and s0.id == s1.id;
 }
 
-pub fn newcon(c0: [*c]Con, f: [*c]Fn) Ref {
+pub fn newcon(c0: [*c]Con, f: *Fn) Ref {
     var i: i32 = 1;
-    while (i < f.*.ncon) : (i += 1) {
-        const c1 = &f.*.con[@intCast(i)];
+    while (i < f.ncon) : (i += 1) {
+        const c1 = &f.con[@intCast(i)];
         if (c0.*.type == c1.*.type and symeq(c0.*.sym, c1.*.sym) and c0.*.bits.i == c1.*.bits.i)
             return CON(i);
     }
-    f.*.ncon += 1;
-    vgrow(&f.*.con, f.*.ncon);
-    f.*.con[@intCast(i)] = c0.*;
+    f.ncon += 1;
+    vgrow(&f.con, f.ncon);
+    f.con[@intCast(i)] = c0.*;
     return CON(i);
 }
 
-pub fn getcon(val: i64, f: [*c]Fn) Ref {
+pub fn getcon(val: i64, f: *Fn) Ref {
     var cc: i32 = 1;
-    while (cc < f.*.ncon) : (cc += 1)
-        if (f.*.con[@intCast(cc)].type == CBits and f.*.con[@intCast(cc)].bits.i == val)
+    while (cc < f.ncon) : (cc += 1)
+        if (f.con[@intCast(cc)].type == CBits and f.con[@intCast(cc)].bits.i == val)
             return CON(cc);
-    f.*.ncon += 1;
-    vgrow(&f.*.con, f.*.ncon);
-    f.*.con[@intCast(cc)] = std.mem.zeroes(Con);
-    f.*.con[@intCast(cc)].type = CBits;
-    f.*.con[@intCast(cc)].bits.i = val;
+    f.ncon += 1;
+    vgrow(&f.con, f.ncon);
+    f.con[@intCast(cc)] = std.mem.zeroes(Con);
+    f.con[@intCast(cc)].type = CBits;
+    f.con[@intCast(cc)].bits.i = val;
     return CON(cc);
 }
 
@@ -657,9 +656,9 @@ pub fn addcon(c0: [*c]Con, c1: [*c]Con, m: i32) bool {
     return true;
 }
 
-pub fn isconbits(f: [*c]Fn, r: Ref, v: *i64) bool {
+pub fn isconbits(f: *Fn, r: Ref, v: *i64) bool {
     if (rtype(r) == RCon) {
-        const cn = &f.*.con[r.val];
+        const cn = &f.con[r.val];
         if (cn.*.type == CBits) {
             v.* = cn.*.bits.i;
             return true;

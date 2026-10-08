@@ -36,12 +36,11 @@ const MaxPhis = 2;
 
 fn okbranch(b: [*c]Blk) bool {
     var n: i32 = 0;
-    var i = b.*.ins;
-    while (i < b.*.ins + b.*.nins) : (i += 1) {
-        if (i.*.op != Odbgloc) {
+    for (b.*.ins[0..b.*.nins]) |*i| {
+        if (i.op != Odbgloc) {
             if (pinned(i))
                 return false;
-            if (i.*.op != Onop)
+            if (i.op != Onop)
                 n += 1;
         }
     }

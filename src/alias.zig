@@ -45,16 +45,16 @@ const symeq = all.symeq;
 const uint = all.uint;
 // -- end imports --
 
-pub fn getalias(a: [*c]Alias, r: Ref, f: [*c]Fn) void {
+pub fn getalias(a: [*c]Alias, r: Ref, f: *Fn) void {
     switch (rtype(r)) {
         RTmp => {
-            a.* = f.*.tmp[r.val].alias;
+            a.* = f.tmp[r.val].alias;
             if (astack(a.*.type) != 0)
                 a.*.type = a.*.slot.*.type;
             assert(a.*.type != ABot);
         },
         RCon => {
-            const c = &f.*.con[r.val];
+            const c = &f.con[r.val];
             if (c.*.type == CAddr) {
                 a.*.type = ASym;
                 a.*.u.sym = c.*.sym;
@@ -66,7 +66,7 @@ pub fn getalias(a: [*c]Alias, r: Ref, f: [*c]Fn) void {
     }
 }
 
-pub fn alias(p: Ref, op: i32, sp: i32, q: Ref, sq: i32, delta: *i32, f: [*c]Fn) i32 {
+pub fn alias(p: Ref, op: i32, sp: i32, q: Ref, sq: i32, delta: *i32, f: *Fn) i32 {
     var ap: Alias = undefined;
     var aq: Alias = undefined;
 
@@ -119,27 +119,27 @@ pub fn alias(p: Ref, op: i32, sp: i32, q: Ref, sq: i32, delta: *i32, f: [*c]Fn) 
     return NoAlias;
 }
 
-pub fn escapes(r: Ref, f: [*c]Fn) bool {
+pub fn escapes(r: Ref, f: *Fn) bool {
     if (rtype(r) != RTmp)
         return true;
-    const a = &f.*.tmp[r.val].alias;
+    const a = &f.tmp[r.val].alias;
     return astack(a.*.type) == 0 or a.*.slot.*.type == AEsc;
 }
 
-fn esc(r: Ref, f: [*c]Fn) void {
+fn esc(r: Ref, f: *Fn) void {
     assert(rtype(r) <= RType);
     if (rtype(r) == RTmp) {
-        const a = &f.*.tmp[r.val].alias;
+        const a = &f.tmp[r.val].alias;
         if (astack(a.*.type) != 0)
             a.*.slot.*.type = AEsc;
     }
 }
 
-fn store(r: Ref, sz: i32, f: [*c]Fn) void {
+fn store(r: Ref, sz: i32, f: *Fn) void {
     var m: bits = undefined;
 
     if (rtype(r) == RTmp) {
-        const a = &f.*.tmp[r.val].alias;
+        const a = &f.tmp[r.val].alias;
         if (a.*.slot != null) {
             assert(astack(a.*.type) != 0);
             const off = a.*.offset;

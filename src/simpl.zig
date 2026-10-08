@@ -38,7 +38,7 @@ const rtype = all.rtype;
 const ulong = all.ulong;
 // -- end imports --
 
-fn blit(sd: *[2]Ref, sz_: i32, f: [*c]Fn) void {
+fn blit(sd: *[2]Ref, sz_: i32, f: *Fn) void {
     const E = struct { st: i32, ld: i32, cls: i32, size: i32 };
     const tbl = [_]E{
         .{ .st = Ostorel, .ld = Oload, .cls = Kl, .size = 8 },
@@ -88,7 +88,7 @@ fn ispow2(v: u64) bool {
     return v != 0 and (v & (v - 1)) == 0;
 }
 
-fn ins(pi: *[*c]Ins, new: *bool, b: [*c]Blk, f: [*c]Fn) void {
+fn ins(pi: *[*c]Ins, new: *bool, b: [*c]Blk, f: *Fn) void {
     const i = pi.*;
     // simplify more instructions here;
     // copy 0 into xor, bit rotations,
@@ -112,7 +112,7 @@ fn ins(pi: *[*c]Ins, new: *bool, b: [*c]Blk, f: [*c]Fn) void {
             const r = i.*.arg[1];
             if (KBASE(i.*.cls) == 0)
                 if (rtype(r) == RCon) {
-                    const c = &f.*.con[r.val];
+                    const c = &f.con[r.val];
                     if (c.*.type == CBits)
                         if (ispow2(@bitCast(c.*.bits.i))) {
                             const n = ulog2(@bitCast(c.*.bits.i));

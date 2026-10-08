@@ -66,13 +66,13 @@ fn aggreg(hd: [*c]Blk, b: [*c]Blk) void {
     }
 }
 
-fn tmpuse(r: Ref, use: bool, loop: i32, f: [*c]Fn) void {
+fn tmpuse(r: Ref, use: bool, loop: i32, f: *Fn) void {
     if (rtype(r) == RMem) {
-        const m = &f.*.mem[r.val];
+        const m = &f.mem[r.val];
         tmpuse(m.*.base, true, loop, f);
         tmpuse(m.*.index, true, loop, f);
     } else if (rtype(r) == RTmp and r.val >= Tmp0) {
-        const t = &f.*.tmp[r.val];
+        const t = &f.tmp[r.val];
         t.*.nuse += @intFromBool(use);
         t.*.ndef += @intFromBool(!use);
         t.*.cost +%= @bitCast(loop);
@@ -122,11 +122,10 @@ pub fn fillcost(f: [*c]Fn) void {
             }
         }
         const n = b.*.loop;
-        var i = b.*.ins;
-        while (i < b.*.ins + b.*.nins) : (i += 1) {
-            tmpuse(i.*.to, false, n, f);
-            tmpuse(i.*.arg[0], true, n, f);
-            tmpuse(i.*.arg[1], true, n, f);
+        for (b.*.ins[0..b.*.nins]) |*i| {
+            tmpuse(i.to, false, n, f);
+            tmpuse(i.arg[0], true, n, f);
+            tmpuse(i.arg[1], true, n, f);
         }
         tmpuse(b.*.jmp.arg, true, n, f);
     }

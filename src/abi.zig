@@ -18,12 +18,11 @@ const isretbh = all.isretbh;
 pub fn elimsb(f: [*c]Fn) void {
     var b = f.*.start;
     while (b != null) : (b = b.*.link) {
-        var i = b.*.ins;
-        while (i < &b.*.ins[b.*.nins]) : (i += 1) {
-            if (isargbh(i.*.op))
-                i.*.op = Oarg;
-            if (isparbh(i.*.op))
-                i.*.op = Opar;
+        for (b.*.ins[0..b.*.nins]) |*i| {
+            if (isargbh(i.op))
+                i.op = Oarg;
+            if (isparbh(i.op))
+                i.op = Opar;
         }
         if (isretbh(b.*.jmp.type))
             b.*.jmp.type = Jretw;

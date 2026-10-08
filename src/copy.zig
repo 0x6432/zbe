@@ -108,7 +108,7 @@ fn bitwidth(v_: u64) i32 {
     return n + @as(i32, @intCast(v));
 }
 
-fn visit(f: [*c]Fn, r: Ref, w: i32, func: *const fn ([*c]Fn, Ref, i32) bool) bool {
+fn visit(f: [*c]Fn, r: Ref, w: i32, func: *const fn (*Fn, Ref, i32) bool) bool {
     const ret = func(f, r, w);
     var b = f.*.start;
     while (b != null) : (b = b.*.link) {
@@ -119,18 +119,17 @@ fn visit(f: [*c]Fn, r: Ref, w: i32, func: *const fn ([*c]Fn, Ref, i32) bool) boo
     return ret;
 }
 
-fn uwl(f: [*c]Fn, r: Ref, w: i32) bool {
+fn uwl(f: *Fn, r: Ref, w: i32) bool {
     var e: Ext = undefined;
     var rc: Ref = undefined;
     var v: i64 = undefined;
 
     assert(rtype(r) == RTmp);
-    const t = &f.*.tmp[r.val];
-    var u = t.*.use;
-    while (u < &t.*.use[t.*.nuse]) : (u += 1) {
-        switch (u.*.type) {
+    const t = &f.tmp[r.val];
+    for (t.*.use[0..t.*.nuse]) |*u| {
+        switch (u.type) {
             UPhi => {
-                const p = u.*.u.phi;
+                const p = u.u.phi;
                 // during gvn, phi nodes may be
                 // replaced by other temps; in
                 // this case, the replaced phi
@@ -144,7 +143,7 @@ fn uwl(f: [*c]Fn, r: Ref, w: i32) bool {
                     continue;
             },
             UIns => {
-                const i = u.*.u.ins;
+                const i = u.u.ins;
                 assert(i != null);
                 if (i.*.op == Ocopy)
                     if (uwl(f, i.*.to, w))
@@ -174,7 +173,7 @@ fn uwl(f: [*c]Fn, r: Ref, w: i32) bool {
 }
 
 /// no more than w bits are used
-fn usewidthle(f: [*c]Fn, r: Ref, w: i32) bool {
+fn usewidthle(f: *Fn, r: Ref, w: i32) bool {
     return visit(f, r, w, uwl);
 }
 
@@ -255,11 +254,11 @@ fn dwl(f: [*c]Fn, r: Ref, w_: i32) bool {
 }
 
 /// is the ref narrower than w bits
-fn defwidthle(f: [*c]Fn, r: Ref, w: i32) bool {
+fn defwidthle(f: *Fn, r: Ref, w: i32) bool {
     return visit(f, r, w, dwl);
 }
 
-fn isw1(f: [*c]Fn, r: Ref) bool {
+fn isw1(f: *Fn, r: Ref) bool {
     return defwidthle(f, r, 1);
 }
 
@@ -336,7 +335,7 @@ const extcpy = blk: {
     break :blk t;
 };
 
-pub fn copyref(f: [*c]Fn, b: [*c]Blk, i: [*c]Ins) Ref {
+pub fn copyref(f: *Fn, b: [*c]Blk, i: [*c]Ins) Ref {
     var e: Ext = undefined;
     var v: i64 = undefined;
     var z: i32 = undefined;
@@ -370,7 +369,7 @@ pub fn copyref(f: [*c]Fn, b: [*c]Blk, i: [*c]Ins) Ref {
         return i.*.arg[0];
 
     if (ext(i, &e) and rtype(i.*.arg[0]) == RTmp) {
-        const t = &f.*.tmp[i.*.arg[0].val];
+        const t = &f.tmp[i.*.arg[0].val];
         assert(KBASE(t.*.cls) == 0);
 
         // do not break typing by returning
@@ -407,7 +406,7 @@ fn phieq(pa: [*c]Phi, pb: [*c]Phi) bool {
     return true;
 }
 
-pub fn phicopyref(f: [*c]Fn, b: [*c]Blk, p: [*c]Phi) Ref {
+pub fn phicopyref(f: *Fn, b: [*c]Blk, p: [*c]Phi) Ref {
     var s: [2][*c]Blk = undefined;
 
     // identical args

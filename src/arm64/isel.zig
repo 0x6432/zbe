@@ -128,7 +128,7 @@ pub fn arm64_logimm(x_: u64, k: i32) bool {
     return (n & (n +% (n & (0 -% n)))) == 0;
 }
 
-fn fixarg(pr: [*c]Ref, k: i32, phi: bool, f: [*c]Fn) void {
+fn fixarg(pr: [*c]Ref, k: i32, phi: bool, f: *Fn) void {
     var buf: [32]u8 = undefined;
     var cc: Con = undefined;
     var r1: Ref = undefined;
@@ -138,7 +138,7 @@ fn fixarg(pr: [*c]Ref, k: i32, phi: bool, f: [*c]Fn) void {
     const r0 = pr.*;
     switch (rtype(r0)) {
         RCon => {
-            var c: [*c]Con = &f.*.con[r0.val];
+            var c: [*c]Con = &f.con[r0.val];
             if (c.*.type == CAddr and ((c.*.sym.type & SExt) != 0 or
                 (all.T.apple != 0 and (c.*.sym.type & SThr) != 0)))
             {
@@ -175,21 +175,21 @@ fn fixarg(pr: [*c]Ref, k: i32, phi: bool, f: [*c]Fn) void {
                 emit(Ocopy, k, r1, r0, R);
             } else {
                 const n = stashbits(@bitCast(c.*.bits.i), if (KWIDE(k) != 0) 8 else 4);
-                f.*.ncon += 1;
-                vgrow(&f.*.con, f.*.ncon);
-                c = &f.*.con[@intCast(f.*.ncon - 1)];
+                f.ncon += 1;
+                vgrow(&f.con, f.ncon);
+                c = &f.con[@intCast(f.ncon - 1)];
                 bufPrintZ(&buf, "\"{s}fp{d}\"", .{cs(&all.T.asloc), n});
                 c.* = std.mem.zeroes(Con);
                 c.*.type = CAddr;
                 c.*.sym.id = intern(&buf);
                 r2 = newtmp("isel", Kl, f);
                 emit(Oload, k, r1, r2, R);
-                emit(Ocopy, Kl, r2, CON(ptrdiff(c, f.*.con)), R);
+                emit(Ocopy, Kl, r2, CON(ptrdiff(c, f.con)), R);
             }
             pr.* = r1;
         },
         RTmp => {
-            const s = f.*.tmp[r0.val].slot;
+            const s = f.tmp[r0.val].slot;
             if (s == -1)
                 return;
             r1 = newtmp("isel", Kl, f);
@@ -200,7 +200,7 @@ fn fixarg(pr: [*c]Ref, k: i32, phi: bool, f: [*c]Fn) void {
     }
 }
 
-fn selcmp(arg: [*c]Ref, k: i32, f: [*c]Fn) bool {
+fn selcmp(arg: [*c]Ref, k: i32, f: *Fn) bool {
     var n: i64 = undefined;
 
     if (KBASE(k) == 1) {
@@ -220,7 +220,7 @@ fn selcmp(arg: [*c]Ref, k: i32, f: [*c]Fn) bool {
     var cmp: i32 = Oacmp;
     var r = arg[1];
     if (rtype(r) == RCon) {
-        const c = &f.*.con[r.val];
+        const c = &f.con[r.val];
         switch (imm(c, k, &n)) {
             else => {},
             Iplo12, Iphi12 => fix = false,
@@ -239,18 +239,18 @@ fn selcmp(arg: [*c]Ref, k: i32, f: [*c]Fn) bool {
     return swap;
 }
 
-fn callable(r: Ref, f: [*c]Fn) bool {
+fn callable(r: Ref, f: *Fn) bool {
     if (rtype(r) == RTmp)
         return true;
     if (rtype(r) == RCon) {
-        const c = &f.*.con[r.val];
+        const c = &f.con[r.val];
         if (c.*.type == CAddr and c.*.bits.i == 0)
             return true;
     }
     return false;
 }
 
-fn sel(i_: Ins, f: [*c]Fn) void {
+fn sel(i_: Ins, f: *Fn) void {
     var i = i_;
     var ck: i32 = undefined;
     var cc: i32 = undefined;
@@ -282,7 +282,7 @@ fn sel(i_: Ins, f: [*c]Fn) void {
     }
 }
 
-fn seljmp(b: [*c]Blk, f: [*c]Fn) void {
+fn seljmp(b: [*c]Blk, f: *Fn) void {
     var ck: i32 = undefined;
     var cc: i32 = undefined;
 
@@ -299,7 +299,7 @@ fn seljmp(b: [*c]Blk, f: [*c]Fn) void {
     while (i > b.*.ins) {
         i -= 1;
         if (req(i.*.to, r)) {
-            use = @intCast(f.*.tmp[r.val].nuse);
+            use = @intCast(f.tmp[r.val].nuse);
             ir = i;
             break;
         }

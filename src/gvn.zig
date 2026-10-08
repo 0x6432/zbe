@@ -103,11 +103,11 @@ fn gvndup(i: [*c]Ins, insert: bool) [*c]Ins {
     return null;
 }
 
-fn replaceuse(f: [*c]Fn, u: [*c]Use, r1: Ref, r2: Ref) void {
+fn replaceuse(f: *Fn, u: [*c]Use, r1: Ref, r2: Ref) void {
     var t2: [*c]Tmp = null;
     if (rtype(r2) == RTmp)
-        t2 = &f.*.tmp[r2.val];
-    const b = f.*.rpo[u.*.bid];
+        t2 = &f.tmp[r2.val];
+    const b = f.rpo[u.*.bid];
     switch (u.*.type) {
         UPhi => {
             const p = u.*.u.phi;
@@ -140,16 +140,15 @@ fn replaceuse(f: [*c]Fn, u: [*c]Use, r1: Ref, r2: Ref) void {
     }
 }
 
-fn replaceuses(f: [*c]Fn, r1: Ref, r2: Ref) void {
+fn replaceuses(f: *Fn, r1: Ref, r2: Ref) void {
     assert(rtype(r1) == RTmp);
-    const t1 = &f.*.tmp[r1.val];
-    var u = t1.*.use;
-    while (u < &t1.*.use[t1.*.nuse]) : (u += 1)
+    const t1 = &f.tmp[r1.val];
+    for (t1.*.use[0..t1.*.nuse]) |*u|
         replaceuse(f, u, r1, r2);
     t1.*.nuse = 0;
 }
 
-fn dedupphi(f: [*c]Fn, b: [*c]Blk) void {
+fn dedupphi(f: *Fn, b: [*c]Blk) void {
     var pp: [*c][*c]Phi = &b.*.phi;
     while (true) {
         const p = pp.*;
@@ -169,7 +168,7 @@ fn rcmp(a: Ref, b: Ref) i32 {
     return @as(i32, @intCast(a.val)) - @as(i32, @intCast(b.val));
 }
 
-fn normins(f: [*c]Fn, i: [*c]Ins) void {
+fn normins(f: *Fn, i: [*c]Ins) void {
     var v: i64 = undefined;
 
     // truncate constant bits to
@@ -243,12 +242,12 @@ fn assoccon(f: [*c]Fn, b: [*c]Blk, i_1: [*c]Ins) void {
     adduse(&f.*.tmp[i_1.*.arg[0].val], UIns, b, @ptrCast(i_1));
 }
 
-fn killins(f: [*c]Fn, i: [*c]Ins, r: Ref) void {
+fn killins(f: *Fn, i: [*c]Ins, r: Ref) void {
     replaceuses(f, i.*.to, r);
     i.* = INS0(Onop);
 }
 
-fn dedupins(f: [*c]Fn, b: [*c]Blk, i: [*c]Ins) void {
+fn dedupins(f: *Fn, b: [*c]Blk, i: [*c]Ins) void {
     normins(f, i);
     if (i.*.op == Onop or pinned(i))
         return;
@@ -277,10 +276,10 @@ fn dedupins(f: [*c]Fn, b: [*c]Blk, i: [*c]Ins) void {
     }
 }
 
-pub fn cmpeqz(f: [*c]Fn, r: Ref, arg: *Ref, cls: *i32, eqval: *i32) bool {
+pub fn cmpeqz(f: *Fn, r: Ref, arg: *Ref, cls: *i32, eqval: *i32) bool {
     if (rtype(r) != RTmp)
         return false;
-    const i = f.*.tmp[r.val].def;
+    const i = f.tmp[r.val].def;
     if (i != null)
         if (all.optab[i.*.op].cmpeqwl != 0)
             if (req(i.*.arg[1], CON_Z)) {
@@ -292,7 +291,7 @@ pub fn cmpeqz(f: [*c]Fn, r: Ref, arg: *Ref, cls: *i32, eqval: *i32) bool {
     return false;
 }
 
-fn branchdom(f: [*c]Fn, bif: [*c]Blk, bbr1: [*c]Blk, bbr2: [*c]Blk, b: [*c]Blk) bool {
+fn branchdom(f: *Fn, bif: [*c]Blk, bbr1: [*c]Blk, bbr2: [*c]Blk, b: [*c]Blk) bool {
     assert(bif.*.jmp.type == Jjnz);
 
     if (b != bif and dom(bbr1, b) and !reachesnotvia(f, bbr2, b, bif))
@@ -301,7 +300,7 @@ fn branchdom(f: [*c]Fn, bif: [*c]Blk, bbr1: [*c]Blk, bbr2: [*c]Blk, b: [*c]Blk) 
     return false;
 }
 
-fn domzero(f: [*c]Fn, d: [*c]Blk, b: [*c]Blk, z: *i32) bool {
+fn domzero(f: *Fn, d: [*c]Blk, b: [*c]Blk, z: *i32) bool {
     if (branchdom(f, d, d.*.s1, d.*.s2, b)) {
         z.* = 0;
         return true;
@@ -314,7 +313,7 @@ fn domzero(f: [*c]Fn, d: [*c]Blk, b: [*c]Blk, z: *i32) bool {
 }
 
 /// infer 0/non-0 value from dominating jnz
-pub fn zeroval(f: [*c]Fn, b: [*c]Blk, r: Ref, cls: i32, z: *i32) bool {
+pub fn zeroval(f: *Fn, b: [*c]Blk, r: Ref, cls: i32, z: *i32) bool {
     var arg: Ref = undefined;
     var cls1: i32 = undefined;
     var eqval: i32 = undefined;
@@ -357,13 +356,12 @@ fn usecls(u: [*c]Use, r: Ref, cls: i32) i32 {
     die("unreachable", .{});
 }
 
-fn propjnz0(f: [*c]Fn, bif: [*c]Blk, s0: [*c]Blk, snon0: [*c]Blk, r: Ref, cls: i32) void {
+fn propjnz0(f: *Fn, bif: [*c]Blk, s0: [*c]Blk, snon0: [*c]Blk, r: Ref, cls: i32) void {
     if (s0.*.npred != 1 or rtype(r) != RTmp)
         return;
-    const t = &f.*.tmp[r.val];
-    var u = t.*.use;
-    while (u < &t.*.use[t.*.nuse]) : (u += 1) {
-        const b = f.*.rpo[u.*.bid];
+    const t = &f.tmp[r.val];
+    for (t.*.use[0..t.*.nuse]) |*u| {
+        const b = f.rpo[u.bid];
         // we may compare an l temp with a w
         // comparison; so check that the use
         // does not involve high bits
@@ -373,7 +371,7 @@ fn propjnz0(f: [*c]Fn, bif: [*c]Blk, s0: [*c]Blk, snon0: [*c]Blk, r: Ref, cls: i
     }
 }
 
-fn dedupjmp(f: [*c]Fn, b: [*c]Blk) void {
+fn dedupjmp(f: *Fn, b: [*c]Blk) void {
     var v: i64 = undefined;
     var arg: Ref = undefined;
     var cls: i32 = undefined;
@@ -404,10 +402,10 @@ fn dedupjmp(f: [*c]Fn, b: [*c]Blk) void {
     }
 }
 
-fn rebuildcfg(f: [*c]Fn) void {
-    const nblk = f.*.nblk;
+fn rebuildcfg(f: *Fn) void {
+    const nblk = f.nblk;
     const rpo: [*c][*c]Blk = ealloc([*c]Blk, nblk);
-    if (nblk != 0) @memcpy(rpo[0..nblk], f.*.rpo[0..nblk]);
+    if (nblk != 0) @memcpy(rpo[0..nblk], f.rpo[0..nblk]);
 
     fillcfg(f);
 
@@ -415,7 +413,7 @@ fn rebuildcfg(f: [*c]Fn) void {
     // killed blocks and may be active
     // in the computation in the start
     // block
-    const s = f.*.start;
+    const s = f.start;
     var n: uint = 0;
     while (n < nblk) : (n += 1) {
         const b = rpo[n];
@@ -465,8 +463,7 @@ pub fn gvn(f: [*c]Fn) void {
     while (n < f.*.nblk) : (n += 1) {
         b = f.*.rpo[n];
         dedupphi(f, b);
-        var i = b.*.ins;
-        while (i < &b.*.ins[b.*.nins]) : (i += 1)
+        for (b.*.ins[0..b.*.nins]) |*i|
             dedupins(f, b, i);
         dedupjmp(f, b);
     }

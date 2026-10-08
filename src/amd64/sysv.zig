@@ -217,7 +217,7 @@ fn retr(reg: *[2]Ref, aret: [*c]AClass) i32 {
     return ca;
 }
 
-fn selret(b: [*c]Blk, f: [*c]Fn) void {
+fn selret(b: [*c]Blk, f: *Fn) void {
     var reg: [2]Ref = undefined;
     var aret: AClass = undefined;
     var ca: i32 = undefined;
@@ -231,12 +231,12 @@ fn selret(b: [*c]Blk, f: [*c]Fn) void {
     b.*.jmp.type = Jret0;
 
     if (j == Jretc) {
-        typclass(&aret, &all.typ[@intCast(f.*.retty)]);
+        typclass(&aret, &all.typ[@intCast(f.retty)]);
         if (aret.inmem != 0) {
-            assert(rtype(f.*.retr) == RTmp);
-            emit(Ocopy, Kl, TMP(RAX), f.*.retr, R);
+            assert(rtype(f.retr) == RTmp);
+            emit(Ocopy, Kl, TMP(RAX), f.retr, R);
             emit(Oblit1, 0, R, INT(aret.type.*.size), R);
-            emit(Oblit0, 0, R, r0, f.*.retr);
+            emit(Oblit0, 0, R, r0, f.retr);
             ca = 1;
         } else {
             ca = retr(&reg, &aret);
@@ -398,7 +398,7 @@ fn rarg(ty: i32, ni: *i32, ns: *i32) Ref {
     }
 }
 
-fn selcall(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins, rap: *[*c]RAlloc) void {
+fn selcall(f: *Fn, i_0: [*c]Ins, i_1: [*c]Ins, rap: *[*c]RAlloc) void {
     var aret: AClass = undefined;
     var reg: [2]Ref = undefined;
     var ca: i32 = undefined;
@@ -535,7 +535,7 @@ fn selcall(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins, rap: *[*c]RAlloc) void {
     emit(Osalloc, Kl, r, getcon(stk, f), R);
 }
 
-fn selpar(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins) i32 {
+fn selpar(f: *Fn, i_0: [*c]Ins, i_1: [*c]Ins) i32 {
     var aret: AClass = undefined;
     var fa: i32 = undefined;
     var r: Ref = undefined;
@@ -547,11 +547,11 @@ fn selpar(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins) i32 {
     var ni: i32 = 0;
     var ns: i32 = 0;
 
-    if (f.*.retty >= 0) {
-        typclass(&aret, &all.typ[@intCast(f.*.retty)]);
+    if (f.retty >= 0) {
+        typclass(&aret, &all.typ[@intCast(f.retty)]);
         fa = argsclass(i_0, i_1, ac, Opar, &aret, &env);
     } else fa = argsclass(i_0, i_1, ac, Opar, null, &env);
-    f.*.reg = amd64_sysv_argregs(CALL(fa), null);
+    f.reg = amd64_sysv_argregs(CALL(fa), null);
 
     var i = i_0;
     var a = ac;
@@ -574,10 +574,10 @@ fn selpar(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins) i32 {
         emit(Oalloc + al, Kl, i.*.to, getcon(a.*.size, f), R);
     }
 
-    if (f.*.retty >= 0 and aret.inmem != 0) {
+    if (f.retty >= 0 and aret.inmem != 0) {
         r = newtmp("abi", Kl, f);
         emit(Ocopy, Kl, r, rarg(Kl, &ni, &ns), R);
-        f.*.retr = r;
+        f.retr = r;
     }
 
     i = i_0;
@@ -593,7 +593,7 @@ fn selpar(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins) i32 {
                     err("sysv abi requires alignments of 16 or less", .{});
                 if (a.*.@"align" == 4)
                     s = (s + 3) & -4;
-                f.*.tmp[i.*.to.val].slot = -s;
+                f.tmp[i.*.to.val].slot = -s;
                 s += @intCast(a.*.size / 4);
                 continue;
             },
@@ -622,8 +622,8 @@ fn selpar(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins) i32 {
     return fa | (s * 4) << 12;
 }
 
-fn split(f: [*c]Fn, b: [*c]Blk) [*c]Blk {
-    f.*.nblk += 1;
+fn split(f: *Fn, b: [*c]Blk) [*c]Blk {
+    f.nblk += 1;
     const bn = newblk();
     idup(bn, all.curi, @intCast(ptrdiff(all.insbEnd(), all.curi)));
     all.curi = all.insbEnd();
@@ -646,7 +646,7 @@ fn chpred(b: [*c]Blk, bp: [*c]Blk, bp1: [*c]Blk) void {
     }
 }
 
-fn selvaarg(f: [*c]Fn, b: [*c]Blk, i: [*c]Ins) void {
+fn selvaarg(f: *Fn, b: [*c]Blk, i: [*c]Ins) void {
     const c4 = getcon(4, f);
     const c8 = getcon(8, f);
     const c16 = getcon(16, f);
@@ -735,7 +735,7 @@ fn selvaarg(f: [*c]Fn, b: [*c]Blk, i: [*c]Ins) void {
     emit(Oadd, Kl, r0, ap, if (isint) CON_Z else c4);
 }
 
-fn selvastart(f: [*c]Fn, fa: i32, ap: Ref) void {
+fn selvastart(f: *Fn, fa: i32, ap: Ref) void {
     const gp = ((fa >> 4) & 15) * 8;
     const fp = 48 + ((fa >> 8) & 15) * 16;
     const sp = fa >> 12;

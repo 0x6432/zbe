@@ -1046,8 +1046,8 @@ fn parseline(ps: PState) PState {
     return PIns;
 }
 
-fn usecheck(r: Ref, k: i32, f: [*c]Fn) bool {
-    return rtype(r) != RTmp or f.*.tmp[r.val].cls == k or (f.*.tmp[r.val].cls == Kl and k == Kw);
+fn usecheck(r: Ref, k: i32, f: *Fn) bool {
+    return rtype(r) != RTmp or f.tmp[r.val].cls == k or (f.tmp[r.val].cls == Kl and k == Kw);
 }
 
 fn typecheck(f: [*c]Fn) void {
@@ -1095,24 +1095,23 @@ fn typecheck(f: [*c]Fn) void {
             if (!bsequal(&pb, &ppb))
                 err("predecessors not matched in phi %{s}", .{cs(t.*.name)});
         }
-        var i = b.*.ins;
-        while (i < &b.*.ins[b.*.nins]) : (i += 1) {
+        for (b.*.ins[0..b.*.nins]) |*i| {
             n = 0;
             while (n < 2) : (n += 1) {
-                k = all.optab[i.*.op].argcls[n][i.*.cls];
-                r = i.*.arg[n];
+                k = all.optab[i.op].argcls[n][i.cls];
+                r = i.arg[n];
                 t = &f.*.tmp[r.val];
                 const which: [*c]const u8 = if (n == 1) "second" else "first";
                 if (k == Ke)
-                    err("invalid instruction type in {s}", .{cs(all.optab[i.*.op].name)});
+                    err("invalid instruction type in {s}", .{cs(all.optab[i.op].name)});
                 if (rtype(r) == RType)
                     continue;
                 if (rtype(r) != -1 and k == Kx)
-                    err("no {s} operand expected in {s}", .{cs(which), cs(all.optab[i.*.op].name)});
+                    err("no {s} operand expected in {s}", .{cs(which), cs(all.optab[i.op].name)});
                 if (rtype(r) == -1 and k != Kx)
-                    err("missing {s} operand in {s}", .{cs(which), cs(all.optab[i.*.op].name)});
+                    err("missing {s} operand in {s}", .{cs(which), cs(all.optab[i.op].name)});
                 if (!usecheck(r, k, f))
-                    err("invalid type for {s} operand %{s} in {s}", .{cs(which), cs(t.*.name), cs(all.optab[i.*.op].name)});
+                    err("invalid type for {s} operand %{s} in {s}", .{cs(which), cs(t.*.name), cs(all.optab[i.op].name)});
             }
         }
         r = b.*.jmp.arg;
@@ -1466,7 +1465,7 @@ fn parselnk(lnk: [*c]Lnk) i32 {
     }
 }
 
-pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*c]u8) void, data: *const fn ([*c]Dat) void, func: *const fn ([*c]Fn) void) void {
+pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*c]u8) void, data: *const fn ([*c]Dat) void, func: *const fn (*Fn) void) void {
     var lnk: Lnk = undefined;
 
     lexinit();
@@ -1530,26 +1529,26 @@ fn printcon(c: [*c]Con, f: *Writer) Writer.Error!void {
     }
 }
 
-pub fn printref(r: Ref, f: [*c]Fn, fp: *Writer) Writer.Error!void {
+pub fn printref(r: Ref, f: *Fn, fp: *Writer) Writer.Error!void {
     switch (rtype(r)) {
         RTmp => {
             if (r.val < Tmp0)
                 try fp.print("R{d}", .{r.val})
             else
-                try fp.print("%{s}", .{cs(f.*.tmp[r.val].name)});
+                try fp.print("%{s}", .{cs(f.tmp[r.val].name)});
         },
         RCon => {
             if (req(r, UNDEF))
                 try fp.print("UNDEF", .{})
             else
-                try printcon(&f.*.con[r.val], fp);
+                try printcon(&f.con[r.val], fp);
         },
         RSlot => try fp.print("S{d}", .{rsval(r)}),
         RCall => try fp.print("{x:0>4}", .{r.val}),
         RType => try fp.print(":{s}", .{cs(all.typ[r.val].name)}),
         RMem => {
             var i = false;
-            const m = &f.*.mem[r.val];
+            const m = &f.mem[r.val];
             try fp.writeByte('[');
             if (m.*.offset.type != CUndef) {
                 try printcon(&m.*.offset, fp);
@@ -1599,27 +1598,26 @@ pub fn printfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
                 } else try fp.print(", ", .{});
             }
         }
-        var i = b.*.ins;
-        while (i < &b.*.ins[b.*.nins]) : (i += 1) {
+        for (b.*.ins[0..b.*.nins]) |*i| {
             try fp.print("\t", .{});
-            if (!req(i.*.to, R)) {
-                try printref(i.*.to, f, fp);
-                try fp.print(" ={c} ", .{ktoc[i.*.cls]});
+            if (!req(i.to, R)) {
+                try printref(i.to, f, fp);
+                try fp.print(" ={c} ", .{ktoc[i.cls]});
             }
-            assert(all.optab[i.*.op].name != null);
-            try fp.print("{s}", .{cs(all.optab[i.*.op].name)});
-            if (req(i.*.to, R))
-                switch (i.*.op) {
-                    Oarg, Oswap, Oxcmp, Oacmp, Oacmn, Oafcmp, Oxtest, Oxdiv, Oxidiv => try fp.writeByte(ktoc[i.*.cls]),
+            assert(all.optab[i.op].name != null);
+            try fp.print("{s}", .{cs(all.optab[i.op].name)});
+            if (req(i.to, R))
+                switch (i.op) {
+                    Oarg, Oswap, Oxcmp, Oacmp, Oacmn, Oafcmp, Oxtest, Oxdiv, Oxidiv => try fp.writeByte(ktoc[i.cls]),
                     else => {},
                 };
-            if (!req(i.*.arg[0], R)) {
+            if (!req(i.arg[0], R)) {
                 try fp.print(" ", .{});
-                try printref(i.*.arg[0], f, fp);
+                try printref(i.arg[0], f, fp);
             }
-            if (!req(i.*.arg[1], R)) {
+            if (!req(i.arg[1], R)) {
                 try fp.print(", ", .{});
-                try printref(i.*.arg[1], f, fp);
+                try printref(i.arg[1], f, fp);
             }
             try fp.print("\n", .{});
         }

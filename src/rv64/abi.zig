@@ -277,7 +277,7 @@ const st = blk: {
     break :blk s;
 };
 
-fn sttmps(tmp: [*c]Ref, ntmp: i32, c: *Class, mem: Ref, f: [*c]Fn) void {
+fn sttmps(tmp: [*c]Ref, ntmp: i32, c: *Class, mem: Ref, f: *Fn) void {
     assert(ntmp > 0);
     assert(ntmp <= 2);
     var i: usize = 0;
@@ -289,7 +289,7 @@ fn sttmps(tmp: [*c]Ref, ntmp: i32, c: *Class, mem: Ref, f: [*c]Fn) void {
     }
 }
 
-fn ldregs(c: *Class, mem: Ref, f: [*c]Fn) void {
+fn ldregs(c: *Class, mem: Ref, f: *Fn) void {
     var i: usize = 0;
     while (i < c.nreg) : (i += 1) {
         const r = newtmp("abi", Kl, f);
@@ -298,7 +298,7 @@ fn ldregs(c: *Class, mem: Ref, f: [*c]Fn) void {
     }
 }
 
-fn selret(b: [*c]Blk, f: [*c]Fn) void {
+fn selret(b: [*c]Blk, f: *Fn) void {
     var cr: Class = undefined;
     var cty: i32 = undefined;
 
@@ -311,11 +311,11 @@ fn selret(b: [*c]Blk, f: [*c]Fn) void {
     b.*.jmp.type = Jret0;
 
     if (j == Jretc) {
-        typclass(&cr, &all.typ[@intCast(f.*.retty)], true, &gpreg, &fpreg);
+        typclass(&cr, &all.typ[@intCast(f.retty)], true, &gpreg, &fpreg);
         if ((cr.class & Cptr) != 0) {
-            assert(rtype(f.*.retr) == RTmp);
+            assert(rtype(f.retr) == RTmp);
             emit(Oblit1, 0, R, INT(cr.type.*.size), R);
-            emit(Oblit0, 0, R, r, f.*.retr);
+            emit(Oblit0, 0, R, r, f.retr);
             cty = 0;
         } else {
             ldregs(&cr, r, f);
@@ -406,7 +406,7 @@ fn argsclass(i_0: [*c]Ins, i_1: [*c]Ins, carg: [*c]Class, retptr: bool) i32 {
     return envc << 12 | ngpu << 4 | nfpu << 8;
 }
 
-fn stkblob(r: Ref, t: [*c]Typ, f: [*c]Fn, ilp: *[*c]Insl) void {
+fn stkblob(r: Ref, t: [*c]Typ, f: *Fn, ilp: *[*c]Insl) void {
     const il: [*c]Insl = palloc(Insl, 1);
     var al: i32 = t.*.@"align" - 2; // specific to NAlign == 3
     if (al < 0)
@@ -417,7 +417,7 @@ fn stkblob(r: Ref, t: [*c]Typ, f: [*c]Fn, ilp: *[*c]Insl) void {
     ilp.* = il;
 }
 
-fn selcall(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins, ilp: *[*c]Insl) void {
+fn selcall(f: *Fn, i_0: [*c]Ins, i_1: [*c]Ins, ilp: *[*c]Insl) void {
     var cr: Class = undefined;
     var tmp: [2]Ref = undefined;
     var k: i32 = undefined;
@@ -576,7 +576,7 @@ fn selcall(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins, ilp: *[*c]Insl) void {
     emit(Osalloc, Kl, r, getcon(@bitCast(stk), f), R);
 }
 
-fn selpar(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins) Params {
+fn selpar(f: *Fn, i_0: [*c]Ins, i_1: [*c]Ins) Params {
     var cr: Class = undefined;
     var tmp: [17]Ref = undefined;
 
@@ -585,16 +585,16 @@ fn selpar(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins) Params {
     cr.class = 0;
     all.curi = all.insbEnd();
 
-    if (f.*.retty >= 0) {
-        typclass(&cr, &all.typ[@intCast(f.*.retty)], true, &gpreg, &fpreg);
+    if (f.retty >= 0) {
+        typclass(&cr, &all.typ[@intCast(f.retty)], true, &gpreg, &fpreg);
         if ((cr.class & Cptr) != 0) {
-            f.*.retr = newtmp("abi", Kl, f);
-            emit(Ocopy, Kl, f.*.retr, TMP(A0), R);
+            f.retr = newtmp("abi", Kl, f);
+            emit(Ocopy, Kl, f.retr, TMP(A0), R);
         }
     }
 
     const cty = argsclass(i_0, i_1, ca, (cr.class & Cptr) != 0);
-    f.*.reg = rv64_argregs(CALL(cty), null);
+    f.reg = rv64_argregs(CALL(cty), null);
 
     var il: [*c]Insl = null;
     var t: [*c]Ref = &tmp;
@@ -628,7 +628,7 @@ fn selpar(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins) Params {
         emiti(il.*.i);
 
     t = &tmp;
-    var s: i32 = 2 + 8 * @as(i32, f.*.vararg);
+    var s: i32 = 2 + 8 * @as(i32, f.vararg);
     i = i_0;
     c = ca;
     while (i < i_1) : ({
@@ -637,7 +637,7 @@ fn selpar(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins) Params {
     }) {
         if (i.*.op == Oparc and (c.*.class & Cptr) == 0) {
             if (c.*.nreg == 0) {
-                f.*.tmp[i.*.to.val].slot = -s;
+                f.tmp[i.*.to.val].slot = -s;
                 s += if ((c.*.class & Cstk2) != 0) 2 else 1;
                 continue;
             }
@@ -667,7 +667,7 @@ fn selpar(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins) Params {
     };
 }
 
-fn selvaarg(f: [*c]Fn, i: [*c]Ins) void {
+fn selvaarg(f: *Fn, i: [*c]Ins) void {
     const loc = newtmp("abi", Kl, f);
     const newloc = newtmp("abi", Kl, f);
     emit(Ostorel, Kw, R, newloc, i.*.arg[0]);
@@ -676,10 +676,10 @@ fn selvaarg(f: [*c]Fn, i: [*c]Ins) void {
     emit(Oload, Kl, loc, i.*.arg[0], R);
 }
 
-fn selvastart(f: [*c]Fn, p: Params, ap: Ref) void {
+fn selvastart(f: *Fn, p: Params, ap: Ref) void {
     const rsave = newtmp("abi", Kl, f);
     emit(Ostorel, Kw, R, rsave, ap);
-    const s: i32 = if (p.stk > 2 + 8 * @as(i32, f.*.vararg)) p.stk else 2 + p.ngp;
+    const s: i32 = if (p.stk > 2 + 8 * @as(i32, f.vararg)) p.stk else 2 + p.ngp;
     emit(Oaddr, Kl, rsave, SLOT(-s), R);
 }
 

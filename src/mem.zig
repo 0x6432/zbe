@@ -420,17 +420,16 @@ pub fn coalesce(f: *Fn) void {
             continue;
         }
         i.* = INS0(Onop);
-        var u = t.*.use;
-        while (u < &t.*.use[t.*.nuse]) : (u += 1) {
-            if (u.*.type == UJmp) {
-                b = f.rpo[u.*.bid];
+        for (t.*.use[0..t.*.nuse]) |*u| {
+            if (u.type == UJmp) {
+                b = f.rpo[u.bid];
                 assert(isret(b.*.jmp.type));
                 b.*.jmp.type = Jret0;
                 b.*.jmp.arg = R;
                 continue;
             }
-            assert(u.*.type == UIns);
-            i = u.*.u.ins;
+            assert(u.type == UIns);
+            i = u.u.ins;
             if (!req(i.*.to, R)) {
                 assert(rtype(i.*.to) == RTmp);
                 n += 1;
@@ -500,15 +499,14 @@ pub fn coalesce(f: *Fn) void {
             ts.*.def.* = INS0(Onop);
             ts.*.def = t.*.def;
         }
-        var u = t.*.use;
-        while (u < &t.*.use[t.*.nuse]) : (u += 1) {
-            if (u.*.type == UJmp) {
-                b = f.rpo[u.*.bid];
+        for (t.*.use[0..t.*.nuse]) |*u| {
+            if (u.type == UJmp) {
+                b = f.rpo[u.bid];
                 b.*.jmp.arg = TMP(s.*.s.*.t);
                 continue;
             }
-            assert(u.*.type == UIns);
-            arg = &u.*.u.ins.*.arg;
+            assert(u.type == UIns);
+            arg = &u.u.ins.*.arg;
             n = 0;
             while (n < 2) : (n += 1) {
                 if (req(arg[@intCast(n)], TMP(s.*.t)))

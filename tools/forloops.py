@@ -36,9 +36,9 @@ for f in sys.argv[1:]:
         btxt = '\n'.join(body)
         bad = re.search(r'\b' + x + r'\b\s*(\+|-[^>]|\[|<|>[^>]|==|!=|=[^=])', btxt) \
             or re.search(r'(\+|-|<|>|==|!=)\s*' + x + r'\b(?!\.)', btxt) \
-            or re.search(r'&' + x + r'\b', btxt)
+            or re.search(r'&' + x + r'\b(?!\.)', btxt)
         fe = end + 1
-        while fe < len(L) and not L[fe].startswith('}'): fe += 1
+        while fe < len(L) and not (L[fe].strip().startswith('}') and len(L[fe]) - len(L[fe].lstrip()) < len(ind)): fe += 1
         after = '\n'.join(L[end+1:fe])
         if bad or re.search(r'\b' + x + r'\b', after):
             k += 1; continue

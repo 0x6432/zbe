@@ -318,17 +318,16 @@ fn renblk(b: *Blk, stk: [*c][*c]Name, f: *Fn) void {
     var p: [*c]Phi = b.phi;
     while (p != null) : (p = p.*.link)
         rendef(&p.*.to, b, stk, f);
-    var i = b.ins;
-    while (i < &b.ins[b.nins]) : (i += 1) {
+    for (b.ins[0..b.nins]) |*i| {
         var m: usize = 0;
         while (m < 2) : (m += 1) {
-            const tv = i.*.arg[m].val;
-            if (rtype(i.*.arg[m]) == RTmp)
+            const tv = i.arg[m].val;
+            if (rtype(i.arg[m]) == RTmp)
                 if (f.tmp[tv].visit != 0) {
-                    i.*.arg[m] = getstk(tv, b, stk);
+                    i.arg[m] = getstk(tv, b, stk);
                 };
         }
-        rendef(&i.*.to, b, stk, f);
+        rendef(&i.to, b, stk, f);
     }
     const jv = b.jmp.arg.val;
     if (rtype(b.jmp.arg) == RTmp)
@@ -433,11 +432,10 @@ pub fn ssacheck(f: *Fn) void {
             while (p_it) |p| : (p_it = p.link) {
                 r = p.to;
                 t = &f.tmp[r.val];
-                var u = t.*.use;
-                while (u < &t.*.use[t.*.nuse]) : (u += 1) {
-                    bu = f.rpo[u.*.bid];
-                    if (u.*.type == UPhi) {
-                        if (phicheck(u.*.u.phi, b, r))
+                for (t.*.use[0..t.*.nuse]) |*u| {
+                    bu = f.rpo[u.bid];
+                    if (u.type == UPhi) {
+                        if (phicheck(u.u.phi, b, r))
                             break :errblk;
                     } else if (bu != b and !sdom(b, bu))
                         break :errblk;

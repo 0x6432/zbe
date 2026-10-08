@@ -279,19 +279,18 @@ pub fn rv64_isel(f: *Fn) void {
         al += 1;
         n *= 2;
     }) {
-        var i = b.*.ins;
-        while (i < b.*.ins + b.*.nins) : (i += 1) {
-            if (i.*.op == al) {
-                if (rtype(i.*.arg[0]) != RCon)
+        for (b.*.ins[0..b.*.nins]) |*i| {
+            if (i.op == al) {
+                if (rtype(i.arg[0]) != RCon)
                     break;
-                var sz = f.con[i.*.arg[0].val].bits.i;
+                var sz = f.con[i.arg[0].val].bits.i;
                 if (sz < 0 or sz >= std.math.maxInt(i32) - 15)
                     err("invalid alloc size {d}", .{sz});
                 sz = (sz + n - 1) & -@as(i64, n);
                 sz = @divTrunc(sz, 4);
                 if (sz > std.math.maxInt(i32) - f.slot)
                     die("alloc too large", .{});
-                f.tmp[i.*.to.val].slot = f.slot;
+                f.tmp[i.to.val].slot = f.slot;
                 f.slot += @intCast(sz);
                 i.* = INS0(Onop);
             }

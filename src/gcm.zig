@@ -367,12 +367,11 @@ fn sinkref(f: *Fn, b: *Blk, pr: *Ref) void {
 fn sink(f: *Fn) void {
     var b_it: ?*Blk = f.start;
     while (b_it) |b| : (b_it = b.link) {
-        var i = b.ins;
-        while (i < b.ins + b.nins) : (i += 1) {
-            if (isload(i.*.op))
-                sinkref(f, b, &i.*.arg[0])
-            else if (isstore(i.*.op))
-                sinkref(f, b, &i.*.arg[1]);
+        for (b.ins[0..b.nins]) |*i| {
+            if (isload(i.op))
+                sinkref(f, b, &i.arg[0])
+            else if (isstore(i.op))
+                sinkref(f, b, &i.arg[1]);
         }
         sinkref(f, b, &b.jmp.arg);
     }

@@ -1,6 +1,6 @@
 # HANDOFF – QBE → Zig translation
 
-Updated: 20261008-223131 UTC (backup 38)
+Updated: 20261008-223921 UTC (backup 39)
 
 ## Goal
 Translate QBE (C, cloned at /data/qbe-c, HEAD e786f06) to latest Zig master.
@@ -186,7 +186,7 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    `*allowzero T` (won't coerce to *T) -> rewrite pointer loops to
    slices/indices before converting struct fields to `[*]T`.
 
-## Next steps (current as of stage 6l, all checks green)
+## Next steps (current as of stage 6m, all checks green)
 DONE 5t (redone after sandbox reset): arm64/isel.zig (fixarg(pr: *Ref),
 selcmp(arg: *[2]Ref), seljmp backward index search with ?*Ins, list walks)
 and rv64/isel.zig (memarg/immarg/fixarg take *Ref/?*Ins). All isel files
@@ -255,7 +255,15 @@ DONE 6l: TESTS + 3 real bugs found by them:
     `1 << -1`; we now mask the shift like x86) in parse.zig parsefields and
     amd64/sysv.zig typclass; fatal errors (e.g. missing 2nd input file) lost
     already-emitted stdout - main.fail() now flushes stdout like C exit().
-PLAN (user approved, in order): (1) strings DONE; (2) vectors DONE; (2b) tests DONE; (3) vectors (vnew/vgrow) -> typed growable arrays;
+DONE 6m: jump kinds are `pub const J = enum(i16)` in all.zig (fields xxx,
+retw..hlt); the old names `Jjmp`, `Jretw`, ... are aliases `= J.jmp` etc.;
+Blk.jmp.type and cfg.zig Jmp.type are `J`. Arithmetic uses `J.add(n)`
+(C: `Jjf + c`) and `.int()`; INRANGE/isret/isretbh accept enums or ints.
+SANDBOX NOTE: long foreground commands (all.sh ~2 min) have killed the sandbox
+twice and rolled /data back to an older snapshot. Always run all.sh in the
+background (`(sh tools/all.sh > /tmp/all.log 2>&1; echo EXIT $? >> /tmp/all.log) &`)
+and poll with `sleep 100; tail -12 /tmp/all.log`. Commit WIP before verifying.
+PLAN (user approved, in order): (1) strings DONE; (2) vectors DONE; (2b) tests DONE; (3) jump enum DONE, then vectors (vnew/vgrow) -> typed growable arrays;
 (3) enums for ops/classes/jumps; (4) cut casts.
 NOTE: the sandbox can stop mid-session (files in /data survived once, but the
 last edits before the stop were partly lost) -> commit + back up often.
@@ -283,7 +291,7 @@ indices/slices); pointer subtraction on `[*]T` works; tmph needs
 > /data/qbe-c/qbe); build corpus with `sh tools/mkcorpus.sh` (Hare/cproc IR,
 > see Status section). Read HANDOFF.md fully first.
 > State: 1:1 translation done and verified (git tag `v1-literal`). Canonical
-> rewrite in progress, stages 1-6l done (see "Canonical rewrite").
+> rewrite in progress, stages 1-6m done (see "Canonical rewrite").
 > Verify after EVERY change: `sh tools/all.sh > /tmp/all.log 2>&1; head -1
 > /tmp/all.log; tail -8 /tmp/all.log` (FUZZ=1 also runs abifuzz/irfuzz).
 > Expected: "All is fine!", 0/76 differ on 6 targets + debug dumps, corpus

@@ -68,8 +68,8 @@ const RMap = extern struct {
 const NPm = 64; // max copies in a parallel move
 
 var regu: bits = 0; // registers used
-var tmp: [*c]Tmp = null; // function temporaries
-var mem: [*c]Mem = null; // function mem references
+var tmp: [*]Tmp = undefined; // function temporaries
+var mem: [*]Mem = undefined; // function mem references
 const PMove = struct {
     src: Ref,
     dst: Ref,
@@ -82,8 +82,8 @@ var loop: i32 = 0; // current loop level
 var stmov: uint = 0; // stats: added moves
 var stblk: uint = 0; // stats: added blocks
 
-fn hint(t: i32) [*c]i32 {
-    return &tmp[@intCast(phicls(t, tmp))].hint.r;
+fn hint(t: i32) i32 {
+    return tmp[@intCast(phicls(t, tmp))].hint.r;
 }
 
 fn sethint(t: i32, r: i32) void {
@@ -148,7 +148,7 @@ fn ralloctry(m: *RMap, t: i32, try_: bool) Ref {
     }
     var r = tmp[@intCast(t)].visit;
     if (r == -1 or bshas(&m.b, r))
-        r = hint(t).*;
+        r = hint(t);
     found: {
         if (r == -1 or bshas(&m.b, r)) {
             if (try_)
@@ -180,7 +180,7 @@ fn ralloctry(m: *RMap, t: i32, try_: bool) Ref {
     radd(m, t, r);
     sethint(t, r);
     tmp[@intCast(t)].visit = r;
-    const h = hint(t).*;
+    const h = hint(t);
     if (h != -1 and h != r)
         m.w[@intCast(h)] = t;
     return TMP(r);
@@ -228,7 +228,7 @@ fn pmadd(src: Ref, dst: Ref, k: i32) void {
 
 const PMStat = enum(i32) { ToMove = 0, Moving, Moved };
 
-fn pmrec(status: [*c]PMStat, i: usize, k: *i32) i32 {
+fn pmrec(status: []PMStat, i: usize, k: *i32) i32 {
     var c: i32 = undefined;
 
     // note, this routine might emit
@@ -273,11 +273,10 @@ fn pmrec(status: [*c]PMStat, i: usize, k: *i32) i32 {
 }
 
 fn pmgen() void {
-    const status: [*c]PMStat = palloc(PMStat, npm);
-    assert(npm == 0 or status[@intCast(npm - 1)] == .ToMove);
-    var i: usize = 0;
-    while (i < npm) : (i += 1) {
-        if (status[i] == .ToMove) {
+    const n: usize = @intCast(npm);
+    const status = palloc(PMStat, n)[0..n];
+    for (status, 0..) |st, i| {
+        if (st == .ToMove) {
             var k = pm[i].cls;
             _ = pmrec(status, i, &k);
         }
@@ -306,19 +305,20 @@ fn regcpy(i: *Ins) bool {
     return i.op == Ocopy and isreg(i.arg[0]);
 }
 
-fn dopm(b: ?*Blk, i_: [*c]Ins, m: *RMap) [*c]Ins {
+/// handles the group of register copies ending at
+/// b.ins[last]; returns the index of its first copy
+fn dopm(b: *Blk, last: uint, m: *RMap) uint {
     var m0 = m.*; // okay since we don't use m0.b
     m0.b.t = undefined;
-    var i = i_ + 1;
-    const i_1 = i;
+    var i = last + 1;
     while (true) {
         i -= 1;
-        move(@intCast(i.*.arg[0].val), i.*.to, m);
-        if (!(i != b.?.ins and regcpy(i - 1))) break;
+        move(@intCast(b.ins[i].arg[0].val), b.ins[i].to, m);
+        if (!(i != 0 and regcpy(&b.ins[i - 1]))) break;
     }
     assert(m0.n <= m.n);
-    if (i != b.?.ins and (i - 1).*.op == Ocall) {
-        const def = all.T.retregs((i - 1).*.arg[1], null) | all.T.rglob;
+    if (i != 0 and b.ins[i - 1].op == Ocall) {
+        const def = all.T.retregs(b.ins[i - 1].arg[1], null) | all.T.rglob;
         var r: usize = 0;
         while (all.T.rsave[r] >= 0) : (r += 1) {
             if ((BIT(all.T.rsave[r]) & def) == 0)
@@ -337,11 +337,10 @@ fn dopm(b: ?*Blk, i_: [*c]Ins, m: *RMap) [*c]Ins {
         else if (s != -1)
             pmadd(TMP(r1), SLOT(s), tmp[@intCast(t)].cls);
     }
-    var ip = i;
-    while (ip < i_1) : (ip += 1) {
-        if (!req(ip.*.to, R))
-            _ = rfree(m, @intCast(ip.*.to.val));
-        const r: i32 = @intCast(ip.*.arg[0].val);
+    for (b.ins[i .. last + 1]) |*ip| {
+        if (!req(ip.to, R))
+            _ = rfree(m, @intCast(ip.to.val));
+        const r: i32 = @intCast(ip.arg[0].val);
         if (rfind(m, r) == -1)
             radd(m, r, r);
     }
@@ -354,10 +353,10 @@ fn prio1(r1: Ref, r2: Ref) bool {
     // later we can use the distance to
     // the definition instruction
     _ = r2;
-    return hint(@intCast(r1.val)).* != -1;
+    return hint(@intCast(r1.val)) != -1;
 }
 
-fn insert(r: [*c]Ref, rs: *[4][*c]Ref, p: usize) void {
+fn insert(r: *Ref, rs: *[4]*Ref, p: usize) void {
     var i = p;
     rs[i] = r;
     while (i > 0) {
@@ -369,20 +368,20 @@ fn insert(r: [*c]Ref, rs: *[4][*c]Ref, p: usize) void {
 }
 
 fn doblk(b: *Blk, cur: *RMap) void {
-    var ra: [4][*c]Ref = undefined;
+    var ra: [4]*Ref = undefined;
 
     if (rtype(b.jmp.arg) == RTmp)
         b.jmp.arg = ralloc(cur, @intCast(b.jmp.arg.val));
     all.curi = all.insbEnd();
-    var i_1: [*c]Ins = b.ins + b.nins;
-    while (i_1 != b.ins) {
-        i_1 -= 1;
-        emiti(i_1.*);
-        const i = all.curi;
+    var idx = b.nins;
+    while (idx != 0) {
+        idx -= 1;
+        emiti(b.ins[idx]);
+        const i: *Ins = all.curi;
         var rf: i32 = -1;
-        sw: switch (i.*.op) {
+        sw: switch (i.op) {
             Ocall => {
-                const rs = all.T.argregs(i.*.arg[1], null) | all.T.rglob;
+                const rs = all.T.argregs(i.arg[1], null) | all.T.rglob;
                 var r: usize = 0;
                 while (all.T.rsave[r] >= 0) : (r += 1) {
                     if ((BIT(all.T.rsave[r]) & rs) == 0)
@@ -390,39 +389,40 @@ fn doblk(b: *Blk, cur: *RMap) void {
                 }
             },
             else => {
-                if (i.*.op == Ocopy) {
+                if (i.op == Ocopy) {
                     if (regcpy(i)) {
                         all.curi += 1;
-                        i_1 = dopm(b, i_1, cur);
-                        stmov +%= @truncate(@as(usize, @bitCast(ptrdiff(i + 1, all.curi))));
+                        const mark = all.curi;
+                        idx = dopm(b, idx, cur);
+                        stmov += @intCast(ptrdiff(mark, all.curi));
                         continue;
                     }
-                    if (isreg(i.*.to))
-                        if (rtype(i.*.arg[0]) == RTmp)
-                            sethint(@intCast(i.*.arg[0].val), @intCast(i.*.to.val));
+                    if (isreg(i.to))
+                        if (rtype(i.arg[0]) == RTmp)
+                            sethint(@intCast(i.arg[0].val), @intCast(i.to.val));
                     // fall through
                 }
-                if (!req(i.*.to, R)) {
-                    assert(rtype(i.*.to) == RTmp);
-                    const r: i32 = @intCast(i.*.to.val);
+                if (!req(i.to, R)) {
+                    assert(rtype(i.to) == RTmp);
+                    const r: i32 = @intCast(i.to.val);
                     if (r < Tmp0 and (BIT(r) & all.T.rglob) != 0)
                         break :sw;
                     rf = rfree(cur, r);
                     if (rf == -1) {
-                        assert(!isreg(i.*.to));
+                        assert(!isreg(i.to));
                         all.curi += 1;
                         continue;
                     }
-                    i.*.to = TMP(rf);
+                    i.to = TMP(rf);
                 }
             },
         }
         var nr: usize = 0;
         var x: usize = 0;
         while (x < 2) : (x += 1) {
-            switch (rtype(i.*.arg[x])) {
+            switch (rtype(i.arg[x])) {
                 RMem => {
-                    const m = &mem[i.*.arg[x].val];
+                    const m = &mem[i.arg[x].val];
                     if (rtype(m.base) == RTmp) {
                         insert(&m.base, &ra, nr);
                         nr += 1;
@@ -433,7 +433,7 @@ fn doblk(b: *Blk, cur: *RMap) void {
                     }
                 },
                 RTmp => {
-                    insert(&i.*.arg[x], &ra, nr);
+                    insert(&i.arg[x], &ra, nr);
                     nr += 1;
                 },
                 else => {},
@@ -441,8 +441,8 @@ fn doblk(b: *Blk, cur: *RMap) void {
         }
         var r: usize = 0;
         while (r < nr) : (r += 1)
-            ra[r].* = ralloc(cur, @intCast(ra[r].*.val));
-        if (i.*.op == Ocopy and req(i.*.to, i.*.arg[0]))
+            ra[r].* = ralloc(cur, @intCast(ra[r].val));
+        if (i.op == Ocopy and req(i.to, i.arg[0]))
             all.curi += 1;
 
         // try to change the register of a hinted
@@ -450,7 +450,7 @@ fn doblk(b: *Blk, cur: *RMap) void {
         if (rf != -1) {
             const t = cur.w[@intCast(rf)];
             if (t != 0)
-                if (!bshas(&cur.b, rf) and hint(t).* == rf) {
+                if (!bshas(&cur.b, rf) and hint(t) == rf) {
                     const rt = rfree(cur, t);
                     if (rt != -1) {
                         tmp[@intCast(t)].visit = -1;
@@ -476,6 +476,10 @@ fn doblk(b: *Blk, cur: *RMap) void {
 
 /// qsort() comparison function to peel
 /// loop nests from inside out
+fn carveLess(_: void, ba: *Blk, bb: *Blk) bool {
+    return carve(ba, bb) == .lt;
+}
+
 fn carve(ba: *Blk, bb: *Blk) std.math.Order {
     // todo, evaluate if this order is really
     // better than the simple postorder
@@ -489,8 +493,8 @@ fn carve(ba: *Blk, bb: *Blk) std.math.Order {
 fn prio2(t1: i32, t2: i32) i32 {
     if ((tmp[@intCast(t1)].visit ^ tmp[@intCast(t2)].visit) < 0) // != signs
         return if (tmp[@intCast(t1)].visit != -1) 1 else -1;
-    if ((hint(t1).* ^ hint(t2).*) < 0)
-        return if (hint(t1).* != -1) 1 else -1;
+    if ((hint(t1) ^ hint(t2)) < 0)
+        return if (hint(t1) != -1) 1 else -1;
     return @bitCast(tmp[@intCast(t1)].cost -% tmp[@intCast(t2)].cost);
 }
 
@@ -507,7 +511,7 @@ pub fn rega(f: *Fn) void {
     regu = 0;
     tmp = f.tmp;
     mem = f.mem;
-    const blk: [*c][*c]Blk = palloc([*c]Blk, f.nblk);
+    const blk = palloc(*Blk, f.nblk)[0..f.nblk];
     const end: [*]RMap = palloc(RMap, f.nblk);
     const beg: [*]RMap = palloc(RMap, f.nblk);
     var n: uint = 0;
@@ -525,36 +529,33 @@ pub fn rega(f: *Fn) void {
         tmp[@intCast(t)].hint.w = loop;
         tmp[@intCast(t)].visit = -1;
     }
-    var bp = blk;
-    var b: [*c]Blk = f.start;
-    while (b != null) : (b = b.*.link) {
-        bp.* = b;
-        bp += 1;
-    }
-    sort(*Blk, @ptrCast(blk), f.nblk, carve);
-    b = f.start;
-    var i: [*c]Ins = b.*.ins;
-    while (i < b.*.ins + b.*.nins) : (i += 1) {
-        if (i.*.op != Ocopy or !isreg(i.*.arg[0])) {
-            break;
-        } else {
-            assert(rtype(i.*.to) == RTmp);
-            sethint(@intCast(i.*.to.val), @intCast(i.*.arg[0].val));
+    {
+        var bi: usize = 0;
+        var b_it = f.start;
+        while (b_it) |b| : (b_it = b.link) {
+            blk[bi] = b;
+            bi += 1;
         }
+    }
+    std.sort.block(*Blk, blk, {}, carveLess);
+    const start = f.start.?;
+    for (start.ins[0..start.nins]) |*i| {
+        if (i.op != Ocopy or !isreg(i.arg[0]))
+            break;
+        assert(rtype(i.to) == RTmp);
+        sethint(@intCast(i.to.val), @intCast(i.arg[0].val));
     }
 
     // 2. assign registers
-    bp = blk;
-    while (bp < blk + f.nblk) : (bp += 1) {
-        b = bp.*;
-        n = b.*.id;
-        loop = b.*.loop;
+    for (blk) |b| {
+        n = b.id;
+        loop = b.loop;
         cur.n = 0;
         bszero(&cur.b);
         cur.w = @splat(0);
         var x: usize = 0;
         t = Tmp0;
-        while (bsiter(&b.*.out, &t)) : (t += 1) {
+        while (bsiter(&b.out, &t)) : (t += 1) {
             var j = x;
             x += 1;
             rl[j] = t;
@@ -566,7 +567,7 @@ pub fn rega(f: *Fn) void {
             }
         }
         var r: i32 = 0;
-        while (bsiter(&b.*.out, &r) and r < Tmp0) : (r += 1)
+        while (bsiter(&b.out, &r) and r < Tmp0) : (r += 1)
             radd(&cur, r, r);
         var j: usize = 0;
         while (j < x) : (j += 1)
@@ -576,22 +577,22 @@ pub fn rega(f: *Fn) void {
             _ = ralloc(&cur, rl[j]);
         rcopy(&end[n], &cur);
         doblk(b, &cur);
-        bscopy(&b.*.in, &cur.b);
-        var p_it: ?*Phi = b.*.phi;
+        bscopy(&b.in, &cur.b);
+        var p_it = b.phi;
         while (p_it) |p| : (p_it = p.link) {
             if (rtype(p.to) == RTmp)
-                bsclr(&b.*.in, p.to.val);
+                bsclr(&b.in, p.to.val);
         }
         rcopy(&beg[n], &cur);
     }
 
     // 3. emit copies shared by multiple edges
     // to the same block
-    var s: [*c]Blk = f.start;
-    while (s != null) : (s = s.*.link) {
-        if (s.*.npred <= 1)
+    var s_it = f.start;
+    while (s_it) |s| : (s_it = s.link) {
+        if (s.npred <= 1)
             continue;
-        const m = &beg[s.*.id];
+        const m = &beg[s.id];
 
         // rl maps a register that is live at the
         // beginning of s to the one used in all
@@ -601,7 +602,7 @@ pub fn rega(f: *Fn) void {
         // to find the register of a phi in a
         // predecessor, we have to find the
         // corresponding argument
-        var p_it: ?*Phi = s.*.phi;
+        var p_it = s.phi;
         while (p_it) |p| : (p_it = p.link) {
             if (rtype(p.to) != RTmp)
                 continue;
@@ -611,11 +612,10 @@ pub fn rega(f: *Fn) void {
             const ru: usize = @intCast(r);
             var u: uint = 0;
             while (u < p.narg) : (u += 1) {
-                b = p.blk[u];
                 const src = p.arg[u];
                 if (rtype(src) != RTmp)
                     continue;
-                const x = rfind(&end[b.*.id], @intCast(src.val));
+                const x = rfind(&end[p.blk[u].id], @intCast(src.val));
                 if (x == -1) // spilled
                     continue;
                 rl[ru] = if (rl[ru] == 0 or rl[ru] == x) x else -1;
@@ -631,7 +631,7 @@ pub fn rega(f: *Fn) void {
             const ru: usize = @intCast(m.r[j]);
             if (rl[ru] != 0 or t < Tmp0) // todo, remove this
                 continue;
-            for (s.*.pred[0..s.*.npred]) |pp| {
+            for (s.pred[0..s.npred]) |pp| {
                 const x = rfind(&end[pp.id], t);
                 if (x == -1) // spilled
                     continue;
@@ -660,18 +660,17 @@ pub fn rega(f: *Fn) void {
         if (jj == 0)
             continue;
         stmov += jj;
-        s.*.nins += jj;
-        i = palloc(Ins, s.*.nins);
-        _ = icpy(icpy(i, all.curi, jj), s.*.ins, s.*.nins - jj);
-        s.*.ins = i;
+        s.nins += jj;
+        const i = palloc(Ins, s.nins);
+        _ = icpy(icpy(i, all.curi, jj), s.ins, s.nins - jj);
+        s.ins = i;
     }
 
     if (all.debug['R'] != 0) {
         dprint("\n> Register mappings:\n", .{});
-        n = 0;
-        while (n < f.nblk) : (n += 1) {
-            b = f.rpo[n];
-            dprint("\t{s:<10} beg", .{cs(b.*.name)});
+        for (f.rpo[0..f.nblk], 0..) |b, k| {
+            n = @intCast(k);
+            dprint("\t{s:<10} beg", .{cs(b.name)});
             mdump(&beg[n]);
             dprint("\t           end", .{});
             mdump(&end[n]);
@@ -680,22 +679,20 @@ pub fn rega(f: *Fn) void {
     }
 
     // 4. emit remaining copies in new blocks
-    var blist: [*c]Blk = null;
-    b = f.start;
-    while (true) : (b = b.*.link) {
-        var zero: [*c]Blk = null;
-        const psa = [3]*[*c]Blk{ &b.*.s1, &b.*.s2, &zero };
+    var blist: ?*Blk = null;
+    var b = f.start.?;
+    while (true) : (b = b.link.?) {
+        var zero: ?*Blk = null;
+        const psa = [3]*?*Blk{ &b.s1, &b.s2, &zero };
         var pi: usize = 0;
-        while (true) : (pi += 1) {
-            s = psa[pi].*;
-            if (s == null) break;
+        while (psa[pi].*) |s| : (pi += 1) {
             npm = 0;
-            var p_it: ?*Phi = s.*.phi;
+            var p_it = s.phi;
             while (p_it) |p| : (p_it = p.link) {
                 var dst = p.to;
                 assert(rtype(dst) == RSlot or rtype(dst) == RTmp);
                 if (rtype(dst) == RTmp) {
-                    const r = rfind(&beg[s.*.id], @intCast(dst.val));
+                    const r = rfind(&beg[s.id], @intCast(dst.val));
                     if (r == -1)
                         continue;
                     dst = TMP(r);
@@ -705,13 +702,13 @@ pub fn rega(f: *Fn) void {
                     assert(u + 1 < p.narg);
                 var src = p.arg[u];
                 if (rtype(src) == RTmp)
-                    src = rref(&end[b.*.id], @intCast(src.val));
+                    src = rref(&end[b.id], @intCast(src.val));
                 pmadd(src, dst, p.cls);
             }
             t = Tmp0;
-            while (bsiter(&s.*.in, &t)) : (t += 1) {
-                const src = rref(&end[b.*.id], t);
-                const dst = rref(&beg[s.*.id], t);
+            while (bsiter(&s.in, &t)) : (t += 1) {
+                const src = rref(&end[b.id], t);
+                const dst = rref(&beg[s.id], t);
                 pmadd(src, dst, tmp[@intCast(t)].cls);
             }
             all.curi = all.insbEnd();
@@ -719,11 +716,11 @@ pub fn rega(f: *Fn) void {
             if (all.curi == all.insbEnd())
                 continue;
             const b1 = newblk();
-            b1.loop = @divTrunc(b.*.loop + s.*.loop, 2);
+            b1.loop = @divTrunc(b.loop + s.loop, 2);
             b1.link = blist;
             blist = b1;
             f.nblk += 1;
-            b1.name = strf(PFn, "{s}_{s}", .{ cs(b.*.name), cs(s.*.name) });
+            b1.name = strf(PFn, "{s}_{s}", .{ cs(b.name), cs(s.name) });
             stmov += @intCast(ptrdiff(all.insbEnd(), all.curi));
             stblk += 1;
             idup(b1, all.curi, @intCast(ptrdiff(all.insbEnd(), all.curi)));
@@ -731,14 +728,14 @@ pub fn rega(f: *Fn) void {
             b1.s1 = s;
             psa[pi].* = b1;
         }
-        if (b.*.link == null) {
-            b.*.link = blist;
+        if (b.link == null) {
+            b.link = blist;
             break;
         }
     }
-    b = f.start;
-    while (b != null) : (b = b.*.link)
-        b.*.phi = null;
+    var b_it = f.start;
+    while (b_it) |bb| : (b_it = bb.link)
+        bb.phi = null;
     f.reg = regu;
 
     if (all.debug['R'] != 0) {

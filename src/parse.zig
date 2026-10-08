@@ -19,7 +19,6 @@ const DW = all.DW;
 const DZ = all.DZ;
 const Dat = all.Dat;
 const FEnd = all.FEnd;
-const FILE = all.FILE;
 const FPad = all.FPad;
 const FTyp = all.FTyp;
 const Fb = all.Fb;
@@ -297,7 +296,108 @@ const K: u32 = 11183273; // found using tools/lexh.c
 const M = 23;
 
 var lexh: [1 << (32 - M)]uchar = @splat(0);
-var inf: *FILE = undefined;
+/// input text and read position (replaces FILE* + fgetc/ungetc)
+var in: []const u8 = "";
+var ipos: usize = 0;
+const EOF: i32 = -1;
+
+fn getc() i32 {
+    if (ipos >= in.len) return EOF;
+    const c = in[ipos];
+    ipos += 1;
+    return c;
+}
+
+fn ungetc(c: i32) void {
+    if (c != EOF) ipos -= 1;
+}
+
+fn isdigit(c: i32) bool {
+    return c >= '0' and c <= '9';
+}
+
+fn isalpha(c: i32) bool {
+    return (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z');
+}
+
+fn isblank(c: i32) bool {
+    return c == ' ' or c == '\t';
+}
+
+fn isspace(c: i32) bool {
+    return c == ' ' or (c >= '\t' and c <= '\r');
+}
+
+fn isxdigit(c: i32) bool {
+    return isdigit(c) or (c >= 'a' and c <= 'f') or (c >= 'A' and c <= 'F');
+}
+
+/// scanf("_%f")-like: match '_', then the longest prefix of a
+/// floating-point number (strtod syntax); like scanf, a failed match
+/// leaves consumed characters consumed except the last lookahead
+fn scanflt(comptime F: type, out: *F) bool {
+    var c = getc();
+    if (c != '_') {
+        ungetc(c);
+        return false;
+    }
+    c = getc();
+    while (isspace(c)) c = getc();
+    const start = ipos - @intFromBool(c != EOF);
+    if (c == '+' or c == '-') c = getc();
+    const ok = blk: {
+        if (c == 'i' or c == 'I' or c == 'n' or c == 'N') {
+            const word: []const u8 = if (c == 'i' or c == 'I') "infinity" else "nan";
+            var n: usize = 0;
+            while (n < word.len and c != EOF and std.ascii.toLower(@intCast(c)) == word[n]) : (n += 1)
+                c = getc();
+            if (word.len == 3 and n == 3) {
+                if (c == '(') {
+                    c = getc();
+                    while (isalpha(c) or isdigit(c) or c == '_') c = getc();
+                    if (c != ')') break :blk false;
+                    c = getc();
+                }
+                break :blk true;
+            }
+            break :blk n == 3 or n == 8;
+        }
+        var hex = false;
+        var digits = false;
+        if (c == '0') {
+            digits = true;
+            c = getc();
+            if (c == 'x' or c == 'X') {
+                hex = true;
+                digits = false;
+                c = getc();
+            }
+        }
+        const isd = if (hex) &isxdigit else &isdigit;
+        while (isd(c)) : (c = getc()) digits = true;
+        if (c == '.') {
+            c = getc();
+            while (isd(c)) : (c = getc()) digits = true;
+        }
+        if (!digits) break :blk false;
+        if ((!hex and (c == 'e' or c == 'E')) or (hex and (c == 'p' or c == 'P'))) {
+            c = getc();
+            if (c == '+' or c == '-') c = getc();
+            if (!isdigit(c)) break :blk false;
+            while (isdigit(c)) c = getc();
+        }
+        break :blk true;
+    };
+    ungetc(c);
+    if (!ok) return false;
+    var txt = in[start..ipos];
+    const neg = txt[0] == '-';
+    if (txt[0] == '-' or txt[0] == '+') txt = txt[1..];
+    const v = std.fmt.parseFloat(F, txt) catch return false;
+    out.* = if (neg) -v else v;
+    return true;
+}
+
 var inpath: [*c]const u8 = null;
 var thead: i32 = 0;
 var tokval: struct {
@@ -349,40 +449,40 @@ fn lexinit() void {
 
 fn getint() i64 {
     var n: u64 = 0;
-    var c = C.fgetc(inf);
+    var c = getc();
     const m = (c == '-');
     if (m) {
-        c = C.fgetc(inf);
-        if (C.isdigit(c) == 0)
+        c = getc();
+        if (!isdigit(c))
             err("integer expected", .{});
     }
     while (true) {
         n = 10 *% n +% @as(u64, @bitCast(@as(i64, c - '0')));
-        c = C.fgetc(inf);
-        if (C.isdigit(c) == 0) break;
+        c = getc();
+        if (!isdigit(c)) break;
     }
-    _ = C.ungetc(c, inf);
+    ungetc(c);
     if (m)
         n = 1 +% ~n;
     return @bitCast(n);
 }
 
 fn lex() i32 {
-    var c: c_int = undefined;
+    var c: i32 = undefined;
     var i: usize = undefined;
     var esc: bool = undefined;
     var t: i32 = undefined;
 
     while (true) {
-        c = C.fgetc(inf);
-        if (C.isblank(c) == 0) break;
+        c = getc();
+        if (!isblank(c)) break;
     }
     t = Txxx;
     tokval.chr = @truncate(@as(c_uint, @bitCast(c)));
     const L = enum { none, alpha, quoted };
     var go: L = .none;
     switch (c) {
-        C.EOF => return Teof,
+        EOF => return Teof,
         ',' => return Tcomma,
         '(' => return Tlparen,
         ')' => return Trparen,
@@ -391,38 +491,38 @@ fn lex() i32 {
         '=' => return Teq,
         '+' => return Tplus,
         's' => {
-            if (C.fscanf(inf, "_%f", &tokval.flts) == 1)
+            if (scanflt(f32, &tokval.flts))
                 return Tflts;
         },
         'd' => {
-            if (C.fscanf(inf, "_%lf", &tokval.fltd) == 1)
+            if (scanflt(f64, &tokval.fltd))
                 return Tfltd;
         },
         '%' => {
             t = Ttmp;
-            c = C.fgetc(inf);
+            c = getc();
             go = .alpha;
         },
         '@' => {
             t = Tlbl;
-            c = C.fgetc(inf);
+            c = getc();
             go = .alpha;
         },
         '$' => {
             t = Tglo;
-            c = C.fgetc(inf);
+            c = getc();
             go = if (c == '"') .quoted else .alpha;
         },
         ':' => {
             t = Ttyp;
-            c = C.fgetc(inf);
+            c = getc();
             go = .alpha;
         },
         '#', '\n' => {
             if (c == '#') {
                 while (true) {
-                    c = C.fgetc(inf);
-                    if (c == '\n' or c == C.EOF) break;
+                    c = getc();
+                    if (c == '\n' or c == EOF) break;
                 }
             }
             lnum += 1;
@@ -431,8 +531,8 @@ fn lex() i32 {
         else => {},
     }
     if (go == .none) {
-        if (C.isdigit(c) != 0 or c == '-') {
-            _ = C.ungetc(c, inf);
+        if (isdigit(c) or c == '-') {
+            ungetc(c);
             tokval.num = getint();
             return Tint;
         }
@@ -446,8 +546,8 @@ fn lex() i32 {
         esc = false;
         i = 1;
         while (true) : (i += 1) {
-            c = C.fgetc(inf);
-            if (c == C.EOF)
+            c = getc();
+            if (c == EOF)
                 err("unterminated string", .{});
             vgrow(&tokval.str, i + 2);
             tokval.str[i] = @truncate(@as(c_uint, @bitCast(c)));
@@ -459,18 +559,18 @@ fn lex() i32 {
         }
     }
     // Alpha:
-    if (C.isalpha(c) == 0 and c != '.' and c != '_')
+    if (!isalpha(c) and c != '.' and c != '_')
         err("invalid character {c} ({d})", .{ @as(u8, @truncate(@as(c_uint, @bitCast(c)))), c });
     i = 0;
     while (true) {
         vgrow(&tokval.str, i + 2);
         tokval.str[i] = @truncate(@as(c_uint, @bitCast(c)));
         i += 1;
-        c = C.fgetc(inf);
-        if (!(C.isalpha(c) != 0 or c == '$' or c == '.' or c == '_' or C.isdigit(c) != 0)) break;
+        c = getc();
+        if (!(isalpha(c) or c == '$' or c == '.' or c == '_' or isdigit(c))) break;
     }
     tokval.str[i] = 0;
-    _ = C.ungetc(c, inf);
+    ungetc(c);
     if (t != Txxx) {
         return t;
     }
@@ -1365,11 +1465,12 @@ fn parselnk(lnk: [*c]Lnk) i32 {
     }
 }
 
-pub fn parse(f: *FILE, path: [*c]const u8, dbgfile: *const fn ([*c]u8) void, data: *const fn ([*c]Dat) void, func: *const fn ([*c]Fn) void) void {
+pub fn parse(text: []const u8, path: [*c]const u8, dbgfile: *const fn ([*c]u8) void, data: *const fn ([*c]Dat) void, func: *const fn ([*c]Fn) void) void {
     var lnk: Lnk = undefined;
 
     lexinit();
-    inf = f;
+    in = text;
+    ipos = 0;
     inpath = path;
     lnum = 1;
     thead = Txxx;

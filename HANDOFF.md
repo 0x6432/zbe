@@ -12,7 +12,7 @@ then download /data/backups/qbe-zig-backup.tar.gz.
 ## Restore after sandbox reset
 1. Extract tarball into /data (gives /data/qbe-zig and /data/backup.sh).
 2. Install Zig master into /data/tools/zig (0.18.0-dev.35+5e754304d was used).
-3. git clone https://c9x.me/git/qbe.git /data/qbe-c && make (reference binary).
+3. git clone git://c9x.me/qbe.git (https fails) /data/qbe-c && make (reference binary).
 
 ## Zig master gotchas
 - `**` array repeat removed -> `@splat`; `usingnamespace` removed.
@@ -71,8 +71,12 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    File.writerStreaming for stdout/-o file; writeFailed() on I/O errors.
    tools/dbgcmp.sh compares all -d dumps vs C (0 diffs on 6 targets).
    Note: std.fmt prints '+' for signed ints with a width -> use cint().
-2. TODO: input/CLI: lexer on std.Io.Reader, std.fmt.parseFloat instead of
-   fscanf/strtod, own arg parsing (no getopt).
+2. Input/CLI. DONE (2a): whole input read into memory (Dir.readFileAlloc /
+   stdin allocRemaining, arena); lexer uses getc()/ungetc() over a slice;
+   floats via scanflt() (scanf "_%f"-like prefix scan + std.fmt.parseFloat,
+   sign handled manually so -nan keeps its sign). corpus.sh: when both
+   binaries fail, compares stderr (C "file.c: dying:" prefix normalized,
+   C assert vs zig panic treated equal).
 3. TODO: memory: pools/vnew/vgrow -> allocators/arenas + slices, drop
    qsort/memcpy.
 4. TODO: `[*c]` -> `*T`/`?*T`/slices, enums; drop libc entirely.

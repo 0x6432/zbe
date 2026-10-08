@@ -9,7 +9,6 @@ const rv64 = @import("rv64/all.zig");
 const all = @import("all.zig");
 const DEnd = all.DEnd;
 const Dat = all.Dat;
-const FILE = all.FILE;
 const Fn = all.Fn;
 const Target = all.Target;
 const Writer = all.Writer;
@@ -232,21 +231,29 @@ pub fn main(init: std.process.Init) u8 {
         }
     }
 
+    const arena = init.arena.allocator();
     while (true) {
-        var f: [*c]u8 = av[@intCast(C.optind)];
-        var inf: *FILE = undefined;
+        const f: [*c]u8 = av[@intCast(C.optind)];
+        var path: []const u8 = undefined;
+        var text: []const u8 = undefined;
         if (f == null or C.strcmp(f, "-") == 0) {
-            inf = C.stdin;
-            f = @constCast("-");
+            path = "-";
+            var rbuf: [4096]u8 = undefined;
+            var r = std.Io.File.stdin().readerStreaming(io, &rbuf);
+            text = r.interface.allocRemaining(arena, .unlimited) catch {
+                dprint("cannot read stdin\n", .{});
+                all.dbg.flush() catch {};
+                std.process.exit(1);
+            };
         } else {
-            inf = C.fopen(f, "r") orelse {
-                dprint("cannot open '{s}'\n", .{cs(f)});
+            path = cs(f);
+            text = std.Io.Dir.cwd().readFileAlloc(io, path, arena, .unlimited) catch {
+                dprint("cannot open '{s}'\n", .{path});
                 all.dbg.flush() catch {};
                 std.process.exit(1);
             };
         }
-        parse(inf, f, &dbgfile, &data, &func);
-        _ = C.fclose(inf);
+        parse(text, @ptrCast(path.ptr), &dbgfile, &data, &func);
         C.optind += 1;
         if (!(C.optind < ac)) break;
     }

@@ -1,6 +1,6 @@
 # HANDOFF – QBE → Zig translation
 
-Updated: 20261008-103356 UTC
+Updated: 20261008-104051 UTC
 
 ## Goal
 Translate QBE (C, cloned at /data/qbe-c, HEAD e786f06) to latest Zig master.
@@ -139,6 +139,11 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    restores every function that fails to compile. palloc/ealloc return
    `[*]T` (palloc(T,0) returns a dangling non-null ptr; C returned NULL but
    never dereferenced it), new pnew(T)/enew(T) return `*T` (zeroed).
+   STAGE 5 (hand rewrites, file by file, after the mechanical tools):
+   DONE 5a: cfg.zig fully idiomatic (sdom/dom take *Blk, inter/lca return
+   ?*Blk, ifgraph(ifb, **Blk x3), simplcfg uses slices `ealloc(T,n)[0..n]`,
+   std.mem.swap, for-over-pred). Per-file C-ism ranking command:
+   `for f in src/*.zig src/*/*.zig; do printf '%s %s\n' "$(grep -o '\[\*c\]\|\.\*\.' $f | wc -l)" $f; done | sort -rn`
    NEXT: rewrite remaining `[*c]Ins` pointer walks to index loops / slices
    (ABI selpar/selcall take [i0,i1) ranges -> should take `[]Ins`), manual
    idiomatic rewrites of functions optionalize couldn't handle (e.g.

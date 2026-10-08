@@ -17,4 +17,11 @@ pub fn build(b: *std.Build) void {
 
     const run = b.addRunArtifact(exe);
     b.step("run", "Run qbe").dependOn(&run.step);
+
+    const unit = b.addTest(.{ .root_module = b.createModule(.{
+        .root_source_file = b.path("src/unit_tests.zig"),
+        .target = target,
+        .optimize = optimize,
+    }) });
+    b.step("test", "Run unit tests").dependOn(&b.addRunArtifact(unit).step);
 }

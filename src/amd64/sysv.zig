@@ -177,7 +177,8 @@ fn classify(a: *AClass, t: *Typ, s_: uint) void {
 
 fn typclass(a: *AClass, t: *Typ) void {
     var sz: uint = @intCast(t.size);
-    var al: uint = @as(uint, 1) << @intCast(t.@"align");
+    // C: `1 << align` (align == -1 for an empty type); match x86 shift masking
+    var al: uint = @as(uint, 1) << @as(u5, @truncate(@as(u32, @bitCast(@as(i32, t.@"align")))));
 
     // the ABI requires sizes to be rounded
     // up to the nearest multiple of 8, moreover

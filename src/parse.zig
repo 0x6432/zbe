@@ -1277,7 +1277,8 @@ fn parsefields(fld: *[NField + 1]Field, ty: *Typ, t_: i32) void {
     if (t != Trbrace)
         err(", or }} expected", .{});
     fld[n].type = FEnd;
-    a = @as(i32, 1) << @intCast(al);
+    // C: `1 << al` with al == -1 for an empty type; match x86 shift masking
+    a = @as(i32, 1) << @as(u5, @truncate(@as(u32, @bitCast(al))));
     if (sz < ty.size)
         sz = ty.size;
     const au: u64 = @bitCast(@as(i64, a));

@@ -168,6 +168,8 @@ fn dbgfile(f: [*:0]const u8) void {
 }
 
 fn fail(comptime fmt: []const u8, args: anytype) noreturn {
+    // C exit() flushes stdout: output of earlier files must still appear
+    if (all.outw) |w| w.flush() catch {};
     dprint(fmt, args);
     all.dbg.flush() catch {};
     std.process.exit(1);

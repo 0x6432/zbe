@@ -690,7 +690,7 @@ pub fn salloc(rt: Ref, rs: Ref, f: *Fn) void {
     }
 }
 
-pub fn bsinit(bs: [*c]BSet, n_: uint) void {
+pub fn bsinit(bs: *BSet, n_: uint) void {
     const n = (n_ + NBit - 1) / NBit;
     bs.*.nt = n;
     bs.*.t = palloc(bits, n);
@@ -733,7 +733,7 @@ inline fn firstbit(b_: bits) i32 {
     return n;
 }
 
-pub fn bscount(bs: [*c]BSet) uint {
+pub fn bscount(bs: *BSet) uint {
     var n: uint = 0;
     var i: uint = 0;
     while (i < bs.*.nt) : (i += 1)
@@ -741,44 +741,44 @@ pub fn bscount(bs: [*c]BSet) uint {
     return n;
 }
 
-inline fn bsmax(bs: [*c]BSet) uint {
+inline fn bsmax(bs: *BSet) uint {
     return bs.*.nt * NBit;
 }
 
-pub fn bsset(bs: [*c]BSet, elt: anytype) void {
+pub fn bsset(bs: *BSet, elt: anytype) void {
     assert(elt < bsmax(bs));
     const e: uint = @intCast(elt);
     bs.*.t[e / NBit] |= BIT(e % NBit);
 }
 
-pub fn bsclr(bs: [*c]BSet, elt: anytype) void {
+pub fn bsclr(bs: *BSet, elt: anytype) void {
     assert(elt < bsmax(bs));
     const e: uint = @intCast(elt);
     bs.*.t[e / NBit] &= ~BIT(e % NBit);
 }
 
-pub fn bscopy(a: [*c]BSet, b: [*c]BSet) void {
+pub fn bscopy(a: *BSet, b: *BSet) void {
     assert(a.*.nt == b.*.nt);
     var i: uint = 0;
     while (i < a.*.nt) : (i += 1) a.*.t[i] = b.*.t[i];
 }
-pub fn bsunion(a: [*c]BSet, b: [*c]BSet) void {
+pub fn bsunion(a: *BSet, b: *BSet) void {
     assert(a.*.nt == b.*.nt);
     var i: uint = 0;
     while (i < a.*.nt) : (i += 1) a.*.t[i] |= b.*.t[i];
 }
-pub fn bsinter(a: [*c]BSet, b: [*c]BSet) void {
+pub fn bsinter(a: *BSet, b: *BSet) void {
     assert(a.*.nt == b.*.nt);
     var i: uint = 0;
     while (i < a.*.nt) : (i += 1) a.*.t[i] &= b.*.t[i];
 }
-pub fn bsdiff(a: [*c]BSet, b: [*c]BSet) void {
+pub fn bsdiff(a: *BSet, b: *BSet) void {
     assert(a.*.nt == b.*.nt);
     var i: uint = 0;
     while (i < a.*.nt) : (i += 1) a.*.t[i] &= ~b.*.t[i];
 }
 
-pub fn bsequal(a: [*c]BSet, b: [*c]BSet) bool {
+pub fn bsequal(a: *BSet, b: *BSet) bool {
     assert(a.*.nt == b.*.nt);
     var i: uint = 0;
     while (i < a.*.nt) : (i += 1)
@@ -787,7 +787,7 @@ pub fn bsequal(a: [*c]BSet, b: [*c]BSet) bool {
     return true;
 }
 
-pub fn bszero(bs: [*c]BSet) void {
+pub fn bszero(bs: *BSet) void {
     if (bs.*.nt != 0) @memset(bs.*.t[0..bs.*.nt], 0);
 }
 
@@ -796,7 +796,7 @@ pub fn bszero(bs: [*c]BSet) void {
 ///     for (i=0; bsiter(set, &i); i++)
 ///         use(i);
 ///
-pub fn bsiter(bs: [*c]BSet, elt: *i32) bool {
+pub fn bsiter(bs: *BSet, elt: *i32) bool {
     const i: uint = @intCast(elt.*);
     var t: uint = i / NBit;
     if (t >= bs.*.nt)
@@ -813,7 +813,7 @@ pub fn bsiter(bs: [*c]BSet, elt: *i32) bool {
     return true;
 }
 
-pub fn dumpts(bs: [*c]BSet, tmp: [*c]Tmp, f: *Writer) Writer.Error!void {
+pub fn dumpts(bs: *BSet, tmp: [*c]Tmp, f: *Writer) Writer.Error!void {
     try f.writeAll("[");
     var t: i32 = Tmp0;
     while (bsiter(bs, &t)) : (t += 1)

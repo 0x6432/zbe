@@ -61,7 +61,7 @@ const RMap = extern struct {
     t: [Tmp0]i32,
     r: [Tmp0]i32,
     w: [Tmp0]i32, // wait list, for unmatched hints
-    b: [1]BSet,
+    b: BSet,
     n: i32,
 };
 
@@ -154,7 +154,7 @@ fn ralloctry(m: *RMap, t: i32, try_: bool) Ref {
             if (try_)
                 return R;
             var regs = tmp[@intCast(phicls(t, tmp))].hint.m;
-            regs |= m.b[0].t[0];
+            regs |= m.b.t[0];
             var r0: i32 = undefined;
             var r1: i32 = undefined;
             if (KBASE(tmp[@intCast(t)].cls) == 0) {
@@ -308,7 +308,7 @@ fn regcpy(i: [*c]Ins) bool {
 
 fn dopm(b: [*c]Blk, i_: [*c]Ins, m: *RMap) [*c]Ins {
     var m0 = m.*; // okay since we don't use m0.b
-    m0.b[0].t = null;
+    m0.b.t = null;
     var i = i_ + 1;
     const i_1 = i;
     while (true) {

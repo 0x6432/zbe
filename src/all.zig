@@ -293,9 +293,9 @@ pub const Blk = extern struct {
 
     pred: [*c][*c]Blk,
     npred: uint,
-    in: [1]BSet,
-    out: [1]BSet,
-    gen: [1]BSet,
+    in: BSet,
+    out: BSet,
+    gen: BSet,
     nlive: [2]i32,
     loop: i32,
     name: [*c]u8,
@@ -580,7 +580,7 @@ pub const bsiter = util.bsiter;
 pub const vnewT = util.vnewT;
 pub const ptrdiff = util.ptrdiff;
 
-pub inline fn bshas(bs: [*c]BSet, elt: anytype) bool {
+pub inline fn bshas(bs: *BSet, elt: anytype) bool {
     const e: uint = @intCast(elt);
     std.debug.assert(e < bs.*.nt * NBit);
     return (bs.*.t[e / NBit] & BIT(e % NBit)) != 0;

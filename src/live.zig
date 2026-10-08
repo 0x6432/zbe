@@ -31,7 +31,7 @@ const rtype = all.rtype;
 const uint = all.uint;
 // -- end imports --
 
-pub fn liveon(v: [*c]BSet, b: [*c]Blk, s: *Blk) void {
+pub fn liveon(v: *BSet, b: [*c]Blk, s: *Blk) void {
     bscopy(v, &s.in);
     var p = s.phi;
     while (p != null) : (p = p.*.link) {
@@ -66,8 +66,8 @@ fn bset(r: Ref, b: *Blk, nlv: *[2]i32, tmp: [*c]Tmp) void {
 pub fn filllive(f: *Fn) void {
     var m: [2]i32 = undefined;
     var nlv: [2]i32 = undefined;
-    var u: [1]BSet = undefined;
-    var v: [1]BSet = undefined;
+    var u: BSet = undefined;
+    var v: BSet = undefined;
 
     bsinit(&u, @intCast(f.ntmp));
     bsinit(&v, @intCast(f.ntmp));
@@ -95,15 +95,15 @@ pub fn filllive(f: *Fn) void {
             chg = chg or !bsequal(&b.*.out, &u);
 
             nlv = .{ 0, 0 };
-            b.*.out[0].t[0] |= all.T.rglob;
+            b.*.out.t[0] |= all.T.rglob;
             bscopy(&b.*.in, &b.*.out);
             var t: i32 = 0;
             while (bsiter(&b.*.in, &t)) : (t += 1)
                 nlv[@intCast(KBASE(f.tmp[@intCast(t)].cls))] += 1;
             if (rtype(b.*.jmp.arg) == RCall) {
                 assert(@as(i32, @intCast(bscount(&b.*.in))) == all.T.nrglob and
-                    b.*.in[0].t[0] == all.T.rglob);
-                b.*.in[0].t[0] |= all.T.retregs(b.*.jmp.arg, &nlv);
+                    b.*.in.t[0] == all.T.rglob);
+                b.*.in.t[0] |= all.T.retregs(b.*.jmp.arg, &nlv);
             } else bset(b.*.jmp.arg, b, &nlv, f.tmp);
             var k: usize = 0;
             while (k < 2) : (k += 1)
@@ -112,7 +112,7 @@ pub fn filllive(f: *Fn) void {
             while (i != b.*.ins) {
                 i -= 1;
                 if (i.*.op == Ocall and rtype(i.*.arg[1]) == RCall) {
-                    b.*.in[0].t[0] &= ~all.T.retregs(i.*.arg[1], &m);
+                    b.*.in.t[0] &= ~all.T.retregs(i.*.arg[1], &m);
                     k = 0;
                     while (k < 2) : (k += 1) {
                         nlv[k] -= m[k];
@@ -124,7 +124,7 @@ pub fn filllive(f: *Fn) void {
                         if (nlv[k] > b.*.nlive[k])
                             b.*.nlive[k] = nlv[k];
                     }
-                    b.*.in[0].t[0] |= all.T.argregs(i.*.arg[1], &m);
+                    b.*.in.t[0] |= all.T.argregs(i.*.arg[1], &m);
                     k = 0;
                     while (k < 2) : (k += 1) {
                         nlv[k] -= all.T.nrsave[k];

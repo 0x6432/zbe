@@ -1051,8 +1051,8 @@ fn usecheck(r: Ref, k: i32, f: *Fn) bool {
 }
 
 fn typecheck(f: *Fn) void {
-    var pb: [1]BSet = undefined;
-    var ppb: [1]BSet = undefined;
+    var pb: BSet = undefined;
+    var ppb: BSet = undefined;
     var k: i32 = undefined;
     var t: [*c]Tmp = undefined;
     var r: Ref = undefined;

@@ -167,8 +167,8 @@ fn refindex(t: i32, f: *Fn) Ref {
 }
 
 fn phiins(f: *Fn) void {
-    var u: [1]BSet = undefined;
-    var defs: [1]BSet = undefined;
+    var u: BSet = undefined;
+    var defs: BSet = undefined;
     var k: i16 = undefined;
 
     bsinit(&u, f.nblk);

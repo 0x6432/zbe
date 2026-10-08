@@ -139,13 +139,13 @@ pub fn fillcost(f: *Fn) void {
     }
 }
 
-var fst: [*c]BSet = null; // temps to prioritize in registers (for tcmp1)
+var fst: ?*BSet = null; // temps to prioritize in registers (for tcmp1)
 var tmp: [*c]Tmp = null; // current temporaries (for tcmpX)
 var ntmp: i32 = 0; // current # of temps (for limit)
 var locs: i32 = 0; // stack size used by locals
 var slot4: i32 = 0; // next slot of 4 bytes
 var slot8: i32 = 0; // ditto, 8 bytes
-var mask: [2][1]BSet = undefined; // class masks
+var mask: [2]BSet = undefined; // class masks
 
 fn tcmp0(a: i32, b: i32) std.math.Order {
     // by decreasing cost
@@ -154,7 +154,7 @@ fn tcmp0(a: i32, b: i32) std.math.Order {
 
 fn tcmp1(a: i32, b: i32) std.math.Order {
     // live-in temporaries first
-    const c = std.math.order(@intFromBool(bshas(fst, b)), @intFromBool(bshas(fst, a)));
+    const c = std.math.order(@intFromBool(bshas(fst.?, b)), @intFromBool(bshas(fst.?, a)));
     return if (c != .eq) c else tcmp0(a, b);
 }
 
@@ -194,7 +194,7 @@ var limit_maxt: i32 = 0;
 /// present in f (if given), then
 /// those with the largest spill
 /// cost
-fn limit(b: [*c]BSet, k: i32, f: [*c]BSet) void {
+fn limit(b: *BSet, k: i32, f: ?*BSet) void {
     const nt: i32 = @intCast(bscount(b));
     if (nt <= k)
         return;
@@ -230,8 +230,8 @@ fn limit(b: [*c]BSet, k: i32, f: [*c]BSet) void {
 /// preferences as limit(); assumes
 /// that k1 gprs and k2 fprs are
 /// currently in use
-fn limit2(b1: [*c]BSet, k1: i32, k2: i32, f: [*c]BSet) void {
-    var b2: [1]BSet = undefined;
+fn limit2(b1: *BSet, k1: i32, k2: i32, f: ?*BSet) void {
+    var b2: BSet = undefined;
 
     bsinit(&b2, @intCast(ntmp)); // todo, free those
     bscopy(&b2, b1);
@@ -242,7 +242,7 @@ fn limit2(b1: [*c]BSet, k1: i32, k2: i32, f: [*c]BSet) void {
     bsunion(b1, &b2);
 }
 
-fn sethint(u: [*c]BSet, r: bits) void {
+fn sethint(u: *BSet, r: bits) void {
     var t: i32 = Tmp0;
     while (bsiter(u, &t)) : (t += 1)
         tmp[@intCast(phicls(t, tmp))].hint.m |= r;
@@ -250,7 +250,7 @@ fn sethint(u: [*c]BSet, r: bits) void {
 
 /// reloads temporaries in u that are
 /// not in v from their slots
-fn reloads(u: [*c]BSet, v: [*c]BSet) void {
+fn reloads(u: *BSet, v: *BSet) void {
     var t: i32 = Tmp0;
     while (bsiter(u, &t)) : (t += 1) {
         if (!bshas(v, t))
@@ -267,8 +267,8 @@ fn regcpy(i: [*c]Ins) bool {
     return i.*.op == Ocopy and isreg(i.*.arg[0]);
 }
 
-fn dopm(b: *Blk, i_: [*c]Ins, v: [*c]BSet) [*c]Ins {
-    var u: [1]BSet = undefined;
+fn dopm(b: *Blk, i_: [*c]Ins, v: *BSet) [*c]Ins {
+    var u: BSet = undefined;
     var r: bits = undefined;
 
     bsinit(&u, @intCast(ntmp)); // todo, free those
@@ -317,7 +317,7 @@ fn dopm(b: *Blk, i_: [*c]Ins, v: [*c]BSet) [*c]Ins {
     return i;
 }
 
-fn merge(u: [*c]BSet, bu: *Blk, v: [*c]BSet, bv: *Blk) void {
+fn merge(u: *BSet, bu: *Blk, v: *BSet, bv: *Blk) void {
     if (bu.loop <= bv.loop) {
         bsunion(u, v);
     } else {
@@ -342,9 +342,9 @@ fn merge(u: [*c]BSet, bu: *Blk, v: [*c]BSet, bv: *Blk) void {
 ///   constraints
 pub fn spill(f: *Fn) void {
     var lvarg: [2]bool = .{ false, false };
-    var u: [1]BSet = undefined;
-    var v: [1]BSet = undefined;
-    var w: [1]BSet = undefined;
+    var u: BSet = undefined;
+    var v: BSet = undefined;
+    var w: BSet = undefined;
 
     tmp = f.tmp;
     ntmp = f.ntmp;
@@ -388,7 +388,7 @@ pub fn spill(f: *Fn) void {
         if (hd != null) {
             // back-edge
             bszero(&v);
-            hd.*.gen[0].t[0] |= all.T.rglob; // don't spill registers
+            hd.*.gen.t[0] |= all.T.rglob; // don't spill registers
             var k: usize = 0;
             while (k < 2) : (k += 1) {
                 const n: i32 = if (k == 0) all.T.ngpr else all.T.nfpr;
@@ -420,7 +420,7 @@ pub fn spill(f: *Fn) void {
         } else {
             bscopy(&v, &b.*.out);
             if (rtype(b.*.jmp.arg) == RCall)
-                v[0].t[0] |= all.T.retregs(b.*.jmp.arg, null);
+                v.t[0] |= all.T.retregs(b.*.jmp.arg, null);
         }
         if (rtype(b.*.jmp.arg) == RTmp) {
             t = @intCast(b.*.jmp.arg.val);
@@ -518,14 +518,14 @@ pub fn spill(f: *Fn) void {
                     bsclr(&v, t);
             }
             emiti(i.*);
-            const r = v[0].t[0]; // Tmp0 is NBit
+            const r = v.t[0]; // Tmp0 is NBit
             if (r != 0)
                 sethint(&v, r);
         }
         if (b == f.start)
-            assert(v[0].t[0] == (all.T.rglob | f.reg))
+            assert(v.t[0] == (all.T.rglob | f.reg))
         else
-            assert(v[0].t[0] == all.T.rglob);
+            assert(v.t[0] == all.T.rglob);
 
         var p_it: ?*Phi = b.*.phi;
         while (p_it) |p| : (p_it = p.link) {

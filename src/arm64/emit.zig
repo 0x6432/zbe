@@ -473,7 +473,7 @@ fn loadcon(c: *Con, r: i32, k: i32, e: *E) Writer.Error!void {
     }
 }
 
-fn fixarg(pr: [*c]Ref, sz: i32, t: i32, e: *E) Writer.Error!bool {
+fn fixarg(pr: *Ref, sz: i32, t: i32, e: *E) Writer.Error!bool {
     const r = pr.*;
     if (rtype(r) == RSlot) {
         const s = slot(r, e);
@@ -488,61 +488,61 @@ fn fixarg(pr: [*c]Ref, sz: i32, t: i32, e: *E) Writer.Error!bool {
     return false;
 }
 
-fn emitins(i: [*c]Ins, e: *E) Writer.Error!void {
-    switch (i.*.op) {
+fn emitins(i: *Ins, e: *E) Writer.Error!void {
+    switch (i.op) {
         else => {
-            if (isload(i.*.op))
-                _ = try fixarg(&i.*.arg[0], loadsz(i), IP1, e);
-            if (isstore(i.*.op)) {
+            if (isload(i.op))
+                _ = try fixarg(&i.arg[0], loadsz(i), IP1, e);
+            if (isstore(i.op)) {
                 const t: i32 = if (all.T.apple != 0) -1 else R18;
-                if (try fixarg(&i.*.arg[1], storesz(i), t, e)) {
-                    if (req(i.*.arg[0], TMP(IP1))) {
-                        try e.f.print("\tfmov\t{c}31, {c}17\n", .{"ds"[@intFromBool(i.*.cls == Kw)], "xw"[@intFromBool(i.*.cls == Kw)]});
-                        i.*.arg[0] = TMP(V31);
-                        i.*.op = Ostores + (i.*.cls - Kw);
+                if (try fixarg(&i.arg[1], storesz(i), t, e)) {
+                    if (req(i.arg[0], TMP(IP1))) {
+                        try e.f.print("\tfmov\t{c}31, {c}17\n", .{"ds"[@intFromBool(i.cls == Kw)], "xw"[@intFromBool(i.cls == Kw)]});
+                        i.arg[0] = TMP(V31);
+                        i.op = Ostores + (i.cls - Kw);
                     }
-                    _ = try fixarg(&i.*.arg[1], storesz(i), IP1, e);
+                    _ = try fixarg(&i.arg[1], storesz(i), IP1, e);
                 }
             }
             try table(i, e);
         },
         Onop => {},
         Ocopy => {
-            if (req(i.*.to, i.*.arg[0]))
+            if (req(i.to, i.arg[0]))
                 return;
-            if (rtype(i.*.to) == RSlot) {
-                const r = i.*.to;
-                if (!isreg(i.*.arg[0])) {
-                    i.*.to = TMP(IP1);
+            if (rtype(i.to) == RSlot) {
+                const r = i.to;
+                if (!isreg(i.arg[0])) {
+                    i.to = TMP(IP1);
                     try emitins(i, e);
-                    i.*.arg[0] = i.*.to;
+                    i.arg[0] = i.to;
                 }
-                i.*.op = Ostorew + i.*.cls;
-                i.*.cls = Kw;
-                i.*.arg[1] = r;
+                i.op = Ostorew + i.cls;
+                i.cls = Kw;
+                i.arg[1] = r;
                 try emitins(i, e);
                 return;
             }
-            assert(isreg(i.*.to));
-            switch (rtype(i.*.arg[0])) {
+            assert(isreg(i.to));
+            switch (rtype(i.arg[0])) {
                 RCon => {
-                    const c = &e.@"fn".con[i.*.arg[0].val];
-                    try loadcon(c, @intCast(i.*.to.val), @intCast(i.*.cls), e);
+                    const c = &e.@"fn".con[i.arg[0].val];
+                    try loadcon(c, @intCast(i.to.val), @intCast(i.cls), e);
                 },
                 RSlot => {
-                    i.*.op = Oload;
+                    i.op = Oload;
                     try emitins(i, e);
                 },
                 else => {
-                    assert(i.*.to.val != IP1);
+                    assert(i.to.val != IP1);
                     try table(i, e);
                 },
             }
         },
         Oaddr => {
-            assert(rtype(i.*.arg[0]) == RSlot);
-            const rn = rname(@intCast(i.*.to.val), Kl);
-            const s = slot(i.*.arg[0], e);
+            assert(rtype(i.arg[0]) == RSlot);
+            const rn = rname(@intCast(i.to.val), Kl);
+            const s = slot(i.arg[0], e);
             if (s <= 4095)
                 try e.f.print("\tadd\t{s}, x29, #{d}\n", .{cs(rn), s})
             else if (s <= 65535)
@@ -551,11 +551,11 @@ fn emitins(i: [*c]Ins, e: *E) Writer.Error!void {
                 try e.f.print("\tmov\t{s}, #{d}\n" ++ "\tmovk\t{s}, #{d}, lsl #16\n" ++ "\tadd\t{s}, x29, {s}\n", .{cs(rn), s & 0xFFFF, cs(rn), s >> 16, cs(rn), cs(rn)});
         },
         Ocall => {
-            if (rtype(i.*.arg[0]) != RCon) {
+            if (rtype(i.arg[0]) != RCon) {
                 try table(i, e);
                 return;
             }
-            const c = &e.@"fn".con[i.*.arg[0].val];
+            const c = &e.@"fn".con[i.arg[0].val];
             if (c.type != CAddr or
                 (c.sym.type & SThr) != 0 or
                 c.bits.i != 0)
@@ -566,10 +566,10 @@ fn emitins(i: [*c]Ins, e: *E) Writer.Error!void {
         },
         Osalloc => {
             try emitf("sub sp, sp, %0", i, e);
-            if (!req(i.*.to, R))
+            if (!req(i.to, R))
                 try emitf("mov %=, sp", i, e);
         },
-        Odbgloc => try emitdbgloc(i.*.arg[0].val, i.*.arg[1].val, e.f),
+        Odbgloc => try emitdbgloc(i.arg[0].val, i.arg[1].val, e.f),
     }
 }
 
@@ -593,9 +593,10 @@ fn table(i: *Ins, e: *E) Writer.Error!void {
 
 fn framelayout(e: *E) void {
     var o: uint = 0;
-    var r: [*c]i32 = arm64_rclob;
-    while (r.* >= 0) : (r += 1)
-        o += @intCast(1 & (e.@"fn".reg >> @intCast(r.*)));
+    for (arm64_rclob) |r| {
+        if (r < 0) break;
+        o += @intCast(1 & (e.@"fn".reg >> @intCast(r)));
+    }
     var f: u64 = @intCast(e.@"fn".slot);
     f = (f + 3) & ~@as(u64, 3);
     o += o & 1;
@@ -663,11 +664,11 @@ pub fn arm64_emitfn(f: *Fn, out: *Writer) Writer.Error!void {
         try e.f.print("\tmov\tx16, #{d}\n" ++ "\tmovk\tx16, #{d}, lsl #16\n" ++ "\tsub\tsp, sp, x16\n" ++ "\tstp\tx29, x30, [sp, -16]!\n", .{e.frame & 0xFFFF, e.frame >> 16});
     try e.f.writeAll("\tmov\tx29, sp\n");
     var s: i32 = @intCast((e.frame - e.padding) / 4);
-    var r: [*c]i32 = arm64_rclob;
-    while (r.* >= 0) : (r += 1) {
-        if ((e.@"fn".reg & BIT(r.*)) != 0) {
+    for (arm64_rclob) |r| {
+        if (r < 0) break;
+        if ((e.@"fn".reg & BIT(r)) != 0) {
             s -= 2;
-            var i = INS(@as(i32, if (r.* >= V0) Ostored else Ostorel), 0, R, TMP(r.*), SLOT(s));
+            var i = INS(@as(i32, if (r >= V0) Ostored else Ostorel), 0, R, TMP(r), SLOT(s));
             try emitins(&i, e);
         }
     }
@@ -685,11 +686,11 @@ pub fn arm64_emitfn(f: *Fn, out: *Writer) Writer.Error!void {
             Jhlt => try e.f.print("\tbrk\t#1000\n", .{}),
             Jret0 => {
                 s = @intCast((e.frame - e.padding) / 4);
-                r = arm64_rclob;
-                while (r.* >= 0) : (r += 1) {
-                    if ((e.@"fn".reg & BIT(r.*)) != 0) {
+                for (arm64_rclob) |r| {
+                    if (r < 0) break;
+                    if ((e.@"fn".reg & BIT(r)) != 0) {
                         s -= 2;
-                        var in = INS(Oload, @as(i32, if (r.* >= V0) Kd else Kl), TMP(r.*), SLOT(s), R);
+                        var in = INS(Oload, @as(i32, if (r >= V0) Kd else Kl), TMP(r), SLOT(s), R);
                         try emitins(&in, e);
                     }
                 }

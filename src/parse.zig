@@ -103,13 +103,17 @@ const Tmp = all.Tmp;
 const Tmp0 = all.Tmp0;
 const Typ = all.Typ;
 const UNDEF = all.UNDEF;
+const Writer = all.Writer;
 const alloc = all.alloc;
 const bsequal = all.bsequal;
 const bshas = all.bshas;
 const bsinit = all.bsinit;
 const bsset = all.bsset;
 const bszero = all.bszero;
+const cfloat = all.cfloat;
 const clsmerge = all.clsmerge;
+const cs = all.cs;
+const dprint = all.dprint;
 const emalloc = all.emalloc;
 const fillpreds = all.fillpreds;
 const hash = all.hash;
@@ -316,17 +320,11 @@ var nblk: i32 = 0;
 var rcls: i32 = 0;
 var ntyp: uint = 0;
 
-fn verr(s: [*c]const u8, ...) callconv(.c) noreturn {
-    var ap = @cVaStart();
-    _ = C.fprintf(C.stderr, "qbe:%s:%d: ", inpath, lnum);
-    _ = C.vfprintf(C.stderr, s, C.vaarg(&ap));
-    _ = C.fprintf(C.stderr, "\n");
-    @cVaEnd(&ap);
-    C.exit(1);
-}
-
-pub fn err(s: [*c]const u8, args: anytype) noreturn {
-    @call(.auto, verr, .{s} ++ args);
+pub fn err(comptime fmt: []const u8, args: anytype) noreturn {
+    dprint("qbe:{s}:{d}: " ++ fmt ++ "\n", .{ cs(inpath), lnum } ++ args);
+    all.dbg.flush() catch {};
+    if (all.outw) |w| w.flush() catch {};
+    std.process.exit(1);
 }
 
 var lexinit_done = false;
@@ -462,7 +460,7 @@ fn lex() i32 {
     }
     // Alpha:
     if (C.isalpha(c) == 0 and c != '.' and c != '_')
-        err("invalid character %c (%d)", .{ c, c });
+        err("invalid character {c} ({d})", .{ @as(u8, @truncate(@as(c_uint, @bitCast(c)))), c });
     i = 0;
     while (true) {
         vgrow(&tokval.str, i + 2);
@@ -478,7 +476,7 @@ fn lex() i32 {
     }
     t = lexh[(hash(tokval.str) *% K) >> M];
     if (t == Txxx or C.strcmp(kwmap[@intCast(t)], tokval.str) != 0) {
-        err("unknown keyword %s", .{tokval.str});
+        err("unknown keyword {s}", .{cs(tokval.str)});
     }
     return t;
 }
@@ -519,15 +517,12 @@ const ttoa: [Ntok][*c]const u8 = blk: {
 };
 
 fn expect(t: i32) void {
-    var buf: [128]u8 = undefined;
-
     const t1 = next();
     if (t == t1)
         return;
     const s1: [*c]const u8 = if (ttoa[@intCast(t)] != null) ttoa[@intCast(t)] else "??";
     const s2: [*c]const u8 = if (ttoa[@intCast(t1)] != null) ttoa[@intCast(t1)] else "??";
-    _ = C.sprintf(&buf, "%s expected, got %s instead", s1, s2);
-    err(&buf, .{});
+    err("{s} expected, got {s} instead", .{ cs(s1), cs(s2) });
 }
 
 fn tmpref() Ref {
@@ -612,7 +607,7 @@ fn findtyp(i_: i32) i32 {
         if (C.strcmp(tokval.str, all.typ[@intCast(i)].name) == 0)
             return i;
     }
-    err("undefined type :%s", .{tokval.str});
+    err("undefined type :{s}", .{cs(tokval.str)});
 }
 
 fn parsecls(tyn: *i32) i32 {
@@ -748,7 +743,7 @@ fn parseline(ps: PState) PState {
 
     var t = nextnl();
     if (ps == PLbl and t != Tlbl and t != Trbrace)
-        err("label or } expected", .{});
+        err("label or }} expected", .{});
     const Flow = enum { normal, jump, close, ins };
     var flow: Flow = .normal;
     switch (t) {
@@ -773,7 +768,7 @@ fn parseline(ps: PState) PState {
                 curb.*.s1 = b;
             }
             if (b.*.jmp.type != Jxxx)
-                err("multiple definitions of block @%s", .{b.*.name});
+                err("multiple definitions of block @{s}", .{cs(b.*.name)});
             blink.* = b;
             curb = b;
             plink = &curb.*.phi;
@@ -974,7 +969,7 @@ fn typecheck(f: [*c]Fn) void {
             if (rtype(i.*.to) == RTmp) {
                 t = &f.*.tmp[i.*.to.val];
                 if (clsmerge(&t.*.cls, @intCast(i.*.cls)))
-                    err("temporary %%%s is assigned with multiple types", .{t.*.name});
+                    err("temporary %{s} is assigned with multiple types", .{cs(t.*.name)});
             };
     }
     b = f.*.start;
@@ -991,13 +986,13 @@ fn typecheck(f: [*c]Fn) void {
             while (n < p.*.narg) : (n += 1) {
                 k = t.*.cls;
                 if (bshas(&ppb, p.*.blk[n].*.id))
-                    err("multiple entries for @%s in phi %%%s", .{ p.*.blk[n].*.name, t.*.name });
+                    err("multiple entries for @{s} in phi %{s}", .{cs(p.*.blk[n].*.name), cs(t.*.name)});
                 if (!usecheck(p.*.arg[n], k, f))
-                    err("invalid type for operand %%%s in phi %%%s", .{ f.*.tmp[p.*.arg[n].val].name, t.*.name });
+                    err("invalid type for operand %{s} in phi %{s}", .{cs(f.*.tmp[p.*.arg[n].val].name), cs(t.*.name)});
                 bsset(&ppb, p.*.blk[n].*.id);
             }
             if (!bsequal(&pb, &ppb))
-                err("predecessors not matched in phi %%%s", .{t.*.name});
+                err("predecessors not matched in phi %{s}", .{cs(t.*.name)});
         }
         var i = b.*.ins;
         while (i < &b.*.ins[b.*.nins]) : (i += 1) {
@@ -1008,15 +1003,15 @@ fn typecheck(f: [*c]Fn) void {
                 t = &f.*.tmp[r.val];
                 const which: [*c]const u8 = if (n == 1) "second" else "first";
                 if (k == Ke)
-                    err("invalid instruction type in %s", .{all.optab[i.*.op].name});
+                    err("invalid instruction type in {s}", .{cs(all.optab[i.*.op].name)});
                 if (rtype(r) == RType)
                     continue;
                 if (rtype(r) != -1 and k == Kx)
-                    err("no %s operand expected in %s", .{ which, all.optab[i.*.op].name });
+                    err("no {s} operand expected in {s}", .{cs(which), cs(all.optab[i.*.op].name)});
                 if (rtype(r) == -1 and k != Kx)
-                    err("missing %s operand in %s", .{ which, all.optab[i.*.op].name });
+                    err("missing {s} operand in {s}", .{cs(which), cs(all.optab[i.*.op].name)});
                 if (!usecheck(r, k, f))
-                    err("invalid type for %s operand %%%s in %s", .{ which, t.*.name, all.optab[i.*.op].name });
+                    err("invalid type for {s} operand %{s} in {s}", .{cs(which), cs(t.*.name), cs(all.optab[i.*.op].name)});
             }
         }
         r = b.*.jmp.arg;
@@ -1032,11 +1027,11 @@ fn typecheck(f: [*c]Fn) void {
                 jerr = true;
         }
         if (jerr or (b.*.jmp.type == Jjnz and !usecheck(r, Kw, f)))
-            err("invalid type for jump argument %%%s in block @%s", .{ f.*.tmp[r.val].name, b.*.name });
+            err("invalid type for jump argument %{s} in block @{s}", .{cs(f.*.tmp[r.val].name), cs(b.*.name)});
         if (b.*.s1 != null and b.*.s1.*.jmp.type == Jxxx)
-            err("block @%s is used undefined", .{b.*.s1.*.name});
+            err("block @{s} is used undefined", .{cs(b.*.s1.*.name)});
         if (b.*.s2 != null and b.*.s2.*.jmp.type == Jxxx)
-            err("block @%s is used undefined", .{b.*.s2.*.name});
+            err("block @{s} is used undefined", .{cs(b.*.s2.*.name)});
     }
 }
 
@@ -1074,7 +1069,7 @@ fn parsefn(lnk: [*c]Lnk) [*c]Fn {
     curf.*.name = strf(PFn, "%s", .{tokval.str});
     curf.*.vararg = @intFromBool(parserefl(false));
     if (nextnl() != Tlbrace)
-        err("function body must start with {", .{});
+        err("function body must start with {{", .{});
     ps = PLbl;
     while (true) {
         ps = parseline(ps);
@@ -1184,7 +1179,7 @@ fn parsefields(fld: [*c]Field, ty: [*c]Typ, t_: i32) void {
         t = nextnl();
     }
     if (t != Trbrace)
-        err(", or } expected", .{});
+        err(", or }} expected", .{});
     fld[n].type = FEnd;
     a = @as(i32, 1) << @intCast(al);
     if (sz < ty.*.size)
@@ -1224,7 +1219,7 @@ fn parsetyp() void {
         t = nextnl();
     }
     if (t != Tlbrace)
-        err("type body must start with {", .{});
+        err("type body must start with {{", .{});
     t = nextnl();
     if (t == Tint) {
         ty.*.isdark = 1;
@@ -1232,7 +1227,7 @@ fn parsetyp() void {
         if (ty.*.@"align" == -1)
             err("dark types need alignment", .{});
         if (nextnl() != Trbrace)
-            err("} expected", .{});
+            err("}} expected", .{});
         return;
     }
     var n: uint = 0;
@@ -1296,7 +1291,7 @@ fn parsedat(cb: *const fn ([*c]Dat) void, lnk: [*c]Lnk) void {
     cb(&d);
 
     if (t != Tlbrace)
-        err("expected data contents in { .. }", .{});
+        err("expected data contents in {{ .. }}", .{});
     outer: while (true) {
         switch (nextnl()) {
             Trbrace => break :outer,
@@ -1307,7 +1302,7 @@ fn parsedat(cb: *const fn ([*c]Dat) void, lnk: [*c]Lnk) void {
             Ts => d.type = DW,
             Td => d.type = DL,
             Tz => d.type = DZ,
-            else => err("invalid size specifier %c in data", .{@as(c_int, tokval.chr)}),
+            else => err("invalid size specifier {c} in data", .{tokval.chr}),
         }
         t = nextnl();
         while (true) {
@@ -1333,7 +1328,7 @@ fn parsedat(cb: *const fn ([*c]Dat) void, lnk: [*c]Lnk) void {
         if (t == Trbrace)
             break;
         if (t != Tcomma)
-            err(", or } expected", .{});
+            err(", or }} expected", .{});
     }
     // Done:
     d.type = DEnd;
@@ -1409,149 +1404,149 @@ pub fn parse(f: *FILE, path: [*c]const u8, dbgfile: *const fn ([*c]u8) void, dat
     }
 }
 
-fn printcon(c: [*c]Con, f: *FILE) void {
+fn printcon(c: [*c]Con, f: *Writer) Writer.Error!void {
     switch (c.*.type) {
         CUndef => {},
         CAddr => {
             if ((c.*.sym.type & SExt) != 0)
-                _ = C.fprintf(f, "extern ");
+                try f.print("extern ", .{});
             if ((c.*.sym.type & SThr) != 0)
-                _ = C.fprintf(f, "thread ");
-            _ = C.fprintf(f, "$%s", str(c.*.sym.id));
+                try f.print("thread ", .{});
+            try f.print("${s}", .{cs(str(c.*.sym.id))});
             if (c.*.bits.i != 0)
-                _ = C.fprintf(f, "%+ld", @as(c_long, c.*.bits.i));
+                try f.print("{d:1}", .{c.*.bits.i});
         },
         CBits => {
             if (c.*.flt == 1)
-                _ = C.fprintf(f, "s_%f", @as(f64, c.*.bits.s))
+                try f.print("s_{f}", .{cfloat(c.*.bits.s)})
             else if (c.*.flt == 2)
-                _ = C.fprintf(f, "d_%lf", c.*.bits.d)
+                try f.print("d_{f}", .{cfloat(c.*.bits.d)})
             else
-                _ = C.fprintf(f, "%ld", @as(c_long, c.*.bits.i));
+                try f.print("{d}", .{c.*.bits.i});
         },
         else => {},
     }
 }
 
-pub fn printref(r: Ref, f: [*c]Fn, fp: *FILE) void {
+pub fn printref(r: Ref, f: [*c]Fn, fp: *Writer) Writer.Error!void {
     switch (rtype(r)) {
         RTmp => {
             if (r.val < Tmp0)
-                _ = C.fprintf(fp, "R%d", @as(c_uint, r.val))
+                try fp.print("R{d}", .{r.val})
             else
-                _ = C.fprintf(fp, "%%%s", f.*.tmp[r.val].name);
+                try fp.print("%{s}", .{cs(f.*.tmp[r.val].name)});
         },
         RCon => {
             if (req(r, UNDEF))
-                _ = C.fprintf(fp, "UNDEF")
+                try fp.print("UNDEF", .{})
             else
-                printcon(&f.*.con[r.val], fp);
+                try printcon(&f.*.con[r.val], fp);
         },
-        RSlot => _ = C.fprintf(fp, "S%d", @as(c_int, rsval(r))),
-        RCall => _ = C.fprintf(fp, "%04x", @as(c_uint, r.val)),
-        RType => _ = C.fprintf(fp, ":%s", all.typ[r.val].name),
+        RSlot => try fp.print("S{d}", .{rsval(r)}),
+        RCall => try fp.print("{x:0>4}", .{r.val}),
+        RType => try fp.print(":{s}", .{cs(all.typ[r.val].name)}),
         RMem => {
             var i = false;
             const m = &f.*.mem[r.val];
-            _ = C.fputc('[', fp);
+            try fp.writeByte('[');
             if (m.*.offset.type != CUndef) {
-                printcon(&m.*.offset, fp);
+                try printcon(&m.*.offset, fp);
                 i = true;
             }
             if (!req(m.*.base, R)) {
                 if (i)
-                    _ = C.fprintf(fp, " + ");
-                printref(m.*.base, f, fp);
+                    try fp.print(" + ", .{});
+                try printref(m.*.base, f, fp);
                 i = true;
             }
             if (!req(m.*.index, R)) {
                 if (i)
-                    _ = C.fprintf(fp, " + ");
-                _ = C.fprintf(fp, "%d * ", @as(c_int, m.*.scale));
-                printref(m.*.index, f, fp);
+                    try fp.print(" + ", .{});
+                try fp.print("{d} * ", .{m.*.scale});
+                try printref(m.*.index, f, fp);
             }
-            _ = C.fputc(']', fp);
+            try fp.writeByte(']');
         },
-        RInt => _ = C.fprintf(fp, "%d", @as(c_int, rsval(r))),
-        -1 => _ = C.fprintf(fp, "R"),
+        RInt => try fp.print("{d}", .{rsval(r)}),
+        -1 => try fp.print("R", .{}),
         else => {},
     }
 }
 
-pub fn printfn(f: [*c]Fn, fp: *FILE) void {
+pub fn printfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
     const ktoc = "wlsd";
     const jtoa = &all.jmp_names;
 
-    _ = C.fprintf(fp, "function $%s() {\n", f.*.name);
+    try fp.print("function ${s}() {{\n", .{cs(f.*.name)});
     var b = f.*.start;
     while (b != null) : (b = b.*.link) {
-        _ = C.fprintf(fp, "@%s\n", b.*.name);
+        try fp.print("@{s}\n", .{cs(b.*.name)});
         var p = b.*.phi;
         while (p != null) : (p = p.*.link) {
-            _ = C.fprintf(fp, "\t");
-            printref(p.*.to, f, fp);
-            _ = C.fprintf(fp, " =%c phi ", @as(c_int, ktoc[@intCast(p.*.cls)]));
+            try fp.print("\t", .{});
+            try printref(p.*.to, f, fp);
+            try fp.print(" ={c} phi ", .{ktoc[@intCast(p.*.cls)]});
             assert(p.*.narg != 0);
             var n: uint = 0;
             while (true) : (n += 1) {
-                _ = C.fprintf(fp, "@%s ", p.*.blk[n].*.name);
-                printref(p.*.arg[n], f, fp);
+                try fp.print("@{s} ", .{cs(p.*.blk[n].*.name)});
+                try printref(p.*.arg[n], f, fp);
                 if (n == p.*.narg - 1) {
-                    _ = C.fprintf(fp, "\n");
+                    try fp.print("\n", .{});
                     break;
-                } else _ = C.fprintf(fp, ", ");
+                } else try fp.print(", ", .{});
             }
         }
         var i = b.*.ins;
         while (i < &b.*.ins[b.*.nins]) : (i += 1) {
-            _ = C.fprintf(fp, "\t");
+            try fp.print("\t", .{});
             if (!req(i.*.to, R)) {
-                printref(i.*.to, f, fp);
-                _ = C.fprintf(fp, " =%c ", @as(c_int, ktoc[i.*.cls]));
+                try printref(i.*.to, f, fp);
+                try fp.print(" ={c} ", .{ktoc[i.*.cls]});
             }
             assert(all.optab[i.*.op].name != null);
-            _ = C.fprintf(fp, "%s", all.optab[i.*.op].name);
+            try fp.print("{s}", .{cs(all.optab[i.*.op].name)});
             if (req(i.*.to, R))
                 switch (i.*.op) {
-                    Oarg, Oswap, Oxcmp, Oacmp, Oacmn, Oafcmp, Oxtest, Oxdiv, Oxidiv => _ = C.fputc(ktoc[i.*.cls], fp),
+                    Oarg, Oswap, Oxcmp, Oacmp, Oacmn, Oafcmp, Oxtest, Oxdiv, Oxidiv => try fp.writeByte(ktoc[i.*.cls]),
                     else => {},
                 };
             if (!req(i.*.arg[0], R)) {
-                _ = C.fprintf(fp, " ");
-                printref(i.*.arg[0], f, fp);
+                try fp.print(" ", .{});
+                try printref(i.*.arg[0], f, fp);
             }
             if (!req(i.*.arg[1], R)) {
-                _ = C.fprintf(fp, ", ");
-                printref(i.*.arg[1], f, fp);
+                try fp.print(", ", .{});
+                try printref(i.*.arg[1], f, fp);
             }
-            _ = C.fprintf(fp, "\n");
+            try fp.print("\n", .{});
         }
         switch (b.*.jmp.type) {
             Jret0, Jretsb, Jretub, Jretsh, Jretuh, Jretw, Jretl, Jrets, Jretd, Jretc => {
-                _ = C.fprintf(fp, "\t%s", jtoa[@intCast(b.*.jmp.type - 1)].ptr);
+                try fp.print("\t{s}", .{cs(jtoa[@intCast(b.*.jmp.type - 1)].ptr)});
                 if (b.*.jmp.type != Jret0 or !req(b.*.jmp.arg, R)) {
-                    _ = C.fprintf(fp, " ");
-                    printref(b.*.jmp.arg, f, fp);
+                    try fp.print(" ", .{});
+                    try printref(b.*.jmp.arg, f, fp);
                 }
                 if (b.*.jmp.type == Jretc)
-                    _ = C.fprintf(fp, ", :%s", all.typ[@intCast(f.*.retty)].name);
-                _ = C.fprintf(fp, "\n");
+                    try fp.print(", :{s}", .{cs(all.typ[@intCast(f.*.retty)].name)});
+                try fp.print("\n", .{});
             },
-            Jhlt => _ = C.fprintf(fp, "\thlt\n"),
+            Jhlt => try fp.print("\thlt\n", .{}),
             Jjmp => {
                 if (b.*.s1 != b.*.link)
-                    _ = C.fprintf(fp, "\tjmp @%s\n", b.*.s1.*.name);
+                    try fp.print("\tjmp @{s}\n", .{cs(b.*.s1.*.name)});
             },
             else => {
-                _ = C.fprintf(fp, "\t%s ", jtoa[@intCast(b.*.jmp.type - 1)].ptr);
+                try fp.print("\t{s} ", .{cs(jtoa[@intCast(b.*.jmp.type - 1)].ptr)});
                 if (b.*.jmp.type == Jjnz) {
-                    printref(b.*.jmp.arg, f, fp);
-                    _ = C.fprintf(fp, ", ");
+                    try printref(b.*.jmp.arg, f, fp);
+                    try fp.print(", ", .{});
                 }
                 assert(b.*.s1 != null and b.*.s2 != null);
-                _ = C.fprintf(fp, "@%s, @%s\n", b.*.s1.*.name, b.*.s2.*.name);
+                try fp.print("@{s}, @{s}\n", .{cs(b.*.s1.*.name), cs(b.*.s2.*.name)});
             },
         }
     }
-    _ = C.fprintf(fp, "}\n");
+    try fp.print("}}\n", .{});
 }

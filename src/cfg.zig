@@ -18,6 +18,7 @@ const Ref = all.Ref;
 const addbins = all.addbins;
 const addins = all.addins;
 const alloc = all.alloc;
+const dprint = all.dprint;
 const emalloc = all.emalloc;
 const phiarg = all.phiarg;
 const phiargn = all.phiargn;
@@ -458,8 +459,8 @@ fn jmpnophi(j: [*c]Jmp) bool {
 /// require cfg rpo, breaks use
 pub fn simplcfg(f: [*c]Fn) void {
     if (all.debug['C'] != 0) {
-        _ = C.fprintf(C.stderr, "\n> Before CFG simplification:\n");
-        printfn(f, C.stderr);
+        dprint("\n> Before CFG simplification:\n", .{});
+        printfn(f, all.dbg) catch {};
     }
 
     var cpy = std.mem.zeroes(Ins);
@@ -548,7 +549,7 @@ pub fn simplcfg(f: [*c]Fn) void {
     C.free(@ptrCast(jmp));
 
     if (all.debug['C'] != 0) {
-        _ = C.fprintf(C.stderr, "\n> After CFG simplification:\n");
-        printfn(f, C.stderr);
+        dprint("\n> After CFG simplification:\n", .{});
+        printfn(f, all.dbg) catch {};
     }
 }

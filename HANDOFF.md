@@ -59,6 +59,24 @@ External testing (done, all passing with zig qbe):
   passes). Both 100% ok (abifuzz 100 iters, irfuzz 150 iters).
 - BUGS.md: 2 upstream QBE amd64 bugs found (shift flags, shift imm range).
 
+## Canonical rewrite (in progress)
+Git tag `v1-literal` = verified 1:1 version. Stages (each must keep
+tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
+1. **DONE (commit "canonical stage 1")**: all output via `*std.Io.Writer`
+   (`Writer.Error!void` propagated with try). util.zig helpers: `cs()` (C
+   string -> slice), `dprint()` (debug to `all.dbg` = buffered stderr),
+   `bufPrintZ`, `die(fmt,args)` (flush dbg, abort), `cfloat()` (exact C
+   `%f` formatter, big-int based), `cint(x,w)` (C `% Nd`). parse.err flushes
+   dbg + `all.outw` then exit(1) like C. main.zig uses std.process.Init,
+   File.writerStreaming for stdout/-o file; writeFailed() on I/O errors.
+   tools/dbgcmp.sh compares all -d dumps vs C (0 diffs on 6 targets).
+   Note: std.fmt prints '+' for signed ints with a width -> use cint().
+2. TODO: input/CLI: lexer on std.Io.Reader, std.fmt.parseFloat instead of
+   fscanf/strtod, own arg parsing (no getopt).
+3. TODO: memory: pools/vnew/vgrow -> allocators/arenas + slices, drop
+   qsort/memcpy.
+4. TODO: `[*c]` -> `*T`/`?*T`/slices, enums; drop libc entirely.
+
 ## Next steps
 1. Canonical Zig rewrite (slices, optionals, enums, std.Io.Writer, no libc),
    keep tools/cmp.sh, tools/corpus.sh, tests/*fuzz.py passing after each step.

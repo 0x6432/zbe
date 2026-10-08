@@ -12,10 +12,12 @@ const DStart = all.DStart;
 const DW = all.DW;
 const DZ = all.DZ;
 const Dat = all.Dat;
-const FILE = all.FILE;
 const Lnk = all.Lnk;
 const PHeap = all.PHeap;
+const Writer = all.Writer;
 const bits = all.bits;
+const cfloat = all.cfloat;
+const cs = all.cs;
 const die = all.die;
 const emalloc = all.emalloc;
 const err = all.err;
@@ -34,35 +36,33 @@ const lnk_sec = [2][3][*c]const u8{
     .{ ".abort \"unreachable\"", ".section .tdata,\"awT\"", ".section .tbss,\"awT\"" },
 };
 
-pub fn emitlnk(n: [*c]u8, l: [*c]Lnk, s: i32, f: *FILE) void {
+pub fn emitlnk(n: [*c]u8, l: [*c]Lnk, s: i32, f: *Writer) Writer.Error!void {
     const pfx: [*c]const u8 = if (n[0] == '"') "" else &all.T.assym;
     var sfx: [*c]const u8 = "";
     if (all.T.apple != 0 and l.*.thread != 0) {
         l.*.sec = @constCast("__DATA");
         l.*.secf = @constCast("__thread_data,thread_local_regular");
         sfx = "$tlv$init";
-        _ = C.fputs(".section __DATA,__thread_vars," ++
-            "thread_local_variables\n", f);
-        _ = C.fprintf(f, "%s%s:\n", pfx, n);
-        _ = C.fprintf(f, "\t.quad __tlv_bootstrap\n" ++
-            "\t.quad 0\n" ++
-            "\t.quad %s%s%s\n\n", pfx, n, sfx);
+        try f.writeAll(".section __DATA,__thread_vars," ++
+            "thread_local_variables\n");
+        try f.print("{s}{s}:\n", .{cs(pfx), cs(n)});
+        try f.print("\t.quad __tlv_bootstrap\n" ++ "\t.quad 0\n" ++ "\t.quad {s}{s}{s}\n\n", .{cs(pfx), cs(n), cs(sfx)});
     }
     if (l.*.sec != null) {
-        _ = C.fprintf(f, ".section %s", l.*.sec);
+        try f.print(".section {s}", .{cs(l.*.sec)});
         if (l.*.secf != null)
-            _ = C.fprintf(f, ",%s", l.*.secf);
-    } else _ = C.fputs(lnk_sec[@intFromBool(l.*.thread != 0)][@intCast(s)], f);
-    _ = C.fputc('\n', f);
+            try f.print(",{s}", .{cs(l.*.secf)});
+    } else try f.writeAll(cs(lnk_sec[@intFromBool(l.*.thread != 0)][@intCast(s)]));
+    try f.writeByte('\n');
     if (l.*.@"align" != 0)
-        _ = C.fprintf(f, ".balign %d\n", @as(c_int, l.*.@"align"));
+        try f.print(".balign {d}\n", .{l.*.@"align"});
     if (l.*.@"export" != 0)
-        _ = C.fprintf(f, ".globl %s%s\n", pfx, n);
-    _ = C.fprintf(f, "%s%s%s:\n", pfx, n, sfx);
+        try f.print(".globl {s}{s}\n", .{cs(pfx), cs(n)});
+    try f.print("{s}{s}{s}:\n", .{cs(pfx), cs(n), cs(sfx)});
 }
 
-pub fn emitfnlnk(n: [*c]u8, l: [*c]Lnk, f: *FILE) void {
-    emitlnk(n, l, SecText, f);
+pub fn emitfnlnk(n: [*c]u8, l: [*c]Lnk, f: *Writer) Writer.Error!void {
+    try emitlnk(n, l, SecText, f);
 }
 
 const DatInfo = struct {
@@ -79,7 +79,7 @@ const di = blk: {
 };
 var emitdat_zero: i64 = 0;
 
-pub fn emitdat(d: [*c]Dat, f: *FILE) void {
+pub fn emitdat(d: [*c]Dat, f: *Writer) Writer.Error!void {
     switch (d.*.type) {
         DStart => emitdat_zero = 0,
         DEnd => {
@@ -87,37 +87,37 @@ pub fn emitdat(d: [*c]Dat, f: *FILE) void {
                 if (emitdat_zero == -1)
                     die("invalid common data definition", .{});
                 const p: [*c]const u8 = if (d.*.name[0] == '"') "" else &all.T.assym;
-                _ = C.fprintf(f, ".comm %s%s,%ld", p, d.*.name, @as(c_long, emitdat_zero));
+                try f.print(".comm {s}{s},{d}", .{cs(p), cs(d.*.name), emitdat_zero});
                 if (d.*.lnk.*.@"align" != 0)
-                    _ = C.fprintf(f, ",%d", @as(c_int, d.*.lnk.*.@"align"));
-                _ = C.fputc('\n', f);
+                    try f.print(",{d}", .{d.*.lnk.*.@"align"});
+                try f.writeByte('\n');
             } else if (emitdat_zero != -1) {
-                emitlnk(d.*.name, d.*.lnk, SecBss, f);
-                _ = C.fprintf(f, "\t.fill %ld,1,0\n", @as(c_long, emitdat_zero));
+                try emitlnk(d.*.name, d.*.lnk, SecBss, f);
+                try f.print("\t.fill {d},1,0\n", .{emitdat_zero});
             }
         },
         DZ => {
             if (emitdat_zero != -1)
                 emitdat_zero += d.*.u.num
             else
-                _ = C.fprintf(f, "\t.fill %ld,1,0\n", @as(c_long, d.*.u.num));
+                try f.print("\t.fill {d},1,0\n", .{d.*.u.num});
         },
         else => {
             if (emitdat_zero != -1) {
-                emitlnk(d.*.name, d.*.lnk, SecData, f);
+                try emitlnk(d.*.name, d.*.lnk, SecData, f);
                 if (emitdat_zero > 0)
-                    _ = C.fprintf(f, "\t.fill %ld,1,0\n", @as(c_long, emitdat_zero));
+                    try f.print("\t.fill {d},1,0\n", .{emitdat_zero});
                 emitdat_zero = -1;
             }
             if (d.*.isstr != 0) {
                 if (d.*.type != DB)
                     err("strings only supported for 'b' currently", .{});
-                _ = C.fprintf(f, "\t.ascii %s\n", d.*.u.str);
+                try f.print("\t.ascii {s}\n", .{cs(d.*.u.str)});
             } else if (d.*.isref != 0) {
                 const p: [*c]const u8 = if (d.*.u.ref.name[0] == '"') "" else &all.T.assym;
-                _ = C.fprintf(f, "%s %s%s%+ld\n", di[@intCast(d.*.type)].decl, p, d.*.u.ref.name, @as(c_long, d.*.u.ref.off));
+                try f.print("{s} {s}{s}{d:1}\n", .{cs(di[@intCast(d.*.type)].decl), cs(p), cs(d.*.u.ref.name), d.*.u.ref.off});
             } else {
-                _ = C.fprintf(f, "%s %ld\n", di[@intCast(d.*.type)].decl, @as(c_long, d.*.u.num & di[@intCast(d.*.type)].mask));
+                try f.print("{s} {d}\n", .{cs(di[@intCast(d.*.type)].decl), d.*.u.num & di[@intCast(d.*.type)].mask});
             }
         },
     }
@@ -151,10 +151,10 @@ pub fn stashbits(n: bits, size: i32) i32 {
     return i;
 }
 
-fn emitfin(f: *FILE, sec: *const [3][*c]const u8) void {
+fn emitfin(f: *Writer, sec: *const [3][*c]const u8) Writer.Error!void {
     if (stash == null)
         return;
-    _ = C.fprintf(f, "/* floating point constants */\n");
+    try f.print("/* floating point constants */\n", .{});
     var lg: i32 = 4;
     while (lg >= 2) : (lg -= 1) {
         var b = stash;
@@ -164,22 +164,17 @@ fn emitfin(f: *FILE, sec: *const [3][*c]const u8) void {
             i += 1;
         }) {
             if (b.*.size == (@as(i32, 1) << @intCast(lg))) {
-                _ = C.fprintf(f, ".section %s\n" ++
-                    ".p2align %d\n" ++
-                    "%sfp%d:", sec[@intCast(lg - 2)], @as(c_int, lg), &all.T.asloc, @as(c_int, i));
+                try f.print(".section {s}\n" ++ ".p2align {d}\n" ++ "{s}fp{d}:", .{cs(sec[@intCast(lg - 2)]), lg, cs(&all.T.asloc), i});
                 if (lg == 4) {
-                    _ = C.fprintf(f, "\n\t.quad %ld" ++
-                        "\n\t.quad 0\n\n", @as(c_long, @bitCast(b.*.n)));
+                    try f.print("\n\t.quad {d}" ++ "\n\t.quad 0\n\n", .{@as(i64, @bitCast(b.*.n))});
                 } else if (lg == 3) {
                     const ui: i64 = @bitCast(b.*.n);
                     const uf: f64 = @bitCast(b.*.n);
-                    _ = C.fprintf(f, "\n\t.quad %ld" ++
-                        " /* %f */\n\n", @as(c_long, ui), uf);
+                    try f.print("\n\t.quad {d}" ++ " /* {f} */\n\n", .{ ui, cfloat(uf) });
                 } else if (lg == 2) {
                     const ui: i32 = @bitCast(@as(u32, @truncate(b.*.n)));
                     const uf: f32 = @bitCast(@as(u32, @truncate(b.*.n)));
-                    _ = C.fprintf(f, "\n\t.int %d" ++
-                        " /* %f */\n\n", @as(c_int, ui), @as(f64, uf));
+                    try f.print("\n\t.int {d}" ++ " /* {f} */\n\n", .{ ui, cfloat(uf) });
                 }
             }
         }
@@ -191,39 +186,39 @@ fn emitfin(f: *FILE, sec: *const [3][*c]const u8) void {
     }
 }
 
-pub fn elf_emitfin(f: *FILE) void {
+pub fn elf_emitfin(f: *Writer) Writer.Error!void {
     const sec = [3][*c]const u8{ ".rodata", ".rodata", ".rodata" };
 
-    emitfin(f, &sec);
-    _ = C.fprintf(f, ".section .note.GNU-stack,\"\",@progbits\n");
+    try emitfin(f, &sec);
+    try f.print(".section .note.GNU-stack,\"\",@progbits\n", .{});
 }
 
-pub fn elf_emitfnfin(fname: [*c]u8, f: *FILE) void {
-    _ = C.fprintf(f, ".type %s, @function\n", fname);
-    _ = C.fprintf(f, ".size %s, .-%s\n", fname, fname);
+pub fn elf_emitfnfin(fname: [*c]u8, f: *Writer) Writer.Error!void {
+    try f.print(".type {s}, @function\n", .{cs(fname)});
+    try f.print(".size {s}, .-{s}\n", .{cs(fname), cs(fname)});
 }
 
-pub fn macho_emitfin(f: *FILE) void {
+pub fn macho_emitfin(f: *Writer) Writer.Error!void {
     const sec = [3][*c]const u8{
         "__TEXT,__literal4,4byte_literals",
         "__TEXT,__literal8,8byte_literals",
         "__TEXT,__literal16,16byte_literals",
     };
 
-    emitfin(f, &sec);
+    try emitfin(f, &sec);
 }
 
-pub fn pe_emitfin(f: *FILE) void {
+pub fn pe_emitfin(f: *Writer) Writer.Error!void {
     const sec = [3][*c]const u8{ ".rodata", ".rodata", ".rodata" };
 
-    emitfin(f, &sec);
+    try emitfin(f, &sec);
 }
 
 var file: [*c]u32 = null;
 var nfile: uint = 0;
 var curfile: uint = 0;
 
-pub fn emitdbgfile(fname: [*c]u8, f: *FILE) void {
+pub fn emitdbgfile(fname: [*c]u8, f: *Writer) Writer.Error!void {
     const id = intern(fname);
     var n: uint = 0;
     while (n < nfile) : (n += 1) {
@@ -240,12 +235,12 @@ pub fn emitdbgfile(fname: [*c]u8, f: *FILE) void {
     vgrow(&file, nfile);
     file[nfile - 1] = id;
     curfile = nfile;
-    _ = C.fprintf(f, ".file %u %s\n", @as(c_uint, curfile), fname);
+    try f.print(".file {d} {s}\n", .{curfile, cs(fname)});
 }
 
-pub fn emitdbgloc(line: uint, col: uint, f: *FILE) void {
+pub fn emitdbgloc(line: uint, col: uint, f: *Writer) Writer.Error!void {
     if (col != 0)
-        _ = C.fprintf(f, "\t.loc %u %u %u\n", @as(c_uint, curfile), @as(c_uint, line), @as(c_uint, col))
+        try f.print("\t.loc {d} {d} {d}\n", .{curfile, line, col})
     else
-        _ = C.fprintf(f, "\t.loc %u %u\n", @as(c_uint, curfile), @as(c_uint, line));
+        try f.print("\t.loc {d} {d}\n", .{curfile, line});
 }

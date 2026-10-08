@@ -26,7 +26,6 @@ const Ciugt = all.Ciugt;
 const Ciule = all.Ciule;
 const Ciult = all.Ciult;
 const Con = all.Con;
-const FILE = all.FILE;
 const Fn = all.Fn;
 const INS = all.INS;
 const Ins = all.Ins;
@@ -125,10 +124,13 @@ const SExtThr = all.SExtThr;
 const SGlo = all.SGlo;
 const SThr = all.SThr;
 const TMP = all.TMP;
+const Writer = all.Writer;
 const XMM0 = tgt.XMM0;
 const XMM15 = tgt.XMM15;
 const addcon = all.addcon;
 const bits = all.bits;
+const bufPrintZ = all.bufPrintZ;
+const cs = all.cs;
 const die = all.die;
 const elf_emitfnfin = all.elf_emitfnfin;
 const emitdbgloc = all.emitdbgloc;
@@ -144,7 +146,7 @@ const uint = all.uint;
 // -- end imports --
 
 const E = extern struct {
-    f: *FILE,
+    f: *Writer,
     @"fn": [*c]Fn,
     fp: i32,
     fsz: u64,
@@ -329,22 +331,22 @@ fn slot(r: Ref, e: *E) i32 {
     } else return -4 * (e.@"fn".*.slot - s);
 }
 
-fn emitcon(con: [*c]Con, e: *E) void {
+fn emitcon(con: [*c]Con, e: *E) Writer.Error!void {
     switch (con.*.type) {
         CAddr => {
             const l = str(con.*.sym.id);
             const p: [*c]const u8 = if (l[0] == '"') "" else &all.T.assym;
             if (con.*.sym.type == SThr) {
                 assert(all.T.apple == 0);
-                _ = C.fprintf(e.f, "%%fs:%s%s@tpoff", p, l);
+                try e.f.print("%fs:{s}{s}@tpoff", .{cs(p), cs(l)});
             } else {
                 assert((con.*.sym.type & ~@as(i32, SExt)) == SGlo);
-                _ = C.fprintf(e.f, "%s%s", p, l);
+                try e.f.print("{s}{s}", .{cs(p), cs(l)});
             }
             if (con.*.bits.i != 0)
-                _ = C.fprintf(e.f, "%+ld", @as(c_long, con.*.bits.i));
+                try e.f.print("{d:1}", .{con.*.bits.i});
         },
-        CBits => _ = C.fprintf(e.f, "%ld", @as(c_long, con.*.bits.i)),
+        CBits => try e.f.print("{d}", .{con.*.bits.i}),
         else => die("unreachable", .{}),
     }
 }
@@ -354,7 +356,7 @@ var regtoa_buf: [6]u8 = undefined;
 fn regtoa(reg: i32, sz: i32) [*c]const u8 {
     assert(reg <= XMM15);
     if (reg >= XMM0) {
-        _ = C.sprintf(&regtoa_buf, "xmm%d", @as(c_int, reg - XMM0));
+        bufPrintZ(&regtoa_buf, "xmm{d}", .{reg - XMM0});
         return &regtoa_buf;
     } else return rname[@intCast(reg)][@intCast(sz)];
 }
@@ -364,23 +366,23 @@ fn getarg(c: u8, i: [*c]Ins) Ref {
         '0' => return i.*.arg[0],
         '1' => return i.*.arg[1],
         '=' => return i.*.to,
-        else => die("invalid arg letter %c", .{@as(c_int, c)}),
+        else => die("invalid arg letter {c}", .{c}),
     }
 }
 
-fn emitcopy(r1: Ref, r2: Ref, k: i32, e: *E) void {
+fn emitcopy(r1: Ref, r2: Ref, k: i32, e: *E) Writer.Error!void {
     var icp: Ins = undefined;
 
     icp.op = Ocopy;
     icp.arg[0] = r2;
     icp.to = r1;
     icp.cls = @intCast(k);
-    emitins(icp, e);
+    try emitins(icp, e);
 }
 
 const clstoa = [_][*c]const u8{ "l", "q", "ss", "sd" };
 
-fn emitmem(ref: Ref, e: *E) void {
+fn emitmem(ref: Ref, e: *E) Writer.Error!void {
     var off: Con = undefined;
     const m = &e.@"fn".*.mem[ref.val];
     if (rtype(m.*.base) == RSlot) {
@@ -390,18 +392,18 @@ fn emitmem(ref: Ref, e: *E) void {
         m.*.base = TMP(e.fp);
     }
     if (m.*.offset.type != CUndef)
-        emitcon(&m.*.offset, e);
-    _ = C.fputc('(', e.f);
+        try emitcon(&m.*.offset, e);
+    try e.f.writeByte('(');
     if (!req(m.*.base, R))
-        _ = C.fprintf(e.f, "%%%s", regtoa(@intCast(m.*.base.val), SLong))
+        try e.f.print("%{s}", .{cs(regtoa(@intCast(m.*.base.val), SLong))})
     else if (m.*.offset.type == CAddr)
-        _ = C.fprintf(e.f, "%%rip");
+        try e.f.print("%rip", .{});
     if (!req(m.*.index, R))
-        _ = C.fprintf(e.f, ", %%%s, %d", regtoa(@intCast(m.*.index.val), SLong), @as(c_int, m.*.scale));
-    _ = C.fputc(')', e.f);
+        try e.f.print(", %{s}, {d}", .{cs(regtoa(@intCast(m.*.index.val), SLong)), m.*.scale});
+    try e.f.writeByte(')');
 }
 
-fn emitf(s_: [*c]const u8, i: [*c]Ins, e: *E) void {
+fn emitf(s_: [*c]const u8, i: [*c]Ins, e: *E) Writer.Error!void {
     var s = s_;
     var c: u8 = undefined;
     var sz: i32 = undefined;
@@ -417,29 +419,29 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, e: *E) void {
                 // fall through
             }
             assert(!req(i.*.arg[1], i.*.to) or req(i.*.arg[0], i.*.to)); // cannot convert to 2-address
-            emitcopy(i.*.to, i.*.arg[0], @intCast(i.*.cls), e);
+            try emitcopy(i.*.to, i.*.arg[0], @intCast(i.*.cls), e);
             s += 1;
         },
         else => {},
     }
 
-    _ = C.fputc('\t', e.f);
+    try e.f.writeByte('\t');
     while (true) { // Next:
         while (true) {
             c = s.*;
             s += 1;
             if (c == '%') break;
             if (c == 0) {
-                _ = C.fputc('\n', e.f);
+                try e.f.writeByte('\n');
                 return;
-            } else _ = C.fputc(c, e.f);
+            } else try e.f.writeByte(c);
         }
         c = s.*;
         s += 1;
         var doref = false;
         switch (c) {
-            '%' => _ = C.fputc('%', e.f),
-            'k' => _ = C.fputs(clstoa[i.*.cls], e.f),
+            '%' => try e.f.writeByte('%'),
+            'k' => try e.f.writeAll(cs(clstoa[i.*.cls])),
             '0', '1', '=' => {
                 sz = if (KWIDE(i.*.cls) != 0) SLong else SWord;
                 s -= 1;
@@ -470,22 +472,22 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, e: *E) void {
                 s += 1;
                 const ref = getarg(c, i);
                 switch (rtype(ref)) {
-                    RMem => emitmem(ref, e),
-                    RSlot => _ = C.fprintf(e.f, "%d(%%%s)", @as(c_int, slot(ref, e)), regtoa(e.fp, SLong)),
+                    RMem => try emitmem(ref, e),
+                    RSlot => try e.f.print("{d}(%{s})", .{slot(ref, e), cs(regtoa(e.fp, SLong))}),
                     RCon => {
                         var off = e.@"fn".*.con[ref.val];
-                        emitcon(&off, e);
+                        try emitcon(&off, e);
                         if (off.type == CAddr and off.sym.type != SThr)
-                            _ = C.fprintf(e.f, "(%%rip)");
+                            try e.f.print("(%rip)", .{});
                     },
                     RTmp => {
                         assert(isreg(ref));
-                        _ = C.fprintf(e.f, "(%%%s)", regtoa(@intCast(ref.val), SLong));
+                        try e.f.print("(%{s})", .{cs(regtoa(@intCast(ref.val), SLong))});
                     },
                     else => die("unreachable", .{}),
                 }
             },
-            else => die("invalid format specifier %%%c", .{@as(c_int, c)}),
+            else => die("invalid format specifier %{c}", .{c}),
         }
         if (doref) { // Ref:
             c = s.*;
@@ -494,13 +496,13 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, e: *E) void {
             switch (rtype(ref)) {
                 RTmp => {
                     assert(isreg(ref));
-                    _ = C.fprintf(e.f, "%%%s", regtoa(@intCast(ref.val), sz));
+                    try e.f.print("%{s}", .{cs(regtoa(@intCast(ref.val), sz))});
                 },
-                RSlot => _ = C.fprintf(e.f, "%d(%%%s)", @as(c_int, slot(ref, e)), regtoa(e.fp, SLong)),
-                RMem => emitmem(ref, e),
+                RSlot => try e.f.print("{d}(%{s})", .{slot(ref, e), cs(regtoa(e.fp, SLong))}),
+                RMem => try emitmem(ref, e),
                 RCon => {
-                    _ = C.fputc('$', e.f);
-                    emitcon(&e.@"fn".*.con[ref.val], e);
+                    try e.f.writeByte('$');
+                    try emitcon(&e.@"fn".*.con[ref.val], e);
                 },
                 else => die("unreachable", .{}),
             }
@@ -518,23 +520,23 @@ const negmask = blk: {
 /// Table: most instructions are just pulled out of
 /// the table omap[], some special cases are
 /// detailed in emitins()
-fn emittable(i: *Ins, e: *E) void {
+fn emittable(i: *Ins, e: *E) Writer.Error!void {
     var o: usize = 0;
     while (true) : (o += 1) {
         // this linear search should really be a binary
         // search
         if (omap[o].op == NOp)
-            die("no match for %s(%c)", .{ all.optab[i.op].name, @as(c_int, "wlsd"[i.cls]) });
+            die("no match for {s}({c})", .{cs(all.optab[i.op].name), "wlsd"[i.cls]});
         if (omap[o].op == i.op)
             if (omap[o].cls == i.cls or
                 (omap[o].cls == Ki and KBASE(i.cls) == 0) or
                 (omap[o].cls == Ka))
                 break;
     }
-    emitf(omap[o].fmt, i, e);
+    try emitf(omap[o].fmt, i, e);
 }
 
-fn emitins(i_: Ins, e: *E) void {
+fn emitins(i_: Ins, e: *E) Writer.Error!void {
     var i = i_;
 
     switch (i.op) {
@@ -542,15 +544,15 @@ fn emitins(i_: Ins, e: *E) void {
             if (isxsel(i.op)) {
                 // case_Oxsel:
                 if (req(i.to, i.arg[1])) {
-                    emitf(cmov[i.op - Oxsel][0], &i, e);
+                    try emitf(cmov[i.op - Oxsel][0], &i, e);
                 } else {
                     if (!req(i.to, i.arg[0]))
-                        emitf("mov %0, %=", &i, e);
-                    emitf(cmov[i.op - Oxsel][1], &i, e);
+                        try emitf("mov %0, %=", &i, e);
+                    try emitf(cmov[i.op - Oxsel][1], &i, e);
                 }
                 return;
             }
-            emittable(&i, e);
+            try emittable(&i, e);
         },
         Onop => {
             // just do nothing for nops, they are inserted
@@ -568,40 +570,40 @@ fn emitins(i_: Ins, e: *E) void {
                 rtype(i.arg[0]) == RCon and
                 rtype(i.arg[1]) == RTmp)
             {
-                emitf("imul%k %0, %1, %=", &i, e);
+                try emitf("imul%k %0, %1, %=", &i, e);
                 return;
             }
-            emittable(&i, e);
+            try emittable(&i, e);
         },
         Osub => {
             // we have to use the negation trick to handle
             // some 3-address subtractions
             if (req(i.to, i.arg[1]) and !req(i.arg[0], i.to)) {
                 const ineg = INS(Oneg, i.cls, i.to, i.to, R);
-                emitins(ineg, e);
-                emitf("add%k %0, %=", &i, e);
+                try emitins(ineg, e);
+                try emitf("add%k %0, %=", &i, e);
                 return;
             }
-            emittable(&i, e);
+            try emittable(&i, e);
         },
         Oneg => {
             if (!req(i.to, i.arg[0]))
-                emitf("mov%k %0, %=", &i, e);
+                try emitf("mov%k %0, %=", &i, e);
             if (KBASE(i.cls) == 0)
-                emitf("neg%k %=", &i, e)
+                try emitf("neg%k %=", &i, e)
             else
-                _ = C.fprintf(e.f, "\txorp%c %sfp%d(%%rip), %%%s\n", @as(c_int, "xxsd"[i.cls]), &all.T.asloc, @as(c_int, stashbits(negmask[i.cls], 16)), regtoa(@intCast(i.to.val), SLong));
+                try e.f.print("\txorp{c} {s}fp{d}(%rip), %{s}\n", .{"xxsd"[i.cls], cs(&all.T.asloc), stashbits(negmask[i.cls], 16), cs(regtoa(@intCast(i.to.val), SLong))});
         },
         Odiv => {
             // use xmm15 to adjust the instruction when the
             // conversion to 2-address in emitf() would fail
             if (req(i.to, i.arg[1])) {
                 i.arg[1] = TMP(XMM0 + 15);
-                emitf("mov%k %=, %1", &i, e);
-                emitf("mov%k %0, %=", &i, e);
+                try emitf("mov%k %=, %1", &i, e);
+                try emitf("mov%k %0, %=", &i, e);
                 i.arg[0] = i.to;
             }
-            emittable(&i, e);
+            try emittable(&i, e);
         },
         Ocopy => {
             // copies are used for many things; see my note
@@ -620,13 +622,13 @@ fn emitins(i_: Ins, e: *E) void {
                 const val = e.@"fn".*.con[i.arg[0].val].bits.i;
                 if (isreg(i.to))
                     if (val >= 0 and val <= std.math.maxInt(u32)) {
-                        emitf("movl %W0, %W=", &i, e);
+                        try emitf("movl %W0, %W=", &i, e);
                         return;
                     };
                 if (rtype(i.to) == RSlot)
                     if (val < std.math.minInt(i32) or val > std.math.maxInt(i32)) {
-                        emitf("movl %0, %=", &i, e);
-                        emitf("movl %0>>32, 4+%=", &i, e);
+                        try emitf("movl %0, %=", &i, e);
+                        try emitf("movl %0>>32, 4+%=", &i, e);
                         return;
                     };
             }
@@ -634,7 +636,7 @@ fn emitins(i_: Ins, e: *E) void {
                 t0 == RCon and
                 e.@"fn".*.con[i.arg[0].val].type == CAddr)
             {
-                emitf("lea%k %M0, %=", &i, e);
+                try emitf("lea%k %M0, %=", &i, e);
                 return;
             }
             if (rtype(i.to) == RSlot and
@@ -642,17 +644,17 @@ fn emitins(i_: Ins, e: *E) void {
             {
                 i.cls = if (KWIDE(i.cls) != 0) Kd else Ks;
                 i.arg[1] = TMP(XMM0 + 15);
-                emitf("mov%k %0, %1", &i, e);
-                emitf("mov%k %1, %=", &i, e);
+                try emitf("mov%k %0, %1", &i, e);
+                try emitf("mov%k %1, %=", &i, e);
                 return;
             }
             // conveniently, the assembler knows if it
             // should use movabsq when reading movq
-            emitf("mov%k %0, %=", &i, e);
+            try emitf("mov%k %0, %=", &i, e);
         },
         Oaddr => {
             if (rtype(i.arg[0]) != RCon) {
-                emittable(&i, e);
+                try emittable(&i, e);
                 return;
             }
             const con = &e.@"fn".*.con[i.arg[0].val];
@@ -660,7 +662,7 @@ fn emitins(i_: Ins, e: *E) void {
             const sym = str(con.*.sym.id);
             const pfx: [*c]const u8 = if (sym[0] == '"') "" else &all.T.assym;
             if (all.T.apple != 0 and (con.*.sym.type & SThr) != 0) {
-                _ = C.fprintf(e.f, "\tmovq %s%s@tlvp(%%rip), %%%s\n", pfx, sym, regtoa(@intCast(i.to.val), SLong));
+                try e.f.print("\tmovq {s}{s}@tlvp(%rip), %{s}\n", .{cs(pfx), cs(sym), cs(regtoa(@intCast(i.to.val), SLong))});
                 return;
             }
             if (all.T.windows != 0 and con.*.sym.type != SGlo)
@@ -669,25 +671,25 @@ fn emitins(i_: Ins, e: *E) void {
                 SThr => {
                     // derive the symbol address from the TCB
                     // address at offset 0 of %fs
-                    emitf("movq %%fs:0, %L=", &i, e);
-                    _ = C.fprintf(e.f, "\tleaq %s%s@tpoff", pfx, sym);
+                    try emitf("movq %%fs:0, %L=", &i, e);
+                    try e.f.print("\tleaq {s}{s}@tpoff", .{cs(pfx), cs(sym)});
                     if (con.*.bits.i != 0)
-                        _ = C.fprintf(e.f, "%+ld", @as(c_long, con.*.bits.i));
-                    _ = C.fprintf(e.f, "(%%%s), %%%s\n", regtoa(@intCast(i.to.val), SLong), regtoa(@intCast(i.to.val), SLong));
+                        try e.f.print("{d:1}", .{con.*.bits.i});
+                    try e.f.print("(%{s}), %{s}\n", .{cs(regtoa(@intCast(i.to.val), SLong)), cs(regtoa(@intCast(i.to.val), SLong))});
                 },
                 SExtThr => {
                     // initial-exec TLS: load offset from
                     // GOT, add to thread-base register
                     assert(con.*.bits.i == 0);
-                    emitf("movq %%fs:0, %L=", &i, e);
-                    _ = C.fprintf(e.f, "\taddq %s%s@gottpoff(%%rip), %%%s\n", pfx, sym, regtoa(@intCast(i.to.val), SLong));
+                    try emitf("movq %%fs:0, %L=", &i, e);
+                    try e.f.print("\taddq {s}{s}@gottpoff(%rip), %{s}\n", .{cs(pfx), cs(sym), cs(regtoa(@intCast(i.to.val), SLong))});
                 },
                 SExt => {
                     // load address from the GOT
                     assert(con.*.bits.i == 0);
-                    _ = C.fprintf(e.f, "\tmovq %s%s@gotpcrel(%%rip), %%%s\n", pfx, sym, regtoa(@intCast(i.to.val), SLong));
+                    try e.f.print("\tmovq {s}{s}@gotpcrel(%rip), %{s}\n", .{cs(pfx), cs(sym), cs(regtoa(@intCast(i.to.val), SLong))});
                 },
-                else => emittable(&i, e),
+                else => try emittable(&i, e),
             }
         },
         Ocall => {
@@ -696,15 +698,15 @@ fn emitins(i_: Ins, e: *E) void {
             switch (rtype(i.arg[0])) {
                 RCon => {
                     const con = &e.@"fn".*.con[i.arg[0].val];
-                    _ = C.fprintf(e.f, "\tcallq ");
-                    emitcon(con, e);
+                    try e.f.print("\tcallq ", .{});
+                    try emitcon(con, e);
                     if (con.*.type == CAddr and
                         (con.*.sym.type & SExt) != 0 and
                         all.T.apple == 0)
-                        _ = C.fprintf(e.f, "@plt");
-                    _ = C.fprintf(e.f, "\n");
+                        try e.f.print("@plt", .{});
+                    try e.f.print("\n", .{});
                 },
-                RTmp => emitf("callq *%L0", &i, e),
+                RTmp => try emitf("callq *%L0", &i, e),
                 else => die("invalid call argument", .{}),
             }
         },
@@ -713,22 +715,22 @@ fn emitins(i_: Ins, e: *E) void {
             // maybe we should split Osalloc in 2 different
             // instructions depending on the result
             assert(e.fp == RBP);
-            emitf("subq %L0, %%rsp", &i, e);
+            try emitf("subq %L0, %%rsp", &i, e);
             if (!req(i.to, R))
-                emitcopy(i.to, TMP(RSP), Kl, e);
+                try emitcopy(i.to, TMP(RSP), Kl, e);
         },
         Oswap => {
             if (KBASE(i.cls) == 0) {
-                emittable(&i, e);
+                try emittable(&i, e);
                 return;
             }
             // for floats, there is no swap instruction
             // so we use xmm15 as a temporary
-            emitcopy(TMP(XMM0 + 15), i.arg[0], @intCast(i.cls), e);
-            emitcopy(i.arg[0], i.arg[1], @intCast(i.cls), e);
-            emitcopy(i.arg[1], TMP(XMM0 + 15), @intCast(i.cls), e);
+            try emitcopy(TMP(XMM0 + 15), i.arg[0], @intCast(i.cls), e);
+            try emitcopy(i.arg[0], i.arg[1], @intCast(i.cls), e);
+            try emitcopy(i.arg[1], TMP(XMM0 + 15), @intCast(i.cls), e);
         },
-        Odbgloc => emitdbgloc(i.arg[0].val, i.arg[1].val, e.f),
+        Odbgloc => try emitdbgloc(i.arg[0].val, i.arg[1].val, e.f),
     }
 }
 
@@ -753,22 +755,22 @@ fn sysv_framesz(e: *E) void {
 
 var sysv_id0: i32 = 0;
 
-pub fn amd64_sysv_emitfn(f: [*c]Fn, fp: *FILE) void {
+pub fn amd64_sysv_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
     var itmp: Ins = undefined;
     var e_ = E{ .f = fp, .@"fn" = f, .fp = 0, .fsz = 0, .nclob = 0 };
     const e = &e_;
     const rclob: [*c]i32 = &tgt.sysv.amd64_sysv_rclob;
     const rsave: [*c]i32 = &tgt.sysv.amd64_sysv_rsave;
 
-    emitfnlnk(f.*.name, &f.*.lnk, fp);
-    _ = C.fputs("\tendbr64\n", fp);
+    try emitfnlnk(f.*.name, &f.*.lnk, fp);
+    try fp.writeAll("\tendbr64\n");
     if (f.*.leaf == 0 or f.*.vararg != 0 or f.*.dynalloc != 0) {
         e.fp = RBP;
-        _ = C.fputs("\tpushq %rbp\n\tmovq %rsp, %rbp\n", fp);
+        try fp.writeAll("\tpushq %rbp\n\tmovq %rsp, %rbp\n");
     } else e.fp = RSP;
     sysv_framesz(e);
     if (e.fsz != 0)
-        _ = C.fprintf(fp, "\tsubq $%lu, %%rsp\n", @as(c_ulong, e.fsz));
+        try fp.print("\tsubq ${d}, %rsp\n", .{e.fsz});
     if (f.*.vararg != 0) {
         var o: i32 = -176;
         var r = rsave;
@@ -776,19 +778,19 @@ pub fn amd64_sysv_emitfn(f: [*c]Fn, fp: *FILE) void {
             r += 1;
             o += 8;
         })
-            _ = C.fprintf(fp, "\tmovq %%%s, %d(%%rbp)\n", rname[@intCast(r.*)][0], @as(c_int, o));
+            try fp.print("\tmovq %{s}, {d}(%rbp)\n", .{cs(rname[@intCast(r.*)][0]), o});
         var n: i32 = 0;
         while (n < 8) : ({
             n += 1;
             o += 16;
         })
-            _ = C.fprintf(fp, "\tmovaps %%xmm%d, %d(%%rbp)\n", @as(c_int, n), @as(c_int, o));
+            try fp.print("\tmovaps %xmm{d}, {d}(%rbp)\n", .{n, o});
     }
     var r = rclob;
     while (r < rclob + NCLR_SYSV) : (r += 1) {
         if ((f.*.reg & BIT(r.*)) != 0) {
             itmp.arg[0] = TMP(r.*);
-            emitf("pushq %L0", &itmp, e);
+            try emitf("pushq %L0", &itmp, e);
             e.nclob += 1;
         }
     }
@@ -803,37 +805,36 @@ pub fn amd64_sysv_emitfn(f: [*c]Fn, fp: *FILE) void {
                     break;
             }
             if (p != b.*.npred)
-                _ = C.fprintf(fp, ".p2align 4\n");
-            _ = C.fprintf(fp, "%sbb%d:\n", &all.T.asloc, @as(c_int, sysv_id0 + @as(i32, @intCast(b.*.id))));
+                try fp.print(".p2align 4\n", .{});
+            try fp.print("{s}bb{d}:\n", .{cs(&all.T.asloc), sysv_id0 + @as(i32, @intCast(b.*.id))});
         }
         var i = b.*.ins;
         while (i != b.*.ins + b.*.nins) : (i += 1)
-            emitins(i.*, e);
+            try emitins(i.*, e);
         lbl = true;
         sw: switch (b.*.jmp.type) {
-            Jhlt => _ = C.fprintf(fp, "\tud2\n"),
+            Jhlt => try fp.print("\tud2\n", .{}),
             Jret0 => {
                 if (f.*.dynalloc != 0)
-                    _ = C.fprintf(fp, "\tmovq %%rbp, %%rsp\n" ++
-                        "\tsubq $%lu, %%rsp\n", @as(c_ulong, e.fsz + @as(u64, @intCast(e.nclob)) * 8));
+                    try fp.print("\tmovq %rbp, %rsp\n" ++ "\tsubq ${d}, %rsp\n", .{e.fsz + @as(u64, @intCast(e.nclob)) * 8});
                 r = rclob + NCLR_SYSV;
                 while (r > rclob) {
                     r -= 1;
                     if ((f.*.reg & BIT(r.*)) != 0) {
                         itmp.arg[0] = TMP(r.*);
-                        emitf("popq %L0", &itmp, e);
+                        try emitf("popq %L0", &itmp, e);
                     }
                 }
                 if (e.fp == RBP)
-                    _ = C.fputs("\tleave\n", fp)
+                    try fp.writeAll("\tleave\n")
                 else if (e.fsz != 0)
-                    _ = C.fprintf(fp, "\taddq $%lu, %%rsp\n", @as(c_ulong, e.fsz));
-                _ = C.fputs("\tret\n", fp);
+                    try fp.print("\taddq ${d}, %rsp\n", .{e.fsz});
+                try fp.writeAll("\tret\n");
             },
             Jjmp => {
                 // Jmp:
                 if (b.*.s1 != b.*.link)
-                    _ = C.fprintf(fp, "\tjmp %sbb%d\n", &all.T.asloc, @as(c_int, sysv_id0 + @as(i32, @intCast(b.*.s1.*.id))))
+                    try fp.print("\tjmp {s}bb{d}\n", .{cs(&all.T.asloc), sysv_id0 + @as(i32, @intCast(b.*.s1.*.id))})
                 else
                     lbl = false;
             },
@@ -847,16 +848,16 @@ pub fn amd64_sysv_emitfn(f: [*c]Fn, fp: *FILE) void {
                         b.*.s2 = s;
                         n = 0;
                     } else n = 1;
-                    _ = C.fprintf(fp, "\tj%s %sbb%d\n", ctoa[@intCast(c)][n], &all.T.asloc, @as(c_int, sysv_id0 + @as(i32, @intCast(b.*.s2.*.id))));
+                    try fp.print("\tj{s} {s}bb{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), sysv_id0 + @as(i32, @intCast(b.*.s2.*.id))});
                     continue :sw Jjmp;
                 }
-                die("unhandled jump %d", .{@as(c_int, @intCast(b.*.jmp.type))});
+                die("unhandled jump {d}", .{b.*.jmp.type});
             },
         }
     }
     sysv_id0 += @intCast(f.*.nblk);
     if (all.T.apple == 0)
-        elf_emitfnfin(f.*.name, fp);
+        try elf_emitfnfin(f.*.name, fp);
 }
 
 fn winabi_framesz(e: *E) void {
@@ -880,32 +881,32 @@ fn winabi_framesz(e: *E) void {
 
 var winabi_id0: i32 = 0;
 
-pub fn amd64_winabi_emitfn(f: [*c]Fn, fp: *FILE) void {
+pub fn amd64_winabi_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
     var itmp: Ins = undefined;
     var e_ = E{ .f = fp, .@"fn" = f, .fp = 0, .fsz = 0, .nclob = 0 };
     const e = &e_;
     const rclob: [*c]i32 = &tgt.winabi.amd64_winabi_rclob;
 
-    emitfnlnk(f.*.name, &f.*.lnk, fp);
-    _ = C.fputs("\tendbr64\n", fp);
+    try emitfnlnk(f.*.name, &f.*.lnk, fp);
+    try fp.writeAll("\tendbr64\n");
     if (f.*.vararg != 0) {
-        _ = C.fprintf(fp, "\tmovq %%rcx, 0x8(%%rsp)\n");
-        _ = C.fprintf(fp, "\tmovq %%rdx, 0x10(%%rsp)\n");
-        _ = C.fprintf(fp, "\tmovq %%r8, 0x18(%%rsp)\n");
-        _ = C.fprintf(fp, "\tmovq %%r9, 0x20(%%rsp)\n");
+        try fp.print("\tmovq %rcx, 0x8(%rsp)\n", .{});
+        try fp.print("\tmovq %rdx, 0x10(%rsp)\n", .{});
+        try fp.print("\tmovq %r8, 0x18(%rsp)\n", .{});
+        try fp.print("\tmovq %r9, 0x20(%rsp)\n", .{});
     }
     if (f.*.leaf == 0 or f.*.vararg != 0 or f.*.dynalloc != 0) {
         e.fp = RBP;
-        _ = C.fputs("\tpushq %rbp\n\tmovq %rsp, %rbp\n", fp);
+        try fp.writeAll("\tpushq %rbp\n\tmovq %rsp, %rbp\n");
     } else e.fp = RSP;
     winabi_framesz(e);
     if (e.fsz != 0)
-        _ = C.fprintf(fp, "\tsubq $%lu, %%rsp\n", @as(c_ulong, e.fsz));
+        try fp.print("\tsubq ${d}, %rsp\n", .{e.fsz});
     var r = rclob;
     while (r < rclob + NCLR_WIN) : (r += 1) {
         if ((f.*.reg & BIT(r.*)) != 0) {
             itmp.arg[0] = TMP(r.*);
-            emitf("pushq %L0", &itmp, e);
+            try emitf("pushq %L0", &itmp, e);
             e.nclob += 1;
         }
     }
@@ -914,35 +915,34 @@ pub fn amd64_winabi_emitfn(f: [*c]Fn, fp: *FILE) void {
     var b = f.*.start;
     while (b != null) : (b = b.*.link) {
         if (lbl or b.*.npred > 1)
-            _ = C.fprintf(fp, "%sbb%d:\n", &all.T.asloc, @as(c_int, winabi_id0 + @as(i32, @intCast(b.*.id))));
+            try fp.print("{s}bb{d}:\n", .{cs(&all.T.asloc), winabi_id0 + @as(i32, @intCast(b.*.id))});
         var i = b.*.ins;
         while (i != b.*.ins + b.*.nins) : (i += 1)
-            emitins(i.*, e);
+            try emitins(i.*, e);
         lbl = true;
         sw: switch (b.*.jmp.type) {
-            Jhlt => _ = C.fprintf(fp, "\tud2\n"),
+            Jhlt => try fp.print("\tud2\n", .{}),
             Jret0 => {
                 if (f.*.dynalloc != 0)
-                    _ = C.fprintf(fp, "\tmovq %%rbp, %%rsp\n" ++
-                        "\tsubq $%lu, %%rsp\n", @as(c_ulong, e.fsz + @as(u64, @intCast(e.nclob)) * 8));
+                    try fp.print("\tmovq %rbp, %rsp\n" ++ "\tsubq ${d}, %rsp\n", .{e.fsz + @as(u64, @intCast(e.nclob)) * 8});
                 r = rclob + NCLR_WIN;
                 while (r > rclob) {
                     r -= 1;
                     if ((f.*.reg & BIT(r.*)) != 0) {
                         itmp.arg[0] = TMP(r.*);
-                        emitf("popq %L0", &itmp, e);
+                        try emitf("popq %L0", &itmp, e);
                     }
                 }
                 if (e.fp == RBP)
-                    _ = C.fputs("\tleave\n", fp)
+                    try fp.writeAll("\tleave\n")
                 else if (e.fsz != 0)
-                    _ = C.fprintf(fp, "\taddq $%lu, %%rsp\n", @as(c_ulong, e.fsz));
-                _ = C.fputs("\tret\n", fp);
+                    try fp.print("\taddq ${d}, %rsp\n", .{e.fsz});
+                try fp.writeAll("\tret\n");
             },
             Jjmp => {
                 // Jmp:
                 if (b.*.s1 != b.*.link)
-                    _ = C.fprintf(fp, "\tjmp %sbb%d\n", &all.T.asloc, @as(c_int, winabi_id0 + @as(i32, @intCast(b.*.s1.*.id))))
+                    try fp.print("\tjmp {s}bb{d}\n", .{cs(&all.T.asloc), winabi_id0 + @as(i32, @intCast(b.*.s1.*.id))})
                 else
                     lbl = false;
             },
@@ -956,10 +956,10 @@ pub fn amd64_winabi_emitfn(f: [*c]Fn, fp: *FILE) void {
                         b.*.s2 = s;
                         n = 0;
                     } else n = 1;
-                    _ = C.fprintf(fp, "\tj%s %sbb%d\n", ctoa[@intCast(c)][n], &all.T.asloc, @as(c_int, winabi_id0 + @as(i32, @intCast(b.*.s2.*.id))));
+                    try fp.print("\tj{s} {s}bb{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), winabi_id0 + @as(i32, @intCast(b.*.s2.*.id))});
                     continue :sw Jjmp;
                 }
-                die("unhandled jump %d", .{@as(c_int, @intCast(b.*.jmp.type))});
+                die("unhandled jump {d}", .{b.*.jmp.type});
             },
         }
     }

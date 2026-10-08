@@ -81,6 +81,7 @@ const XMM9 = tgt.XMM9;
 const alloc = all.alloc;
 const bits = all.bits;
 const die = all.die;
+const dprint = all.dprint;
 const emit = all.emit;
 const emiti = all.emiti;
 const err = all.err;
@@ -824,7 +825,7 @@ pub fn amd64_winabi_abi(func: [*c]Fn) void {
     lower_args_for_block(func, func.*.start, &param_reg_usage, &extra_alloc);
 
     if (all.debug['A'] != 0) {
-        _ = C.fprintf(C.stderr, "\n> After ABI lowering:\n");
-        printfn(func, C.stderr);
+        dprint("\n> After ABI lowering:\n", .{});
+        printfn(func, all.dbg) catch {};
     }
 }

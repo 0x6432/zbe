@@ -11,7 +11,6 @@ const Ins = all.Ins;
 const KBASE = all.KBASE;
 const Kl = all.Kl;
 const Kw = all.Kw;
-const NIns = all.NIns;
 const Oadd = all.ops.Oadd;
 const Oand = all.ops.Oand;
 const Oblit0 = all.ops.Oblit0;

@@ -21,7 +21,7 @@ for f in sys.argv[1:]:
     body_nc = re.sub(r"'(\\.|[^'\\\n])'", "' '", body_nc)
     body_nc = re.sub(r'"(\\.|[^"\\\n])*"', '""', body_nc)
     used = set(ident.findall(body_nc))
-    local = set(re.findall(r'^(?:pub )?(?:export )?(?:inline )?(?:const|var|fn) ([A-Za-z_]\w*)', body, re.M))
+    local = set(re.findall(r'^\s*(?:pub )?(?:export )?(?:inline )?(?:const|var|fn) ([A-Za-z_]\w*)', body, re.M))
     lines = []
     fdir = os.path.dirname(os.path.abspath(f))
     tpath = os.path.join(fdir, 'all.zig')

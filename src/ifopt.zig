@@ -20,6 +20,8 @@ const PHeap = all.PHeap;
 const R = all.R;
 const addbins = all.addbins;
 const addins = all.addins;
+const cs = all.cs;
+const dprint = all.dprint;
 const idup = all.idup;
 const ifgraph = all.ifgraph;
 const phiarg = all.phiarg;
@@ -112,20 +114,20 @@ pub fn ifconvert(f: [*c]Fn) void {
     var joinb: [*c]Blk = undefined;
 
     if (all.debug['K'] != 0)
-        _ = C.fputs("\n> If-conversion:\n", C.stderr);
+        dprint("\n> If-conversion:\n", .{});
 
     var ifb = f.*.start;
     while (ifb != null) : (ifb = ifb.*.link) {
         if (ifgraph(ifb, &thenb, &elseb, &joinb))
             if (okgraph(ifb, thenb, elseb, joinb)) {
                 if (all.debug['K'] != 0)
-                    _ = C.fprintf(C.stderr, "    @%s -> @%s, @%s -> @%s\n", ifb.*.name, thenb.*.name, elseb.*.name, joinb.*.name);
+                    dprint("    @{s} -> @{s}, @{s} -> @{s}\n", .{cs(ifb.*.name), cs(thenb.*.name), cs(elseb.*.name), cs(joinb.*.name)});
                 convert(ifb, thenb, elseb, joinb);
             };
     }
 
     if (all.debug['K'] != 0) {
-        _ = C.fprintf(C.stderr, "\n> After if-conversion:\n");
-        printfn(f, C.stderr);
+        dprint("\n> After if-conversion:\n", .{});
+        printfn(f, all.dbg) catch {};
     }
 }

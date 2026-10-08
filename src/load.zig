@@ -63,6 +63,7 @@ const alloc = all.alloc;
 const bits = all.bits;
 const die = all.die;
 const dom = all.dom;
+const dprint = all.dprint;
 const escapes = all.escapes;
 const getcon = all.getcon;
 const idup = all.idup;
@@ -547,7 +548,7 @@ pub fn loadopt(f: [*c]Fn) void {
     vfree(@ptrCast(ib));
     vfree(@ptrCast(ilog));
     if (all.debug['M'] != 0) {
-        _ = C.fprintf(C.stderr, "\n> After load elimination:\n");
-        printfn(f, C.stderr);
+        dprint("\n> After load elimination:\n", .{});
+        printfn(f, all.dbg) catch {};
     }
 }

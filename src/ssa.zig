@@ -39,8 +39,10 @@ const bsinit = all.bsinit;
 const bsset = all.bsset;
 const bszero = all.bszero;
 const clsmerge = all.clsmerge;
+const cs = all.cs;
 const die = all.die;
 const dom = all.dom;
+const dprint = all.dprint;
 const emalloc = all.emalloc;
 const err = all.err;
 const filldom = all.filldom;
@@ -367,16 +369,16 @@ pub fn ssa(f: [*c]Fn) void {
     all.debug['L'] = 0;
     filldom(f);
     if (all.debug['N'] != 0) {
-        _ = C.fprintf(C.stderr, "\n> Dominators:\n");
+        dprint("\n> Dominators:\n", .{});
         var b1 = f.*.start;
         while (b1 != null) : (b1 = b1.*.link) {
             if (b1.*.dom == null)
                 continue;
-            _ = C.fprintf(C.stderr, "%10s:", b1.*.name);
+            dprint("{s:>10}:", .{cs(b1.*.name)});
             var b = b1.*.dom;
             while (b != null) : (b = b.*.dlink)
-                _ = C.fprintf(C.stderr, " %s", b.*.name);
-            _ = C.fprintf(C.stderr, "\n");
+                dprint(" {s}", .{cs(b.*.name)});
+            dprint("\n", .{});
         }
     }
     fillfron(f);
@@ -395,8 +397,8 @@ pub fn ssa(f: [*c]Fn) void {
     all.debug['L'] = d;
     C.free(@ptrCast(stk));
     if (all.debug['N'] != 0) {
-        _ = C.fprintf(C.stderr, "\n> After SSA construction:\n");
-        printfn(f, C.stderr);
+        dprint("\n> After SSA construction:\n", .{});
+        printfn(f, all.dbg) catch {};
     }
 }
 
@@ -421,7 +423,7 @@ pub fn ssacheck(f: [*c]Fn) void {
         t = &f.*.tmp[Tmp0];
         while (ptrdiff(t, f.*.tmp) < f.*.ntmp) : (t += 1) {
             if (t.*.ndef > 1)
-                err("ssa temporary %%%s defined more than once", .{t.*.name});
+                err("ssa temporary %{s} defined more than once", .{cs(t.*.name)});
             if (t.*.nuse > 0 and t.*.ndef == 0) {
                 bu = f.*.rpo[t.*.use[0].bid];
                 break :errblk;
@@ -470,7 +472,7 @@ pub fn ssacheck(f: [*c]Fn) void {
     }
     // Err:
     if (t.*.visit != 0)
-        die("%%%s violates ssa invariant", .{t.*.name})
+        die("%{s} violates ssa invariant", .{cs(t.*.name)})
     else
-        err("ssa temporary %%%s is used undefined in @%s", .{ t.*.name, bu.*.name });
+        err("ssa temporary %{s} is used undefined in @{s}", .{cs(t.*.name), cs(bu.*.name)});
 }

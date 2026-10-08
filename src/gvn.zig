@@ -39,6 +39,7 @@ const argcls = all.argcls;
 const copyref = all.copyref;
 const die = all.die;
 const dom = all.dom;
+const dprint = all.dprint;
 const emalloc = all.emalloc;
 const fillcfg = all.fillcfg;
 const fillloop = all.fillloop;
@@ -474,7 +475,7 @@ pub fn gvn(f: [*c]Fn) void {
     gvntbl = null;
 
     if (all.debug['G'] != 0) {
-        _ = C.fprintf(C.stderr, "\n> After GVN:\n");
-        printfn(f, C.stderr);
+        dprint("\n> After GVN:\n", .{});
+        printfn(f, all.dbg) catch {};
     }
 }

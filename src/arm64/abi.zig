@@ -99,6 +99,7 @@ const V7 = tgt.V7;
 const alloc = all.alloc;
 const bits = all.bits;
 const die = all.die;
+const dprint = all.dprint;
 const emit = all.emit;
 const emiti = all.emiti;
 const err = all.err;
@@ -895,8 +896,8 @@ pub fn arm64_abi(f: [*c]Fn) void {
     }
 
     if (all.debug['A'] != 0) {
-        _ = C.fprintf(C.stderr, "\n> After ABI lowering:\n");
-        printfn(f, C.stderr);
+        dprint("\n> After ABI lowering:\n", .{});
+        printfn(f, all.dbg) catch {};
     }
 }
 
@@ -949,7 +950,7 @@ pub fn apple_extsb(f: [*c]Fn) void {
     }
 
     if (all.debug['A'] != 0) {
-        _ = C.fprintf(C.stderr, "\n> After Apple pre-ABI:\n");
-        printfn(f, C.stderr);
+        dprint("\n> After Apple pre-ABI:\n", .{});
+        printfn(f, all.dbg) catch {};
     }
 }

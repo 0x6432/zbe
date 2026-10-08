@@ -43,6 +43,9 @@ const UIns = all.UIns;
 const UJmp = all.UJmp;
 const UNDEF = all.UNDEF;
 const bits = all.bits;
+const cint = all.cint;
+const cs = all.cs;
+const dprint = all.dprint;
 const emalloc = all.emalloc;
 const err = all.err;
 const getalias = all.getalias;
@@ -121,7 +124,7 @@ pub fn promote(f: [*c]Fn) void {
                 t.*.ndef += 1;
             } else {
                 if (k == -1)
-                    err("slot %%%s is read but never stored to", .{f.*.tmp[l.*.arg[0].val].name});
+                    err("slot %{s} is read but never stored to", .{cs(f.*.tmp[l.*.arg[0].val].name)});
                 // try to turn loads into copies so we
                 // can eliminate them later
                 sw: switch (l.*.op) {
@@ -144,8 +147,8 @@ pub fn promote(f: [*c]Fn) void {
         }
     }
     if (all.debug['M'] != 0) {
-        _ = C.fprintf(C.stderr, "\n> After slot promotion:\n");
-        printfn(f, C.stderr);
+        dprint("\n> After slot promotion:\n", .{});
+        printfn(f, all.dbg) catch {};
     }
 }
 
@@ -397,13 +400,13 @@ pub fn coalesce(f: [*c]Fn) void {
     }
     nsl = @intCast(ptrdiff(s0, sl));
     if (all.debug['M'] != 0) {
-        _ = C.fputs("\n> Slot coalescing:\n", C.stderr);
+        dprint("\n> Slot coalescing:\n", .{});
         if (n != 0) {
-            _ = C.fputs("\tkill [", C.stderr);
+            dprint("\tkill [", .{});
             m = 0;
             while (m < n) : (m += 1)
-                _ = C.fprintf(C.stderr, " %%%s", f.*.tmp[@intCast(stk[@intCast(m)])].name);
-            _ = C.fputs(" ]\n", C.stderr);
+                dprint(" %{s}", .{cs(f.*.tmp[@intCast(stk[@intCast(m)])].name)});
+            dprint(" ]\n", .{});
         }
     }
     while (n != 0) {
@@ -539,21 +542,21 @@ pub fn coalesce(f: [*c]Fn) void {
         while (s0 < &sl[@intCast(nsl)]) : (s0 += 1) {
             if (s0.*.s != s0)
                 continue;
-            _ = C.fprintf(C.stderr, "\tfuse (% 3db) [", @as(c_int, s0.*.sz));
+            dprint("\tfuse ({f}b) [", .{cint(s0.*.sz, 3)});
             s = s0;
             while (s < &sl[@intCast(nsl)]) : (s += 1) {
                 if (s.*.s != s0)
                     continue;
-                _ = C.fprintf(C.stderr, " %%%s", f.*.tmp[@intCast(s.*.t)].name);
+                dprint(" %{s}", .{cs(f.*.tmp[@intCast(s.*.t)].name)});
                 if (s.*.r.b != 0)
-                    _ = C.fprintf(C.stderr, "[%d,%d)", @as(c_int, s.*.r.a - ip), @as(c_int, s.*.r.b - ip))
+                    dprint("[{d},{d})", .{s.*.r.a - ip, s.*.r.b - ip})
                 else
-                    _ = C.fputs("{}", C.stderr);
+                    dprint("{s}", .{"{}"});
             }
-            _ = C.fputs(" ]\n", C.stderr);
+            dprint(" ]\n", .{});
         }
-        _ = C.fprintf(C.stderr, "\tsums %u/%u/%u (killed/fused/total)\n\n", freed, fused, total);
-        printfn(f, C.stderr);
+        dprint("\tsums {d}/{d}/{d} (killed/fused/total)\n\n", .{freed, fused, total});
+        printfn(f, all.dbg) catch {};
     }
 
     s = sl;

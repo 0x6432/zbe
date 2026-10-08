@@ -30,7 +30,6 @@ const Ciugt = all.Ciugt;
 const Ciule = all.Ciule;
 const Ciult = all.Ciult;
 const Con = all.Con;
-const FILE = all.FILE;
 const Fn = all.Fn;
 const INRANGE = all.INRANGE;
 const Ins = all.Ins;
@@ -122,18 +121,133 @@ pub fn hash(s0: [*c]const u8) u32 {
     return h;
 }
 
-pub fn die_(file: [*c]const u8, s: [*c]const u8, ...) callconv(.c) noreturn {
-    _ = c.fprintf(c.stderr, "%s: dying: ", file);
-    var ap = @cVaStart();
-    _ = c.vfprintf(c.stderr, s, c.vaarg(&ap));
-    @cVaEnd(&ap);
-    _ = c.fputc('\n', c.stderr);
-    c.abort();
+pub const Writer = std.Io.Writer;
+
+/// view a C-style NUL-terminated string as a slice
+pub fn cs(s: anytype) []const u8 {
+    const T = @TypeOf(s);
+    switch (@typeInfo(T)) {
+        .pointer => |p| switch (p.size) {
+            .c => {
+                if (s == null) return "(null)";
+                return std.mem.span(@as([*:0]const u8, @ptrCast(s)));
+            },
+            .many => return std.mem.span(@as([*:0]const u8, @ptrCast(s))),
+            .slice => return std.mem.sliceTo(s, 0),
+            .one => switch (@typeInfo(p.child)) {
+                .array => return std.mem.sliceTo(@as([]const u8, s), 0),
+                else => @compileError("cs: unsupported type " ++ @typeName(T)),
+            },
+        },
+        .optional => {
+            if (s) |v| return cs(v);
+            return "(null)";
+        },
+        else => @compileError("cs: unsupported type " ++ @typeName(T)),
+    }
 }
 
-/// die(...) macro: die_(__FILE__, ...)
-pub fn die(s: [*c]const u8, args: anytype) noreturn {
-    @call(.auto, die_, .{ @as([*c]const u8, "qbe"), s } ++ args);
+/// formats like C's printf("%f"): exact decimal value rounded
+/// (half to even) to 6 fractional digits
+pub const CFloat = struct {
+    x: f64,
+
+    pub fn format(self: CFloat, w: *Writer) Writer.Error!void {
+        const x = self.x;
+        const u: u64 = @bitCast(x);
+        if (u >> 63 != 0) try w.writeByte('-');
+        if (std.math.isNan(x)) return w.writeAll("nan");
+        if (std.math.isInf(x)) return w.writeAll("inf");
+        const bexp: i32 = @intCast((u >> 52) & 0x7ff);
+        var m: u64 = u & ((1 << 52) - 1);
+        var e: i32 = undefined;
+        if (bexp == 0) {
+            e = -1074;
+        } else {
+            m |= 1 << 52;
+            e = bexp - 1075;
+        }
+        // value = m * 2^e; compute n = round(m * 10^6 * 2^e)
+        var limbs: [64]std.math.big.Limb = undefined;
+        var tmp: [64]std.math.big.Limb = undefined;
+        var n = std.math.big.int.Mutable.init(&limbs, @as(u128, m) * 1000000);
+        if (e >= 0) {
+            n.shiftLeft(n.toConst(), @intCast(e));
+        } else {
+            const sh: usize = @intCast(-e);
+            var q = std.math.big.int.Mutable.init(&tmp, 0);
+            q.shiftRight(n.toConst(), sh);
+            // remainder bits: n - (q << sh), compare with half
+            var rbuf: [64]std.math.big.Limb = undefined;
+            var r = std.math.big.int.Mutable.init(&rbuf, 0);
+            r.shiftLeft(q.toConst(), sh);
+            var dbuf: [64]std.math.big.Limb = undefined;
+            var d = std.math.big.int.Mutable.init(&dbuf, 0);
+            d.sub(n.toConst(), r.toConst());
+            var hbuf: [64]std.math.big.Limb = undefined;
+            var h = std.math.big.int.Mutable.init(&hbuf, 1);
+            h.shiftLeft(h.toConst(), sh - 1);
+            const ord = d.toConst().order(h.toConst());
+            const odd = q.toConst().limbs.len > 0 and (q.toConst().limbs[0] & 1) != 0;
+            if (ord == .gt or (ord == .eq and odd)) {
+                var one = [_]std.math.big.Limb{1};
+                q.add(q.toConst(), .{ .limbs = &one, .positive = true });
+            }
+            n.copy(q.toConst());
+        }
+        var sbuf: [400]u8 = undefined;
+        var lbuf: [64]std.math.big.Limb = undefined;
+        const len = n.toConst().toString(&sbuf, 10, .lower, &lbuf);
+        const s = sbuf[0..len];
+        if (len <= 6) {
+            try w.writeAll("0.");
+            try w.splatByteAll('0', 6 - len);
+            try w.writeAll(s);
+        } else {
+            try w.writeAll(s[0 .. len - 6]);
+            try w.writeByte('.');
+            try w.writeAll(s[len - 6 ..]);
+        }
+    }
+};
+
+/// formats like C's printf("% Nd"): a blank before non-negative
+/// numbers, right-aligned to the width
+pub const CInt = struct {
+    v: i64,
+    width: usize,
+
+    pub fn format(self: CInt, w: *Writer) Writer.Error!void {
+        var buf: [24]u8 = undefined;
+        const s = if (self.v < 0)
+            std.fmt.bufPrint(&buf, "{d}", .{self.v}) catch unreachable
+        else
+            std.fmt.bufPrint(&buf, " {d}", .{self.v}) catch unreachable;
+        if (s.len < self.width) try w.splatByteAll(' ', self.width - s.len);
+        try w.writeAll(s);
+    }
+};
+
+pub fn cint(x: anytype, width: usize) CInt {
+    return .{ .v = @intCast(x), .width = width };
+}
+
+pub fn cfloat(x: anytype) CFloat {
+    return .{ .x = x };
+}
+
+pub fn dprint(comptime fmt: []const u8, args: anytype) void {
+    all.dbg.print(fmt, args) catch {};
+}
+
+pub fn bufPrintZ(buf: []u8, comptime fmt: []const u8, args: anytype) void {
+    _ = std.fmt.bufPrintSentinel(buf, fmt, args, 0) catch unreachable;
+}
+
+pub fn die(comptime fmt: []const u8, args: anytype) noreturn {
+    dprint("qbe: dying: " ++ fmt ++ "\n", args);
+    all.dbg.flush() catch {};
+    std.process.abort();
 }
 
 pub fn emalloc(n: usize) ?*anyopaque {
@@ -544,7 +658,7 @@ pub fn salloc(rt: Ref, rs: Ref, f: [*c]Fn) void {
     if (rtype(rs) == RCon) {
         var sz = f.*.con[rs.val].bits.i;
         if (sz < 0 or sz >= std.math.maxInt(c_int) - 15)
-            err("invalid alloc size %ld", .{@as(c_long, sz)});
+            err("invalid alloc size {d}", .{sz});
         sz = (sz + 15) & -16;
         emit(Osalloc, Kl, rt, getcon(sz, f), R);
     } else {
@@ -555,7 +669,7 @@ pub fn salloc(rt: Ref, rs: Ref, f: [*c]Fn) void {
         emit(Oand, Kl, r0, r1, getcon(-16, f));
         emit(Oadd, Kl, r1, rs, getcon(15, f));
         if (f.*.tmp[rs.val].slot != -1)
-            err("unlikely alloc argument %%%s for %%%s", .{ f.*.tmp[rs.val].name, f.*.tmp[rt.val].name });
+            err("unlikely alloc argument %{s} for %{s}", .{cs(f.*.tmp[rs.val].name), cs(f.*.tmp[rt.val].name)});
     }
 }
 
@@ -682,12 +796,12 @@ pub fn bsiter(bs: [*c]BSet, elt: *i32) bool {
     return true;
 }
 
-pub fn dumpts(bs: [*c]BSet, tmp: [*c]Tmp, f: *FILE) void {
-    _ = c.fprintf(f, "[");
+pub fn dumpts(bs: [*c]BSet, tmp: [*c]Tmp, f: *Writer) Writer.Error!void {
+    try f.writeAll("[");
     var t: i32 = Tmp0;
     while (bsiter(bs, &t)) : (t += 1)
-        _ = c.fprintf(f, " %s", tmp[@intCast(t)].name);
-    _ = c.fprintf(f, " ]\n");
+        try f.print(" {s}", .{cs(tmp[@intCast(t)].name)});
+    try f.writeAll(" ]\n");
 }
 
 pub fn runmatch(code: [*c]const uchar, tn: [*c]Num, ref_: Ref, @"var": [*c]Ref) void {

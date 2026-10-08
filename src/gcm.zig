@@ -9,7 +9,6 @@ const Fn = all.Fn;
 const INS0 = all.INS0;
 const Ins = all.Ins;
 const KBASE = all.KBASE;
-const NIns = all.NIns;
 const Oadd = all.ops.Oadd;
 const Oand = all.ops.Oand;
 const Odiv = all.ops.Odiv;
@@ -38,6 +37,7 @@ const UXXX = all.UXXX;
 const addins = all.addins;
 const die = all.die;
 const dom = all.dom;
+const dprint = all.dprint;
 const emiti = all.emiti;
 const filldepth = all.filldepth;
 const fillloop = all.fillloop;
@@ -413,7 +413,7 @@ pub fn gcm(f: [*c]Fn) void {
     schedblk(f);
 
     if (all.debug['G'] != 0) {
-        _ = C.fprintf(C.stderr, "\n> After GCM:\n");
-        printfn(f, C.stderr);
+        dprint("\n> After GCM:\n", .{});
+        printfn(f, all.dbg) catch {};
     }
 }

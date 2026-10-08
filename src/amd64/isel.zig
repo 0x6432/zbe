@@ -110,9 +110,12 @@ const addcon = all.addcon;
 const amd64_op = tgt.amd64_op;
 const argcls = all.argcls;
 const bits = all.bits;
+const bufPrintZ = all.bufPrintZ;
 const chuse = all.chuse;
 const cmpop = all.cmpop;
+const cs = all.cs;
 const die = all.die;
+const dprint = all.dprint;
 const emalloc = all.emalloc;
 const emit = all.emit;
 const emiti = all.emiti;
@@ -218,7 +221,7 @@ fn fixarg(r: [*c]Ref, k: i32, i: [*c]Ins, f: [*c]Fn) void {
         // quote the name so that we do not
         // add symbol prefixes on the apple
         // target variant
-        _ = C.sprintf(&buf, "\"%sfp%d\"", &all.T.asloc, @as(c_int, n));
+        bufPrintZ(&buf, "\"{s}fp{d}\"", .{cs(&all.T.asloc), n});
         a.offset.sym.id = intern(&buf);
         f.*.mem[@intCast(f.*.nmem - 1)] = a;
     } else if (op == Ocall and r == &i.*.arg[0] and
@@ -395,7 +398,7 @@ fn sel(i_: Ins, tn: [*c]Num, f: [*c]Fn) void {
                 r0 = newtmp("isel", k, f);
             } else r0 = i.arg[1];
             if (f.*.tmp[r0.val].slot != -1)
-                err("unlikely argument %%%s in %s", .{ f.*.tmp[r0.val].name, all.optab[i.op].name });
+                err("unlikely argument %{s} in {s}", .{cs(f.*.tmp[r0.val].name), cs(all.optab[i.op].name)});
             if (i.op == Odiv or i.op == Orem) {
                 emit(Oxidiv, k, R, r0, R);
                 emit(Osign, k, TMP(RDX), TMP(RAX), R);
@@ -413,7 +416,7 @@ fn sel(i_: Ins, tn: [*c]Num, f: [*c]Fn) void {
             if (rtype(r0) == RCon)
                 continue :sw Ocopy; // goto Emit
             if (f.*.tmp[r0.val].slot != -1)
-                err("unlikely argument %%%s in %s", .{ f.*.tmp[r0.val].name, all.optab[i.op].name });
+                err("unlikely argument %{s} in {s}", .{cs(f.*.tmp[r0.val].name), cs(all.optab[i.op].name)});
             i.arg[1] = TMP(RCX);
             emit(Ocopy, Kw, R, TMP(RCX), R);
             emiti(i);
@@ -567,7 +570,7 @@ fn sel(i_: Ins, tn: [*c]Num, f: [*c]Fn) void {
                 selcmp(&i.arg, kc, swap, f);
                 break :sw;
             }
-            die("unknown instruction %s", .{all.optab[i.op].name});
+            die("unknown instruction {s}", .{cs(all.optab[i.op].name)});
         },
     }
 
@@ -966,7 +969,7 @@ pub fn amd64_isel(f: [*c]Fn) void {
                     break;
                 var sz = f.*.con[i.*.arg[0].val].bits.i;
                 if (sz < 0 or sz >= std.math.maxInt(i32) - 15)
-                    err("invalid alloc size %ld", .{@as(c_long, sz)});
+                    err("invalid alloc size {d}", .{sz});
                 sz = (sz + n - 1) & -@as(i64, n);
                 sz = @divTrunc(sz, 4);
                 if (sz > std.math.maxInt(i32) - f.*.slot)
@@ -1013,7 +1016,7 @@ pub fn amd64_isel(f: [*c]Fn) void {
     C.free(@ptrCast(num));
 
     if (all.debug['I'] != 0) {
-        _ = C.fprintf(C.stderr, "\n> After instruction selection:\n");
-        printfn(f, C.stderr);
+        dprint("\n> After instruction selection:\n", .{});
+        printfn(f, all.dbg) catch {};
     }
 }

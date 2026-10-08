@@ -12,7 +12,6 @@ const CAddr = all.CAddr;
 const CBits = all.CBits;
 const Con = all.Con;
 const FA0 = tgt.FA0;
-const FILE = all.FILE;
 const FP = tgt.FP;
 const FS0 = tgt.FS0;
 const FT0 = tgt.FT0;
@@ -112,6 +111,9 @@ const T0 = tgt.T0;
 const T6 = tgt.T6;
 const TMP = all.TMP;
 const TP = tgt.TP;
+const Writer = all.Writer;
+const bufPrintZ = all.bufPrintZ;
+const cs = all.cs;
 const die = all.die;
 const elf_emitfnfin = all.elf_emitfnfin;
 const emitdbgloc = all.emitdbgloc;
@@ -247,25 +249,25 @@ fn slot(r: Ref, f: [*c]Fn) i64 {
         return -4 * @as(i64, f.*.slot - s);
 }
 
-fn emitaddr(c: [*c]Con, f: *FILE) void {
+fn emitaddr(c: [*c]Con, f: *Writer) Writer.Error!void {
     assert((c.*.sym.type & ~@as(i32, SExt)) == SGlo);
-    _ = C.fputs(str(c.*.sym.id), f);
+    try f.writeAll(cs(str(c.*.sym.id)));
     if (c.*.bits.i != 0) {
         // TODO: fix isel to ensure no offset for SGlo
         if ((c.*.sym.type & SExt) != 0)
             die("extern with offset is not supported", .{});
-        _ = C.fprintf(f, "+%ld", @as(c_long, c.*.bits.i));
+        try f.print("+{d}", .{c.*.bits.i});
     }
 }
 
 const clschr = [_]u8{ 'w', 'l', 's', 'd' };
 
-fn emitf(s_: [*c]const u8, i: [*c]Ins, fn_: [*c]Fn, f: *FILE) void {
+fn emitf(s_: [*c]const u8, i: [*c]Ins, fn_: [*c]Fn, f: *Writer) Writer.Error!void {
     var s = s_;
     var r: Ref = undefined;
     var c: u8 = undefined;
 
-    _ = C.fputc('\t', f);
+    try f.writeByte('\t');
     while (true) {
         const k: i32 = @intCast(i.*.cls);
         while (true) {
@@ -273,9 +275,9 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, fn_: [*c]Fn, f: *FILE) void {
             s += 1;
             if (c == '%') break;
             if (c == 0) {
-                _ = C.fputc('\n', f);
+                try f.writeByte('\n');
                 return;
-            } else _ = C.fputc(c, f);
+            } else try f.writeByte(c);
         }
         c = s.*;
         s += 1;
@@ -283,18 +285,18 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, fn_: [*c]Fn, f: *FILE) void {
             else => die("invalid escape", .{}),
             '?' => {
                 if (KBASE(k) == 0)
-                    _ = C.fputs("t6", f)
+                    try f.writeAll("t6")
                 else
-                    _ = C.fputs("ft11", f);
+                    try f.writeAll("ft11");
             },
             'k' => {
                 if (i.*.cls != Kl)
-                    _ = C.fputc(clschr[i.*.cls], f);
+                    try f.writeByte(clschr[i.*.cls]);
             },
             '=', '0' => {
                 r = if (c == '=') i.*.to else i.*.arg[0];
                 assert(isreg(r));
-                _ = C.fputs(rname[r.val], f);
+                try f.writeAll(cs(rname[r.val]));
             },
             '1' => {
                 r = i.*.arg[1];
@@ -302,13 +304,13 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, fn_: [*c]Fn, f: *FILE) void {
                     else => die("invalid second argument", .{}),
                     RTmp => {
                         assert(isreg(r));
-                        _ = C.fputs(rname[r.val], f);
+                        try f.writeAll(cs(rname[r.val]));
                     },
                     RCon => {
                         const pc = &fn_.*.con[r.val];
                         assert(pc.*.type == CBits);
                         assert(pc.*.bits.i >= -2048 and pc.*.bits.i < 2048);
-                        _ = C.fprintf(f, "%d", @as(c_int, @truncate(pc.*.bits.i)));
+                        try f.print("{d}", .{pc.*.bits.i});
                     },
                 }
             },
@@ -319,11 +321,11 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, fn_: [*c]Fn, f: *FILE) void {
                 r = i.*.arg[c - '0'];
                 switch (rtype(r)) {
                     else => die("invalid address argument", .{}),
-                    RTmp => _ = C.fprintf(f, "0(%s)", rname[r.val]),
+                    RTmp => try f.print("0({s})", .{cs(rname[r.val])}),
                     RCon => {
                         const pc = &fn_.*.con[r.val];
                         assert(pc.*.type == CAddr);
-                        emitaddr(pc, f);
+                        try emitaddr(pc, f);
                         if (isstore(i.*.op) or
                             (isload(i.*.op) and KBASE(i.*.cls) == 1))
                         {
@@ -331,13 +333,13 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, fn_: [*c]Fn, f: *FILE) void {
                             // pseudo-instructions need a
                             // temporary register in which to
                             // load the address
-                            _ = C.fprintf(f, ", t6");
+                            try f.print(", t6", .{});
                         }
                     },
                     RSlot => {
                         const offset = slot(r, fn_);
                         assert(offset >= -2048 and offset <= 2047);
-                        _ = C.fprintf(f, "%d(fp)", @as(c_int, @intCast(offset)));
+                        try f.print("{d}(fp)", .{offset});
                     },
                 }
             },
@@ -345,57 +347,57 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, fn_: [*c]Fn, f: *FILE) void {
     }
 }
 
-fn loadaddr(c: [*c]Con, rn: [*c]const u8, f: *FILE) void {
+fn loadaddr(c: [*c]Con, rn: [*c]const u8, f: *Writer) Writer.Error!void {
     var off: [32]u8 = undefined;
 
     switch (c.*.sym.type) {
         SGlo, SExt => {
-            _ = C.fprintf(f, "\t%s %s, ", @as([*c]const u8, if (c.*.sym.type == SExt) "lga" else "lla"), rn);
-            emitaddr(c, f);
-            _ = C.fputc('\n', f);
+            try f.print("\t{s} {s}, ", .{cs(@as([*c]const u8, if (c.*.sym.type == SExt) "lga" else "lla")), cs(rn)});
+            try emitaddr(c, f);
+            try f.writeByte('\n');
         },
         SThr => {
             if (c.*.bits.i != 0)
-                _ = C.sprintf(&off, "+%ld", @as(c_long, c.*.bits.i))
+                bufPrintZ(&off, "+{d}", .{c.*.bits.i})
             else
                 off[0] = 0;
-            _ = C.fprintf(f, "\tlui %s, %%tprel_hi(%s)%s\n", rn, str(c.*.sym.id), &off);
-            _ = C.fprintf(f, "\tadd %s, %s, tp, %%tprel_add(%s)%s\n", rn, rn, str(c.*.sym.id), &off);
-            _ = C.fprintf(f, "\taddi %s, %s, %%tprel_lo(%s)%s\n", rn, rn, str(c.*.sym.id), &off);
+            try f.print("\tlui {s}, %tprel_hi({s}){s}\n", .{cs(rn), cs(str(c.*.sym.id)), cs(&off)});
+            try f.print("\tadd {s}, {s}, tp, %tprel_add({s}){s}\n", .{cs(rn), cs(rn), cs(str(c.*.sym.id)), cs(&off)});
+            try f.print("\taddi {s}, {s}, %tprel_lo({s}){s}\n", .{cs(rn), cs(rn), cs(str(c.*.sym.id)), cs(&off)});
         },
         SExtThr => die("extern thread unavailable on rv64", .{}),
         else => {},
     }
 }
 
-fn loadcon(c: [*c]Con, r: i32, k: i32, f: *FILE) void {
+fn loadcon(c: [*c]Con, r: i32, k: i32, f: *Writer) Writer.Error!void {
     const rn = rname[@intCast(r)];
     switch (c.*.type) {
-        CAddr => loadaddr(c, rn, f),
+        CAddr => try loadaddr(c, rn, f),
         CBits => {
             var n = c.*.bits.i;
             if (KWIDE(k) == 0)
                 n = @as(i32, @truncate(n));
-            _ = C.fprintf(f, "\tli %s, %ld\n", rn, @as(c_long, n));
+            try f.print("\tli {s}, {d}\n", .{cs(rn), n});
         },
         else => die("invalid constant", .{}),
     }
 }
 
-fn fixmem(pr: [*c]Ref, fn_: [*c]Fn, f: *FILE) void {
+fn fixmem(pr: [*c]Ref, fn_: [*c]Fn, f: *Writer) Writer.Error!void {
     const r = pr.*;
     if (rtype(r) == RCon) {
         const c = &fn_.*.con[r.val];
         if (c.*.type == CAddr and c.*.sym.type != SGlo) {
-            loadcon(c, T6, Kl, f);
+            try loadcon(c, T6, Kl, f);
             pr.* = TMP(T6);
         }
     }
     if (rtype(r) == RSlot) {
         const s = slot(r, fn_);
         if (s < -2048 or s > 2047) {
-            _ = C.fprintf(f, "\tli t6, %ld\n", @as(c_long, s));
-            _ = C.fprintf(f, "\tadd t6, fp, t6\n");
+            try f.print("\tli t6, {d}\n", .{s});
+            try f.print("\tadd t6, fp, t6\n", .{});
             pr.* = TMP(T6);
         }
     }
@@ -404,29 +406,29 @@ fn fixmem(pr: [*c]Ref, fn_: [*c]Fn, f: *FILE) void {
 /// Table: most instructions are just pulled out of
 /// the table omap[], some special cases are
 /// detailed in emitins
-fn table(i: [*c]Ins, fn_: [*c]Fn, f: *FILE) void {
+fn table(i: [*c]Ins, fn_: [*c]Fn, f: *Writer) Writer.Error!void {
     var o: usize = 0;
     while (true) : (o += 1) {
         // this linear search should really be a binary
         // search
         if (omap[o].op == NOp)
-            die("no match for %s(%c)", .{ all.optab[i.*.op].name, @as(c_int, "wlsd"[i.*.cls]) });
+            die("no match for {s}({c})", .{cs(all.optab[i.*.op].name), "wlsd"[i.*.cls]});
         if (omap[o].op == i.*.op and
             (omap[o].cls == i.*.cls or omap[o].cls == Ka or
             (omap[o].cls == Ki and KBASE(i.*.cls) == 0)))
             break;
     }
-    emitf(omap[o].fmt, i, fn_, f);
+    try emitf(omap[o].fmt, i, fn_, f);
 }
 
-fn emitins(i: [*c]Ins, fn_: [*c]Fn, f: *FILE) void {
+fn emitins(i: [*c]Ins, fn_: [*c]Fn, f: *Writer) Writer.Error!void {
     switch (i.*.op) {
         else => {
             if (isload(i.*.op))
-                fixmem(&i.*.arg[0], fn_, f)
+                try fixmem(&i.*.arg[0], fn_, f)
             else if (isstore(i.*.op))
-                fixmem(&i.*.arg[1], fn_, f);
-            table(i, fn_, f);
+                try fixmem(&i.*.arg[1], fn_, f);
+            try table(i, fn_, f);
         },
         Ocopy => {
             if (req(i.*.to, i.*.arg[0]))
@@ -445,23 +447,23 @@ fn emitins(i: [*c]Ins, fn_: [*c]Fn, f: *FILE) void {
                             Kd => i.*.op = Ostored,
                             else => {},
                         }
-                        fixmem(&i.*.arg[1], fn_, f);
-                        table(i, fn_, f);
+                        try fixmem(&i.*.arg[1], fn_, f);
+                        try table(i, fn_, f);
                     },
                 }
                 return;
             }
             assert(isreg(i.*.to));
             switch (rtype(i.*.arg[0])) {
-                RCon => loadcon(&fn_.*.con[i.*.arg[0].val], @intCast(i.*.to.val), @intCast(i.*.cls), f),
+                RCon => try loadcon(&fn_.*.con[i.*.arg[0].val], @intCast(i.*.to.val), @intCast(i.*.cls), f),
                 RSlot => {
                     i.*.op = Oload;
-                    fixmem(&i.*.arg[0], fn_, f);
-                    table(i, fn_, f);
+                    try fixmem(&i.*.arg[0], fn_, f);
+                    try table(i, fn_, f);
                 },
                 else => {
                     assert(isreg(i.*.arg[0]));
-                    table(i, fn_, f);
+                    try table(i, fn_, f);
                 },
             }
         },
@@ -471,10 +473,9 @@ fn emitins(i: [*c]Ins, fn_: [*c]Fn, f: *FILE) void {
             const rn = rname[i.*.to.val];
             const s = slot(i.*.arg[0], fn_);
             if (-s < 2048) {
-                _ = C.fprintf(f, "\tadd %s, fp, %ld\n", rn, @as(c_long, s));
+                try f.print("\tadd {s}, fp, {d}\n", .{cs(rn), s});
             } else {
-                _ = C.fprintf(f, "\tli %s, %ld\n" ++
-                    "\tadd %s, fp, %s\n", rn, @as(c_long, s), rn, rn);
+                try f.print("\tli {s}, {d}\n" ++ "\tadd {s}, fp, {s}\n", .{cs(rn), s, cs(rn), cs(rn)});
             }
         },
         Ocall => {
@@ -485,18 +486,18 @@ fn emitins(i: [*c]Ins, fn_: [*c]Fn, f: *FILE) void {
                         (con.*.sym.type & SThr) != 0 or
                         con.*.bits.i != 0)
                         die("invalid call argument", .{});
-                    _ = C.fprintf(f, "\tcall %s\n", str(con.*.sym.id));
+                    try f.print("\tcall {s}\n", .{cs(str(con.*.sym.id))});
                 },
-                RTmp => emitf("jalr %0", i, fn_, f),
+                RTmp => try emitf("jalr %0", i, fn_, f),
                 else => die("invalid call argument", .{}),
             }
         },
         Osalloc => {
-            emitf("sub sp, sp, %0", i, fn_, f);
+            try emitf("sub sp, sp, %0", i, fn_, f);
             if (!req(i.*.to, R))
-                emitf("mv %=, sp", i, fn_, f);
+                try emitf("mv %=, sp", i, fn_, f);
         },
-        Odbgloc => emitdbgloc(i.*.arg[0].val, i.*.arg[1].val, f),
+        Odbgloc => try emitdbgloc(i.*.arg[0].val, i.*.arg[1].val, f),
     }
 }
 
@@ -525,20 +526,20 @@ fn emitins(i: [*c]Ins, fn_: [*c]Fn, f: *FILE) void {
 
 var id0: i32 = 0;
 
-pub fn rv64_emitfn(fn_: [*c]Fn, f: *FILE) void {
-    emitfnlnk(fn_.*.name, &fn_.*.lnk, f);
+pub fn rv64_emitfn(fn_: [*c]Fn, f: *Writer) Writer.Error!void {
+    try emitfnlnk(fn_.*.name, &fn_.*.lnk, f);
 
     if (fn_.*.vararg != 0) {
         // TODO: only need space for registers
         // unused by named arguments
-        _ = C.fprintf(f, "\tadd sp, sp, -64\n");
+        try f.print("\tadd sp, sp, -64\n", .{});
         var r: i32 = A0;
         while (r <= A7) : (r += 1)
-            _ = C.fprintf(f, "\tsd %s, %d(sp)\n", rname[@intCast(r)], @as(c_int, 8 * (r - A0)));
+            try f.print("\tsd {s}, {d}(sp)\n", .{cs(rname[@intCast(r)]), 8 * (r - A0)});
     }
-    _ = C.fprintf(f, "\tsd fp, -16(sp)\n");
-    _ = C.fprintf(f, "\tsd ra, -8(sp)\n");
-    _ = C.fprintf(f, "\tadd fp, sp, -16\n");
+    try f.print("\tsd fp, -16(sp)\n", .{});
+    try f.print("\tsd ra, -8(sp)\n", .{});
+    try f.print("\tadd fp, sp, -16\n", .{});
 
     var frame: i32 = (16 + 4 * fn_.*.slot + 15) & ~@as(i32, 15);
     var pr: [*c]i32 = rv64_rclob;
@@ -549,15 +550,14 @@ pub fn rv64_emitfn(fn_: [*c]Fn, f: *FILE) void {
     frame = (frame + 15) & ~@as(i32, 15);
 
     if (frame <= 2048)
-        _ = C.fprintf(f, "\tadd sp, sp, -%d\n", @as(c_int, frame))
+        try f.print("\tadd sp, sp, -{d}\n", .{frame})
     else
-        _ = C.fprintf(f, "\tli t6, %d\n" ++
-            "\tsub sp, sp, t6\n", @as(c_int, frame));
+        try f.print("\tli t6, {d}\n" ++ "\tsub sp, sp, t6\n", .{frame});
     pr = rv64_rclob;
     var off: i32 = 0;
     while (pr.* >= 0) : (pr += 1) {
         if ((fn_.*.reg & BIT(pr.*)) != 0) {
-            _ = C.fprintf(f, "\t%s %s, %d(sp)\n", @as([*c]const u8, if (pr.* < FT0) "sd" else "fsd"), rname[@intCast(pr.*)], @as(c_int, off));
+            try f.print("\t{s} {s}, {d}(sp)\n", .{cs(@as([*c]const u8, if (pr.* < FT0) "sd" else "fsd")), cs(rname[@intCast(pr.*)]), off});
             off += 8;
         }
     }
@@ -566,34 +566,30 @@ pub fn rv64_emitfn(fn_: [*c]Fn, f: *FILE) void {
     var b = fn_.*.start;
     while (b != null) : (b = b.*.link) {
         if (lbl or b.*.npred > 1)
-            _ = C.fprintf(f, ".L%d:\n", @as(c_int, id0 + @as(i32, @intCast(b.*.id))));
+            try f.print(".L{d}:\n", .{id0 + @as(i32, @intCast(b.*.id))});
         var i = b.*.ins;
         while (i != b.*.ins + b.*.nins) : (i += 1)
-            emitins(i, fn_, f);
+            try emitins(i, fn_, f);
         lbl = true;
         var jmp = false;
         switch (b.*.jmp.type) {
-            Jhlt => _ = C.fprintf(f, "\tebreak\n"),
+            Jhlt => try f.print("\tebreak\n", .{}),
             Jret0 => {
                 if (fn_.*.dynalloc != 0) {
                     if (frame - 16 <= 2048)
-                        _ = C.fprintf(f, "\tadd sp, fp, -%d\n", @as(c_int, frame - 16))
+                        try f.print("\tadd sp, fp, -{d}\n", .{frame - 16})
                     else
-                        _ = C.fprintf(f, "\tli t6, %d\n" ++
-                            "\tsub sp, fp, t6\n", @as(c_int, frame - 16));
+                        try f.print("\tli t6, {d}\n" ++ "\tsub sp, fp, t6\n", .{frame - 16});
                 }
                 pr = rv64_rclob;
                 off = 0;
                 while (pr.* >= 0) : (pr += 1) {
                     if ((fn_.*.reg & BIT(pr.*)) != 0) {
-                        _ = C.fprintf(f, "\t%s %s, %d(sp)\n", @as([*c]const u8, if (pr.* < FT0) "ld" else "fld"), rname[@intCast(pr.*)], @as(c_int, off));
+                        try f.print("\t{s} {s}, {d}(sp)\n", .{cs(@as([*c]const u8, if (pr.* < FT0) "ld" else "fld")), cs(rname[@intCast(pr.*)]), off});
                         off += 8;
                     }
                 }
-                _ = C.fprintf(f, "\tadd sp, fp, %d\n" ++
-                    "\tld ra, 8(fp)\n" ++
-                    "\tld fp, 0(fp)\n" ++
-                    "\tret\n", @as(c_int, 16 + @as(i32, fn_.*.vararg) * 64));
+                try f.print("\tadd sp, fp, {d}\n" ++ "\tld ra, 8(fp)\n" ++ "\tld fp, 0(fp)\n" ++ "\tret\n", .{16 + @as(i32, fn_.*.vararg) * 64});
             },
             Jjmp => jmp = true,
             Jjnz => {
@@ -607,22 +603,22 @@ pub fn rv64_emitfn(fn_: [*c]Fn, f: *FILE) void {
                 if (rtype(b.*.jmp.arg) == RSlot) {
                     var ii = std.mem.zeroes(Ins);
                     ii.arg[0] = b.*.jmp.arg;
-                    emitf("lw t6, %M0", &ii, fn_, f);
+                    try emitf("lw t6, %M0", &ii, fn_, f);
                     b.*.jmp.arg = TMP(T6);
                 }
                 assert(isreg(b.*.jmp.arg));
-                _ = C.fprintf(f, "\tb%sz %s, .L%d\n", @as([*c]const u8, if (neg) "ne" else "eq"), rname[b.*.jmp.arg.val], @as(c_int, id0 + @as(i32, @intCast(b.*.s2.*.id))));
+                try f.print("\tb{s}z {s}, .L{d}\n", .{cs(@as([*c]const u8, if (neg) "ne" else "eq")), cs(rname[b.*.jmp.arg.val]), id0 + @as(i32, @intCast(b.*.s2.*.id))});
                 jmp = true;
             },
             else => {},
         }
         if (jmp) { // Jmp:
             if (b.*.s1 != b.*.link)
-                _ = C.fprintf(f, "\tj .L%d\n", @as(c_int, id0 + @as(i32, @intCast(b.*.s1.*.id))))
+                try f.print("\tj .L{d}\n", .{id0 + @as(i32, @intCast(b.*.s1.*.id))})
             else
                 lbl = false;
         }
     }
     id0 += @intCast(fn_.*.nblk);
-    elf_emitfnfin(fn_.*.name, f);
+    try elf_emitfnfin(fn_.*.name, f);
 }

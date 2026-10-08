@@ -24,6 +24,8 @@ const bsinit = all.bsinit;
 const bsiter = all.bsiter;
 const bsset = all.bsset;
 const bsunion = all.bsunion;
+const cs = all.cs;
+const dprint = all.dprint;
 const dumpts = all.dumpts;
 const req = all.req;
 const rtype = all.rtype;
@@ -164,17 +166,17 @@ pub fn filllive(f: [*c]Fn) void {
     }
 
     if (all.debug['L'] != 0) {
-        _ = C.fprintf(C.stderr, "\n> Liveness analysis:\n");
+        dprint("\n> Liveness analysis:\n", .{});
         b = f.*.start;
         while (b != null) : (b = b.*.link) {
-            _ = C.fprintf(C.stderr, "\t%-10sin:   ", b.*.name);
-            dumpts(&b.*.in, f.*.tmp, C.stderr);
-            _ = C.fprintf(C.stderr, "\t          out:  ");
-            dumpts(&b.*.out, f.*.tmp, C.stderr);
-            _ = C.fprintf(C.stderr, "\t          gen:  ");
-            dumpts(&b.*.gen, f.*.tmp, C.stderr);
-            _ = C.fprintf(C.stderr, "\t          live: ");
-            _ = C.fprintf(C.stderr, "%d %d\n", b.*.nlive[0], b.*.nlive[1]);
+            dprint("\t{s:<10}in:   ", .{cs(b.*.name)});
+            dumpts(&b.*.in, f.*.tmp, all.dbg) catch {};
+            dprint("\t          out:  ", .{});
+            dumpts(&b.*.out, f.*.tmp, all.dbg) catch {};
+            dprint("\t          gen:  ", .{});
+            dumpts(&b.*.gen, f.*.tmp, all.dbg) catch {};
+            dprint("\t          live: ", .{});
+            dprint("{d} {d}\n", .{b.*.nlive[0], b.*.nlive[1]});
         }
     }
 }

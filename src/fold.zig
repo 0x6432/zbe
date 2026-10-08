@@ -76,6 +76,7 @@ const RCon = all.RCon;
 const RTmp = all.RTmp;
 const Ref = all.Ref;
 const Sym = all.Sym;
+const cs = all.cs;
 const die = all.die;
 const err = all.err;
 const newcon = all.newcon;
@@ -252,7 +253,7 @@ pub fn foldint(res: [*c]Con, op_: i32, w_: bool, cl: [*c]Con, cr: [*c]Con) bool 
 
 fn foldflt(res: [*c]Con, op: i32, w: bool, cl: [*c]Con, cr: [*c]Con) void {
     if (cl.*.type != CBits or cr.*.type != CBits)
-        err("invalid address operand for '%s'", .{all.optab[@intCast(op)].name});
+        err("invalid address operand for '{s}'", .{cs(all.optab[@intCast(op)].name)});
     res.* = std.mem.zeroes(Con);
     res.*.type = CBits;
     if (w) {

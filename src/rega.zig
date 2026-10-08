@@ -38,7 +38,9 @@ const bsinit = all.bsinit;
 const bsiter = all.bsiter;
 const bsset = all.bsset;
 const bszero = all.bszero;
+const cs = all.cs;
 const die = all.die;
+const dprint = all.dprint;
 const emit = all.emit;
 const emiti = all.emiti;
 const icpy = all.icpy;
@@ -209,9 +211,9 @@ fn mdump(m: *RMap) void {
     var i: usize = 0;
     while (i < m.n) : (i += 1) {
         if (m.t[i] >= Tmp0)
-            _ = C.fprintf(C.stderr, " (%s, R%d)", tmp[@intCast(m.t[i])].name, m.r[i]);
+            dprint(" ({s}, R{d})", .{cs(tmp[@intCast(m.t[i])].name), m.r[i]});
     }
-    _ = C.fprintf(C.stderr, "\n");
+    dprint("\n", .{});
 }
 
 fn pmadd(src: Ref, dst: Ref, k: i32) void {
@@ -667,16 +669,16 @@ pub fn rega(f: [*c]Fn) void {
     }
 
     if (all.debug['R'] != 0) {
-        _ = C.fprintf(C.stderr, "\n> Register mappings:\n");
+        dprint("\n> Register mappings:\n", .{});
         n = 0;
         while (n < f.*.nblk) : (n += 1) {
             b = f.*.rpo[n];
-            _ = C.fprintf(C.stderr, "\t%-10s beg", b.*.name);
+            dprint("\t{s:<10} beg", .{cs(b.*.name)});
             mdump(&beg[n]);
-            _ = C.fprintf(C.stderr, "\t           end");
+            dprint("\t           end", .{});
             mdump(&end[n]);
         }
-        _ = C.fprintf(C.stderr, "\n");
+        dprint("\n", .{});
     }
 
     // 4. emit remaining copies in new blocks
@@ -742,10 +744,10 @@ pub fn rega(f: [*c]Fn) void {
     f.*.reg = regu;
 
     if (all.debug['R'] != 0) {
-        _ = C.fprintf(C.stderr, "\n> Register allocation statistics:\n");
-        _ = C.fprintf(C.stderr, "\tnew moves:  %d\n", stmov);
-        _ = C.fprintf(C.stderr, "\tnew blocks: %d\n", stblk);
-        _ = C.fprintf(C.stderr, "\n> After register allocation:\n");
-        printfn(f, C.stderr);
+        dprint("\n> Register allocation statistics:\n", .{});
+        dprint("\tnew moves:  {d}\n", .{stmov});
+        dprint("\tnew blocks: {d}\n", .{stblk});
+        dprint("\n> After register allocation:\n", .{});
+        printfn(f, all.dbg) catch {};
     }
 }

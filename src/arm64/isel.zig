@@ -48,7 +48,10 @@ const SLOT = all.SLOT;
 const SThr = all.SThr;
 const TMP = all.TMP;
 const argcls = all.argcls;
+const bufPrintZ = all.bufPrintZ;
 const cmpop = all.cmpop;
+const cs = all.cs;
+const dprint = all.dprint;
 const emit = all.emit;
 const emiti = all.emiti;
 const err = all.err;
@@ -176,7 +179,7 @@ fn fixarg(pr: [*c]Ref, k: i32, phi: bool, f: [*c]Fn) void {
                 f.*.ncon += 1;
                 vgrow(&f.*.con, f.*.ncon);
                 c = &f.*.con[@intCast(f.*.ncon - 1)];
-                _ = C.sprintf(&buf, "\"%sfp%d\"", &all.T.asloc, @as(c_int, n));
+                bufPrintZ(&buf, "\"{s}fp{d}\"", .{cs(&all.T.asloc), n});
                 c.* = std.mem.zeroes(Con);
                 c.*.type = CAddr;
                 c.*.sym.id = intern(&buf);
@@ -332,7 +335,7 @@ pub fn arm64_isel(f: [*c]Fn) void {
                     break;
                 var sz = f.*.con[i.*.arg[0].val].bits.i;
                 if (sz < 0 or sz >= std.math.maxInt(i32) - 15)
-                    err("invalid alloc size %ld", .{@as(c_long, sz)});
+                    err("invalid alloc size {d}", .{sz});
                 sz = (sz + n - 1) & -@as(i64, n);
                 sz = @divTrunc(sz, 4);
                 f.*.tmp[i.*.to.val].slot = f.*.slot;
@@ -366,7 +369,7 @@ pub fn arm64_isel(f: [*c]Fn) void {
     }
 
     if (all.debug['I'] != 0) {
-        _ = C.fprintf(C.stderr, "\n> After instruction selection:\n");
-        printfn(f, C.stderr);
+        dprint("\n> After instruction selection:\n", .{});
+        printfn(f, all.dbg) catch {};
     }
 }

@@ -27,7 +27,6 @@ const Ciugt = all.Ciugt;
 const Ciule = all.Ciule;
 const Ciult = all.Ciult;
 const Con = all.Con;
-const FILE = all.FILE;
 const Fn = all.Fn;
 const INS = all.INS;
 const IP1 = tgt.IP1;
@@ -118,8 +117,11 @@ const SThr = all.SThr;
 const TMP = all.TMP;
 const V0 = tgt.V0;
 const V30 = tgt.V30;
+const Writer = all.Writer;
 const arm64_logimm = tgt.arm64_logimm;
 const arm64_rclob = tgt.arm64_rclob;
+const bufPrintZ = all.bufPrintZ;
+const cs = all.cs;
 const die = all.die;
 const elf_emitfnfin = all.elf_emitfnfin;
 const emitdbgloc = all.emitdbgloc;
@@ -137,7 +139,7 @@ const uint = all.uint;
 // -- end imports --
 
 const E = struct {
-    f: *FILE,
+    f: *Writer,
     @"fn": [*c]Fn,
     frame: u64,
     padding: uint,
@@ -255,24 +257,24 @@ fn rname(r: i32, k: i32) [*c]u8 {
     const buf: [*c]u8 = &rname_buf;
     if (r == SP) {
         assert(k == Kl);
-        _ = C.sprintf(buf, "sp");
+        bufPrintZ(&rname_buf, "sp", .{});
     } else if (R0 <= r and r <= LR) {
         switch (k) {
             else => die("invalid class", .{}),
-            Kw => _ = C.sprintf(buf, "w%d", @as(c_int, r - R0)),
-            Kx, Kl => _ = C.sprintf(buf, "x%d", @as(c_int, r - R0)),
+            Kw => bufPrintZ(&rname_buf, "w{d}", .{r - R0}),
+            Kx, Kl => bufPrintZ(&rname_buf, "x{d}", .{r - R0}),
         }
     } else if (V0 <= r and r <= V30) {
         switch (k) {
             else => die("invalid class", .{}),
-            Ks => _ = C.sprintf(buf, "s%d", @as(c_int, r - V0)),
-            Kx, Kd => _ = C.sprintf(buf, "d%d", @as(c_int, r - V0)),
+            Ks => bufPrintZ(&rname_buf, "s{d}", .{r - V0}),
+            Kx, Kd => bufPrintZ(&rname_buf, "d{d}", .{r - V0}),
         }
     } else if (r == V31) {
         switch (k) {
             else => die("invalid class", .{}),
-            Ks => _ = C.sprintf(buf, "s31"),
-            Kd => _ = C.sprintf(buf, "d31"),
+            Ks => bufPrintZ(&rname_buf, "s31", .{}),
+            Kd => bufPrintZ(&rname_buf, "d31", .{}),
         }
     } else die("invalid register", .{});
     return buf;
@@ -291,12 +293,12 @@ fn slot(r: Ref, e: *E) u64 {
     } else return 16 + @as(u64, e.padding +% 4 *% @as(u32, @bitCast(s)));
 }
 
-fn emitf(s_: [*c]const u8, i: [*c]Ins, e: *E) void {
+fn emitf(s_: [*c]const u8, i: [*c]Ins, e: *E) Writer.Error!void {
     var s = s_;
     var r: Ref = undefined;
     var c: u8 = undefined;
 
-    _ = C.fputc('\t', e.f);
+    try e.f.writeByte('\t');
 
     var sp = false;
     while (true) {
@@ -306,12 +308,12 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, e: *E) void {
             s += 1;
             if (c == '%') break;
             if (c == ' ' and !sp) {
-                _ = C.fputc('\t', e.f);
+                try e.f.writeByte('\t');
                 sp = true;
             } else if (c == 0) {
-                _ = C.fputc('\n', e.f);
+                try e.f.writeByte('\n');
                 return;
-            } else _ = C.fputc(c, e.f);
+            } else try e.f.writeByte(c);
         }
         sw: while (true) { // Switch:
             c = s.*;
@@ -336,14 +338,14 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, e: *E) void {
                 },
                 '?' => {
                     if (KBASE(k) == 0)
-                        _ = C.fputs(rname(IP1, k), e.f)
+                        try e.f.writeAll(cs(rname(IP1, k)))
                     else
-                        _ = C.fputs(rname(V31, k), e.f);
+                        try e.f.writeAll(cs(rname(V31, k)));
                 },
                 '=', '0' => {
                     r = if (c == '=') i.*.to else i.*.arg[0];
                     assert(isreg(r) or req(r, TMP(V31)));
-                    _ = C.fputs(rname(@intCast(r.val), k), e.f);
+                    try e.f.writeAll(cs(rname(@intCast(r.val), k)));
                 },
                 '1' => {
                     r = i.*.arg[1];
@@ -351,7 +353,7 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, e: *E) void {
                         else => die("invalid second argument", .{}),
                         RTmp => {
                             assert(isreg(r));
-                            _ = C.fputs(rname(@intCast(r.val), k), e.f);
+                            try e.f.writeAll(cs(rname(@intCast(r.val), k)));
                         },
                         RCon => {
                             const pc = &e.@"fn".*.con[r.val];
@@ -359,13 +361,13 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, e: *E) void {
                             assert(pc.*.type == CBits);
                             if ((n >> 24) != 0) {
                                 assert(arm64_logimm(n, k));
-                                _ = C.fprintf(e.f, "#%lu", @as(c_ulong, n));
+                                try e.f.print("#{d}", .{n});
                             } else if ((n & 0xfff000) != 0) {
                                 assert((n & ~@as(u64, 0xfff000)) == 0);
-                                _ = C.fprintf(e.f, "#%lu, lsl #12", @as(c_ulong, n >> 12));
+                                try e.f.print("#{d}, lsl #12", .{n >> 12});
                             } else {
                                 assert((n & ~@as(u64, 0xfff)) == 0);
-                                _ = C.fprintf(e.f, "#%lu", @as(c_ulong, n));
+                                try e.f.print("#{d}", .{n});
                             }
                         },
                     }
@@ -379,9 +381,9 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, e: *E) void {
                         else => die("todo (arm emit): unhandled ref", .{}),
                         RTmp => {
                             assert(isreg(r));
-                            _ = C.fprintf(e.f, "[%s]", rname(@intCast(r.val), Kl));
+                            try e.f.print("[{s}]", .{cs(rname(@intCast(r.val), Kl))});
                         },
-                        RSlot => _ = C.fprintf(e.f, "[x29, %lu]", @as(c_ulong, slot(r, e))),
+                        RSlot => try e.f.print("[x29, {d}]", .{slot(r, e)}),
                     }
                 },
             }
@@ -390,7 +392,7 @@ fn emitf(s_: [*c]const u8, i: [*c]Ins, e: *E) void {
     }
 }
 
-fn loadaddr(c: [*c]Con, rn: [*c]u8, e: *E) void {
+fn loadaddr(c: [*c]Con, rn: [*c]u8, e: *E) Writer.Error!void {
     var s: [*c]const u8 = undefined;
 
     switch (c.*.sym.type) {
@@ -429,49 +431,49 @@ fn loadaddr(c: [*c]Con, rn: [*c]u8, e: *E) void {
     const p: [*c]const u8 = if (l[0] == '"') "" else &all.T.assym;
     while (s.* != 0) : (s += 1) {
         switch (s.*) {
-            else => _ = C.fputc(s.*, e.f),
-            'R' => _ = C.fputs(rn, e.f),
+            else => try e.f.writeByte(s.*),
+            'R' => try e.f.writeAll(cs(rn)),
             'S' => {
-                _ = C.fputs(p, e.f);
-                _ = C.fputs(l, e.f);
+                try e.f.writeAll(cs(p));
+                try e.f.writeAll(cs(l));
             },
             'O' => {
                 if (c.*.bits.i != 0)
                     // todo, handle large offsets
-                    _ = C.fprintf(e.f, "+%ld", @as(c_long, c.*.bits.i));
+                    try e.f.print("+{d}", .{c.*.bits.i});
             },
         }
     }
 }
 
-fn loadcon(c: [*c]Con, r: i32, k: i32, e: *E) void {
+fn loadcon(c: [*c]Con, r: i32, k: i32, e: *E) Writer.Error!void {
     const w = KWIDE(k);
     var rn = rname(r, k);
     var n = c.*.bits.i;
     if (c.*.type == CAddr) {
         rn = rname(r, Kl);
-        loadaddr(c, rn, e);
+        try loadaddr(c, rn, e);
         return;
     }
     assert(c.*.type == CBits);
     if (w == 0)
         n = @as(i32, @truncate(n));
     if ((n | 0xffff) == -1 or arm64_logimm(@bitCast(n), k)) {
-        _ = C.fprintf(e.f, "\tmov\t%s, #%ld\n", rn, @as(c_long, n));
+        try e.f.print("\tmov\t{s}, #{d}\n", .{cs(rn), n});
     } else {
-        _ = C.fprintf(e.f, "\tmov\t%s, #%d\n", rn, @as(c_int, @intCast(n & 0xffff)));
+        try e.f.print("\tmov\t{s}, #{d}\n", .{ cs(rn), n & 0xffff });
         var sh: i32 = 16;
         while (true) : (sh += 16) {
             n >>= 16;
             if (n == 0) break;
             if ((w == 0 and sh == 32) or sh == 64)
                 break;
-            _ = C.fprintf(e.f, "\tmovk\t%s, #0x%x, lsl #%d\n", rn, @as(c_uint, @intCast(n & 0xffff)), @as(c_int, sh));
+            try e.f.print("\tmovk\t{s}, #0x{x}, lsl #{d}\n", .{ cs(rn), n & 0xffff, sh });
         }
     }
 }
 
-fn fixarg(pr: [*c]Ref, sz: i32, t: i32, e: *E) bool {
+fn fixarg(pr: [*c]Ref, sz: i32, t: i32, e: *E) Writer.Error!bool {
     const r = pr.*;
     if (rtype(r) == RSlot) {
         const s = slot(r, e);
@@ -479,30 +481,30 @@ fn fixarg(pr: [*c]Ref, sz: i32, t: i32, e: *E) bool {
             if (t < 0)
                 return true;
             var i = INS(Oaddr, Kl, TMP(t), r, R);
-            emitins(&i, e);
+            try emitins(&i, e);
             pr.* = TMP(t);
         }
     }
     return false;
 }
 
-fn emitins(i: [*c]Ins, e: *E) void {
+fn emitins(i: [*c]Ins, e: *E) Writer.Error!void {
     switch (i.*.op) {
         else => {
             if (isload(i.*.op))
-                _ = fixarg(&i.*.arg[0], loadsz(i), IP1, e);
+                _ = try fixarg(&i.*.arg[0], loadsz(i), IP1, e);
             if (isstore(i.*.op)) {
                 const t: i32 = if (all.T.apple != 0) -1 else R18;
-                if (fixarg(&i.*.arg[1], storesz(i), t, e)) {
+                if (try fixarg(&i.*.arg[1], storesz(i), t, e)) {
                     if (req(i.*.arg[0], TMP(IP1))) {
-                        _ = C.fprintf(e.f, "\tfmov\t%c31, %c17\n", @as(c_int, "ds"[@intFromBool(i.*.cls == Kw)]), @as(c_int, "xw"[@intFromBool(i.*.cls == Kw)]));
+                        try e.f.print("\tfmov\t{c}31, {c}17\n", .{"ds"[@intFromBool(i.*.cls == Kw)], "xw"[@intFromBool(i.*.cls == Kw)]});
                         i.*.arg[0] = TMP(V31);
                         i.*.op = Ostores + (i.*.cls - Kw);
                     }
-                    _ = fixarg(&i.*.arg[1], storesz(i), IP1, e);
+                    _ = try fixarg(&i.*.arg[1], storesz(i), IP1, e);
                 }
             }
-            table(i, e);
+            try table(i, e);
         },
         Onop => {},
         Ocopy => {
@@ -512,28 +514,28 @@ fn emitins(i: [*c]Ins, e: *E) void {
                 const r = i.*.to;
                 if (!isreg(i.*.arg[0])) {
                     i.*.to = TMP(IP1);
-                    emitins(i, e);
+                    try emitins(i, e);
                     i.*.arg[0] = i.*.to;
                 }
                 i.*.op = Ostorew + i.*.cls;
                 i.*.cls = Kw;
                 i.*.arg[1] = r;
-                emitins(i, e);
+                try emitins(i, e);
                 return;
             }
             assert(isreg(i.*.to));
             switch (rtype(i.*.arg[0])) {
                 RCon => {
                     const c = &e.@"fn".*.con[i.*.arg[0].val];
-                    loadcon(c, @intCast(i.*.to.val), @intCast(i.*.cls), e);
+                    try loadcon(c, @intCast(i.*.to.val), @intCast(i.*.cls), e);
                 },
                 RSlot => {
                     i.*.op = Oload;
-                    emitins(i, e);
+                    try emitins(i, e);
                 },
                 else => {
                     assert(i.*.to.val != IP1);
-                    table(i, e);
+                    try table(i, e);
                 },
             }
         },
@@ -542,18 +544,15 @@ fn emitins(i: [*c]Ins, e: *E) void {
             const rn = rname(@intCast(i.*.to.val), Kl);
             const s = slot(i.*.arg[0], e);
             if (s <= 4095)
-                _ = C.fprintf(e.f, "\tadd\t%s, x29, #%lu\n", rn, @as(c_ulong, s))
+                try e.f.print("\tadd\t{s}, x29, #{d}\n", .{cs(rn), s})
             else if (s <= 65535)
-                _ = C.fprintf(e.f, "\tmov\t%s, #%lu\n" ++
-                    "\tadd\t%s, x29, %s\n", rn, @as(c_ulong, s), rn, rn)
+                try e.f.print("\tmov\t{s}, #{d}\n" ++ "\tadd\t{s}, x29, {s}\n", .{cs(rn), s, cs(rn), cs(rn)})
             else
-                _ = C.fprintf(e.f, "\tmov\t%s, #%lu\n" ++
-                    "\tmovk\t%s, #%lu, lsl #16\n" ++
-                    "\tadd\t%s, x29, %s\n", rn, @as(c_ulong, s & 0xFFFF), rn, @as(c_ulong, s >> 16), rn, rn);
+                try e.f.print("\tmov\t{s}, #{d}\n" ++ "\tmovk\t{s}, #{d}, lsl #16\n" ++ "\tadd\t{s}, x29, {s}\n", .{cs(rn), s & 0xFFFF, cs(rn), s >> 16, cs(rn), cs(rn)});
         },
         Ocall => {
             if (rtype(i.*.arg[0]) != RCon) {
-                table(i, e);
+                try table(i, e);
                 return;
             }
             const c = &e.@"fn".*.con[i.*.arg[0].val];
@@ -563,33 +562,33 @@ fn emitins(i: [*c]Ins, e: *E) void {
                 die("invalid call argument", .{});
             const l = str(c.*.sym.id);
             const p: [*c]const u8 = if (l[0] == '"') "" else &all.T.assym;
-            _ = C.fprintf(e.f, "\tbl\t%s%s\n", p, l);
+            try e.f.print("\tbl\t{s}{s}\n", .{cs(p), cs(l)});
         },
         Osalloc => {
-            emitf("sub sp, sp, %0", i, e);
+            try emitf("sub sp, sp, %0", i, e);
             if (!req(i.*.to, R))
-                emitf("mov %=, sp", i, e);
+                try emitf("mov %=, sp", i, e);
         },
-        Odbgloc => emitdbgloc(i.*.arg[0].val, i.*.arg[1].val, e.f),
+        Odbgloc => try emitdbgloc(i.*.arg[0].val, i.*.arg[1].val, e.f),
     }
 }
 
 /// Table: most instructions are just pulled out of
 /// the table omap[], some special cases are
 /// detailed in emitins
-fn table(i: [*c]Ins, e: *E) void {
+fn table(i: [*c]Ins, e: *E) Writer.Error!void {
     var o: usize = 0;
     while (true) : (o += 1) {
         // this linear search should really be a binary
         // search
         if (omap[o].op == NOp)
-            die("no match for %s(%c)", .{ all.optab[i.*.op].name, @as(c_int, "wlsd"[i.*.cls]) });
+            die("no match for {s}({c})", .{cs(all.optab[i.*.op].name), "wlsd"[i.*.cls]});
         if (omap[o].op == i.*.op and
             (omap[o].cls == i.*.cls or omap[o].cls == Ka or
             (omap[o].cls == Ki and KBASE(i.*.cls) == 0)))
             break;
     }
-    emitf(omap[o].fmt, i, e);
+    try emitf(omap[o].fmt, i, e);
 }
 
 fn framelayout(e: *E) void {
@@ -636,46 +635,40 @@ const ctoa = blk: {
 
 var id0: i32 = 0;
 
-pub fn arm64_emitfn(f: [*c]Fn, out: *FILE) void {
+pub fn arm64_emitfn(f: [*c]Fn, out: *Writer) Writer.Error!void {
     var e_ = E{ .f = out, .@"fn" = f, .frame = 0, .padding = 0 };
     const e = &e_;
     if (all.T.apple != 0)
         e.@"fn".*.lnk.@"align" = 4;
-    emitfnlnk(e.@"fn".*.name, &e.@"fn".*.lnk, e.f);
-    _ = C.fputs("\thint\t#34\n", e.f);
+    try emitfnlnk(e.@"fn".*.name, &e.@"fn".*.lnk, e.f);
+    try e.f.writeAll("\thint\t#34\n");
     framelayout(e);
 
     if (e.@"fn".*.vararg != 0 and all.T.apple == 0) {
         var n: i32 = 7;
         while (n >= 0) : (n -= 1)
-            _ = C.fprintf(e.f, "\tstr\tq%d, [sp, -16]!\n", @as(c_int, n));
+            try e.f.print("\tstr\tq{d}, [sp, -16]!\n", .{n});
         n = 7;
         while (n >= 0) : (n -= 2)
-            _ = C.fprintf(e.f, "\tstp\tx%d, x%d, [sp, -16]!\n", @as(c_int, n - 1), @as(c_int, n));
+            try e.f.print("\tstp\tx{d}, x{d}, [sp, -16]!\n", .{n - 1, n});
     }
 
     if (e.frame + 16 <= 512)
-        _ = C.fprintf(e.f, "\tstp\tx29, x30, [sp, -%lu]!\n", @as(c_ulong, e.frame + 16))
+        try e.f.print("\tstp\tx29, x30, [sp, -{d}]!\n", .{e.frame + 16})
     else if (e.frame <= 4095)
-        _ = C.fprintf(e.f, "\tsub\tsp, sp, #%lu\n" ++
-            "\tstp\tx29, x30, [sp, -16]!\n", @as(c_ulong, e.frame))
+        try e.f.print("\tsub\tsp, sp, #{d}\n" ++ "\tstp\tx29, x30, [sp, -16]!\n", .{e.frame})
     else if (e.frame <= 65535)
-        _ = C.fprintf(e.f, "\tmov\tx16, #%lu\n" ++
-            "\tsub\tsp, sp, x16\n" ++
-            "\tstp\tx29, x30, [sp, -16]!\n", @as(c_ulong, e.frame))
+        try e.f.print("\tmov\tx16, #{d}\n" ++ "\tsub\tsp, sp, x16\n" ++ "\tstp\tx29, x30, [sp, -16]!\n", .{e.frame})
     else
-        _ = C.fprintf(e.f, "\tmov\tx16, #%lu\n" ++
-            "\tmovk\tx16, #%lu, lsl #16\n" ++
-            "\tsub\tsp, sp, x16\n" ++
-            "\tstp\tx29, x30, [sp, -16]!\n", @as(c_ulong, e.frame & 0xFFFF), @as(c_ulong, e.frame >> 16));
-    _ = C.fputs("\tmov\tx29, sp\n", e.f);
+        try e.f.print("\tmov\tx16, #{d}\n" ++ "\tmovk\tx16, #{d}, lsl #16\n" ++ "\tsub\tsp, sp, x16\n" ++ "\tstp\tx29, x30, [sp, -16]!\n", .{e.frame & 0xFFFF, e.frame >> 16});
+    try e.f.writeAll("\tmov\tx29, sp\n");
     var s: i32 = @intCast((e.frame - e.padding) / 4);
     var r: [*c]i32 = arm64_rclob;
     while (r.* >= 0) : (r += 1) {
         if ((e.@"fn".*.reg & BIT(r.*)) != 0) {
             s -= 2;
             var i = INS(@as(i32, if (r.* >= V0) Ostored else Ostorel), 0, R, TMP(r.*), SLOT(s));
-            emitins(&i, e);
+            try emitins(&i, e);
         }
     }
 
@@ -683,14 +676,14 @@ pub fn arm64_emitfn(f: [*c]Fn, out: *FILE) void {
     var b = e.@"fn".*.start;
     while (b != null) : (b = b.*.link) {
         if (lbl or b.*.npred > 1)
-            _ = C.fprintf(e.f, "%s%d:\n", &all.T.asloc, @as(c_int, id0 + @as(i32, @intCast(b.*.id))));
+            try e.f.print("{s}{d}:\n", .{cs(&all.T.asloc), id0 + @as(i32, @intCast(b.*.id))});
         var i = b.*.ins;
         while (i != b.*.ins + b.*.nins) : (i += 1)
-            emitins(i, e);
+            try emitins(i, e);
         lbl = true;
         var jmp = false;
         switch (b.*.jmp.type) {
-            Jhlt => _ = C.fprintf(e.f, "\tbrk\t#1000\n"),
+            Jhlt => try e.f.print("\tbrk\t#1000\n", .{}),
             Jret0 => {
                 s = @intCast((e.frame - e.padding) / 4);
                 r = arm64_rclob;
@@ -698,35 +691,29 @@ pub fn arm64_emitfn(f: [*c]Fn, out: *FILE) void {
                     if ((e.@"fn".*.reg & BIT(r.*)) != 0) {
                         s -= 2;
                         var in = INS(Oload, @as(i32, if (r.* >= V0) Kd else Kl), TMP(r.*), SLOT(s), R);
-                        emitins(&in, e);
+                        try emitins(&in, e);
                     }
                 }
                 if (e.@"fn".*.dynalloc != 0)
-                    _ = C.fputs("\tmov sp, x29\n", e.f);
+                    try e.f.writeAll("\tmov sp, x29\n");
                 var o = e.frame + 16;
                 if (e.@"fn".*.vararg != 0 and all.T.apple == 0)
                     o += 192;
                 if (o <= 504)
-                    _ = C.fprintf(e.f, "\tldp\tx29, x30, [sp], %lu\n", @as(c_ulong, o))
+                    try e.f.print("\tldp\tx29, x30, [sp], {d}\n", .{o})
                 else if (o - 16 <= 4095)
-                    _ = C.fprintf(e.f, "\tldp\tx29, x30, [sp], 16\n" ++
-                        "\tadd\tsp, sp, #%lu\n", @as(c_ulong, o - 16))
+                    try e.f.print("\tldp\tx29, x30, [sp], 16\n" ++ "\tadd\tsp, sp, #{d}\n", .{o - 16})
                 else if (o - 16 <= 65535)
-                    _ = C.fprintf(e.f, "\tldp\tx29, x30, [sp], 16\n" ++
-                        "\tmov\tx16, #%lu\n" ++
-                        "\tadd\tsp, sp, x16\n", @as(c_ulong, o - 16))
+                    try e.f.print("\tldp\tx29, x30, [sp], 16\n" ++ "\tmov\tx16, #{d}\n" ++ "\tadd\tsp, sp, x16\n", .{o - 16})
                 else
-                    _ = C.fprintf(e.f, "\tldp\tx29, x30, [sp], 16\n" ++
-                        "\tmov\tx16, #%lu\n" ++
-                        "\tmovk\tx16, #%lu, lsl #16\n" ++
-                        "\tadd\tsp, sp, x16\n", @as(c_ulong, (o - 16) & 0xFFFF), @as(c_ulong, (o - 16) >> 16));
-                _ = C.fprintf(e.f, "\tret\n");
+                    try e.f.print("\tldp\tx29, x30, [sp], 16\n" ++ "\tmov\tx16, #{d}\n" ++ "\tmovk\tx16, #{d}, lsl #16\n" ++ "\tadd\tsp, sp, x16\n", .{(o - 16) & 0xFFFF, (o - 16) >> 16});
+                try e.f.print("\tret\n", .{});
             },
             Jjmp => jmp = true,
             else => {
                 const c: i32 = @as(i32, @intCast(b.*.jmp.type)) - Jjf;
                 if (c < 0 or c > NCmp)
-                    die("unhandled jump %d", .{@as(c_int, @intCast(b.*.jmp.type))});
+                    die("unhandled jump {d}", .{b.*.jmp.type});
                 var n: usize = undefined;
                 if (b.*.link == b.*.s2) {
                     const t = b.*.s1;
@@ -734,18 +721,18 @@ pub fn arm64_emitfn(f: [*c]Fn, out: *FILE) void {
                     b.*.s2 = t;
                     n = 0;
                 } else n = 1;
-                _ = C.fprintf(e.f, "\tb%s\t%s%d\n", ctoa[@intCast(c)][n], &all.T.asloc, @as(c_int, id0 + @as(i32, @intCast(b.*.s2.*.id))));
+                try e.f.print("\tb{s}\t{s}{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), id0 + @as(i32, @intCast(b.*.s2.*.id))});
                 jmp = true;
             },
         }
         if (jmp) { // Jmp:
             if (b.*.s1 != b.*.link)
-                _ = C.fprintf(e.f, "\tb\t%s%d\n", &all.T.asloc, @as(c_int, id0 + @as(i32, @intCast(b.*.s1.*.id))))
+                try e.f.print("\tb\t{s}{d}\n", .{cs(&all.T.asloc), id0 + @as(i32, @intCast(b.*.s1.*.id))})
             else
                 lbl = false;
         }
     }
     id0 += @intCast(e.@"fn".*.nblk);
     if (all.T.apple == 0)
-        elf_emitfnfin(f.*.name, out);
+        try elf_emitfnfin(f.*.name, out);
 }

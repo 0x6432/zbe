@@ -83,6 +83,7 @@ const Typ = all.Typ;
 const alloc = all.alloc;
 const bits = all.bits;
 const die = all.die;
+const dprint = all.dprint;
 const emit = all.emit;
 const emiti = all.emiti;
 const err = all.err;
@@ -743,7 +744,7 @@ pub fn rv64_abi(f: [*c]Fn) void {
     }
 
     if (all.debug['A'] != 0) {
-        _ = C.fprintf(C.stderr, "\n> After ABI lowering:\n");
-        printfn(f, C.stderr);
+        dprint("\n> After ABI lowering:\n", .{});
+        printfn(f, all.dbg) catch {};
     }
 }

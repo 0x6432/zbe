@@ -36,6 +36,9 @@ const bsiter = all.bsiter;
 const bsset = all.bsset;
 const bsunion = all.bsunion;
 const bszero = all.bszero;
+const cint = all.cint;
+const cs = all.cs;
+const dprint = all.dprint;
 const dumpts = all.dumpts;
 const emalloc = all.emalloc;
 const emit = all.emit;
@@ -81,7 +84,7 @@ fn tmpuse(r: Ref, use: bool, loop: i32, f: [*c]Fn) void {
 pub fn fillcost(f: [*c]Fn) void {
     loopiter(f, &aggreg);
     if (all.debug['S'] != 0) {
-        _ = C.fprintf(C.stderr, "\n> Loop information:\n");
+        dprint("\n> Loop information:\n", .{});
         var b = f.*.start;
         while (b != null) : (b = b.*.link) {
             var a: uint = 0;
@@ -90,10 +93,10 @@ pub fn fillcost(f: [*c]Fn) void {
                     break;
             }
             if (a != b.*.npred) {
-                _ = C.fprintf(C.stderr, "\t%-10s", b.*.name);
-                _ = C.fprintf(C.stderr, " (% 3d ", b.*.nlive[0]);
-                _ = C.fprintf(C.stderr, "% 3d) ", b.*.nlive[1]);
-                dumpts(&b.*.gen, f.*.tmp, C.stderr);
+                dprint("\t{s:<10}", .{cs(b.*.name)});
+                dprint(" ({f} ", .{cint(b.*.nlive[0], 3)});
+                dprint("{f}) ", .{cint(b.*.nlive[1], 3)});
+                dumpts(&b.*.gen, f.*.tmp, all.dbg) catch {};
             }
         }
     }
@@ -127,11 +130,11 @@ pub fn fillcost(f: [*c]Fn) void {
         tmpuse(b.*.jmp.arg, true, n, f);
     }
     if (all.debug['S'] != 0) {
-        _ = C.fprintf(C.stderr, "\n> Spill costs:\n");
+        dprint("\n> Spill costs:\n", .{});
         var n: i32 = Tmp0;
         while (n < f.*.ntmp) : (n += 1)
-            _ = C.fprintf(C.stderr, "\t%-10s %d\n", f.*.tmp[@intCast(n)].name, f.*.tmp[@intCast(n)].cost);
-        _ = C.fprintf(C.stderr, "\n");
+            dprint("\t{s:<10} {d}\n", .{cs(f.*.tmp[@intCast(n)].name), @as(i32, @bitCast(f.*.tmp[@intCast(n)].cost))});
+        dprint("\n", .{});
     }
 }
 
@@ -546,13 +549,13 @@ pub fn spill(f: [*c]Fn) void {
     f.*.slot += slot8;
 
     if (all.debug['S'] != 0) {
-        _ = C.fprintf(C.stderr, "\n> Block information:\n");
+        dprint("\n> Block information:\n", .{});
         var b = f.*.start;
         while (b != null) : (b = b.*.link) {
-            _ = C.fprintf(C.stderr, "\t%-10s (% 5d) ", b.*.name, b.*.loop);
-            dumpts(&b.*.out, f.*.tmp, C.stderr);
+            dprint("\t{s:<10} ({f}) ", .{ cs(b.*.name), cint(b.*.loop, 5) });
+            dumpts(&b.*.out, f.*.tmp, all.dbg) catch {};
         }
-        _ = C.fprintf(C.stderr, "\n> After spilling:\n");
-        printfn(f, C.stderr);
+        dprint("\n> After spilling:\n", .{});
+        printfn(f, all.dbg) catch {};
     }
 }

@@ -33,8 +33,8 @@ pub const Target = struct {
     abi0: *const fn ([*c]Fn) void,
     abi1: *const fn ([*c]Fn) void,
     isel: *const fn ([*c]Fn) void,
-    emitfn: *const fn ([*c]Fn, *FILE) void,
-    emitfin: *const fn (*FILE) void,
+    emitfn: *const fn ([*c]Fn, *Writer) Writer.Error!void,
+    emitfin: *const fn (*Writer) Writer.Error!void,
     asloc: [4]u8,
     assym: [4]u8,
     cansel: u1,
@@ -517,7 +517,17 @@ pub inline fn insbEnd() [*c]Ins {
     return @as([*c]Ins, &insb) + NIns;
 }
 pub const hash = util.hash;
-pub const die_ = util.die_;
+pub const die = util.die;
+pub const Writer = util.Writer;
+pub const cs = util.cs;
+pub const dprint = util.dprint;
+pub const cfloat = util.cfloat;
+pub const cint = util.cint;
+pub const bufPrintZ = util.bufPrintZ;
+/// debug/diagnostic output (stderr), set up by main
+pub var dbg: *Writer = undefined;
+/// compiler output, flushed on error exit like C's exit()
+pub var outw: ?*Writer = null;
 pub const emalloc = util.emalloc;
 pub const alloc = util.alloc;
 pub const freeall = util.freeall;
@@ -564,7 +574,6 @@ pub const bsinter = util.bsinter;
 pub const bsdiff = util.bsdiff;
 pub const bsequal = util.bsequal;
 pub const bsiter = util.bsiter;
-pub const die = util.die;
 pub const vnewT = util.vnewT;
 pub const ptrdiff = util.ptrdiff;
 

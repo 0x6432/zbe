@@ -1,6 +1,6 @@
 # HANDOFF – QBE → Zig translation
 
-Updated: 20261008-104051 UTC
+Updated: 20261008-104930 UTC
 
 ## Goal
 Translate QBE (C, cloned at /data/qbe-c, HEAD e786f06) to latest Zig master.
@@ -144,6 +144,12 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    ?*Blk, ifgraph(ifb, **Blk x3), simplcfg uses slices `ealloc(T,n)[0..n]`,
    std.mem.swap, for-over-pred). Per-file C-ism ranking command:
    `for f in src/*.zig src/*/*.zig; do printf '%s %s\n' "$(grep -o '\[\*c\]\|\.\*\.' $f | wc -l)" $f; done | sort -rn`
+   DONE 5b-5d: ptrparams for Ins and all other struct types (beware: it
+   converts array params that are only passed down -- Num `tn` and mem Slot
+   `sl` were reverted by hand); idup/icpy take `[*]const Ins`; optionalize
+   now skips indexed/arithmetic names and reverts callees named in
+   "parameter type declared here" notes. Metric: `[*c]` 389, `.*.` 1434.
+   CAUTION: don't `git stash` with uncommitted tool edits (lost them once).
    NEXT: rewrite remaining `[*c]Ins` pointer walks to index loops / slices
    (ABI selpar/selcall take [i0,i1) ranges -> should take `[]Ins`), manual
    idiomatic rewrites of functions optionalize couldn't handle (e.g.

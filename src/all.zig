@@ -23,7 +23,7 @@ pub const Target = struct {
     nfpr: i32,
     rglob: bits, // globally live regs (e.g., sp, fp)
     nrglob: i32,
-    rsave: [*c]i32, // caller-save
+    rsave: [*]i32, // caller-save, -1 terminated
     nrsave: [2]i32,
     retregs: *const fn (Ref, ?*[2]i32) bits,
     argregs: *const fn (Ref, ?*[2]i32) bits,

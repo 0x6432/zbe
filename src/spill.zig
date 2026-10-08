@@ -140,7 +140,7 @@ pub fn fillcost(f: *Fn) void {
 }
 
 var fst: ?*BSet = null; // temps to prioritize in registers (for tcmp1)
-var tmp: [*c]Tmp = null; // current temporaries (for tcmpX)
+var tmp: [*]Tmp = undefined; // current temporaries (for tcmpX), set by spill()
 var ntmp: i32 = 0; // current # of temps (for limit)
 var locs: i32 = 0; // stack size used by locals
 var slot4: i32 = 0; // next slot of 4 bytes
@@ -186,7 +186,7 @@ fn slot(t: i32) Ref {
     return SLOT(s);
 }
 
-var limit_tarr: [*c]i32 = null;
+var limit_tarr: ?[*]i32 = null;
 var limit_maxt: i32 = 0;
 
 /// restricts b to hold at most k
@@ -203,26 +203,28 @@ fn limit(b: *BSet, k: i32, f: ?*BSet) void {
         limit_tarr = ealloc(i32, nt);
         limit_maxt = nt;
     }
+    // null only while limit_maxt == 0, i.e. nt == 0 (k < 0): nothing to do
+    const tarr = limit_tarr orelse return;
     var i: i32 = 0;
     var t: i32 = 0;
     while (bsiter(b, &t)) : (t += 1) {
         bsclr(b, t);
-        limit_tarr[@intCast(i)] = t;
+        tarr[@intCast(i)] = t;
         i += 1;
     }
     if (nt > 1) {
         if (f == null) {
-            sort(i32, limit_tarr, @intCast(nt), tcmp0);
+            sort(i32, tarr, @intCast(nt), tcmp0);
         } else {
             fst = f;
-            sort(i32, limit_tarr, @intCast(nt), tcmp1);
+            sort(i32, tarr, @intCast(nt), tcmp1);
         }
     }
     i = 0;
     while (i < k and i < nt) : (i += 1)
-        bsset(b, limit_tarr[@intCast(i)]);
+        bsset(b, tarr[@intCast(i)]);
     while (i < nt) : (i += 1)
-        _ = slot(limit_tarr[@intCast(i)]);
+        _ = slot(tarr[@intCast(i)]);
 }
 
 /// spills temporaries to fit the

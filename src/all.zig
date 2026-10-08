@@ -372,7 +372,7 @@ pub const Wuw = 6;
 pub const Tmp = extern struct {
     name: [*c]u8,
     def: ?*Ins,
-    use: [*c]Use,
+    use: ?[*]Use, // vector, null until filluse()
     ndef: uint,
     nuse: uint,
     bid: uint, // id of a defining block

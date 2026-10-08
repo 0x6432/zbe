@@ -174,7 +174,7 @@ fn schedlate(f: *Fn, r: Ref) uint {
     // reuse gcmbid for late bid
     t.gcmbid = t.bid;
     var latebid: uint = NOBID;
-    for (t.use[0..t.nuse]) |*u| {
+    for (t.use.?[0..t.nuse]) |*u| {
         assert(u.bid < f.nblk);
         const b = f.rpo[u.bid];
         var uselatebid: uint = undefined;

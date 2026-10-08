@@ -101,7 +101,7 @@ fn uwl(f: *Fn, r: Ref, w: i32) bool {
 
     assert(rtype(r) == RTmp);
     const t = &f.tmp[r.val];
-    for (t.use[0..t.nuse]) |*u| {
+    for (t.use.?[0..t.nuse]) |*u| {
         switch (u.type) {
             UPhi => {
                 const p = u.u.phi;

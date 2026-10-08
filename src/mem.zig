@@ -83,7 +83,7 @@ pub fn promote(f: *Fn) void {
             continue :outer; // goto Skip
         var k: i32 = -1;
         var s: i32 = -1;
-        for (t.use[0..t.nuse]) |*u| {
+        for (t.use.?[0..t.nuse]) |*u| {
             if (u.type != UIns)
                 continue :outer;
             const l = u.u.ins;
@@ -105,7 +105,7 @@ pub fn promote(f: *Fn) void {
         // get rid of the alloc and replace uses
         i.* = INS0(Onop);
         t.ndef -= 1;
-        for (t.use[0..t.nuse]) |*u| {
+        for (t.use.?[0..t.nuse]) |*u| {
             const l = u.u.ins;
             if (isstore(l.op)) {
                 l.cls = @intCast(k);
@@ -400,7 +400,7 @@ pub fn coalesce(f: *Fn) void {
             continue;
         }
         i.* = INS0(Onop);
-        for (t.use[0..t.nuse]) |*u| {
+        for (t.use.?[0..t.nuse]) |*u| {
             if (u.type == UJmp) {
                 const b = f.rpo[u.bid];
                 assert(isret(b.jmp.type));
@@ -473,7 +473,7 @@ pub fn coalesce(f: *Fn) void {
             ts.def.?.* = INS0(Onop);
             ts.def = t.def;
         }
-        for (t.use[0..t.nuse]) |*u| {
+        for (t.use.?[0..t.nuse]) |*u| {
             if (u.type == UJmp) {
                 f.rpo[u.bid].jmp.arg = TMP(ss.t);
                 continue;

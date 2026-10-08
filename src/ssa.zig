@@ -75,7 +75,7 @@ pub fn adduse(tmp: *Tmp, ty: i32, b: *Blk, x: ?*anyopaque) void {
     const n = tmp.nuse;
     tmp.nuse += 1;
     vgrow(&tmp.use, tmp.nuse);
-    const u = &tmp.use[n];
+    const u = &tmp.use.?[n];
     u.type = ty;
     u.bid = b.id;
     switch (ty) {
@@ -187,7 +187,7 @@ fn phiins(f: *Fn) void {
         if (tt.ndef == 1) {
             var ok = true;
             const defb = tt.bid;
-            for (tt.use[0..tt.nuse]) |use|
+            for (tt.use.?[0..tt.nuse]) |use|
                 ok = ok and (use.bid == defb);
             if (ok or defb == f.start.?.id)
                 continue;
@@ -393,7 +393,7 @@ pub fn ssacheck(f: *Fn) void {
             if (t.ndef > 1)
                 err("ssa temporary %{s} defined more than once", .{cs(t.name)});
             if (t.nuse > 0 and t.ndef == 0) {
-                bu = f.rpo[t.use[0].bid];
+                bu = f.rpo[t.use.?[0].bid];
                 break :errblk;
             }
         }
@@ -403,7 +403,7 @@ pub fn ssacheck(f: *Fn) void {
             while (p_it) |p| : (p_it = p.link) {
                 r = p.to;
                 t = &f.tmp[r.val];
-                for (t.use[0..t.nuse]) |*u| {
+                for (t.use.?[0..t.nuse]) |*u| {
                     bu = f.rpo[u.bid];
                     if (u.type == UPhi) {
                         if (phicheck(u.u.phi, b, r))
@@ -417,7 +417,7 @@ pub fn ssacheck(f: *Fn) void {
                     continue;
                 r = i.to;
                 t = &f.tmp[r.val];
-                for (t.use[0..t.nuse]) |*u| {
+                for (t.use.?[0..t.nuse]) |*u| {
                     bu = f.rpo[u.bid];
                     if (u.type == UPhi) {
                         if (phicheck(u.u.phi, b, r))

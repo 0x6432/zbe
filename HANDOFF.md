@@ -1,6 +1,6 @@
 # HANDOFF – QBE → Zig translation
 
-Updated: 20261008-114856 UTC
+Updated: 20261008-115514 UTC
 
 ## Goal
 Translate QBE (C, cloned at /data/qbe-c, HEAD e786f06) to latest Zig master.
@@ -171,7 +171,10 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    tools/abislices.py has the loop/deref regexes used for these.
    DONE 5q/5r: amd64/sysv.zig and winabi.zig same treatment (all ABI files
    now free of `[*c]`/`.*.`).
-   NEXT FILES: emit files, ABI, isel.
+   DONE 5s: amd64/isel.zig (fixarg(r: *Ref, k, i: ?*Ins, f), selsel/flagi
+   index/slice based, tn is [*]Num), util.runmatch(code: []const uchar,
+   tn, ref, vars: []Ref) index-based.
+   NEXT FILES: arm64/isel, rv64/isel, emit files, util, simpl; emit files, ABI, isel.
    NEXT: rewrite remaining `[*c]Ins` pointer walks to index loops / slices
    (ABI selpar/selcall take [i0,i1) ranges -> should take `[]Ins`), manual
    idiomatic rewrites of functions optionalize couldn't handle (e.g.

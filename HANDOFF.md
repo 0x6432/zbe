@@ -50,8 +50,19 @@ External testing (done, all passing with zig qbe):
   sources, harec .ssa): 0 diffs vs C qbe across all 6 targets.
 - tools/mkcorpus.sh regenerates all of this after a sandbox reset.
 
+- hare stdlib (/data/hare): `.bin/hare` built through zig qbe;
+  `make check`: 626 passed, 0 failed, 11 skipped. (harec symlinked to
+  /data/zbin/harec; scdoc missing so build `make .bin/hare` not `make`.)
+- Own tests: tests/abifuzz.py (ABI fuzzer: C<->QBE calls, structs, sub-word,
+  varargs; executes + compares asm on 6 targets with QBEREF=/data/qbe-c/qbe),
+  tests/irfuzz.py (random IR programs vs Python evaluator; exercises opt
+  passes). Both 100% ok (abifuzz 100 iters, irfuzz 150 iters).
+- BUGS.md: 2 upstream QBE amd64 bugs found (shift flags, shift imm range).
+
 ## Next steps
-1. Optional: hare stdlib (`hare` repo) make check with zig qbe.
-2. Own tests: tests in test/ (e.g. edge cases); abifuzz (qbe-c/tools/abifuzz.sh).
-3. Canonical Zig rewrite (slices, optionals, enums, std.Io.Writer, no libc),
-   keep tools/cmp.sh + tools/corpus.sh passing after each step.
+1. Canonical Zig rewrite (slices, optionals, enums, std.Io.Writer, no libc),
+   keep tools/cmp.sh, tools/corpus.sh, tests/*fuzz.py passing after each step.
+   Suggested order: libc/util (allocation, vectors -> std.ArrayList-like),
+   then IR types (Ref packed struct, enums for ops/classes), then passes.
+2. Optionally fix BUGS.md items in the Zig version (separate commits, will
+   intentionally diverge from C output for those cases).

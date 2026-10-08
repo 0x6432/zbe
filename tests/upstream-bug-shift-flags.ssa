@@ -1,0 +1,10 @@
+export function w $t(w %a, w %b) {
+@start
+	%n =w add %b, 32
+	%x =w shr %a, %n
+	jnz %x, @nz, @z
+@nz
+	ret 1
+@z
+	ret 0
+}

@@ -138,7 +138,7 @@ const RAlloc = extern struct {
     link: ?*RAlloc,
 };
 
-fn classify(a: [*c]AClass, t: *Typ, s_: uint) void {
+fn classify(a: *AClass, t: *Typ, s_: uint) void {
     var s = s_;
     const s1 = s_;
     var n: uint = 0;
@@ -149,7 +149,7 @@ fn classify(a: [*c]AClass, t: *Typ, s_: uint) void {
         var f: [*c]Field = &t.fields[n];
         while (f.*.type != FEnd) : (f += 1) {
             assert(s <= 16);
-            const cls = &a.*.cls[s / 8];
+            const cls = &a.cls[s / 8];
             switch (f.*.type) {
                 FEnd => die("unreachable", .{}),
                 FPad => {
@@ -175,7 +175,7 @@ fn classify(a: [*c]AClass, t: *Typ, s_: uint) void {
     }
 }
 
-fn typclass(a: [*c]AClass, t: *Typ) void {
+fn typclass(a: *AClass, t: *Typ) void {
     var sz: uint = @intCast(t.size);
     var al: uint = @as(uint, 1) << @intCast(t.@"align");
 
@@ -187,30 +187,30 @@ fn typclass(a: [*c]AClass, t: *Typ) void {
         al = 8;
     sz = (sz + al - 1) & (0 -% al);
 
-    a.*.type = t;
-    a.*.size = sz;
-    a.*.@"align" = t.@"align";
+    a.type = t;
+    a.size = sz;
+    a.@"align" = t.@"align";
 
     if (t.isdark != 0 or sz > 16 or sz == 0) {
         // large or unaligned structures are
         // required to be passed in memory
-        a.*.inmem = 1;
+        a.inmem = 1;
         return;
     }
 
-    a.*.cls[0] = Kx;
-    a.*.cls[1] = Kx;
-    a.*.inmem = 0;
+    a.cls[0] = Kx;
+    a.cls[1] = Kx;
+    a.inmem = 0;
     classify(a, t, 0);
 }
 
-fn retr(reg: *[2]Ref, aret: [*c]AClass) i32 {
+fn retr(reg: *[2]Ref, aret: *AClass) i32 {
     const retreg = [2][2]i32{ .{ RAX, RDX }, .{ XMM0, XMM0 + 1 } };
     var nr = [2]usize{ 0, 0 };
     var ca: i32 = 0;
     var n: usize = 0;
-    while (n * 8 < aret.*.size) : (n += 1) {
-        const k: usize = @intCast(KBASE(aret.*.cls[n]));
+    while (n * 8 < aret.size) : (n += 1) {
+        const k: usize = @intCast(KBASE(aret.cls[n]));
         reg[n] = TMP(retreg[k][nr[k]]);
         nr[k] += 1;
         ca += @as(i32, 1) << @intCast(2 * k);

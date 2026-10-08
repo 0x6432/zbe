@@ -283,8 +283,8 @@ fn nnew(r: Ref, b: ?*Blk, up: [*c]Name) [*c]Name {
     return n;
 }
 
-fn nfree(n: [*c]Name) void {
-    n.*.up = namel;
+fn nfree(n: *Name) void {
+    n.up = namel;
     namel = n;
 }
 

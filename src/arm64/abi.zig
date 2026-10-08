@@ -447,12 +447,12 @@ pub fn arm64_argregs(r: Ref, p: [*c]i32) bits {
     return b | (@as(bits, @intCast(x8)) << R8) | (@as(bits, @intCast(x9)) << R9);
 }
 
-fn stkblob(r: Ref, c: [*c]Class, f: *Fn, ilp: *[*c]Insl) void {
+fn stkblob(r: Ref, c: *Class, f: *Fn, ilp: *[*c]Insl) void {
     const il = pnew(Insl);
-    var al: i32 = c.*.t.*.@"align" - 2; // NAlign == 3
+    var al: i32 = c.t.*.@"align" - 2; // NAlign == 3
     if (al < 0)
         al = 0;
-    const sz: u64 = if ((c.*.class & Cptr) != 0) c.*.t.*.size else c.*.size;
+    const sz: u64 = if ((c.class & Cptr) != 0) c.t.*.size else c.size;
     il.i = INS(Oalloc + al, Kl, r, getcon(@bitCast(sz), f), R);
     il.link = ilp.*;
     ilp.* = il;

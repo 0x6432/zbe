@@ -263,13 +263,13 @@ fn register_usage_to_call_arg_value(reg_usage: RegisterUsage) i32 {
 // Assigns the argument to a register if there's any left according to the
 // calling convention, and updates the regs_passed bools. Otherwise marks the
 // value as needing stack space to be passed.
-fn assign_register_or_stack(reg_usage: *RegisterUsage, arg: [*c]ArgClass, is_float: bool, by_copy: bool) void {
+fn assign_register_or_stack(reg_usage: *RegisterUsage, arg: *ArgClass, is_float: bool, by_copy: bool) void {
     if (reg_usage.num_regs_passed == 4) {
-        arg.*.style = if (by_copy) .APS_CopyAndPointerOnStack else .APS_InlineOnStack;
+        arg.style = if (by_copy) .APS_CopyAndPointerOnStack else .APS_InlineOnStack;
     } else {
         reg_usage.regs_passed[@intFromBool(is_float)][@intCast(reg_usage.num_regs_passed)] = true;
         reg_usage.num_regs_passed += 1;
-        arg.*.style = if (by_copy) .APS_CopyAndPointerInRegister else .APS_Register;
+        arg.style = if (by_copy) .APS_CopyAndPointerInRegister else .APS_Register;
     }
     reg_usage.num_named_args_passed += 1;
 }

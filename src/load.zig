@@ -146,21 +146,21 @@ pub fn storesz(s: *Ins) i32 {
     die("unreachable", .{});
 }
 
-fn iins(cls: i32, op: i32, a0: Ref, a1: Ref, l: [*c]Loc) Ref {
+fn iins(cls: i32, op: i32, a0: Ref, a1: Ref, l: *Loc) Ref {
     nlog += 1;
     vgrow(&ilog, nlog);
     const ist = &ilog[nlog - 1];
     ist.isphi = 0;
     ist.num = inum;
     inum += 1;
-    ist.bid = l.*.blk.*.id;
-    ist.off = l.*.off;
+    ist.bid = l.blk.*.id;
+    ist.off = l.off;
     ist.new.ins = INS(op, cls, R, a0, a1);
     ist.new.ins.to = newtmp("ld", cls, curf);
     return ist.new.ins.to;
 }
 
-fn cast(r: *Ref, cls: i32, l: [*c]Loc) void {
+fn cast(r: *Ref, cls: i32, l: *Loc) void {
     if (rtype(r.*) == RCon)
         return;
     assert(rtype(r.*) == RTmp);
@@ -181,12 +181,12 @@ fn cast(r: *Ref, cls: i32, l: [*c]Loc) void {
     }
 }
 
-inline fn mask(cls: i32, r: *Ref, msk: bits, l: [*c]Loc) void {
+inline fn mask(cls: i32, r: *Ref, msk: bits, l: *Loc) void {
     cast(r, cls, l);
     r.* = iins(cls, Oand, r.*, getcon(@bitCast(msk), curf), l);
 }
 
-fn load(sl: Slice, msk: bits, l: [*c]Loc) Ref {
+fn load(sl: Slice, msk: bits, l: *Loc) Ref {
     var r: Ref = undefined;
     var cls: i32 = undefined;
     var c: Con = undefined;
@@ -262,7 +262,7 @@ fn killsl(r: Ref, sl: Slice) bool {
 /// mask does not cover all the bits of the slice,
 /// otherwise, it has class sl.cls
 /// the procedure returns R when it fails
-fn def(sl: Slice, msk: bits, b: *Blk, i: ?*Ins, il: [*c]Loc) Ref {
+fn def(sl: Slice, msk: bits, b: *Blk, i: ?*Ins, il: *Loc) Ref {
     // invariants:
     // -1- b dominates il->blk; so we can use
     //     temporaries of b in il->blk
@@ -272,7 +272,7 @@ fn def(sl: Slice, msk: bits, b: *Blk, i: ?*Ins, il: [*c]Loc) Ref {
     // -3- if il->type != LNoLoad, then b
     //     postdominates il->blk (and by 2, the
     //     original load)
-    assert(dom(b, il.*.blk));
+    assert(dom(b, il.blk));
     const oldl = nlog;
     const oldt = curf.*.ntmp;
     if (defBody(sl, msk, b, i, il)) |r|
@@ -280,13 +280,13 @@ fn def(sl: Slice, msk: bits, b: *Blk, i: ?*Ins, il: [*c]Loc) Ref {
     // Load:
     curf.*.ntmp = oldt;
     nlog = oldl;
-    if (il.*.type != LLoad)
+    if (il.type != LLoad)
         return R;
     return load(sl, msk, il);
 }
 
 /// body of def(); returns null for 'goto Load'
-fn defBody(sl: Slice, msk: bits, b: *Blk, i_: [*c]Ins, il: [*c]Loc) ?Ref {
+fn defBody(sl: Slice, msk: bits, b: *Blk, i_: [*c]Ins, il: *Loc) ?Ref {
     var sl1: Slice = undefined;
     var msk1: bits = undefined;
     var off: i32 = undefined;
@@ -414,7 +414,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: [*c]Ins, il: [*c]Loc) ?Ref {
         return null;
     if (b.npred == 1) {
         const bp = b.pred[0];
-        assert(bp.loop >= il.*.blk.*.loop);
+        assert(bp.loop >= il.blk.*.loop);
         l = il.*;
         if (bp.s2 != null)
             l.type = LNoLoad;
@@ -441,7 +441,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: [*c]Ins, il: [*c]Loc) ?Ref {
     var np: uint = 0;
     while (np < b.npred) : (np += 1) {
         const bp = b.pred[np];
-        if (bp.s2 == null and il.*.type != LNoLoad and bp.loop < il.*.blk.*.loop)
+        if (bp.s2 == null and il.type != LNoLoad and bp.loop < il.blk.*.loop)
             l.type = LLoad
         else
             l.type = LNoLoad;

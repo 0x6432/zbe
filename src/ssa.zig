@@ -267,7 +267,7 @@ const Name = extern struct {
 
 var namel: [*c]Name = null;
 
-fn nnew(r: Ref, b: [*c]Blk, up: [*c]Name) [*c]Name {
+fn nnew(r: Ref, b: ?*Blk, up: [*c]Name) [*c]Name {
     var n: [*c]Name = undefined;
     if (namel != null) {
         n = namel;
@@ -315,9 +315,9 @@ fn renblk(b: *Blk, stk: [*c][*c]Name, f: *Fn) void {
     var succ: [3][*c]Blk = undefined;
     var t: i32 = undefined;
 
-    var p: [*c]Phi = b.phi;
-    while (p != null) : (p = p.*.link)
-        rendef(&p.*.to, b, stk, f);
+    var p: ?*Phi = b.phi;
+    while (p != null) : (p = p.?.link)
+        rendef(&p.?.to, b, stk, f);
     for (b.ins[0..b.nins]) |*i| {
         var m: usize = 0;
         while (m < 2) : (m += 1) {
@@ -341,15 +341,15 @@ fn renblk(b: *Blk, stk: [*c][*c]Name, f: *Fn) void {
     while (ps.* != null) : (ps += 1) {
         const s = ps.*;
         p = s.*.phi;
-        while (p != null) : (p = p.*.link) {
-            t = f.tmp[p.*.to.val].visit;
+        while (p != null) : (p = p.?.link) {
+            t = f.tmp[p.?.to.val].visit;
             if (t != 0) {
-                const m = p.*.narg;
-                p.*.narg += 1;
-                vgrow(&p.*.arg, p.*.narg);
-                vgrow(&p.*.blk, p.*.narg);
-                p.*.arg[m] = getstk(t, b, stk);
-                p.*.blk[m] = b;
+                const m = p.?.narg;
+                p.?.narg += 1;
+                vgrow(&p.?.arg, p.?.narg);
+                vgrow(&p.?.blk, p.?.narg);
+                p.?.arg[m] = getstk(t, b, stk);
+                p.?.blk[m] = b;
             }
         }
     }
@@ -399,7 +399,7 @@ pub fn ssa(f: *Fn) void {
     }
 }
 
-fn phicheck(p: *Phi, b: [*c]Blk, t: Ref) bool {
+fn phicheck(p: *Phi, b: ?*Blk, t: Ref) bool {
     var n: uint = 0;
     while (n < p.narg) : (n += 1)
         if (req(p.arg[n], t)) {
@@ -413,7 +413,7 @@ fn phicheck(p: *Phi, b: [*c]Blk, t: Ref) bool {
 /// require use and ssa
 pub fn ssacheck(f: *Fn) void {
     var t: [*c]Tmp = undefined;
-    var bu: [*c]Blk = undefined;
+    var bu: ?*Blk = undefined;
     var r: Ref = undefined;
 
     errblk: {
@@ -468,5 +468,5 @@ pub fn ssacheck(f: *Fn) void {
     if (t.*.visit != 0)
         die("%{s} violates ssa invariant", .{cs(t.*.name)})
     else
-        err("ssa temporary %{s} is used undefined in @{s}", .{cs(t.*.name), cs(bu.*.name)});
+        err("ssa temporary %{s} is used undefined in @{s}", .{cs(t.*.name), cs(bu.?.name)});
 }

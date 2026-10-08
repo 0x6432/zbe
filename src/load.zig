@@ -403,9 +403,9 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: [*c]Ins, il: [*c]Loc) ?Ref {
                         return r;
                     };
 
-    var p: [*c]Phi = b.phi;
-    while (p != null) : (p = p.*.link)
-        if (killsl(p.*.to, sl))
+    var p: ?*Phi = b.phi;
+    while (p != null) : (p = p.?.link)
+        if (killsl(p.?.to, sl))
             // scanning predecessors in that
             // case would be unsafe
             return null;
@@ -433,11 +433,11 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: [*c]Ins, il: [*c]Loc) ?Ref {
     ist.*.bid = b.id;
     ist.*.new.phi.m = sl;
     ist.*.new.phi.p = p;
-    p.*.to = r;
-    p.*.cls = sl.cls;
-    p.*.narg = b.npred;
-    p.*.arg = vnewT(Ref, p.*.narg, PFn);
-    p.*.blk = vnewT(*Blk, p.*.narg, PFn);
+    p.?.to = r;
+    p.?.cls = sl.cls;
+    p.?.narg = b.npred;
+    p.?.arg = vnewT(Ref, p.?.narg, PFn);
+    p.?.blk = vnewT(*Blk, p.?.narg, PFn);
     var np: uint = 0;
     while (np < b.npred) : (np += 1) {
         const bp = b.pred[np];
@@ -450,8 +450,8 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: [*c]Ins, il: [*c]Loc) ?Ref {
         r1 = def(sl, msks, bp, null, &l);
         if (req(r1, R))
             return null;
-        p.*.arg[np] = r1;
-        p.*.blk[np] = bp;
+        p.?.arg[np] = r1;
+        p.?.blk[np] = bp;
         // XXX - multiplicity in predecessors!!!
     }
     if (msk != msks)

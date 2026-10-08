@@ -997,16 +997,16 @@ fn parseline(ps: PState) PState {
             Tphi => {
                 if (ps != PPhi or curb == curf.*.start)
                     err("unexpected phi instruction", .{});
-                const phi: [*c]Phi = palloc(Phi, 1);
-                phi.*.to = r;
-                phi.*.cls = @intCast(k);
-                phi.*.arg = vnewT(Ref, i, PFn);
-                @memcpy(phi.*.arg[0..i], arg[0..i]);
-                phi.*.blk = vnewT(*Blk, i, PFn);
-                @memcpy(phi.*.blk[0..i], blk[0..i]);
-                phi.*.narg = @intCast(i);
+                const phi: ?*Phi = palloc(Phi, 1);
+                phi.?.to = r;
+                phi.?.cls = @intCast(k);
+                phi.?.arg = vnewT(Ref, i, PFn);
+                @memcpy(phi.?.arg[0..i], arg[0..i]);
+                phi.?.blk = vnewT(*Blk, i, PFn);
+                @memcpy(phi.?.blk[0..i], blk[0..i]);
+                phi.?.narg = @intCast(i);
                 plink.* = phi;
-                plink = &phi.*.link;
+                plink = &phi.?.link;
                 return PPhi;
             },
             Tblit => {
@@ -1182,9 +1182,9 @@ fn parsefn(lnk: [*c]Lnk) [*c]Fn {
     curf.*.nmem = 0;
     curf.*.nblk = @intCast(nblk);
     curf.*.rpo = vnewT(*Blk, nblk, PFn);
-    var b: [*c]Blk = curf.*.start;
-    while (b != null) : (b = b.*.link)
-        b.*.dlink = null; // was trashed by findblk()
+    var b: ?*Blk = curf.*.start;
+    while (b != null) : (b = b.?.link)
+        b.?.dlink = null; // was trashed by findblk()
     i = 0;
     while (i < BMask + 1) : (i += 1)
         blkh[@intCast(i)] = null;

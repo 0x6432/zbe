@@ -570,11 +570,11 @@ pub fn phicls(t: i32, tmp: [*c]Tmp) i32 {
     return t1;
 }
 
-pub fn phiargn(p: [*c]Phi, b: [*c]Blk) uint {
+pub fn phiargn(p: ?*Phi, b: ?*Blk) uint {
     if (p != null) {
         var n: uint = 0;
-        while (n < p.*.narg) : (n += 1)
-            if (p.*.blk[n] == b)
+        while (n < p.?.narg) : (n += 1)
+            if (p.?.blk[n] == b)
                 return n;
     }
     return std.math.maxInt(uint);

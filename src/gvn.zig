@@ -412,7 +412,7 @@ fn rebuildcfg(f: *Fn) void {
     // killed blocks and may be active
     // in the computation in the start
     // block
-    const s: [*c]Blk = f.start;
+    const s: ?*Blk = f.start;
     var n: uint = 0;
     while (n < nblk) : (n += 1) {
         const b = rpo[n];
@@ -423,7 +423,7 @@ fn rebuildcfg(f: *Fn) void {
         for (b.*.ins[0..b.*.nins]) |*i|
             if (all.optab[i.op].pinned == 0)
                 if (gvndup(i, false) == i)
-                    addins(&s.*.ins, &s.*.nins, i);
+                    addins(&s.?.ins, &s.?.nins, i);
     }
     efree(@ptrCast(rpo));
 }

@@ -198,17 +198,17 @@ fn dwl(f: *Fn, r: Ref, w_: i32) bool {
 
     if (t.def == null) {
         // phi def
-        var p: [*c]Phi = f.rpo[t.bid].phi;
-        while (p != null) : (p = p.*.link)
-            if (req(p.*.to, r))
+        var p: ?*Phi = f.rpo[t.bid].phi;
+        while (p != null) : (p = p.?.link)
+            if (req(p.?.to, r))
                 break;
         assert(p != null);
-        if (p.*.visit != 0 and p.*.visit <= w)
+        if (p.?.visit != 0 and p.?.visit <= w)
             return true;
-        p.*.visit = w;
+        p.?.visit = w;
         var n: uint = 0;
-        while (n < p.*.narg) : (n += 1)
-            if (!dwl(f, p.*.arg[n], w))
+        while (n < p.?.narg) : (n += 1)
+            if (!dwl(f, p.?.arg[n], w))
                 return false;
         return true;
     }
@@ -272,9 +272,9 @@ pub fn narrowpars(f: *Fn) void {
 
     // only useful for functions with loops
     var loop = false;
-    var b: [*c]Blk = f.start;
-    while (b != null) : (b = b.*.link)
-        if (b.*.loop > 1) {
+    var b: ?*Blk = f.start;
+    while (b != null) : (b = b.?.link)
+        if (b.?.loop > 1) {
             loop = true;
             break;
         };
@@ -284,8 +284,8 @@ pub fn narrowpars(f: *Fn) void {
     b = f.start;
 
     var npar: uint = 0;
-    var i: [*c]Ins = b.*.ins;
-    while (i < &b.*.ins[b.*.nins]) : (i += 1) {
+    var i: [*c]Ins = b.?.ins;
+    while (i < &b.?.ins[b.?.nins]) : (i += 1) {
         if (!ispar(i.*.op))
             break;
         npar += 1;
@@ -293,15 +293,15 @@ pub fn narrowpars(f: *Fn) void {
     if (npar == 0)
         return;
 
-    const nins = b.*.nins + npar;
+    const nins = b.?.nins + npar;
     const ins = vnewT(Ins, nins, PFn);
-    _ = icpy(ins, b.*.ins, npar);
-    _ = icpy(ins + 2 * npar, b.*.ins + npar, b.*.nins - npar);
-    b.*.ins = ins;
-    b.*.nins = nins;
+    _ = icpy(ins, b.?.ins, npar);
+    _ = icpy(ins + 2 * npar, b.?.ins + npar, b.?.nins - npar);
+    b.?.ins = ins;
+    b.?.nins = nins;
 
-    i = b.*.ins;
-    while (i < &b.*.ins[b.*.nins]) : (i += 1) {
+    i = b.?.ins;
+    while (i < &b.?.ins[b.?.nins]) : (i += 1) {
         if (!ispar(i.*.op))
             break;
         e = INS0(Onop);

@@ -677,7 +677,7 @@ fn split(f: *Fn, b: *Blk) [*c]Blk {
     return bn;
 }
 
-fn chpred(b: *Blk, bp: [*c]Blk, bp1: *Blk) void {
+fn chpred(b: *Blk, bp: ?*Blk, bp1: *Blk) void {
     var p_it: ?*Phi = b.phi;
     while (p_it) |p| : (p_it = p.link) {
         var a: uint = 0;

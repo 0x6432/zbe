@@ -33,7 +33,7 @@ const rtype = all.rtype;
 const uint = all.uint;
 // -- end imports --
 
-pub fn liveon(v: *BSet, b: [*c]Blk, s: *Blk) void {
+pub fn liveon(v: *BSet, b: ?*Blk, s: *Blk) void {
     bscopy(v, &s.in);
     var p_it: ?*Phi = s.phi;
     while (p_it) |p| : (p_it = p.link) {
@@ -47,7 +47,7 @@ pub fn liveon(v: *BSet, b: [*c]Blk, s: *Blk) void {
             if (p.blk[a] == b)
                 if (rtype(p.arg[a]) == RTmp) {
                     bsset(v, p.arg[a].val);
-                    bsset(&b.*.gen, p.arg[a].val);
+                    bsset(&b.?.gen, p.arg[a].val);
                 };
         }
     }

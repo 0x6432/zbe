@@ -33,10 +33,10 @@ const vnewT = all.vnewT;
 const NOID: uint = std.math.maxInt(uint); // -1u
 
 pub fn newblk() [*c]Blk {
-    const b: [*c]Blk = palloc(Blk, 1);
-    b.* = std.mem.zeroes(Blk);
-    b.*.ins = vnewT(Ins, 0, PFn);
-    b.*.pred = vnewT(*Blk, 0, PFn);
+    const b: ?*Blk = palloc(Blk, 1);
+    b.?.* = std.mem.zeroes(Blk);
+    b.?.ins = vnewT(Ins, 0, PFn);
+    b.?.pred = vnewT(*Blk, 0, PFn);
     return b;
 }
 
@@ -82,19 +82,19 @@ pub fn fillpreds(f: *Fn) void {
     }
 }
 
-fn porec(b: [*c]Blk, npo: *uint) void {
-    if (b == null or b.*.id != NOID)
+fn porec(b: ?*Blk, npo: *uint) void {
+    if (b == null or b.?.id != NOID)
         return;
-    b.*.id = 0; // marker
-    var s1: [*c]Blk = b.*.s1;
-    var s2: [*c]Blk = b.*.s2;
-    if (s1 != null and s2 != null and s1.*.loop > s2.*.loop) {
-        s1 = b.*.s2;
-        s2 = b.*.s1;
+    b.?.id = 0; // marker
+    var s1: ?*Blk = b.?.s1;
+    var s2: ?*Blk = b.?.s2;
+    if (s1 != null and s2 != null and s1.?.loop > s2.?.loop) {
+        s1 = b.?.s2;
+        s2 = b.?.s1;
     }
     porec(s1, npo);
     porec(s2, npo);
-    b.*.id = npo.*;
+    b.?.id = npo.*;
     npo.* += 1;
 }
 
@@ -150,12 +150,12 @@ fn inter(b1_: [*c]Blk, b2_: [*c]Blk) [*c]Blk {
 }
 
 pub fn filldom(f: *Fn) void {
-    var b: [*c]Blk = f.start;
-    var d: [*c]Blk = undefined;
-    while (b != null) : (b = b.*.link) {
-        b.*.idom = null;
-        b.*.dom = null;
-        b.*.dlink = null;
+    var b: ?*Blk = f.start;
+    var d: ?*Blk = undefined;
+    while (b != null) : (b = b.?.link) {
+        b.?.idom = null;
+        b.?.dom = null;
+        b.?.dlink = null;
     }
     while (true) {
         var ch: i32 = 0;
@@ -164,24 +164,24 @@ pub fn filldom(f: *Fn) void {
             b = f.rpo[n];
             d = null;
             var p: uint = 0;
-            while (p < b.*.npred) : (p += 1)
-                if (b.*.pred[p].idom != null or b.*.pred[p] == f.start) {
-                    d = inter(d, b.*.pred[p]);
+            while (p < b.?.npred) : (p += 1)
+                if (b.?.pred[p].idom != null or b.?.pred[p] == f.start) {
+                    d = inter(d, b.?.pred[p]);
                 };
-            if (d != b.*.idom) {
+            if (d != b.?.idom) {
                 ch += 1;
-                b.*.idom = d;
+                b.?.idom = d;
             }
         }
         if (ch == 0) break;
     }
     b = f.start;
-    while (b != null) : (b = b.*.link) {
-        d = b.*.idom;
+    while (b != null) : (b = b.?.link) {
+        d = b.?.idom;
         if (d != null) {
             assert(d != b);
-            b.*.dlink = d.*.dom;
-            d.*.dom = b;
+            b.?.dlink = d.?.dom;
+            d.?.dom = b;
         }
     }
 }
@@ -196,7 +196,7 @@ pub fn sdom(b1: [*c]Blk, b2_: [*c]Blk) bool {
     return b1 == b2;
 }
 
-pub fn dom(b1: [*c]Blk, b2: [*c]Blk) bool {
+pub fn dom(b1: ?*Blk, b2: ?*Blk) bool {
     return b1 == b2 or sdom(b1, b2);
 }
 
@@ -273,15 +273,15 @@ pub fn filldepth(f: *Fn) void {
         if (b.depth != -1)
             continue;
         var depth: i32 = 1;
-        var d: [*c]Blk = b.idom;
-        while (d.*.depth == -1) : (d = d.*.idom)
+        var d: ?*Blk = b.idom;
+        while (d.?.depth == -1) : (d = d.?.idom)
             depth += 1;
-        depth += d.*.depth;
+        depth += d.?.depth;
         b.depth = depth;
         d = b.idom;
-        while (d.*.depth == -1) : (d = d.*.idom) {
+        while (d.?.depth == -1) : (d = d.?.idom) {
             depth -= 1;
-            d.*.depth = depth;
+            d.?.depth = depth;
         }
     }
 }
@@ -332,54 +332,54 @@ pub fn simpljmp(f: *Fn) void {
     f.nblk += 1;
     ret.*.jmp.type = Jret0;
     const uf: [*c][*c]Blk = ealloc([*c]Blk, f.nblk); // union-find
-    var b: [*c]Blk = f.start;
-    while (b != null) : (b = b.*.link) {
-        assert(b.*.phi == null);
-        if (b.*.jmp.type == Jret0) {
-            b.*.jmp.type = Jjmp;
-            b.*.s1 = ret;
+    var b: ?*Blk = f.start;
+    while (b != null) : (b = b.?.link) {
+        assert(b.?.phi == null);
+        if (b.?.jmp.type == Jret0) {
+            b.?.jmp.type = Jjmp;
+            b.?.s1 = ret;
         }
-        if (b.*.nins == 0)
-            if (b.*.jmp.type == Jjmp) {
-                uffind(&b.*.s1, uf);
-                if (b.*.s1 != b)
-                    uf[b.*.id] = b.*.s1;
+        if (b.?.nins == 0)
+            if (b.?.jmp.type == Jjmp) {
+                uffind(&b.?.s1, uf);
+                if (b.?.s1 != b)
+                    uf[b.?.id] = b.?.s1;
             };
     }
     var p: [*c][*c]Blk = &f.start;
-    while (true) : (p = &b.*.link) {
+    while (true) : (p = &b.?.link) {
         b = p.*;
         if (b == null) break;
-        if (b.*.s1 != null)
-            uffind(&b.*.s1, uf);
-        if (b.*.s2 != null)
-            uffind(&b.*.s2, uf);
-        if (b.*.s1 != null and b.*.s1 == b.*.s2) {
-            b.*.jmp.type = Jjmp;
-            b.*.s2 = null;
+        if (b.?.s1 != null)
+            uffind(&b.?.s1, uf);
+        if (b.?.s2 != null)
+            uffind(&b.?.s2, uf);
+        if (b.?.s1 != null and b.?.s1 == b.?.s2) {
+            b.?.jmp.type = Jjmp;
+            b.?.s2 = null;
         }
     }
     p.* = ret;
     efree(@ptrCast(uf));
 }
 
-fn reachrec(b: [*c]Blk, to: [*c]Blk) bool {
+fn reachrec(b: ?*Blk, to: ?*Blk) bool {
     if (b == to)
         return true;
-    if (b == null or b.*.visit != 0)
+    if (b == null or b.?.visit != 0)
         return false;
 
-    b.*.visit = 1;
-    if (reachrec(b.*.s1, to))
+    b.?.visit = 1;
+    if (reachrec(b.?.s1, to))
         return true;
-    if (reachrec(b.*.s2, to))
+    if (reachrec(b.?.s2, to))
         return true;
 
     return false;
 }
 
 /// Blk.visit needs to be clear at entry
-pub fn reaches(f: *Fn, b_: *Blk, to: [*c]Blk) bool {
+pub fn reaches(f: *Fn, b_: *Blk, to: ?*Blk) bool {
     assert(to != null);
     const r = reachrec(b_, to);
     var b_it: ?*Blk = f.start;
@@ -395,17 +395,17 @@ pub fn reachesnotvia(f: *Fn, b: *Blk, to: *Blk, excl: *Blk) bool {
     return reaches(f, b, to);
 }
 
-pub fn ifgraph(ifb: [*c]Blk, pthenb_: *[*c]Blk, pelseb_: *[*c]Blk, pjoinb: *[*c]Blk) bool {
+pub fn ifgraph(ifb: ?*Blk, pthenb_: *[*c]Blk, pelseb_: *[*c]Blk, pjoinb: *[*c]Blk) bool {
     var pthenb = pthenb_;
     var pelseb = pelseb_;
-    if (ifb.*.jmp.type != Jjnz)
+    if (ifb.?.jmp.type != Jjnz)
         return false;
 
-    var s1: [*c]Blk = ifb.*.s1;
-    var s2: [*c]Blk = ifb.*.s2;
-    if (s1.*.id > s2.*.id) {
-        s1 = ifb.*.s2;
-        s2 = ifb.*.s1;
+    var s1: ?*Blk = ifb.?.s1;
+    var s2: ?*Blk = ifb.?.s2;
+    if (s1.?.id > s2.?.id) {
+        s1 = ifb.?.s2;
+        s2 = ifb.?.s1;
         const t = pthenb;
         pthenb = pelseb;
         pelseb = t;
@@ -413,12 +413,12 @@ pub fn ifgraph(ifb: [*c]Blk, pthenb_: *[*c]Blk, pelseb_: *[*c]Blk, pjoinb: *[*c]
     if (s1 == s2)
         return false;
 
-    if (s1.*.jmp.type != Jjmp or s1.*.npred != 1)
+    if (s1.?.jmp.type != Jjmp or s1.?.npred != 1)
         return false;
 
-    if (s1.*.s1 == s2) {
+    if (s1.?.s1 == s2) {
         // if-then / if-else
-        if (s2.*.npred != 2)
+        if (s2.?.npred != 2)
             return false;
         pthenb.* = s1;
         pelseb.* = ifb;
@@ -426,15 +426,15 @@ pub fn ifgraph(ifb: [*c]Blk, pthenb_: *[*c]Blk, pelseb_: *[*c]Blk, pjoinb: *[*c]
         return true;
     }
 
-    if (s2.*.jmp.type != Jjmp or s2.*.npred != 1)
+    if (s2.?.jmp.type != Jjmp or s2.?.npred != 1)
         return false;
-    if (s1.*.s1 != s2.*.s1 or s1.*.s1.?.npred != 2)
+    if (s1.?.s1 != s2.?.s1 or s1.?.s1.?.npred != 2)
         return false;
 
-    assert(s1.*.s1 != ifb);
+    assert(s1.?.s1 != ifb);
     pthenb.* = s1;
     pelseb.* = s2;
-    pjoinb.* = s1.*.s1;
+    pjoinb.* = s1.?.s1;
     return true;
 }
 

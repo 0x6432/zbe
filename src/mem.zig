@@ -77,9 +77,9 @@ pub fn promote(f: *Fn) void {
     var k: i32 = undefined;
 
     // promote uniform stack slots to temporaries
-    const b: [*c]Blk = f.start;
-    var i: [*c]Ins = b.*.ins;
-    outer: while (i < &b.*.ins[b.*.nins]) : (i += 1) {
+    const b: ?*Blk = f.start;
+    var i: [*c]Ins = b.?.ins;
+    outer: while (i < &b.?.ins[b.?.nins]) : (i += 1) {
         if (Oalloc > i.*.op or i.*.op > Oalloc1)
             continue;
         // specific to NAlign == 3
@@ -251,7 +251,7 @@ pub fn coalesce(f: *Fn) void {
     var r: Range = undefined;
     var s: [*c]Slot = undefined;
     var s0: [*c]Slot = undefined;
-    var b: [*c]Blk = undefined;
+    var b: ?*Blk = undefined;
     var succ: [3][*c]Blk = undefined;
     var i: [*c]Ins = undefined;
     var t: [*c]Tmp = undefined;
@@ -290,8 +290,8 @@ pub fn coalesce(f: *Fn) void {
 
     // one-pass liveness analysis
     b = f.start;
-    while (b != null) : (b = b.*.link)
-        b.*.loop = -1;
+    while (b != null) : (b = b.?.link)
+        b.?.loop = -1;
     loopiter(f, maxrpo);
     var nbl: i32 = 0;
     var bl = vnewT([*c]Ins, 0, PHeap);
@@ -300,8 +300,8 @@ pub fn coalesce(f: *Fn) void {
     n = @as(i32, @intCast(f.nblk)) - 1;
     while (n >= 0) : (n -= 1) {
         b = f.rpo[@intCast(n)];
-        succ[0] = b.*.s1;
-        succ[1] = b.*.s2;
+        succ[0] = b.?.s1;
+        succ[1] = b.?.s2;
         succ[2] = null;
         br[@intCast(n)].b = ip;
         ip -= 1;
@@ -317,12 +317,12 @@ pub fn coalesce(f: *Fn) void {
                 }
             }
         }
-        if (b.*.jmp.type == Jretc) {
+        if (b.?.jmp.type == Jretc) {
             ip -= 1;
-            load(b.*.jmp.arg, @bitCast(@as(i64, -1)), ip, f, sl);
+            load(b.?.jmp.arg, @bitCast(@as(i64, -1)), ip, f, sl);
         }
-        i = &b.*.ins[b.*.nins];
-        while (i != b.*.ins) {
+        i = &b.?.ins[b.?.nins];
+        while (i != b.?.ins) {
             i -= 1;
             arg = &i.*.arg;
             if (i.*.op == Oargc) {
@@ -356,9 +356,9 @@ pub fn coalesce(f: *Fn) void {
         while (s < &sl[@intCast(nsl)]) : (s += 1)
             if (s.*.l != 0) {
                 radd(&s.*.r, ip);
-                if (b.*.loop != -1) {
-                    assert(b.*.loop >= n);
-                    radd(&s.*.r, br[@intCast(b.*.loop)].b - 1);
+                if (b.?.loop != -1) {
+                    assert(b.?.loop >= n);
+                    radd(&s.*.r, br[@intCast(b.?.loop)].b - 1);
                 }
             };
         br[@intCast(n)].a = ip;
@@ -423,9 +423,9 @@ pub fn coalesce(f: *Fn) void {
         for (t.*.use[0..t.*.nuse]) |*u| {
             if (u.type == UJmp) {
                 b = f.rpo[u.bid];
-                assert(isret(b.*.jmp.type));
-                b.*.jmp.type = Jret0;
-                b.*.jmp.arg = R;
+                assert(isret(b.?.jmp.type));
+                b.?.jmp.type = Jret0;
+                b.?.jmp.arg = R;
                 continue;
             }
             assert(u.type == UIns);
@@ -502,7 +502,7 @@ pub fn coalesce(f: *Fn) void {
         for (t.*.use[0..t.*.nuse]) |*u| {
             if (u.type == UJmp) {
                 b = f.rpo[u.bid];
-                b.*.jmp.arg = TMP(s.*.s.*.t);
+                b.?.jmp.arg = TMP(s.*.s.*.t);
                 continue;
             }
             assert(u.type == UIns);

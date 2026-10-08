@@ -306,7 +306,7 @@ fn regcpy(i: [*c]Ins) bool {
     return i.*.op == Ocopy and isreg(i.*.arg[0]);
 }
 
-fn dopm(b: [*c]Blk, i_: [*c]Ins, m: *RMap) [*c]Ins {
+fn dopm(b: ?*Blk, i_: [*c]Ins, m: *RMap) [*c]Ins {
     var m0 = m.*; // okay since we don't use m0.b
     m0.b.t = undefined;
     var i = i_ + 1;
@@ -314,10 +314,10 @@ fn dopm(b: [*c]Blk, i_: [*c]Ins, m: *RMap) [*c]Ins {
     while (true) {
         i -= 1;
         move(@intCast(i.*.arg[0].val), i.*.to, m);
-        if (!(i != b.*.ins and regcpy(i - 1))) break;
+        if (!(i != b.?.ins and regcpy(i - 1))) break;
     }
     assert(m0.n <= m.n);
-    if (i != b.*.ins and (i - 1).*.op == Ocall) {
+    if (i != b.?.ins and (i - 1).*.op == Ocall) {
         const def = all.T.retregs((i - 1).*.arg[1], null) | all.T.rglob;
         var r: usize = 0;
         while (all.T.rsave[r] >= 0) : (r += 1) {

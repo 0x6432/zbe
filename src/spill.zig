@@ -267,7 +267,9 @@ fn regcpy(i: *Ins) bool {
     return i.op == Ocopy and isreg(i.arg[0]);
 }
 
-fn dopm(b: *Blk, i_: [*c]Ins, v: *BSet) [*c]Ins {
+/// handles the run of register copies ending at b.ins[last];
+/// returns the index of the first copy of the run
+fn dopm(b: *Blk, last: uint, v: *BSet) uint {
     var u: BSet = undefined;
     var r: bits = undefined;
 
@@ -281,40 +283,41 @@ fn dopm(b: *Blk, i_: [*c]Ins, v: *BSet) [*c]Ins {
     // by copy instructions here, this
     // might not be true if previous
     // passes change
-    var i = i_ + 1;
-    var i_1 = i;
+    var n = last + 1;
     while (true) {
-        i -= 1;
-        const t = i.*.to.val;
-        if (!req(i.*.to, R))
+        n -= 1;
+        const i = &b.ins[n];
+        const t = i.to.val;
+        if (!req(i.to, R))
             if (bshas(v, t)) {
                 bsclr(v, t);
-                store(i.*.to, tmp[t].slot);
+                store(i.to, tmp[t].slot);
             };
-        bsset(v, i.*.arg[0].val);
-        if (!(i != b.ins and regcpy(i - 1))) break;
+        bsset(v, i.arg[0].val);
+        if (!(n != 0 and regcpy(&b.ins[n - 1]))) break;
     }
     bscopy(&u, v);
-    if (i != b.ins and (i - 1).*.op == Ocall) {
-        v.t[0] &= ~all.T.retregs((i - 1).*.arg[1], null);
+    if (n != 0 and b.ins[n - 1].op == Ocall) {
+        const call = &b.ins[n - 1];
+        v.t[0] &= ~all.T.retregs(call.arg[1], null);
         limit2(v, all.T.nrsave[0], all.T.nrsave[1], null);
-        var n: usize = 0;
         r = 0;
-        while (all.T.rsave[n] >= 0) : (n += 1)
-            r |= BIT(all.T.rsave[n]);
-        v.t[0] |= all.T.argregs((i - 1).*.arg[1], null);
+        var k: usize = 0;
+        while (all.T.rsave[k] >= 0) : (k += 1)
+            r |= BIT(all.T.rsave[k]);
+        v.t[0] |= all.T.argregs(call.arg[1], null);
     } else {
         limit2(v, 0, 0, null);
         r = v.t[0];
     }
     sethint(v, r);
     reloads(&u, v);
-    while (true) {
-        i_1 -= 1;
-        emiti(i_1.*);
-        if (i_1 == i) break;
+    var k = last + 1;
+    while (k > n) {
+        k -= 1;
+        emiti(b.ins[k]);
     }
-    return i;
+    return n;
 }
 
 fn merge(u: *BSet, bu: *Blk, v: *BSet, bv: *Blk) void {
@@ -376,44 +379,44 @@ pub fn spill(f: *Fn) void {
         // 1. find temporaries in registers at
         // the end of the block (put them in v)
         all.curi = null;
-        const s1: [*c]Blk = b.s1;
-        const s2: [*c]Blk = b.s2;
-        var hd: [*c]Blk = null;
-        if (s1 != null and s1.*.id <= b.id)
-            hd = s1;
-        if (s2 != null and s2.*.id <= b.id)
-            if (hd == null or s2.*.id >= hd.*.id) {
-                hd = s2;
+        const s1 = b.s1;
+        const s2 = b.s2;
+        var hd_: ?*Blk = null;
+        if (s1 != null and s1.?.id <= b.id)
+            hd_ = s1;
+        if (s2 != null and s2.?.id <= b.id)
+            if (hd_ == null or s2.?.id >= hd_.?.id) {
+                hd_ = s2;
             };
-        if (hd != null) {
+        if (hd_) |hd| {
             // back-edge
             bszero(&v);
-            hd.*.gen.t[0] |= all.T.rglob; // don't spill registers
+            hd.gen.t[0] |= all.T.rglob; // don't spill registers
             var k: usize = 0;
             while (k < 2) : (k += 1) {
                 const n: i32 = if (k == 0) all.T.ngpr else all.T.nfpr;
                 bscopy(&u, &b.out);
                 bsinter(&u, &mask[k]);
                 bscopy(&w, &u);
-                bsinter(&u, &hd.*.gen);
-                bsdiff(&w, &hd.*.gen);
+                bsinter(&u, &hd.gen);
+                bsdiff(&w, &hd.gen);
                 if (@as(i32, @intCast(bscount(&u))) < n) {
                     const j: i32 = @intCast(bscount(&w)); // live through
-                    const l = hd.*.nlive[k];
+                    const l = hd.nlive[k];
                     limit(&w, n - (l - j), null);
                     bsunion(&u, &w);
                 } else limit(&u, n, null);
                 bsunion(&v, &u);
             }
-        } else if (s1 != null) {
+        } else if (s1) |s1b| {
             // avoid reloading temporaries
             // in the middle of loops
             bszero(&v);
-            liveon(&w, b, s1);
-            merge(&v, b, &w, s1);
-            if (s2 != null) {
-                liveon(&u, b, s2);
-                merge(&v, b, &u, s2);
+            liveon(&w, b, s1b);
+            merge(&v, b, &w, s1b);
+            if (s2) |s2b| {
+                liveon(&u, b, s2b);
+                merge(&v, b, &u, s2b);
                 bsinter(&w, &u);
             }
             limit2(&v, 0, 0, &w);
@@ -439,17 +442,18 @@ pub fn spill(f: *Fn) void {
 
         // 2. process the block instructions
         all.curi = all.insbEnd();
-        var i: [*c]Ins = b.ins + b.nins;
-        while (i != b.ins) {
-            i -= 1;
+        var i_n = b.nins;
+        while (i_n > 0) {
+            i_n -= 1;
+            const i = &b.ins[i_n];
             if (regcpy(i)) {
-                i = dopm(b, i, &v);
+                i_n = dopm(b, i_n, &v);
                 continue;
             }
             bszero(&w);
-            if (!req(i.*.to, R)) {
-                assert(rtype(i.*.to) == RTmp);
-                t = @intCast(i.*.to.val);
+            if (!req(i.to, R)) {
+                assert(rtype(i.to) == RTmp);
+                t = @intCast(i.to.val);
                 if (bshas(&v, t)) {
                     bsclr(&v, t);
                 } else {
@@ -460,17 +464,17 @@ pub fn spill(f: *Fn) void {
                     bsset(&w, t);
                 }
             }
-            var j = all.T.memargs(@intCast(i.*.op));
+            var j = all.T.memargs(@intCast(i.op));
             var n: usize = 0;
             while (n < 2) : (n += 1) {
-                if (rtype(i.*.arg[n]) == RMem)
+                if (rtype(i.arg[n]) == RMem)
                     j -= 1;
             }
             n = 0;
             while (n < 2) : (n += 1) {
-                switch (rtype(i.*.arg[n])) {
+                switch (rtype(i.arg[n])) {
                     RMem => {
-                        t = @intCast(i.*.arg[n].val);
+                        t = @intCast(i.arg[n].val);
                         const m = &f.mem[@intCast(t)];
                         if (rtype(m.base) == RTmp) {
                             bsset(&v, m.base.val);
@@ -482,7 +486,7 @@ pub fn spill(f: *Fn) void {
                         }
                     },
                     RTmp => {
-                        t = @intCast(i.*.arg[n].val);
+                        t = @intCast(i.arg[n].val);
                         lvarg[n] = bshas(&v, t);
                         bsset(&v, t);
                         const jj = j;
@@ -497,21 +501,21 @@ pub fn spill(f: *Fn) void {
             limit2(&v, 0, 0, &w);
             n = 0;
             while (n < 2) : (n += 1) {
-                if (rtype(i.*.arg[n]) == RTmp) {
-                    t = @intCast(i.*.arg[n].val);
+                if (rtype(i.arg[n]) == RTmp) {
+                    t = @intCast(i.arg[n].val);
                     if (!bshas(&v, t)) {
                         // do not reload if the
                         // argument is dead
                         if (!lvarg[n])
                             bsclr(&u, t);
-                        i.*.arg[n] = slot(t);
+                        i.arg[n] = slot(t);
                     }
                 }
             }
             reloads(&u, &v);
-            if (!req(i.*.to, R)) {
-                t = @intCast(i.*.to.val);
-                store(i.*.to, tmp[@intCast(t)].slot);
+            if (!req(i.to, R)) {
+                t = @intCast(i.to.val);
+                store(i.to, tmp[@intCast(t)].slot);
                 if (t >= Tmp0)
                     // in case i->to was a
                     // dead temporary

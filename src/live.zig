@@ -32,27 +32,25 @@ const rtype = all.rtype;
 const uint = all.uint;
 // -- end imports --
 
-pub fn liveon(v: *BSet, b: ?*Blk, s: *Blk) void {
+pub fn liveon(v: *BSet, b: *Blk, s: *Blk) void {
     bscopy(v, &s.in);
-    var p_it: ?*Phi = s.phi;
+    var p_it = s.phi;
     while (p_it) |p| : (p_it = p.link) {
         if (rtype(p.to) == RTmp)
             bsclr(v, p.to.val);
     }
     p_it = s.phi;
     while (p_it) |p| : (p_it = p.link) {
-        var a: uint = 0;
-        while (a < p.narg) : (a += 1) {
-            if (p.blk[a] == b)
-                if (rtype(p.arg[a]) == RTmp) {
-                    bsset(v, p.arg[a].val);
-                    bsset(&b.?.gen, p.arg[a].val);
-                };
+        for (p.blk[0..p.narg], p.arg[0..p.narg]) |pb, a| {
+            if (pb == b and rtype(a) == RTmp) {
+                bsset(v, a.val);
+                bsset(&b.gen, a.val);
+            }
         }
     }
 }
 
-fn bset(r: Ref, b: *Blk, nlv: *[2]i32, tmp: [*c]Tmp) void {
+fn bset(r: Ref, b: *Blk, nlv: *[2]i32, tmp: [*]const Tmp) void {
     if (rtype(r) != RTmp)
         return;
     bsset(&b.gen, r.val);
@@ -72,63 +70,56 @@ pub fn filllive(f: *Fn) void {
 
     bsinit(&u, @intCast(f.ntmp));
     bsinit(&v, @intCast(f.ntmp));
-    var b: [*c]Blk = f.start;
-    while (b != null) : (b = b.*.link) {
-        bsinit(&b.*.in, @intCast(f.ntmp));
-        bsinit(&b.*.out, @intCast(f.ntmp));
-        bsinit(&b.*.gen, @intCast(f.ntmp));
+    var b_it = f.start;
+    while (b_it) |b| : (b_it = b.link) {
+        bsinit(&b.in, @intCast(f.ntmp));
+        bsinit(&b.out, @intCast(f.ntmp));
+        bsinit(&b.gen, @intCast(f.ntmp));
     }
     var chg = true;
     while (true) {
-        var n: i32 = @as(i32, @intCast(f.nblk)) - 1;
-        while (n >= 0) : (n -= 1) {
-            b = f.rpo[@intCast(n)];
+        var n = f.nblk;
+        while (n > 0) {
+            n -= 1;
+            const b = f.rpo[n];
 
-            bscopy(&u, &b.*.out);
-            if (b.*.s1 != null) {
-                liveon(&v, b, b.*.s1.?);
-                bsunion(&b.*.out, &v);
+            bscopy(&u, &b.out);
+            for ([2]?*Blk{ b.s1, b.s2 }) |s_| {
+                const s = s_ orelse continue;
+                liveon(&v, b, s);
+                bsunion(&b.out, &v);
             }
-            if (b.*.s2 != null) {
-                liveon(&v, b, b.*.s2.?);
-                bsunion(&b.*.out, &v);
-            }
-            chg = chg or !bsequal(&b.*.out, &u);
+            chg = chg or !bsequal(&b.out, &u);
 
             nlv = .{ 0, 0 };
-            b.*.out.t[0] |= all.T.rglob;
-            bscopy(&b.*.in, &b.*.out);
+            b.out.t[0] |= all.T.rglob;
+            bscopy(&b.in, &b.out);
             var t: i32 = 0;
-            while (bsiter(&b.*.in, &t)) : (t += 1)
+            while (bsiter(&b.in, &t)) : (t += 1)
                 nlv[@intCast(KBASE(f.tmp[@intCast(t)].cls))] += 1;
-            if (rtype(b.*.jmp.arg) == RCall) {
-                assert(@as(i32, @intCast(bscount(&b.*.in))) == all.T.nrglob and
-                    b.*.in.t[0] == all.T.rglob);
-                b.*.in.t[0] |= all.T.retregs(b.*.jmp.arg, &nlv);
-            } else bset(b.*.jmp.arg, b, &nlv, f.tmp);
-            var k: usize = 0;
-            while (k < 2) : (k += 1)
-                b.*.nlive[k] = nlv[k];
-            var i_n = b.*.nins;
+            if (rtype(b.jmp.arg) == RCall) {
+                assert(@as(i32, @intCast(bscount(&b.in))) == all.T.nrglob and
+                    b.in.t[0] == all.T.rglob);
+                b.in.t[0] |= all.T.retregs(b.jmp.arg, &nlv);
+            } else bset(b.jmp.arg, b, &nlv, f.tmp);
+            b.nlive = nlv;
+            var i_n = b.nins;
             while (i_n > 0) {
                 i_n -= 1;
-                const i = &b.*.ins[i_n];
+                const i = &b.ins[i_n];
                 if (i.op == Ocall and rtype(i.arg[1]) == RCall) {
-                    b.*.in.t[0] &= ~all.T.retregs(i.arg[1], &m);
-                    k = 0;
-                    while (k < 2) : (k += 1) {
+                    b.in.t[0] &= ~all.T.retregs(i.arg[1], &m);
+                    for (0..2) |k| {
                         nlv[k] -= m[k];
                         // caller-save registers are used
                         // by the callee, in that sense,
                         // right in the middle of the call,
                         // they are live:
                         nlv[k] += all.T.nrsave[k];
-                        if (nlv[k] > b.*.nlive[k])
-                            b.*.nlive[k] = nlv[k];
+                        b.nlive[k] = @max(b.nlive[k], nlv[k]);
                     }
-                    b.*.in.t[0] |= all.T.argregs(i.arg[1], &m);
-                    k = 0;
-                    while (k < 2) : (k += 1) {
+                    b.in.t[0] |= all.T.argregs(i.arg[1], &m);
+                    for (0..2) |k| {
                         nlv[k] -= all.T.nrsave[k];
                         nlv[k] += m[k];
                     }
@@ -136,48 +127,41 @@ pub fn filllive(f: *Fn) void {
                 if (!req(i.to, R)) {
                     assert(rtype(i.to) == RTmp);
                     const tt = i.to.val;
-                    if (bshas(&b.*.in, tt))
+                    if (bshas(&b.in, tt))
                         nlv[@intCast(KBASE(f.tmp[tt].cls))] -= 1;
-                    bsset(&b.*.gen, tt);
-                    bsclr(&b.*.in, tt);
+                    bsset(&b.gen, tt);
+                    bsclr(&b.in, tt);
                 }
-                k = 0;
-                while (k < 2) : (k += 1) {
-                    switch (rtype(i.arg[k])) {
+                for (i.arg) |a| {
+                    switch (rtype(a)) {
                         RMem => {
-                            const ma = &f.mem[i.arg[k].val];
+                            const ma = &f.mem[a.val];
                             bset(ma.base, b, &nlv, f.tmp);
                             bset(ma.index, b, &nlv, f.tmp);
                         },
-                        else => bset(i.arg[k], b, &nlv, f.tmp),
+                        else => bset(a, b, &nlv, f.tmp),
                     }
                 }
-                k = 0;
-                while (k < 2) : (k += 1) {
-                    if (nlv[k] > b.*.nlive[k])
-                        b.*.nlive[k] = nlv[k];
-                }
+                for (0..2) |k|
+                    b.nlive[k] = @max(b.nlive[k], nlv[k]);
             }
         }
-        if (chg) {
-            chg = false;
-            continue;
-        }
-        break;
+        if (!chg) break;
+        chg = false;
     }
 
     if (all.debug['L'] != 0) {
         dprint("\n> Liveness analysis:\n", .{});
-        b = f.start;
-        while (b != null) : (b = b.*.link) {
-            dprint("\t{s:<10}in:   ", .{cs(b.*.name)});
-            dumpts(&b.*.in, f.tmp, all.dbg) catch {};
+        b_it = f.start;
+        while (b_it) |b| : (b_it = b.link) {
+            dprint("\t{s:<10}in:   ", .{cs(b.name)});
+            dumpts(&b.in, f.tmp, all.dbg) catch {};
             dprint("\t          out:  ", .{});
-            dumpts(&b.*.out, f.tmp, all.dbg) catch {};
+            dumpts(&b.out, f.tmp, all.dbg) catch {};
             dprint("\t          gen:  ", .{});
-            dumpts(&b.*.gen, f.tmp, all.dbg) catch {};
+            dumpts(&b.gen, f.tmp, all.dbg) catch {};
             dprint("\t          live: ", .{});
-            dprint("{d} {d}\n", .{b.*.nlive[0], b.*.nlive[1]});
+            dprint("{d} {d}\n", .{ b.nlive[0], b.nlive[1] });
         }
     }
 }

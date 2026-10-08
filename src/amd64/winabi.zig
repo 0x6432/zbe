@@ -110,8 +110,8 @@ const ArgPassStyle = enum(i32) {
     APS_EnvTag,
 };
 
-const ArgClass = extern struct {
-    type: [*c]Typ,
+const ArgClass = struct {
+    type: ?*Typ,
     style: ArgPassStyle,
     @"align": i32,
     size: uint,
@@ -119,7 +119,7 @@ const ArgClass = extern struct {
     ref: Ref,
 };
 
-const ExtraAlloc = extern struct {
+const ExtraAlloc = struct {
     instr: Ins,
     link: ?*ExtraAlloc,
 };
@@ -271,59 +271,53 @@ fn assign_register_or_stack(reg_usage: *RegisterUsage, arg: *ArgClass, is_float:
     reg_usage.num_named_args_passed += 1;
 }
 
-fn type_is_by_copy(@"type": [*c]Typ) bool {
+fn type_is_by_copy(@"type": *const Typ) bool {
     // Note that only these sizes are passed by register, even though e.g. a
     // 5 byte struct would "fit", it still is passed by copy-and-pointer.
-    return @"type".*.isdark != 0 or (@"type".*.size != 1 and @"type".*.size != 2 and
-        @"type".*.size != 4 and @"type".*.size != 8);
+    return @"type".isdark != 0 or (@"type".size != 1 and @"type".size != 2 and
+        @"type".size != 4 and @"type".size != 8);
 }
 
 // This function is used for both arguments and parameters.
-// begin_instr should either point at the first Oarg or Opar, and end_instr
-// should point past the last one (so to the Ocall for arguments, or to the
-// first 'real' instruction of the function for parameters).
-fn classify_arguments(reg_usage: *RegisterUsage, begin_instr: [*c]Ins, end_instr: [*c]Ins, arg_classes: [*c]ArgClass, env: *Ref) void {
-    var arg = arg_classes;
+// instrs should be the Oarg instructions of a call, or the Opar instructions
+// at the start of the function.
+fn classify_arguments(reg_usage: *RegisterUsage, instrs: []const Ins, arg_classes: []ArgClass, env: *Ref) void {
     // For each argument, determine how it will be passed (int, float, stack)
     // and update the `reg_usage` counts. Additionally, fill out arg_classes for
     // each argument.
-    var instr = begin_instr;
-    while (instr < end_instr) : ({
-        instr += 1;
-        arg += 1;
-    }) {
-        switch (instr.*.op) {
+    for (instrs, arg_classes) |*instr, *arg| {
+        switch (instr.op) {
             Oarg, Opar => {
-                assign_register_or_stack(reg_usage, arg, KBASE(instr.*.cls) != 0, false);
-                arg.*.cls = @intCast(instr.*.cls);
-                arg.*.@"align" = 3;
-                arg.*.size = 8;
+                assign_register_or_stack(reg_usage, arg, KBASE(instr.cls) != 0, false);
+                arg.cls = @intCast(instr.cls);
+                arg.@"align" = 3;
+                arg.size = 8;
             },
             Oargc, Oparc => {
-                const typ_index = instr.*.arg[0].val;
+                const typ_index = instr.arg[0].val;
                 const @"type" = &all.typ[typ_index];
                 const by_copy = type_is_by_copy(@"type");
                 assign_register_or_stack(reg_usage, arg, false, by_copy);
-                arg.*.cls = Kl;
+                arg.cls = Kl;
                 if (!by_copy and @"type".size <= 4) {
-                    arg.*.cls = Kw;
+                    arg.cls = Kw;
                 }
-                arg.*.@"align" = 3;
-                arg.*.size = @intCast(@"type".size);
+                arg.@"align" = 3;
+                arg.size = @intCast(@"type".size);
             },
             Oarge => {
-                env.* = instr.*.arg[0];
-                arg.*.style = .APS_EnvTag;
+                env.* = instr.arg[0];
+                arg.style = .APS_EnvTag;
                 reg_usage.has_env = true;
             },
             Opare => {
-                env.* = instr.*.to;
-                arg.*.style = .APS_EnvTag;
+                env.* = instr.to;
+                arg.style = .APS_EnvTag;
                 reg_usage.has_env = true;
             },
             Oargv => {
                 reg_usage.is_varargs_call = true;
-                arg.*.style = .APS_VarargsTag;
+                arg.style = .APS_VarargsTag;
             },
             else => {},
         }
@@ -359,22 +353,20 @@ fn register_for_arg(cls: i32, counter: i32) Ref {
     }
 }
 
-fn lower_call(func: *Fn, block: *Blk, call_instr: [*c]Ins, pextra_alloc: *[*c]ExtraAlloc) [*c]Ins {
-    // Call arguments are instructions. Walk through them to find the end of the
-    // call+args that we need to process (and return the instruction past the body
-    // of the instruction for continuing processing).
-    var instr_past_args = call_instr - 1;
-    while (instr_past_args >= block.ins) : (instr_past_args -= 1) {
-        if (!isarg(instr_past_args.*.op)) {
-            break;
-        }
-    }
-    const earliest_arg_instr = instr_past_args + 1;
+fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAlloc) uint {
+    // Call arguments are instructions. Walk through them to find the start of
+    // the call+args that we need to process (and return its index, the number
+    // of instructions before it, for continuing processing).
+    const call_instr = &block.ins[call_idx];
+    var earliest_arg = call_idx;
+    while (earliest_arg > 0 and isarg(block.ins[earliest_arg - 1].op))
+        earliest_arg -= 1;
+    const args = block.ins[earliest_arg..call_idx];
 
     // Don't need an ArgClass for the call itself, so one less than the total
     // number of instructions we're dealing with.
-    const num_args: uint = @intCast(ptrdiff(call_instr, earliest_arg_instr));
-    const arg_classes: [*c]ArgClass = palloc(ArgClass, num_args);
+    const num_args: uint = @intCast(args.len);
+    const arg_classes = palloc(ArgClass, num_args)[0..num_args];
 
     var reg_usage = std.mem.zeroes(RegisterUsage);
     var ret_arg_class = std.mem.zeroes(ArgClass);
@@ -382,10 +374,10 @@ fn lower_call(func: *Fn, block: *Blk, call_instr: [*c]Ins, pextra_alloc: *[*c]Ex
     // Ocall's two arguments are the the function to be called in 0, and, if the
     // the function returns a non-basic type, then arg[1] is a reference to the
     // type of the return. req checks if Refs are equal; `R` is 0.
-    const il_has_struct_return = !req(call_instr.*.arg[1], R);
+    const il_has_struct_return = !req(call_instr.arg[1], R);
     var is_struct_return = false;
     if (il_has_struct_return) {
-        const ret_type = &all.typ[call_instr.*.arg[1].val];
+        const ret_type = &all.typ[call_instr.arg[1].val];
         is_struct_return = type_is_by_copy(ret_type);
         if (is_struct_return) {
             assign_register_or_stack(&reg_usage, &ret_arg_class, false, true);
@@ -393,7 +385,7 @@ fn lower_call(func: *Fn, block: *Blk, call_instr: [*c]Ins, pextra_alloc: *[*c]Ex
         ret_arg_class.size = @intCast(ret_type.size);
     }
     var env = R;
-    classify_arguments(&reg_usage, earliest_arg_instr, call_instr, arg_classes, &env);
+    classify_arguments(&reg_usage, args, arg_classes, &env);
 
     // We now know which arguments are on the stack and which are in registers, so
     // we can allocate the correct amount of space to stash the stack-located ones
@@ -405,12 +397,12 @@ fn lower_call(func: *Fn, block: *Blk, call_instr: [*c]Ins, pextra_alloc: *[*c]Ex
         // stack_usage only accounts for pushes that are for values that don't have
         // enough registers. Large struct copies are alloca'd separately, and then
         // only have (potentially) 8 bytes to add to stack_usage here.
-        if (arg.*.style == .APS_InlineOnStack) {
-            if (arg.*.@"align" > 4) {
+        if (arg.style == .APS_InlineOnStack) {
+            if (arg.@"align" > 4) {
                 err("win abi cannot pass alignments > 16", .{});
             }
-            stack_usage += arg.*.size;
-        } else if (arg.*.style == .APS_CopyAndPointerOnStack) {
+            stack_usage += arg.size;
+        } else if (arg.style == .APS_CopyAndPointerOnStack) {
             stack_usage += 8;
         }
     }
@@ -430,7 +422,7 @@ fn lower_call(func: *Fn, block: *Blk, call_instr: [*c]Ins, pextra_alloc: *[*c]Ex
         return_pad.?.link = pextra_alloc.*;
         pextra_alloc.* = return_pad;
         reg_usage.rax_returned = true;
-        emit(Ocopy, call_instr.*.cls, call_instr.*.to, TMP(RAX), R);
+        emit(Ocopy, call_instr.cls, call_instr.to, TMP(RAX), R);
     } else {
         if (il_has_struct_return) {
             // In the case that at the IL level, a struct return was specified, but as
@@ -438,20 +430,20 @@ fn lower_call(func: *Fn, block: *Blk, call_instr: [*c]Ins, pextra_alloc: *[*c]Ex
             // pointer, we need to store the return value into an alloca because
             // subsequent IL will still be treating the function return as a pointer.
             const return_copy = pnew(ExtraAlloc);
-            return_copy.instr = INS(Oalloc8, Kl, call_instr.*.to, getcon(8, func), R);
+            return_copy.instr = INS(Oalloc8, Kl, call_instr.to, getcon(8, func), R);
             return_copy.link = pextra_alloc.*;
             pextra_alloc.* = return_copy;
             const copy = newtmp("abi.copy", Kl, func);
-            emit(Ostorel, 0, R, copy, call_instr.*.to);
+            emit(Ostorel, 0, R, copy, call_instr.to);
             emit(Ocopy, Kl, copy, TMP(RAX), R);
             reg_usage.rax_returned = true;
-        } else if (is_integer_type(@intCast(call_instr.*.cls))) {
+        } else if (is_integer_type(@intCast(call_instr.cls))) {
             // Only a basic type returned from the call, integer.
-            emit(Ocopy, call_instr.*.cls, call_instr.*.to, TMP(RAX), R);
+            emit(Ocopy, call_instr.cls, call_instr.to, TMP(RAX), R);
             reg_usage.rax_returned = true;
         } else {
             // Basic type, floating point.
-            emit(Ocopy, call_instr.*.cls, call_instr.*.to, TMP(XMM0), R);
+            emit(Ocopy, call_instr.cls, call_instr.to, TMP(XMM0), R);
             reg_usage.xmm0_returned = true;
         }
     }
@@ -460,7 +452,7 @@ fn lower_call(func: *Fn, block: *Blk, call_instr: [*c]Ins, pextra_alloc: *[*c]Ex
     // because we've lowered it into register manipulation (that's the `R`),
     // arg[0] of the call is the function, and arg[1] is register usage is
     // documented as above (copied from SysV).
-    emit(Ocall, call_instr.*.cls, R, call_instr.*.arg[0], CALL(register_usage_to_call_arg_value(reg_usage)));
+    emit(Ocall, call_instr.cls, R, call_instr.arg[0], CALL(register_usage_to_call_arg_value(reg_usage)));
 
     if (!req(R, env)) {
         // If there's an env arg to be passed, it gets stashed in RAX.
@@ -488,61 +480,56 @@ fn lower_call(func: *Fn, block: *Blk, call_instr: [*c]Ins, pextra_alloc: *[*c]Ex
     // stack slots.
     const arg_stack_slots = newtmp("abi.args", Kl, func);
     var slot_offset: uint = SHADOW_SPACE_SIZE;
-    var arg = arg_classes;
-    var instr = earliest_arg_instr;
-    while (instr != call_instr) : ({
-        instr += 1;
-        arg += 1;
-    }) {
-        switch (arg.*.style) {
+    for (args, arg_classes) |*instr, *arg| {
+        switch (arg.style) {
             .APS_Register => {
-                const into = register_for_arg(arg.*.cls, reg_counter);
+                const into = register_for_arg(arg.cls, reg_counter);
                 reg_counter += 1;
-                if (instr.*.op == Oargc) {
+                if (instr.op == Oargc) {
                     // If this is a small struct being passed by value. The value in the
                     // instruction in this case is a pointer, but it needs to be loaded
                     // into the register.
-                    emit(Oload, arg.*.cls, into, instr.*.arg[1], R);
+                    emit(Oload, arg.cls, into, instr.arg[1], R);
                 } else {
                     // Otherwise, a normal value passed in a register.
-                    emit(Ocopy, instr.*.cls, into, instr.*.arg[0], R);
+                    emit(Ocopy, instr.cls, into, instr.arg[0], R);
                 }
             },
             .APS_InlineOnStack => {
                 const slot = newtmp("abi.off", Kl, func);
-                if (instr.*.op == Oargc) {
+                if (instr.op == Oargc) {
                     // This is a small struct, so it's not passed by copy, but the
                     // instruction is a pointer. So we need to copy it into the stack
                     // slot. (And, remember that these are emitted backwards, so store,
                     // then load.)
-                    const smalltmp = newtmp("abi.smalltmp", arg.*.cls, func);
+                    const smalltmp = newtmp("abi.smalltmp", arg.cls, func);
                     emit(Ostorel, 0, R, smalltmp, slot);
-                    emit(Oload, arg.*.cls, smalltmp, instr.*.arg[1], R);
+                    emit(Oload, arg.cls, smalltmp, instr.arg[1], R);
                 } else {
                     // Stash the value into the stack slot.
-                    emit(Ostorel, 0, R, instr.*.arg[0], slot);
+                    emit(Ostorel, 0, R, instr.arg[0], slot);
                 }
                 emit(Oadd, Kl, slot, arg_stack_slots, getcon(slot_offset, func));
-                slot_offset += arg.*.size;
+                slot_offset += arg.size;
             },
             .APS_CopyAndPointerInRegister, .APS_CopyAndPointerOnStack => {
                 // Alloca a space to copy into, and blit the value from the instr to the
                 // copied location.
                 const arg_copy = pnew(ExtraAlloc);
                 const copy_ref = newtmp("abi.copy", Kl, func);
-                arg_copy.instr = INS(Oalloc8, Kl, copy_ref, getcon(arg.*.size, func), R);
+                arg_copy.instr = INS(Oalloc8, Kl, copy_ref, getcon(arg.size, func), R);
                 arg_copy.link = pextra_alloc.*;
                 pextra_alloc.* = arg_copy;
-                emit(Oblit1, 0, R, INT(arg.*.size), R);
-                emit(Oblit0, 0, R, instr.*.arg[1], copy_ref);
+                emit(Oblit1, 0, R, INT(arg.size), R);
+                emit(Oblit0, 0, R, instr.arg[1], copy_ref);
 
                 // Now load the pointer into the correct register or stack slot.
-                if (arg.*.style == .APS_CopyAndPointerInRegister) {
-                    const into = register_for_arg(arg.*.cls, reg_counter);
+                if (arg.style == .APS_CopyAndPointerInRegister) {
+                    const into = register_for_arg(arg.cls, reg_counter);
                     reg_counter += 1;
                     emit(Ocopy, Kl, into, copy_ref, R);
                 } else {
-                    assert(arg.*.style == .APS_CopyAndPointerOnStack);
+                    assert(arg.style == .APS_CopyAndPointerOnStack);
                     const slot = newtmp("abi.off", Kl, func);
                     emit(Ostorel, 0, R, copy_ref, slot);
                     emit(Oadd, Kl, slot, arg_stack_slots, getcon(slot_offset, func));
@@ -567,7 +554,7 @@ fn lower_call(func: *Fn, block: *Blk, call_instr: [*c]Ins, pextra_alloc: *[*c]Ex
         emit(Osalloc, Kl, R, getcon(SHADOW_SPACE_SIZE, func), R);
     }
 
-    return instr_past_args;
+    return earliest_arg;
 }
 
 fn lower_block_return(func: *Fn, block: *Blk) void {
@@ -639,34 +626,33 @@ fn lower_vaarg(func: *Fn, vaarg_instr: *Ins) void {
     emit(Oload, Kl, ptr, vaarg_instr.arg[0], R);
 }
 
-fn lower_args_for_block(func: *Fn, block: [*c]Blk, param_reg_usage: *RegisterUsage, pextra_alloc: *[*c]ExtraAlloc) void {
+fn lower_args_for_block(func: *Fn, block: *Blk, param_reg_usage: *RegisterUsage, pextra_alloc: *?*ExtraAlloc) void {
     // global temporary buffer used by emit. Reset to the end, and predecremented
     // when adding to it.
     all.curi = all.insbEnd();
 
     lower_block_return(func, block);
 
-    if (block.*.nins != 0) {
-        // Work backwards through the instructions, either copying them unchanged,
-        // or modifying as necessary.
-        var instr: [*c]Ins = block.*.ins + (block.*.nins - 1);
-        while (instr >= block.*.ins) {
-            switch (instr.*.op) {
-                Ocall => instr = lower_call(func, block, instr, pextra_alloc),
-                Ovastart => {
-                    lower_vastart(func, param_reg_usage, instr.*.arg[0]);
-                    instr -= 1;
-                },
-                Ovaarg => {
-                    lower_vaarg(func, instr);
-                    instr -= 1;
-                },
-                Oarg, Oargc => die("unreachable", .{}),
-                else => {
-                    emiti(instr.*);
-                    instr -= 1;
-                },
-            }
+    // Work backwards through the instructions, either copying them unchanged,
+    // or modifying as necessary. n is the number of instructions left.
+    var n = block.nins;
+    while (n > 0) {
+        const instr = &block.ins[n - 1];
+        switch (instr.op) {
+            Ocall => n = lower_call(func, block, n - 1, pextra_alloc),
+            Ovastart => {
+                lower_vastart(func, param_reg_usage, instr.arg[0]);
+                n -= 1;
+            },
+            Ovaarg => {
+                lower_vaarg(func, instr);
+                n -= 1;
+            },
+            Oarg, Oargc => die("unreachable", .{}),
+            else => {
+                emiti(instr.*);
+                n -= 1;
+            },
         }
     }
 
@@ -682,29 +668,24 @@ fn lower_args_for_block(func: *Fn, block: [*c]Blk, param_reg_usage: *RegisterUsa
 
     // emit/emiti add instructions from the end to the beginning of the temporary
     // global buffer. dup the final version into the final block storage.
-    block.*.nins = @intCast(all.insbTail());
-    idup(block, all.curi, block.*.nins);
+    block.nins = @intCast(all.insbTail());
+    idup(block, all.curi, block.nins);
 }
 
-fn find_end_of_func_parameters(start_block: *Blk) [*c]Ins {
-    var i: [*c]Ins = start_block.ins;
-    while (i < start_block.ins + start_block.nins) : (i += 1) {
-        if (!ispar(i.*.op)) {
-            break;
-        }
-    }
+/// returns the number of Opar instructions at the start of start_block
+fn find_end_of_func_parameters(start_block: *Blk) uint {
+    var i: uint = 0;
+    while (i < start_block.nins and ispar(start_block.ins[i].op))
+        i += 1;
     return i;
 }
 
 // Copy from registers/stack into values.
 fn lower_func_parameters(func: *Fn) RegisterUsage {
-    // This is half-open, so end points after the last Opar.
-    const start_block: [*c]Blk = func.start;
-    const start_of_params = start_block.*.ins;
-    const end_of_params = find_end_of_func_parameters(start_block);
-
-    const num_params: usize = @intCast(ptrdiff(end_of_params, start_of_params));
-    const arg_classes: [*c]ArgClass = palloc(ArgClass, num_params);
+    const start_block = func.start.?;
+    const num_params = find_end_of_func_parameters(start_block);
+    const params = start_block.ins[0..num_params];
+    const arg_classes = palloc(ArgClass, num_params)[0..num_params];
     var arg_ret = std.mem.zeroes(ArgClass);
 
     // global temporary buffer used by emit. Reset to the end, and predecremented
@@ -724,46 +705,41 @@ fn lower_func_parameters(func: *Fn) RegisterUsage {
         }
     }
     var env = R;
-    classify_arguments(&reg_usage, start_of_params, end_of_params, arg_classes, &env);
+    classify_arguments(&reg_usage, params, arg_classes, &env);
     func.reg = amd64_winabi_argregs(CALL(register_usage_to_call_arg_value(reg_usage)), null);
 
     // Copy from the registers or stack slots into the named parameters. Depending
     // on how they're passed, they either need to be copied or loaded.
-    var arg = arg_classes;
     var slot_offset: i32 = SHADOW_SPACE_SIZE / 4 + 4;
-    var instr: [*c]Ins = start_of_params;
-    while (instr < end_of_params) : ({
-        instr += 1;
-        arg += 1;
-    }) {
-        switch (arg.*.style) {
+    for (params, arg_classes) |*instr, *arg| {
+        switch (arg.style) {
             .APS_Register => {
-                const from = register_for_arg(arg.*.cls, reg_counter);
+                const from = register_for_arg(arg.cls, reg_counter);
                 reg_counter += 1;
                 // If it's a struct at the IL level, we need to copy the register into
                 // an alloca so we have something to point at (same for InlineOnStack).
-                if (instr.*.op == Oparc) {
-                    arg.*.ref = newtmp("abi", Kl, func);
-                    emit(Ostorel, 0, R, arg.*.ref, instr.*.to);
-                    emit(Ocopy, instr.*.cls, arg.*.ref, from, R);
-                    emit(Oalloc8, Kl, instr.*.to, getcon(arg.*.size, func), R);
+                if (instr.op == Oparc) {
+                    arg.ref = newtmp("abi", Kl, func);
+                    emit(Ostorel, 0, R, arg.ref, instr.to);
+                    emit(Ocopy, instr.cls, arg.ref, from, R);
+                    emit(Oalloc8, Kl, instr.to, getcon(arg.size, func), R);
                 } else {
-                    emit(Ocopy, instr.*.cls, instr.*.to, from, R);
+                    emit(Ocopy, instr.cls, instr.to, from, R);
                 }
             },
             .APS_InlineOnStack => {
-                if (instr.*.op == Oparc) {
-                    arg.*.ref = newtmp("abi", Kl, func);
-                    emit(Ostorel, 0, R, arg.*.ref, instr.*.to);
-                    emit(Ocopy, instr.*.cls, arg.*.ref, SLOT(-slot_offset), R);
-                    emit(Oalloc8, Kl, instr.*.to, getcon(arg.*.size, func), R);
+                if (instr.op == Oparc) {
+                    arg.ref = newtmp("abi", Kl, func);
+                    emit(Ostorel, 0, R, arg.ref, instr.to);
+                    emit(Ocopy, instr.cls, arg.ref, SLOT(-slot_offset), R);
+                    emit(Oalloc8, Kl, instr.to, getcon(arg.size, func), R);
                 } else {
-                    emit(Ocopy, Kl, instr.*.to, SLOT(-slot_offset), R);
+                    emit(Ocopy, Kl, instr.to, SLOT(-slot_offset), R);
                 }
                 slot_offset += 2;
             },
             .APS_CopyAndPointerOnStack => {
-                emit(Oload, Kl, instr.*.to, SLOT(-slot_offset), R);
+                emit(Oload, Kl, instr.to, SLOT(-slot_offset), R);
                 slot_offset += 2;
             },
             .APS_CopyAndPointerInRegister => {
@@ -771,7 +747,7 @@ fn lower_func_parameters(func: *Fn) RegisterUsage {
                 // copy the register to the target.
                 const from = register_for_arg(Kl, reg_counter);
                 reg_counter += 1;
-                emit(Ocopy, Kl, instr.*.to, from, R);
+                emit(Ocopy, Kl, instr.to, from, R);
             },
             .APS_EnvTag => {},
             .APS_VarargsTag, .APS_Invalid => die("unreachable", .{}),
@@ -784,13 +760,13 @@ fn lower_func_parameters(func: *Fn) RegisterUsage {
     }
 
     const num_created_instrs: uint = @intCast(all.insbTail());
-    const num_other_after_instrs: uint = @intCast(start_block.*.nins - num_params);
+    const num_other_after_instrs: uint = @intCast(start_block.nins - num_params);
     const new_total_instrs = num_other_after_instrs + num_created_instrs;
     const new_instrs = vnewT(Ins, new_total_instrs, PFn);
     const instr_p = icpy(new_instrs, all.curi, num_created_instrs);
-    _ = icpy(instr_p, end_of_params, num_other_after_instrs);
-    start_block.*.nins = new_total_instrs;
-    start_block.*.ins = new_instrs;
+    _ = icpy(instr_p, start_block.ins + num_params, num_other_after_instrs);
+    start_block.nins = new_total_instrs;
+    start_block.ins = new_instrs;
 
     return reg_usage;
 }
@@ -819,7 +795,7 @@ pub fn amd64_winabi_abi(func: *Fn) void {
     while (block_it) |block| : (block_it = block.link) {
         lower_args_for_block(func, block, &param_reg_usage, &extra_alloc);
     }
-    lower_args_for_block(func, func.start, &param_reg_usage, &extra_alloc);
+    lower_args_for_block(func, func.start.?, &param_reg_usage, &extra_alloc);
 
     if (all.debug['A'] != 0) {
         dprint("\n> After ABI lowering:\n", .{});

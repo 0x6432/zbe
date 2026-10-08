@@ -1,7 +1,6 @@
 //! One-to-one translation of parse.c
 const std = @import("std");
 const assert = std.debug.assert;
-const C = @import("libc.zig");
 // -- imports --
 const all = @import("all.zig");
 const BSet = all.BSet;
@@ -103,7 +102,6 @@ const Tmp0 = all.Tmp0;
 const Typ = all.Typ;
 const UNDEF = all.UNDEF;
 const Writer = all.Writer;
-const alloc = all.alloc;
 const bsequal = all.bsequal;
 const bshas = all.bshas;
 const bsinit = all.bsinit;
@@ -113,7 +111,8 @@ const cfloat = all.cfloat;
 const clsmerge = all.clsmerge;
 const cs = all.cs;
 const dprint = all.dprint;
-const emalloc = all.emalloc;
+const ealloc = all.ealloc;
+const efree = all.efree;
 const fillpreds = all.fillpreds;
 const hash = all.hash;
 const idup = all.idup;
@@ -123,11 +122,13 @@ const isstore = all.isstore;
 const newblk = all.newblk;
 const newcon = all.newcon;
 const newtmp = all.newtmp;
+const palloc = all.palloc;
 const ptrdiff = all.ptrdiff;
 const req = all.req;
 const rsval = all.rsval;
 const rtype = all.rtype;
 const str = all.str;
+const streq = all.streq;
 const strf = all.strf;
 const uchar = all.uchar;
 const uint = all.uint;
@@ -575,7 +576,7 @@ fn lex() i32 {
         return t;
     }
     t = lexh[(hash(tokval.str) *% K) >> M];
-    if (t == Txxx or C.strcmp(kwmap[@intCast(t)], tokval.str) != 0) {
+    if (t == Txxx or !streq(kwmap[@intCast(t)], tokval.str)) {
         err("unknown keyword {s}", .{cs(tokval.str)});
     }
     return t;
@@ -630,9 +631,9 @@ fn tmpref() Ref {
     var i: i32 = undefined;
 
     if (@divTrunc(tmphcap, 2) <= curf.*.ntmp - Tmp0) {
-        C.free(@ptrCast(tmph));
+        efree(@ptrCast(tmph));
         tmphcap = if (tmphcap != 0) tmphcap * 2 else TMask + 1;
-        tmph = @ptrCast(@alignCast(emalloc(@as(usize, @intCast(tmphcap)) * @sizeOf(i32))));
+        tmph = ealloc(i32, tmphcap);
         t = Tmp0;
         while (t < curf.*.ntmp) : (t += 1) {
             i = @bitCast(hash(curf.*.tmp[@intCast(t)].name) & @as(u32, @intCast(tmphcap - 1)));
@@ -643,13 +644,13 @@ fn tmpref() Ref {
     i = @bitCast(hash(tokval.str) & @as(u32, @intCast(tmphcap - 1)));
     while (tmph[@intCast(i)] != 0) : (i = (i + 1) & (tmphcap - 1)) {
         t = tmph[@intCast(i)];
-        if (C.strcmp(curf.*.tmp[@intCast(t)].name, tokval.str) == 0)
+        if (streq(curf.*.tmp[@intCast(t)].name, tokval.str))
             return TMP(t);
     }
     t = curf.*.ntmp;
     tmph[@intCast(i)] = t;
     _ = newtmp(null, Kx, curf);
-    curf.*.tmp[@intCast(t)].name = strf(PFn, "%s", .{tokval.str});
+    curf.*.tmp[@intCast(t)].name = strf(PFn, "{s}", .{cs(tokval.str)});
     return TMP(t);
 }
 
@@ -704,7 +705,7 @@ fn findtyp(i_: i32) i32 {
     while (true) {
         i -= 1;
         if (i < 0) break;
-        if (C.strcmp(tokval.str, all.typ[@intCast(i)].name) == 0)
+        if (streq(tokval.str, all.typ[@intCast(i)].name))
             return i;
     }
     err("undefined type :{s}", .{cs(tokval.str)});
@@ -815,12 +816,12 @@ fn findblk() [*c]Blk {
     const h = hash(tokval.str) & BMask;
     var b = blkh[h];
     while (b != null) : (b = b.*.dlink)
-        if (C.strcmp(b.*.name, tokval.str) == 0)
+        if (streq(b.*.name, tokval.str))
             return b;
     b = newblk();
     b.*.id = @intCast(nblk);
     nblk += 1;
-    b.*.name = strf(PFn, "%s", .{tokval.str});
+    b.*.name = strf(PFn, "{s}", .{cs(tokval.str)});
     b.*.dlink = blkh[h];
     blkh[h] = b;
     return b;
@@ -996,13 +997,13 @@ fn parseline(ps: PState) PState {
             Tphi => {
                 if (ps != PPhi or curb == curf.*.start)
                     err("unexpected phi instruction", .{});
-                const phi: [*c]Phi = @ptrCast(@alignCast(alloc(@sizeOf(Phi))));
+                const phi: [*c]Phi = palloc(Phi, 1);
                 phi.*.to = r;
                 phi.*.cls = @intCast(k);
                 phi.*.arg = vnewT(Ref, i, PFn);
-                _ = C.memcpy(@ptrCast(phi.*.arg), @ptrCast(&arg), i * @sizeOf(Ref));
+                @memcpy(phi.*.arg[0..i], arg[0..i]);
                 phi.*.blk = vnewT([*c]Blk, i, PFn);
-                _ = C.memcpy(@ptrCast(phi.*.blk), @ptrCast(&blk), i * @sizeOf([*c]Blk));
+                @memcpy(phi.*.blk[0..i], blk[0..i]);
                 phi.*.narg = @intCast(i);
                 plink.* = phi;
                 plink = &phi.*.link;
@@ -1011,7 +1012,7 @@ fn parseline(ps: PState) PState {
             Tblit => {
                 if (ptrdiff(all.curi, @as([*c]Ins, &all.insb)) >= NIns - 1)
                     err("too many instructions", .{});
-                _ = C.memset(@ptrCast(all.curi), 0, 2 * @sizeOf(Ins));
+                @memset(all.curi[0..2], std.mem.zeroes(Ins));
                 all.curi.*.op = Oblit0;
                 all.curi.*.arg[0] = arg[0];
                 all.curi.*.arg[1] = arg[1];
@@ -1141,7 +1142,7 @@ fn parsefn(lnk: [*c]Lnk) [*c]Fn {
     curb = null;
     nblk = 0;
     all.curi = &all.insb;
-    curf = @ptrCast(@alignCast(alloc(@sizeOf(Fn))));
+    curf = palloc(Fn, 1);
     curf.*.ntmp = 0;
     curf.*.ncon = 2;
     curf.*.tmp = vnewT(Tmp, curf.*.ntmp, PFn);
@@ -1166,7 +1167,7 @@ fn parsefn(lnk: [*c]Lnk) [*c]Fn {
         rcls = K0;
     if (next() != Tglo)
         err("function name expected", .{});
-    curf.*.name = strf(PFn, "%s", .{tokval.str});
+    curf.*.name = strf(PFn, "{s}", .{cs(tokval.str)});
     curf.*.vararg = @intFromBool(parserefl(false));
     if (nextnl() != Tlbrace)
         err("function body must start with {{", .{});
@@ -1189,7 +1190,7 @@ fn parsefn(lnk: [*c]Lnk) [*c]Fn {
     i = 0;
     while (i < BMask + 1) : (i += 1)
         blkh[@intCast(i)] = null;
-    _ = C.memset(@ptrCast(tmph), 0, @as(usize, @intCast(tmphcap)) * @sizeOf(i32));
+    if (tmphcap != 0) @memset(tmph[0..@intCast(tmphcap)], 0);
     typecheck(curf);
     return curf;
 }
@@ -1305,7 +1306,7 @@ fn parsetyp() void {
     ty.*.size = 0;
     if (nextnl() != Ttyp or nextnl() != Teq)
         err("type name and then = expected", .{});
-    ty.*.name = strf(PHeap, "%s", .{tokval.str});
+    ty.*.name = strf(PHeap, "{s}", .{cs(tokval.str)});
     t = nextnl();
     if (t == Talign) {
         if (nextnl() != Tint)
@@ -1352,7 +1353,7 @@ fn parsetyp() void {
 
 fn parsedatref(d: [*c]Dat) void {
     d.*.isref = 1;
-    d.*.u.ref.name = strf(PFn, "%s", .{tokval.str});
+    d.*.u.ref.name = strf(PFn, "{s}", .{cs(tokval.str)});
     d.*.u.ref.off = 0;
     const t = peek();
     if (t == Tplus) {
@@ -1365,7 +1366,7 @@ fn parsedatref(d: [*c]Dat) void {
 
 fn parsedatstr(d: [*c]Dat) void {
     d.*.isstr = 1;
-    d.*.u.str = strf(PFn, "%s", .{tokval.str});
+    d.*.u.str = strf(PFn, "{s}", .{cs(tokval.str)});
 }
 
 fn parsedat(cb: *const fn ([*c]Dat) void, lnk: [*c]Lnk) void {
@@ -1374,7 +1375,7 @@ fn parsedat(cb: *const fn ([*c]Dat) void, lnk: [*c]Lnk) void {
 
     if (nextnl() != Tglo or nextnl() != Teq)
         err("data name, then = expected", .{});
-    const name = strf(PFn, "%s", .{tokval.str});
+    const name = strf(PFn, "{s}", .{cs(tokval.str)});
     t = nextnl();
     lnk.*.@"align" = 8;
     if (t == Talign) {
@@ -1448,10 +1449,10 @@ fn parselnk(lnk: [*c]Lnk) i32 {
                     err("only one section allowed", .{});
                 if (next() != Tstr)
                     err("section \"name\" expected", .{});
-                lnk.*.sec = strf(PFn, "%s", .{tokval.str});
+                lnk.*.sec = strf(PFn, "{s}", .{cs(tokval.str)});
                 if (peek() == Tstr) {
                     _ = next();
-                    lnk.*.secf = strf(PFn, "%s", .{tokval.str});
+                    lnk.*.secf = strf(PFn, "{s}", .{cs(tokval.str)});
                 }
             },
             else => {
@@ -1493,7 +1494,7 @@ pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*c]u8) voi
             Teof => {
                 var n: uint = 0;
                 while (n < ntyp) : (n += 1) {
-                    C.free(@ptrCast(all.typ[n].name));
+                    efree(@ptrCast(all.typ[n].name));
                     if (all.typ[n].nunion != 0)
                         vfree(@ptrCast(all.typ[n].fields));
                 }

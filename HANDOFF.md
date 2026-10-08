@@ -79,9 +79,21 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    C assert vs zig panic treated equal). DONE (2b): own getopt-compatible
    (GNU permuting) arg parser in main.zig, matches C qbe on -h/-x/-t?/
    missing arg/unknown target/-o/stdin; inpath is a slice.
-3. TODO: memory: pools/vnew/vgrow -> allocators/arenas + slices, drop
-   qsort/memcpy.
-4. TODO: `[*c]` -> `*T`/`?*T`/slices, enums; drop libc entirely.
+3. Memory/libc. DONE (3a/3b): **libc dropped entirely** (src/libc.zig
+   removed, build.zig no link_libc; static binary). util.zig: `gpa` =
+   std.heap.smp_allocator; emalloc/efree via 16-byte size header; PFn pool
+   = std.heap.ArenaAllocator reset by freeall(); typed palloc(T, n) /
+   ealloc(T, n); vgrow uses @memcpy; strf(pl, comptime fmt, args) uses
+   std.fmt; streq() replaces strcmp; util.sort(T, ptr, n, order) =
+   std.sort.block (stable = same tie order as glibc merge-sort qsort) with
+   typed `fn (T, T) std.math.Order` comparators; mem* -> @memcpy/@memset/
+   copyForwards/Backwards (guard n==0: null [*c] can't be sliced).
+   tools/all.sh runs every check (FUZZ=1 adds fuzzers).
+   TODO (3c): vectors (vnew/vgrow) -> typed growable arrays.
+4. TODO: `[*c]` -> `*T`/`?*T`/slices, enums for ops/classes/jumps.
+   Notes: Zig forbids `<` on `[*]T` (only `[*c]`) and `&cptr[i]` is
+   `*allowzero T` (won't coerce to *T) -> rewrite pointer loops to
+   slices/indices before converting struct fields to `[*]T`.
 
 ## Next steps
 1. Canonical Zig rewrite (slices, optionals, enums, std.Io.Writer, no libc),

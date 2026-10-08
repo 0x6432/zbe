@@ -1,7 +1,6 @@
 //! One-to-one translation of amd64/sysv.c
 const std = @import("std");
 const assert = std.debug.assert;
-const C = @import("../libc.zig");
 // -- imports --
 const all = @import("../all.zig");
 const tgt = @import("all.zig");
@@ -98,8 +97,8 @@ const XMM6 = tgt.XMM6;
 const XMM7 = tgt.XMM7;
 const XMM8 = tgt.XMM8;
 const XMM9 = tgt.XMM9;
-const alloc = all.alloc;
 const bits = all.bits;
+const cs = all.cs;
 const die = all.die;
 const dprint = all.dprint;
 const emit = all.emit;
@@ -113,6 +112,7 @@ const ispar = all.ispar;
 const isret = all.isret;
 const newblk = all.newblk;
 const newtmp = all.newtmp;
+const palloc = all.palloc;
 const printfn = all.printfn;
 const ptrdiff = all.ptrdiff;
 const req = all.req;
@@ -408,7 +408,7 @@ fn selcall(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins, rap: *[*c]RAlloc) void {
 
     var env = R;
     const nac: usize = @intCast(ptrdiff(i_1, i_0));
-    const ac: [*c]AClass = @ptrCast(@alignCast(alloc(nac * @sizeOf(AClass))));
+    const ac: [*c]AClass = palloc(AClass, nac);
 
     if (!req(i_1.*.arg[1], R)) {
         assert(rtype(i_1.*.arg[1]) == RType);
@@ -460,7 +460,7 @@ fn selcall(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins, rap: *[*c]RAlloc) void {
             r1 = i_1.*.to;
         }
         // allocate return pad
-        ra = @ptrCast(@alignCast(alloc(@sizeOf(RAlloc))));
+        ra = palloc(RAlloc, 1);
         // specific to NAlign == 3
         const al: i32 = if (aret.@"align" >= 2) aret.@"align" - 2 else 0;
         ra.*.i = INS(Oalloc + al, Kl, r1, getcon(aret.size, f), R);
@@ -542,7 +542,7 @@ fn selpar(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins) i32 {
 
     var env = R;
     const nac: usize = @intCast(ptrdiff(i_1, i_0));
-    const ac: [*c]AClass = @ptrCast(@alignCast(alloc(nac * @sizeOf(AClass))));
+    const ac: [*c]AClass = palloc(AClass, nac);
     all.curi = all.insbEnd();
     var ni: i32 = 0;
     var ns: i32 = 0;
@@ -629,7 +629,7 @@ fn split(f: [*c]Fn, b: [*c]Blk) [*c]Blk {
     all.curi = all.insbEnd();
     b.*.visit += 1;
     bn.*.visit = b.*.visit;
-    bn.*.name = strf(PFn, "%s.%d", .{ b.*.name, @as(c_int, @intCast(b.*.visit)) });
+    bn.*.name = strf(PFn, "{s}.{d}", .{ cs(b.*.name), b.*.visit });
     bn.*.loop = b.*.loop;
     bn.*.link = b.*.link;
     b.*.link = bn;
@@ -712,7 +712,7 @@ fn selvaarg(f: [*c]Fn, b: [*c]Blk, i: [*c]Ins) void {
     bstk.*.jmp.type = Jjmp;
     bstk.*.s1 = b0;
 
-    b0.*.phi = @ptrCast(@alignCast(alloc(@sizeOf(Phi))));
+    b0.*.phi = palloc(Phi, 1);
     b0.*.phi.* = std.mem.zeroes(Phi);
     b0.*.phi.*.cls = Kl;
     b0.*.phi.*.to = loc;

@@ -1,7 +1,6 @@
 //! One-to-one translation of ifopt.c
 const std = @import("std");
 const assert = std.debug.assert;
-const C = @import("libc.zig");
 // -- imports --
 const all = @import("all.zig");
 const Blk = all.Blk;

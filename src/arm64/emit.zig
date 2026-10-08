@@ -1,7 +1,6 @@
 //! One-to-one translation of arm64/emit.c
 const std = @import("std");
 const assert = std.debug.assert;
-const C = @import("../libc.zig");
 // -- imports --
 const all = @import("../all.zig");
 const tgt = @import("all.zig");

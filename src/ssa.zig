@@ -1,7 +1,6 @@
 //! One-to-one translation of ssa.c
 const std = @import("std");
 const assert = std.debug.assert;
-const C = @import("libc.zig");
 // -- imports --
 const all = @import("all.zig");
 const BSet = all.BSet;
@@ -31,7 +30,6 @@ const Wsb = all.Wsb;
 const Wsw = all.Wsw;
 const Wub = all.Wub;
 const Wuw = all.Wuw;
-const alloc = all.alloc;
 const bsclr = all.bsclr;
 const bscopy = all.bscopy;
 const bshas = all.bshas;
@@ -43,7 +41,8 @@ const cs = all.cs;
 const die = all.die;
 const dom = all.dom;
 const dprint = all.dprint;
-const emalloc = all.emalloc;
+const ealloc = all.ealloc;
+const efree = all.efree;
 const err = all.err;
 const filldom = all.filldom;
 const fillfron = all.fillfron;
@@ -53,6 +52,7 @@ const isext = all.isext;
 const isload = all.isload;
 const isparbh = all.isparbh;
 const newtmp = all.newtmp;
+const palloc = all.palloc;
 const phicls = all.phicls;
 const printfn = all.printfn;
 const ptrdiff = all.ptrdiff;
@@ -174,7 +174,7 @@ fn phiins(f: [*c]Fn) void {
 
     bsinit(&u, f.*.nblk);
     bsinit(&defs, f.*.nblk);
-    const blist: [*c][*c]Blk = @ptrCast(@alignCast(emalloc(f.*.nblk * @sizeOf([*c]Blk))));
+    const blist: [*c][*c]Blk = ealloc([*c]Blk, f.*.nblk);
     const be = blist + f.*.nblk;
     const nt = f.*.ntmp;
     var t: i32 = Tmp0;
@@ -241,7 +241,7 @@ fn phiins(f: [*c]Fn) void {
                 a.*.visit += 1;
                 if (v == 0)
                     if (bshas(&a.*.in, t)) {
-                        const p: [*c]Phi = @ptrCast(@alignCast(alloc(@sizeOf(Phi))));
+                        const p: [*c]Phi = palloc(Phi, 1);
                         p.*.cls = k;
                         p.*.to = TMP(t);
                         p.*.link = a.*.phi;
@@ -258,7 +258,7 @@ fn phiins(f: [*c]Fn) void {
             }
         }
     }
-    C.free(@ptrCast(blist));
+    efree(@ptrCast(blist));
 }
 
 const Name = extern struct {
@@ -277,7 +277,7 @@ fn nnew(r: Ref, b: [*c]Blk, up: [*c]Name) [*c]Name {
     } else
         // could use alloc, here
         // but namel should be reset
-        n = @ptrCast(@alignCast(emalloc(@sizeOf(Name))));
+        n = ealloc(Name, 1);
     n.*.r = r;
     n.*.b = b;
     n.*.up = up;
@@ -364,7 +364,7 @@ fn renblk(b: [*c]Blk, stk: [*c][*c]Name, f: [*c]Fn) void {
 /// require rpo and use
 pub fn ssa(f: [*c]Fn) void {
     var nt = f.*.ntmp;
-    const stk: [*c][*c]Name = @ptrCast(@alignCast(emalloc(@as(usize, @intCast(nt)) * @sizeOf([*c]Name))));
+    const stk: [*c][*c]Name = ealloc([*c]Name, nt);
     const d = all.debug['L'];
     all.debug['L'] = 0;
     filldom(f);
@@ -395,7 +395,7 @@ pub fn ssa(f: [*c]Fn) void {
         }
     }
     all.debug['L'] = d;
-    C.free(@ptrCast(stk));
+    efree(@ptrCast(stk));
     if (all.debug['N'] != 0) {
         dprint("\n> After SSA construction:\n", .{});
         printfn(f, all.dbg) catch {};

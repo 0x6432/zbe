@@ -1,7 +1,6 @@
 //! One-to-one translation of arm64/abi.c
 const std = @import("std");
 const assert = std.debug.assert;
-const C = @import("../libc.zig");
 // -- imports --
 const all = @import("../all.zig");
 const tgt = @import("all.zig");
@@ -96,8 +95,8 @@ const V4 = tgt.V4;
 const V5 = tgt.V5;
 const V6 = tgt.V6;
 const V7 = tgt.V7;
-const alloc = all.alloc;
 const bits = all.bits;
+const cs = all.cs;
 const die = all.die;
 const dprint = all.dprint;
 const emit = all.emit;
@@ -114,6 +113,7 @@ const isret = all.isret;
 const isretbh = all.isretbh;
 const newblk = all.newblk;
 const newtmp = all.newtmp;
+const palloc = all.palloc;
 const printfn = all.printfn;
 const ptrdiff = all.ptrdiff;
 const req = all.req;
@@ -447,7 +447,7 @@ pub fn arm64_argregs(r: Ref, p: [*c]i32) bits {
 }
 
 fn stkblob(r: Ref, c: [*c]Class, f: [*c]Fn, ilp: *[*c]Insl) void {
-    const il: [*c]Insl = @ptrCast(@alignCast(alloc(@sizeOf(Insl))));
+    const il: [*c]Insl = palloc(Insl, 1);
     var al: i32 = c.*.t.*.@"align" - 2; // NAlign == 3
     if (al < 0)
         al = 0;
@@ -467,7 +467,7 @@ fn selcall(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins, ilp: *[*c]Insl) void {
     var op: i32 = undefined;
 
     const nca: usize = @intCast(ptrdiff(i_1, i_0));
-    const ca: [*c]Class = @ptrCast(@alignCast(alloc(nca * @sizeOf(Class))));
+    const ca: [*c]Class = palloc(Class, nca);
     var cty = argsclass(i_0, i_1, ca);
 
     var stk: uint = 0;
@@ -590,7 +590,7 @@ fn selpar(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins) Params {
     var op: i32 = undefined;
 
     const nca: usize = @intCast(ptrdiff(i_1, i_0));
-    const ca: [*c]Class = @ptrCast(@alignCast(alloc(nca * @sizeOf(Class))));
+    const ca: [*c]Class = palloc(Class, nca);
     all.curi = all.insbEnd();
 
     const cty = argsclass(i_0, i_1, ca);
@@ -670,7 +670,7 @@ fn split(f: [*c]Fn, b: [*c]Blk) [*c]Blk {
     all.curi = all.insbEnd();
     b.*.visit += 1;
     bn.*.visit = b.*.visit;
-    bn.*.name = strf(PFn, "%s.%d", .{ b.*.name, @as(c_int, @intCast(b.*.visit)) });
+    bn.*.name = strf(PFn, "{s}.{d}", .{ cs(b.*.name), b.*.visit });
     bn.*.loop = b.*.loop;
     bn.*.link = b.*.link;
     b.*.link = bn;
@@ -764,7 +764,7 @@ fn arm64_selvaarg(f: [*c]Fn, b: [*c]Blk, i: [*c]Ins) void {
     bstk.*.jmp.type = Jjmp;
     bstk.*.s1 = b0;
 
-    b0.*.phi = @ptrCast(@alignCast(alloc(@sizeOf(Phi))));
+    b0.*.phi = palloc(Phi, 1);
     b0.*.phi.* = std.mem.zeroes(Phi);
     b0.*.phi.*.cls = Kl;
     b0.*.phi.*.to = loc;

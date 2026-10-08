@@ -1,7 +1,6 @@
 //! One-to-one translation of util.c
 const std = @import("std");
 const assert = std.debug.assert;
-const c = @import("libc.zig");
 // -- imports --
 const all = @import("all.zig");
 const BIT = all.BIT;
@@ -97,13 +96,19 @@ const Bucket = extern struct {
 
 const VMin = 2;
 const VMag = 0xcabba9e;
-const NPtr = 256;
 const IBits = 12;
 const IMask = (1 << IBits) - 1;
 
-var ptr: [NPtr]?*anyopaque = @splat(null);
-var pool: [*c]?*anyopaque = &ptr;
-var nptr: i32 = 1;
+/// general purpose heap (C: malloc/free)
+pub const gpa = std.heap.smp_allocator;
+/// per-function pool (C: alloc/freeall), reset after each function
+var pool = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+
+/// emalloc'd blocks are prefixed with a header recording their size
+/// so that efree() can work like free()
+const Hdr = extern struct {
+    size: usize align(16),
+};
 
 var itbl: [IMask + 1]Bucket = @splat(.{ .nstr = 0, .str = null }); // string interning table
 
@@ -236,6 +241,22 @@ pub fn cfloat(x: anytype) CFloat {
     return .{ .x = x };
 }
 
+/// qsort replacement: stable sort (glibc's qsort is a stable merge
+/// sort, so ties keep the same order as with the C version)
+pub fn sort(comptime T: type, p: [*c]T, n: usize, comptime order: fn (T, T) std.math.Order) void {
+    const S = struct {
+        fn lt(_: void, a: T, b: T) bool {
+            return order(a, b) == .lt;
+        }
+    };
+    if (n != 0) std.sort.block(T, p[0..n], {}, S.lt);
+}
+
+/// strcmp(a, b) == 0
+pub fn streq(a: anytype, b: anytype) bool {
+    return std.mem.eql(u8, cs(a), cs(b));
+}
+
 pub fn dprint(comptime fmt: []const u8, args: anytype) void {
     all.dbg.print(fmt, args) catch {};
 }
@@ -251,44 +272,42 @@ pub fn die(comptime fmt: []const u8, args: anytype) noreturn {
 }
 
 pub fn emalloc(n: usize) ?*anyopaque {
-    const p = c.calloc(1, n);
-    if (p == null)
+    const m = gpa.alignedAlloc(u8, .of(Hdr), n + @sizeOf(Hdr)) catch
         die("emalloc, out of memory", .{});
-    return p;
+    @memset(m, 0);
+    const h: *Hdr = @ptrCast(m.ptr);
+    h.size = m.len;
+    return @ptrCast(m.ptr + @sizeOf(Hdr));
+}
+
+pub fn efree(p: ?*anyopaque) void {
+    const q: [*]align(@alignOf(Hdr)) u8 = @ptrCast(@alignCast(p orelse return));
+    const h: *Hdr = @ptrCast(@alignCast(q - @sizeOf(Hdr)));
+    const m: [*]align(@alignOf(Hdr)) u8 = @ptrCast(h);
+    gpa.free(m[0..h.size]);
 }
 
 pub fn alloc(n: usize) ?*anyopaque {
-    var pp: [*c]?*anyopaque = undefined;
-
     if (n == 0)
         return null;
-    if (nptr >= NPtr) {
-        pp = @ptrCast(@alignCast(emalloc(NPtr * @sizeOf(?*anyopaque))));
-        pp[0] = @ptrCast(pool);
-        pool = pp;
-        nptr = 1;
-    }
-    const p = emalloc(n);
-    pool[@intCast(nptr)] = p;
-    nptr += 1;
-    return p;
+    const m = pool.allocator().alignedAlloc(u8, .of(Hdr), n) catch
+        die("alloc, out of memory", .{});
+    @memset(m, 0);
+    return @ptrCast(m.ptr);
+}
+
+/// typed zeroed allocation of n T's from the per-function pool
+pub fn palloc(comptime T: type, n: anytype) [*c]T {
+    return @ptrCast(@alignCast(alloc(@as(usize, @intCast(n)) * @sizeOf(T))));
+}
+
+/// typed zeroed heap allocation of n T's (release with efree)
+pub fn ealloc(comptime T: type, n: anytype) [*c]T {
+    return @ptrCast(@alignCast(emalloc(@as(usize, @intCast(n)) * @sizeOf(T))));
 }
 
 pub fn freeall() void {
-    var pp: [*c]?*anyopaque = undefined;
-
-    while (true) {
-        pp = &pool[1];
-        while (pp < &pool[@intCast(nptr)]) : (pp += 1)
-            c.free(pp.*);
-        pp = @ptrCast(@alignCast(pool[0]));
-        if (pp == null)
-            break;
-        c.free(@ptrCast(pool));
-        pool = pp;
-        nptr = NPtr;
-    }
-    nptr = 1;
+    _ = pool.reset(.retain_capacity);
 }
 
 pub fn vnew(len: ulong, esz: usize, pl: Pool) ?*anyopaque {
@@ -313,7 +332,7 @@ pub fn vfree(p: ?*anyopaque) void {
     assert(v.*.mag == VMag);
     if (v.*.pool == PHeap) {
         v.*.mag = 0;
-        c.free(@ptrCast(v));
+        efree(@ptrCast(v));
     }
 }
 
@@ -323,7 +342,8 @@ pub fn vgrow(vp: anytype, len: anytype) void {
     if (v.*.cap >= len)
         return;
     const v1 = vnew(@intCast(len), v.*.esz, v.*.pool);
-    _ = c.memcpy(v1, @ptrCast(v + 1), v.*.cap * v.*.esz);
+    const n = v.*.cap * v.*.esz;
+    if (n != 0) @memcpy(@as([*]u8, @ptrCast(v1))[0..n], @as([*]const u8, @ptrCast(v + 1))[0..n]);
     vfree(@ptrCast(v + 1));
     vp.* = @ptrCast(@alignCast(v1));
 }
@@ -342,19 +362,13 @@ pub fn addbins(pvins: *[*c]Ins, pnins: *uint, b: [*c]Blk) void {
         addins(pvins, pnins, i);
 }
 
-fn vstrf(pl: Pool, s: [*c]const u8, ...) callconv(.c) [*c]u8 {
-    var ap = @cVaStart();
-    var ap2 = @cVaCopy(&ap);
-    const n = c.vsnprintf(null, 0, s, c.vaarg(&ap));
-    @cVaEnd(&ap);
+/// allocate a NUL-terminated formatted string in pool pl
+pub fn strf(pl: Pool, comptime fmt: []const u8, args: anytype) [*c]u8 {
+    const n = std.fmt.count(fmt, args);
     const p: [*c]u8 = @ptrCast((if (pl == PFn) &alloc else &emalloc)(@intCast(n + 1)));
-    _ = c.vsnprintf(p, @intCast(n + 1), s, c.vaarg(&ap2));
-    @cVaEnd(&ap2);
+    _ = std.fmt.bufPrint(p[0..n], fmt, args) catch unreachable;
+    p[n] = 0;
     return p;
-}
-
-pub fn strf(pl: Pool, s: [*c]const u8, args: anytype) [*c]u8 {
-    return @call(.auto, vstrf, .{ pl, s } ++ args);
 }
 
 pub fn intern(s: [*c]const u8) u32 {
@@ -364,7 +378,7 @@ pub fn intern(s: [*c]const u8) u32 {
 
     var i: uint = 0;
     while (i < n) : (i += 1)
-        if (c.strcmp(s, b.str[i]) == 0)
+        if (streq(s, b.str[i]))
             return h + (i << IBits);
 
     if (n == 1 << (32 - IBits))
@@ -374,9 +388,10 @@ pub fn intern(s: [*c]const u8) u32 {
     else if ((n & (n -% 1)) == 0)
         vgrow(&b.str, n + n);
 
-    b.str[n] = @ptrCast(emalloc(c.strlen(s) + 1));
+    const ss = cs(s);
+    b.str[n] = @ptrCast(emalloc(ss.len + 1));
     b.nstr = n + 1;
-    _ = c.strcpy(b.str[n], s);
+    @memcpy(b.str[n][0..ss.len], ss);
     return h + (n << IBits);
 }
 
@@ -489,7 +504,10 @@ pub fn idup(b: [*c]Blk, s: [*c]Ins, n: ulong) void {
 
 pub fn icpy(d: [*c]Ins, s: [*c]Ins, n: ulong) [*c]Ins {
     if (n != 0)
-        _ = c.memmove(@ptrCast(d), @ptrCast(s), n * @sizeOf(Ins));
+        if (@intFromPtr(d) <= @intFromPtr(s))
+            std.mem.copyForwards(Ins, d[0..n], s[0..n])
+        else
+            std.mem.copyBackwards(Ins, d[0..n], s[0..n]);
     return d + n;
 }
 
@@ -577,7 +595,7 @@ pub fn newtmp(prfx: [*c]const u8, k: anytype, f: [*c]Fn) Ref {
     f.*.tmp[t] = std.mem.zeroes(Tmp);
     if (prfx != null) {
         newtmp_n += 1;
-        f.*.tmp[t].name = strf(PFn, "%s.%d", .{ prfx, @as(c_int, newtmp_n) });
+        f.*.tmp[t].name = strf(PFn, "{s}.{d}", .{ cs(prfx), newtmp_n });
     }
     f.*.tmp[t].cls = @intCast(k);
     f.*.tmp[t].slot = -1;
@@ -676,7 +694,7 @@ pub fn salloc(rt: Ref, rs: Ref, f: [*c]Fn) void {
 pub fn bsinit(bs: [*c]BSet, n_: uint) void {
     const n = (n_ + NBit - 1) / NBit;
     bs.*.nt = n;
-    bs.*.t = @ptrCast(@alignCast(alloc(n * @sizeOf(bits))));
+    bs.*.t = palloc(bits, n);
 }
 
 comptime {
@@ -771,7 +789,7 @@ pub fn bsequal(a: [*c]BSet, b: [*c]BSet) bool {
 }
 
 pub fn bszero(bs: [*c]BSet) void {
-    _ = c.memset(@ptrCast(bs.*.t), 0, bs.*.nt * @sizeOf(bits));
+    if (bs.*.nt != 0) @memset(bs.*.t[0..bs.*.nt], 0);
 }
 
 /// iterates on a bitset, use as follows

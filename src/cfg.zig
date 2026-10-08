@@ -1,7 +1,6 @@
 //! One-to-one translation of cfg.c
 const std = @import("std");
 const assert = std.debug.assert;
-const C = @import("libc.zig");
 // -- imports --
 const all = @import("all.zig");
 const Blk = all.Blk;
@@ -17,9 +16,10 @@ const PFn = all.PFn;
 const Ref = all.Ref;
 const addbins = all.addbins;
 const addins = all.addins;
-const alloc = all.alloc;
 const dprint = all.dprint;
-const emalloc = all.emalloc;
+const ealloc = all.ealloc;
+const efree = all.efree;
+const palloc = all.palloc;
 const phiarg = all.phiarg;
 const phiargn = all.phiargn;
 const printfn = all.printfn;
@@ -32,7 +32,7 @@ const vnewT = all.vnewT;
 const NOID: uint = std.math.maxInt(uint); // -1u
 
 pub fn newblk() [*c]Blk {
-    const b: [*c]Blk = @ptrCast(@alignCast(alloc(@sizeOf(Blk))));
+    const b: [*c]Blk = palloc(Blk, 1);
     b.* = std.mem.zeroes(Blk);
     b.*.ins = vnewT(Ins, 0, PFn);
     b.*.pred = vnewT([*c]Blk, 0, PFn);
@@ -330,7 +330,7 @@ pub fn simpljmp(f: [*c]Fn) void {
     ret.*.id = f.*.nblk;
     f.*.nblk += 1;
     ret.*.jmp.type = Jret0;
-    const uf: [*c][*c]Blk = @ptrCast(@alignCast(emalloc(f.*.nblk * @sizeOf([*c]Blk)))); // union-find
+    const uf: [*c][*c]Blk = ealloc([*c]Blk, f.*.nblk); // union-find
     var b = f.*.start;
     while (b != null) : (b = b.*.link) {
         assert(b.*.phi == null);
@@ -359,7 +359,7 @@ pub fn simpljmp(f: [*c]Fn) void {
         }
     }
     p.* = ret;
-    C.free(@ptrCast(uf));
+    efree(@ptrCast(uf));
 }
 
 fn reachrec(b: [*c]Blk, to: [*c]Blk) bool {
@@ -479,8 +479,8 @@ pub fn simplcfg(f: [*c]Fn) void {
             b.*.phi = null;
         };
 
-    const jmp: [*c]Jmp = @ptrCast(@alignCast(emalloc(f.*.nblk * @sizeOf(Jmp))));
-    const empty: [*c]i32 = @ptrCast(@alignCast(emalloc(f.*.nblk * @sizeOf(i32))));
+    const jmp: [*c]Jmp = ealloc(Jmp, f.*.nblk);
+    const empty: [*c]i32 = ealloc(i32, f.*.nblk);
     b = f.*.start;
     while (b != null) : (b = b.*.link) {
         jmp[b.*.id].type = b.*.jmp.type;
@@ -545,8 +545,8 @@ pub fn simplcfg(f: [*c]Fn) void {
         };
 
     fillcfg(f);
-    C.free(@ptrCast(empty));
-    C.free(@ptrCast(jmp));
+    efree(@ptrCast(empty));
+    efree(@ptrCast(jmp));
 
     if (all.debug['C'] != 0) {
         dprint("\n> After CFG simplification:\n", .{});

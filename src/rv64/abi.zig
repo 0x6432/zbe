@@ -2,7 +2,6 @@
 //! the risc-v lp64d abi
 const std = @import("std");
 const assert = std.debug.assert;
-const C = @import("../libc.zig");
 // -- imports --
 const all = @import("../all.zig");
 const tgt = @import("all.zig");
@@ -80,7 +79,6 @@ const SLOT = all.SLOT;
 const T5 = tgt.T5;
 const TMP = all.TMP;
 const Typ = all.Typ;
-const alloc = all.alloc;
 const bits = all.bits;
 const die = all.die;
 const dprint = all.dprint;
@@ -94,6 +92,7 @@ const isarg = all.isarg;
 const ispar = all.ispar;
 const isret = all.isret;
 const newtmp = all.newtmp;
+const palloc = all.palloc;
 const printfn = all.printfn;
 const ptrdiff = all.ptrdiff;
 const req = all.req;
@@ -408,7 +407,7 @@ fn argsclass(i_0: [*c]Ins, i_1: [*c]Ins, carg: [*c]Class, retptr: bool) i32 {
 }
 
 fn stkblob(r: Ref, t: [*c]Typ, f: [*c]Fn, ilp: *[*c]Insl) void {
-    const il: [*c]Insl = @ptrCast(@alignCast(alloc(@sizeOf(Insl))));
+    const il: [*c]Insl = palloc(Insl, 1);
     var al: i32 = t.*.@"align" - 2; // specific to NAlign == 3
     if (al < 0)
         al = 0;
@@ -427,7 +426,7 @@ fn selcall(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins, ilp: *[*c]Insl) void {
     var r2: Ref = undefined;
 
     const nca: usize = @intCast(ptrdiff(i_1, i_0));
-    const ca: [*c]Class = @ptrCast(@alignCast(alloc(nca * @sizeOf(Class))));
+    const ca: [*c]Class = palloc(Class, nca);
     cr.class = 0;
 
     if (!req(i_1.*.arg[1], R))
@@ -582,7 +581,7 @@ fn selpar(f: [*c]Fn, i_0: [*c]Ins, i_1: [*c]Ins) Params {
     var tmp: [17]Ref = undefined;
 
     const nca: usize = @intCast(ptrdiff(i_1, i_0));
-    const ca: [*c]Class = @ptrCast(@alignCast(alloc(nca * @sizeOf(Class))));
+    const ca: [*c]Class = palloc(Class, nca);
     cr.class = 0;
     all.curi = all.insbEnd();
 

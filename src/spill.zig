@@ -1,7 +1,6 @@
 //! One-to-one translation of spill.c
 const std = @import("std");
 const assert = std.debug.assert;
-const C = @import("libc.zig");
 // -- imports --
 const all = @import("all.zig");
 const BIT = all.BIT;
@@ -40,7 +39,8 @@ const cint = all.cint;
 const cs = all.cs;
 const dprint = all.dprint;
 const dumpts = all.dumpts;
-const emalloc = all.emalloc;
+const ealloc = all.ealloc;
+const efree = all.efree;
 const emit = all.emit;
 const emiti = all.emiti;
 const idup = all.idup;
@@ -51,6 +51,7 @@ const phicls = all.phicls;
 const printfn = all.printfn;
 const req = all.req;
 const rtype = all.rtype;
+const sort = all.sort;
 const uint = all.uint;
 // -- end imports --
 
@@ -146,17 +147,15 @@ var slot4: i32 = 0; // next slot of 4 bytes
 var slot8: i32 = 0; // ditto, 8 bytes
 var mask: [2][1]BSet = undefined; // class masks
 
-fn tcmp0(pa: ?*const anyopaque, pb: ?*const anyopaque) callconv(.c) c_int {
-    const ca = tmp[@intCast(@as(*const i32, @ptrCast(@alignCast(pa))).*)].cost;
-    const cb = tmp[@intCast(@as(*const i32, @ptrCast(@alignCast(pb))).*)].cost;
-    return if (cb < ca) -1 else @intFromBool(cb > ca);
+fn tcmp0(a: i32, b: i32) std.math.Order {
+    // by decreasing cost
+    return std.math.order(tmp[@intCast(b)].cost, tmp[@intCast(a)].cost);
 }
 
-fn tcmp1(pa: ?*const anyopaque, pb: ?*const anyopaque) callconv(.c) c_int {
-    const a = @as(*const i32, @ptrCast(@alignCast(pa))).*;
-    const b = @as(*const i32, @ptrCast(@alignCast(pb))).*;
-    const c: c_int = @as(c_int, @intFromBool(bshas(fst, b))) - @intFromBool(bshas(fst, a));
-    return if (c != 0) c else tcmp0(pa, pb);
+fn tcmp1(a: i32, b: i32) std.math.Order {
+    // live-in temporaries first
+    const c = std.math.order(@intFromBool(bshas(fst, b)), @intFromBool(bshas(fst, a)));
+    return if (c != .eq) c else tcmp0(a, b);
 }
 
 fn slot(t: i32) Ref {
@@ -200,8 +199,8 @@ fn limit(b: [*c]BSet, k: i32, f: [*c]BSet) void {
     if (nt <= k)
         return;
     if (nt > limit_maxt) {
-        C.free(@ptrCast(limit_tarr));
-        limit_tarr = @ptrCast(@alignCast(emalloc(@as(usize, @intCast(nt)) * @sizeOf(i32))));
+        efree(@ptrCast(limit_tarr));
+        limit_tarr = ealloc(i32, nt);
         limit_maxt = nt;
     }
     var i: i32 = 0;
@@ -213,10 +212,10 @@ fn limit(b: [*c]BSet, k: i32, f: [*c]BSet) void {
     }
     if (nt > 1) {
         if (f == null) {
-            C.qsort(@ptrCast(limit_tarr), @intCast(nt), @sizeOf(i32), &tcmp0);
+            sort(i32, limit_tarr, @intCast(nt), tcmp0);
         } else {
             fst = f;
-            C.qsort(@ptrCast(limit_tarr), @intCast(nt), @sizeOf(i32), &tcmp1);
+            sort(i32, limit_tarr, @intCast(nt), tcmp1);
         }
     }
     i = 0;

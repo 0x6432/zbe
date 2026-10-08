@@ -1,7 +1,6 @@
 //! One-to-one translation of rega.c
 const std = @import("std");
 const assert = std.debug.assert;
-const C = @import("libc.zig");
 // -- imports --
 const all = @import("all.zig");
 const BIT = all.BIT;
@@ -29,7 +28,6 @@ const SLOT = all.SLOT;
 const TMP = all.TMP;
 const Tmp = all.Tmp;
 const Tmp0 = all.Tmp0;
-const alloc = all.alloc;
 const bits = all.bits;
 const bsclr = all.bsclr;
 const bscopy = all.bscopy;
@@ -47,11 +45,13 @@ const icpy = all.icpy;
 const idup = all.idup;
 const isreg = all.isreg;
 const newblk = all.newblk;
+const palloc = all.palloc;
 const phicls = all.phicls;
 const printfn = all.printfn;
 const ptrdiff = all.ptrdiff;
 const req = all.req;
 const rtype = all.rtype;
+const sort = all.sort;
 const strf = all.strf;
 const uint = all.uint;
 // -- end imports --
@@ -201,8 +201,8 @@ fn rfree(m: *RMap, t: i32) i32 {
     bsclr(&m.b, r);
     m.n -= 1;
     const cnt: usize = @as(usize, @intCast(m.n)) - i;
-    _ = C.memmove(@ptrCast(&m.t[i]), @ptrCast(&m.t[i + 1]), cnt * @sizeOf(i32));
-    _ = C.memmove(@ptrCast(&m.r[i]), @ptrCast(&m.r[i + 1]), cnt * @sizeOf(i32));
+    if (cnt != 0) std.mem.copyForwards(i32, m.t[i..][0..cnt], m.t[i + 1 ..][0..cnt]);
+    if (cnt != 0) std.mem.copyForwards(i32, m.r[i..][0..cnt], m.r[i + 1 ..][0..cnt]);
     assert(t >= Tmp0 or t == r);
     return r;
 }
@@ -272,7 +272,7 @@ fn pmrec(status: [*c]PMStat, i: usize, k: *i32) i32 {
 }
 
 fn pmgen() void {
-    const status: [*c]PMStat = @ptrCast(@alignCast(alloc(@as(usize, @intCast(npm)) * @sizeOf(PMStat))));
+    const status: [*c]PMStat = palloc(PMStat, npm);
     assert(npm == 0 or status[@intCast(npm - 1)] == .ToMove);
     var i: usize = 0;
     while (i < npm) : (i += 1) {
@@ -475,14 +475,12 @@ fn doblk(b: [*c]Blk, cur: *RMap) void {
 
 /// qsort() comparison function to peel
 /// loop nests from inside out
-fn carve(a: ?*const anyopaque, b: ?*const anyopaque) callconv(.c) c_int {
+fn carve(ba: [*c]Blk, bb: [*c]Blk) std.math.Order {
     // todo, evaluate if this order is really
     // better than the simple postorder
-    const ba = @as(*const [*c]Blk, @ptrCast(@alignCast(a))).*;
-    const bb = @as(*const [*c]Blk, @ptrCast(@alignCast(b))).*;
     if (ba.*.loop == bb.*.loop)
-        return if (ba.*.id > bb.*.id) -1 else @intFromBool(ba.*.id < bb.*.id);
-    return if (ba.*.loop > bb.*.loop) -1 else 1;
+        return std.math.order(bb.*.id, ba.*.id);
+    return if (ba.*.loop > bb.*.loop) .lt else .gt;
 }
 
 /// comparison function to order temporaries
@@ -508,9 +506,9 @@ pub fn rega(f: [*c]Fn) void {
     regu = 0;
     tmp = f.*.tmp;
     mem = f.*.mem;
-    const blk: [*c][*c]Blk = @ptrCast(@alignCast(alloc(f.*.nblk * @sizeOf([*c]Blk))));
-    const end: [*]RMap = @ptrCast(@alignCast(alloc(f.*.nblk * @sizeOf(RMap))));
-    const beg: [*]RMap = @ptrCast(@alignCast(alloc(f.*.nblk * @sizeOf(RMap))));
+    const blk: [*c][*c]Blk = palloc([*c]Blk, f.*.nblk);
+    const end: [*]RMap = palloc(RMap, f.*.nblk);
+    const beg: [*]RMap = palloc(RMap, f.*.nblk);
     var n: uint = 0;
     while (n < f.*.nblk) : (n += 1) {
         bsinit(&end[n].b, @intCast(f.*.ntmp));
@@ -532,7 +530,7 @@ pub fn rega(f: [*c]Fn) void {
         bp.* = b;
         bp += 1;
     }
-    C.qsort(@ptrCast(blk), f.*.nblk, @sizeOf([*c]Blk), &carve);
+    sort([*c]Blk, blk, f.*.nblk, carve);
     b = f.*.start;
     var i = b.*.ins;
     while (i < b.*.ins + b.*.nins) : (i += 1) {
@@ -663,7 +661,7 @@ pub fn rega(f: [*c]Fn) void {
             continue;
         stmov += jj;
         s.*.nins += jj;
-        i = @ptrCast(@alignCast(alloc(s.*.nins * @sizeOf(Ins))));
+        i = palloc(Ins, s.*.nins);
         _ = icpy(icpy(i, all.curi, jj), s.*.ins, s.*.nins - jj);
         s.*.ins = i;
     }
@@ -725,7 +723,7 @@ pub fn rega(f: [*c]Fn) void {
             b1.*.link = blist;
             blist = b1;
             f.*.nblk += 1;
-            b1.*.name = strf(PFn, "%s_%s", .{ b.*.name, s.*.name });
+            b1.*.name = strf(PFn, "{s}_{s}", .{ cs(b.*.name), cs(s.*.name) });
             stmov += @intCast(ptrdiff(all.insbEnd(), all.curi));
             stblk += 1;
             idup(b1, all.curi, @intCast(ptrdiff(all.insbEnd(), all.curi)));

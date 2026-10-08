@@ -1,7 +1,6 @@
 //! One-to-one translation of amd64/winabi.c
 const std = @import("std");
 const assert = std.debug.assert;
-const C = @import("../libc.zig");
 // -- imports --
 const all = @import("../all.zig");
 const tgt = @import("all.zig");
@@ -78,7 +77,6 @@ const XMM6 = tgt.XMM6;
 const XMM7 = tgt.XMM7;
 const XMM8 = tgt.XMM8;
 const XMM9 = tgt.XMM9;
-const alloc = all.alloc;
 const bits = all.bits;
 const die = all.die;
 const dprint = all.dprint;
@@ -92,6 +90,7 @@ const isarg = all.isarg;
 const ispar = all.ispar;
 const isret = all.isret;
 const newtmp = all.newtmp;
+const palloc = all.palloc;
 const printfn = all.printfn;
 const ptrdiff = all.ptrdiff;
 const req = all.req;
@@ -377,7 +376,7 @@ fn lower_call(func: [*c]Fn, block: [*c]Blk, call_instr: [*c]Ins, pextra_alloc: *
     // Don't need an ArgClass for the call itself, so one less than the total
     // number of instructions we're dealing with.
     const num_args: uint = @intCast(ptrdiff(call_instr, earliest_arg_instr));
-    const arg_classes: [*c]ArgClass = @ptrCast(@alignCast(alloc(num_args * @sizeOf(ArgClass))));
+    const arg_classes: [*c]ArgClass = palloc(ArgClass, num_args);
 
     var reg_usage = std.mem.zeroes(RegisterUsage);
     var ret_arg_class = std.mem.zeroes(ArgClass);
@@ -427,7 +426,7 @@ fn lower_call(func: [*c]Fn, block: [*c]Blk, call_instr: [*c]Ins, pextra_alloc: *
 
     var return_pad: [*c]ExtraAlloc = null;
     if (is_struct_return) {
-        return_pad = @ptrCast(@alignCast(alloc(@sizeOf(ExtraAlloc))));
+        return_pad = palloc(ExtraAlloc, 1);
         const ret_pad_ref = newtmp("abi.ret_pad", Kl, func);
         return_pad.*.instr = INS(Oalloc8, Kl, ret_pad_ref, getcon(ret_arg_class.size, func), R);
         return_pad.*.link = pextra_alloc.*;
@@ -440,7 +439,7 @@ fn lower_call(func: [*c]Fn, block: [*c]Blk, call_instr: [*c]Ins, pextra_alloc: *
             // far as the calling convention is concerned it's not actually by
             // pointer, we need to store the return value into an alloca because
             // subsequent IL will still be treating the function return as a pointer.
-            const return_copy: [*c]ExtraAlloc = @ptrCast(@alignCast(alloc(@sizeOf(ExtraAlloc))));
+            const return_copy: [*c]ExtraAlloc = palloc(ExtraAlloc, 1);
             return_copy.*.instr = INS(Oalloc8, Kl, call_instr.*.to, getcon(8, func), R);
             return_copy.*.link = pextra_alloc.*;
             pextra_alloc.* = return_copy;
@@ -531,7 +530,7 @@ fn lower_call(func: [*c]Fn, block: [*c]Blk, call_instr: [*c]Ins, pextra_alloc: *
             .APS_CopyAndPointerInRegister, .APS_CopyAndPointerOnStack => {
                 // Alloca a space to copy into, and blit the value from the instr to the
                 // copied location.
-                const arg_copy: [*c]ExtraAlloc = @ptrCast(@alignCast(alloc(@sizeOf(ExtraAlloc))));
+                const arg_copy: [*c]ExtraAlloc = palloc(ExtraAlloc, 1);
                 const copy_ref = newtmp("abi.copy", Kl, func);
                 arg_copy.*.instr = INS(Oalloc8, Kl, copy_ref, getcon(arg.*.size, func), R);
                 arg_copy.*.link = pextra_alloc.*;
@@ -707,7 +706,7 @@ fn lower_func_parameters(func: [*c]Fn) RegisterUsage {
     const end_of_params = find_end_of_func_parameters(start_block);
 
     const num_params: usize = @intCast(ptrdiff(end_of_params, start_of_params));
-    const arg_classes: [*c]ArgClass = @ptrCast(@alignCast(alloc(num_params * @sizeOf(ArgClass))));
+    const arg_classes: [*c]ArgClass = palloc(ArgClass, num_params);
     var arg_ret = std.mem.zeroes(ArgClass);
 
     // global temporary buffer used by emit. Reset to the end, and predecremented

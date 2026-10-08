@@ -1,7 +1,6 @@
 //! One-to-one translation of gvn.c
 const std = @import("std");
 const assert = std.debug.assert;
-const C = @import("libc.zig");
 // -- imports --
 const all = @import("all.zig");
 const Blk = all.Blk;
@@ -40,7 +39,8 @@ const copyref = all.copyref;
 const die = all.die;
 const dom = all.dom;
 const dprint = all.dprint;
-const emalloc = all.emalloc;
+const ealloc = all.ealloc;
+const efree = all.efree;
 const fillcfg = all.fillcfg;
 const fillloop = all.fillloop;
 const filluse = all.filluse;
@@ -406,8 +406,8 @@ fn dedupjmp(f: [*c]Fn, b: [*c]Blk) void {
 
 fn rebuildcfg(f: [*c]Fn) void {
     const nblk = f.*.nblk;
-    const rpo: [*c][*c]Blk = @ptrCast(@alignCast(emalloc(nblk * @sizeOf([*c]Blk))));
-    _ = C.memcpy(@ptrCast(rpo), @ptrCast(f.*.rpo), nblk * @sizeOf([*c]Blk));
+    const rpo: [*c][*c]Blk = ealloc([*c]Blk, nblk);
+    if (nblk != 0) @memcpy(rpo[0..nblk], f.*.rpo[0..nblk]);
 
     fillcfg(f);
 
@@ -429,7 +429,7 @@ fn rebuildcfg(f: [*c]Fn) void {
                 if (gvndup(i, false) == i)
                     addins(&s.*.ins, &s.*.nins, i);
     }
-    C.free(@ptrCast(rpo));
+    efree(@ptrCast(rpo));
 }
 
 /// requires rpo pred ssa use
@@ -460,7 +460,7 @@ pub fn gvn(f: [*c]Fn) void {
     }
 
     gvntbln = nins + nins / 2;
-    gvntbl = @ptrCast(@alignCast(emalloc(gvntbln * @sizeOf([*c]Ins))));
+    gvntbl = ealloc([*c]Ins, gvntbln);
     var n: uint = 0;
     while (n < f.*.nblk) : (n += 1) {
         b = f.*.rpo[n];
@@ -471,7 +471,7 @@ pub fn gvn(f: [*c]Fn) void {
         dedupjmp(f, b);
     }
     rebuildcfg(f);
-    C.free(@ptrCast(gvntbl));
+    efree(@ptrCast(gvntbl));
     gvntbl = null;
 
     if (all.debug['G'] != 0) {

@@ -1,7 +1,6 @@
 //! One-to-one translation of load.c
 const std = @import("std");
 const assert = std.debug.assert;
-const C = @import("libc.zig");
 // -- imports --
 const all = @import("all.zig");
 const ACon = all.ACon;
@@ -59,7 +58,6 @@ const RTmp = all.RTmp;
 const Ref = all.Ref;
 const TMP = all.TMP;
 const alias = all.alias;
-const alloc = all.alloc;
 const bits = all.bits;
 const die = all.die;
 const dom = all.dom;
@@ -71,12 +69,14 @@ const isload = all.isload;
 const isstore = all.isstore;
 const newcon = all.newcon;
 const newtmp = all.newtmp;
+const palloc = all.palloc;
 const printfn = all.printfn;
 const ptrdiff = all.ptrdiff;
 const req = all.req;
 const rsval = all.rsval;
 const rtype = all.rtype;
 const shl64 = all.shl64;
+const sort = all.sort;
 const uint = all.uint;
 const vfree = all.vfree;
 const vgrow = all.vgrow;
@@ -425,7 +425,7 @@ fn defBody(sl: Slice, msk: bits, b: [*c]Blk, i_: [*c]Ins, il: [*c]Loc) ?Ref {
     }
 
     r = newtmp("ld", sl.cls, curf);
-    p = @ptrCast(@alignCast(alloc(@sizeOf(Phi))));
+    p = palloc(Phi, 1);
     nlog += 1;
     vgrow(&ilog, nlog);
     ist = &ilog[nlog - 1];
@@ -459,22 +459,20 @@ fn defBody(sl: Slice, msk: bits, b: [*c]Blk, i_: [*c]Ins, il: [*c]Loc) ?Ref {
     return r;
 }
 
-fn icmp(pa: ?*const anyopaque, pb: ?*const anyopaque) callconv(.c) c_int {
-    const a: [*c]const Insert = @ptrCast(@alignCast(pa));
-    const b: [*c]const Insert = @ptrCast(@alignCast(pb));
-    var c: i32 = @bitCast(a.*.bid -% b.*.bid);
-    if (c != 0)
+fn icmp(a: Insert, b: Insert) std.math.Order {
+    const c = std.math.order(a.bid, b.bid);
+    if (c != .eq)
         return c;
-    if (a.*.isphi != 0 and b.*.isphi != 0)
-        return 0;
-    if (a.*.isphi != 0)
-        return -1;
-    if (b.*.isphi != 0)
-        return 1;
-    c = @bitCast(a.*.off -% b.*.off);
-    if (c != 0)
-        return c;
-    return @bitCast(a.*.num -% b.*.num);
+    if (a.isphi != 0 and b.isphi != 0)
+        return .eq;
+    if (a.isphi != 0)
+        return .lt;
+    if (b.isphi != 0)
+        return .gt;
+    const d = std.math.order(a.off, b.off);
+    if (d != .eq)
+        return d;
+    return std.math.order(a.num, b.num);
 }
 
 /// require rpo ssa alias
@@ -500,7 +498,7 @@ pub fn loadopt(f: [*c]Fn) void {
             i.*.arg[1] = def(sl, MASK(sz), b, i, &l);
         }
     }
-    C.qsort(@ptrCast(ilog), nlog, @sizeOf(Insert), icmp);
+    sort(Insert, ilog, nlog, icmp);
     vgrow(&ilog, nlog + 1);
     ilog[nlog].bid = f.*.nblk; // add a sentinel
     var ib = vnewT(Ins, 0, PHeap);

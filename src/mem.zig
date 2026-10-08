@@ -1,7 +1,6 @@
 //! One-to-one translation of mem.c
 const std = @import("std");
 const assert = std.debug.assert;
-const C = @import("libc.zig");
 // -- imports --
 const all = @import("all.zig");
 const ALoc = all.ALoc;
@@ -46,7 +45,8 @@ const bits = all.bits;
 const cint = all.cint;
 const cs = all.cs;
 const dprint = all.dprint;
-const emalloc = all.emalloc;
+const ealloc = all.ealloc;
+const efree = all.efree;
 const err = all.err;
 const getalias = all.getalias;
 const isarg = all.isarg;
@@ -61,6 +61,7 @@ const req = all.req;
 const rsval = all.rsval;
 const rtype = all.rtype;
 const shl64 = all.shl64;
+const sort = all.sort;
 const storesz = all.storesz;
 const uint = all.uint;
 const vfree = all.vfree;
@@ -234,12 +235,11 @@ fn store(r: Ref, x: bits, ip: i32, i: [*c]Ins, f: [*c]Fn, sl: [*c]Slot) void {
     }
 }
 
-fn scmp(pa: ?*const anyopaque, pb: ?*const anyopaque) callconv(.c) c_int {
-    const a: [*c]const Slot = @ptrCast(@alignCast(pa));
-    const b: [*c]const Slot = @ptrCast(@alignCast(pb));
-    if (a.*.sz != b.*.sz)
-        return b.*.sz - a.*.sz;
-    return a.*.r.a - b.*.r.a;
+fn scmp(a: Slot, b: Slot) std.math.Order {
+    // by decreasing size, then increasing start
+    if (a.sz != b.sz)
+        return std.math.order(b.sz, a.sz);
+    return std.math.order(a.r.a, b.r.a);
 }
 
 fn maxrpo(hd: [*c]Blk, b: [*c]Blk) void {
@@ -295,7 +295,7 @@ pub fn coalesce(f: [*c]Fn) void {
     loopiter(f, maxrpo);
     var nbl: i32 = 0;
     var bl = vnewT([*c]Ins, 0, PHeap);
-    const br: [*c]Range = @ptrCast(@alignCast(emalloc(f.*.nblk * @sizeOf(Range))));
+    const br: [*c]Range = ealloc(Range, f.*.nblk);
     var ip: i32 = std.math.maxInt(c_int) - 1;
     n = @as(i32, @intCast(f.*.nblk)) - 1;
     while (n >= 0) : (n -= 1) {
@@ -363,7 +363,7 @@ pub fn coalesce(f: [*c]Fn) void {
             };
         br[@intCast(n)].a = ip;
     }
-    C.free(@ptrCast(br));
+    efree(@ptrCast(br));
 
     // kill dead stores
     s = sl;
@@ -449,7 +449,7 @@ pub fn coalesce(f: [*c]Fn) void {
     vfree(@ptrCast(stk));
 
     // fuse slots by decreasing size
-    C.qsort(@ptrCast(sl), @intCast(nsl), @sizeOf(Slot), scmp);
+    sort(Slot, sl, @intCast(nsl), scmp);
     var fused: uint = 0;
     n = 0;
     while (n < nsl) : (n += 1) {

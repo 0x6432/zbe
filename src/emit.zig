@@ -1,7 +1,6 @@
 //! One-to-one translation of emit.c
 const std = @import("std");
 const assert = std.debug.assert;
-const C = @import("libc.zig");
 // -- imports --
 const all = @import("all.zig");
 const DB = all.DB;
@@ -19,7 +18,8 @@ const bits = all.bits;
 const cfloat = all.cfloat;
 const cs = all.cs;
 const die = all.die;
-const emalloc = all.emalloc;
+const ealloc = all.ealloc;
+const efree = all.efree;
 const err = all.err;
 const intern = all.intern;
 const uint = all.uint;
@@ -143,7 +143,7 @@ pub fn stashbits(n: bits, size: i32) i32 {
         if (size <= b.*.size and b.*.n == n)
             return i;
     }
-    const b: [*c]Asmbits = @ptrCast(@alignCast(emalloc(@sizeOf(Asmbits))));
+    const b: [*c]Asmbits = ealloc(Asmbits, 1);
     b.*.n = n;
     b.*.size = size;
     b.*.link = null;
@@ -182,7 +182,7 @@ fn emitfin(f: *Writer, sec: *const [3][*c]const u8) Writer.Error!void {
     while (stash != null) {
         const b = stash;
         stash = b.*.link;
-        C.free(@ptrCast(b));
+        efree(@ptrCast(b));
     }
 }
 

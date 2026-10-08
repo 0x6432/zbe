@@ -1,10 +1,8 @@
 //! One-to-one translation of QBE's all.h: core types, constants and
 //! the cross-module "prototype" list (re-exports).
 const std = @import("std");
-pub const libc = @import("libc.zig");
 pub const ops = @import("ops.zig");
 
-pub const FILE = libc.FILE;
 pub const uchar = u8;
 pub const uint = u32;
 pub const ulong = u64;
@@ -521,6 +519,11 @@ pub const die = util.die;
 pub const Writer = util.Writer;
 pub const cs = util.cs;
 pub const dprint = util.dprint;
+pub const sort = util.sort;
+pub const streq = util.streq;
+pub const efree = util.efree;
+pub const palloc = util.palloc;
+pub const ealloc = util.ealloc;
 pub const cfloat = util.cfloat;
 pub const cint = util.cint;
 pub const bufPrintZ = util.bufPrintZ;

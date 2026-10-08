@@ -1,7 +1,6 @@
 //! One-to-one translation of amd64/isel.c
 const std = @import("std");
 const assert = std.debug.assert;
-const C = @import("../libc.zig");
 // -- imports --
 const all = @import("../all.zig");
 const tgt = @import("all.zig");
@@ -116,7 +115,8 @@ const cmpop = all.cmpop;
 const cs = all.cs;
 const die = all.die;
 const dprint = all.dprint;
-const emalloc = all.emalloc;
+const ealloc = all.ealloc;
+const efree = all.efree;
 const emit = all.emit;
 const emiti = all.emiti;
 const err = all.err;
@@ -984,7 +984,7 @@ pub fn amd64_isel(f: [*c]Fn) void {
 
     // process basic blocks
     n = f.*.ntmp;
-    const num: [*c]Num = @ptrCast(@alignCast(emalloc(@as(usize, @intCast(n)) * @sizeOf(Num))));
+    const num: [*c]Num = ealloc(Num, n);
     b = f.*.start;
     while (b != null) : (b = b.*.link) {
         all.curi = all.insbEnd();
@@ -999,7 +999,7 @@ pub fn amd64_isel(f: [*c]Fn) void {
                 fixarg(&p.*.arg[a], p.*.cls, null, f);
             }
         }
-        _ = C.memset(@ptrCast(num), 0, @as(usize, @intCast(n)) * @sizeOf(Num));
+        if (n != 0) @memset(num[0..@intCast(n)], std.mem.zeroes(Num));
         anumber(num, b, f.*.con);
         seljmp(b, f);
         var i = b.*.ins + b.*.nins;
@@ -1013,7 +1013,7 @@ pub fn amd64_isel(f: [*c]Fn) void {
         }
         idup(b, all.curi, @intCast(ptrdiff(all.insbEnd(), all.curi)));
     }
-    C.free(@ptrCast(num));
+    efree(@ptrCast(num));
 
     if (all.debug['I'] != 0) {
         dprint("\n> After instruction selection:\n", .{});

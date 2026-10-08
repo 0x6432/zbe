@@ -1060,26 +1060,26 @@ fn typecheck(f: *Fn) void {
     fillpreds(f);
     bsinit(&pb, f.nblk);
     bsinit(&ppb, f.nblk);
-    var b: [*c]Blk = f.start;
-    while (b != null) : (b = b.*.link) {
-        var p: [*c]Phi = b.*.phi;
-        while (p != null) : (p = p.*.link)
-            f.tmp[p.*.to.val].cls = p.*.cls;
-        var i = b.*.ins;
-        while (i < &b.*.ins[b.*.nins]) : (i += 1)
+    var b_it: ?*Blk = f.start;
+    while (b_it) |b| : (b_it = b.link) {
+        var p_it: ?*Phi = b.phi;
+        while (p_it) |p| : (p_it = p.link)
+            f.tmp[p.to.val].cls = p.cls;
+        var i = b.ins;
+        while (i < &b.ins[b.nins]) : (i += 1)
             if (rtype(i.*.to) == RTmp) {
                 t = &f.tmp[i.*.to.val];
                 if (clsmerge(&t.*.cls, @intCast(i.*.cls)))
                     err("temporary %{s} is assigned with multiple types", .{cs(t.*.name)});
             };
     }
-    b = f.start;
-    while (b != null) : (b = b.*.link) {
+    b_it = f.start;
+    while (b_it) |b| : (b_it = b.link) {
         bszero(&pb);
         var n: uint = 0;
-        while (n < b.*.npred) : (n += 1)
-            bsset(&pb, b.*.pred[n].*.id);
-        var p_it: ?*Phi = b.*.phi;
+        while (n < b.npred) : (n += 1)
+            bsset(&pb, b.pred[n].*.id);
+        var p_it: ?*Phi = b.phi;
         while (p_it) |p| : (p_it = p.link) {
             bszero(&ppb);
             t = &f.tmp[p.to.val];
@@ -1095,7 +1095,7 @@ fn typecheck(f: *Fn) void {
             if (!bsequal(&pb, &ppb))
                 err("predecessors not matched in phi %{s}", .{cs(t.*.name)});
         }
-        for (b.*.ins[0..b.*.nins]) |*i| {
+        for (b.ins[0..b.nins]) |*i| {
             n = 0;
             while (n < 2) : (n += 1) {
                 k = all.optab[i.op].argcls[n][i.cls];
@@ -1114,24 +1114,24 @@ fn typecheck(f: *Fn) void {
                     err("invalid type for {s} operand %{s} in {s}", .{cs(which), cs(t.*.name), cs(all.optab[i.op].name)});
             }
         }
-        r = b.*.jmp.arg;
+        r = b.jmp.arg;
         var jerr = false;
-        if (isret(b.*.jmp.type)) {
-            if (b.*.jmp.type == Jretc)
+        if (isret(b.jmp.type)) {
+            if (b.jmp.type == Jretc)
                 k = Kl
-            else if (b.*.jmp.type >= Jretsb)
+            else if (b.jmp.type >= Jretsb)
                 k = Kw
             else
-                k = b.*.jmp.type - Jretw;
+                k = b.jmp.type - Jretw;
             if (!usecheck(r, k, f))
                 jerr = true;
         }
-        if (jerr or (b.*.jmp.type == Jjnz and !usecheck(r, Kw, f)))
-            err("invalid type for jump argument %{s} in block @{s}", .{cs(f.tmp[r.val].name), cs(b.*.name)});
-        if (b.*.s1 != null and b.*.s1.?.jmp.type == Jxxx)
-            err("block @{s} is used undefined", .{cs(b.*.s1.?.name)});
-        if (b.*.s2 != null and b.*.s2.?.jmp.type == Jxxx)
-            err("block @{s} is used undefined", .{cs(b.*.s2.?.name)});
+        if (jerr or (b.jmp.type == Jjnz and !usecheck(r, Kw, f)))
+            err("invalid type for jump argument %{s} in block @{s}", .{cs(f.tmp[r.val].name), cs(b.name)});
+        if (b.s1 != null and b.s1.?.jmp.type == Jxxx)
+            err("block @{s} is used undefined", .{cs(b.s1.?.name)});
+        if (b.s2 != null and b.s2.?.jmp.type == Jxxx)
+            err("block @{s} is used undefined", .{cs(b.s2.?.name)});
     }
 }
 

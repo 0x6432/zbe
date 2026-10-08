@@ -87,18 +87,18 @@ pub fn fillcost(f: *Fn) void {
     loopiter(f, &aggreg);
     if (all.debug['S'] != 0) {
         dprint("\n> Loop information:\n", .{});
-        var b: [*c]Blk = f.start;
-        while (b != null) : (b = b.*.link) {
+        var b_it: ?*Blk = f.start;
+        while (b_it) |b| : (b_it = b.link) {
             var a: uint = 0;
-            while (a < b.*.npred) : (a += 1) {
-                if (b.*.id <= b.*.pred[a].*.id)
+            while (a < b.npred) : (a += 1) {
+                if (b.id <= b.pred[a].*.id)
                     break;
             }
-            if (a != b.*.npred) {
-                dprint("\t{s:<10}", .{cs(b.*.name)});
-                dprint(" ({f} ", .{cint(b.*.nlive[0], 3)});
-                dprint("{f}) ", .{cint(b.*.nlive[1], 3)});
-                dumpts(&b.*.gen, f.tmp, all.dbg) catch {};
+            if (a != b.npred) {
+                dprint("\t{s:<10}", .{cs(b.name)});
+                dprint(" ({f} ", .{cint(b.nlive[0], 3)});
+                dprint("{f}) ", .{cint(b.nlive[1], 3)});
+                dumpts(&b.gen, f.tmp, all.dbg) catch {};
             }
         }
     }
@@ -549,10 +549,10 @@ pub fn spill(f: *Fn) void {
 
     if (all.debug['S'] != 0) {
         dprint("\n> Block information:\n", .{});
-        var b: [*c]Blk = f.start;
-        while (b != null) : (b = b.*.link) {
-            dprint("\t{s:<10} ({f}) ", .{ cs(b.*.name), cint(b.*.loop, 5) });
-            dumpts(&b.*.out, f.tmp, all.dbg) catch {};
+        var b_it: ?*Blk = f.start;
+        while (b_it) |b| : (b_it = b.link) {
+            dprint("\t{s:<10} ({f}) ", .{ cs(b.name), cint(b.loop, 5) });
+            dumpts(&b.out, f.tmp, all.dbg) catch {};
         }
         dprint("\n> After spilling:\n", .{});
         printfn(f, all.dbg) catch {};

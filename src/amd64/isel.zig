@@ -991,12 +991,12 @@ pub fn amd64_isel(f: *Fn) void {
         const sb = [3][*c]Blk{ b.*.s1, b.*.s2, null };
         var si: usize = 0;
         while (sb[si] != null) : (si += 1) {
-            var p: [*c]Phi = sb[si].*.phi;
-            while (p != null) : (p = p.*.link) {
+            var p_it: ?*Phi = sb[si].*.phi;
+            while (p_it) |p| : (p_it = p.link) {
                 var a: uint = 0;
-                while (p.*.blk[a] != b) : (a += 1)
-                    assert(a + 1 < p.*.narg);
-                fixarg(&p.*.arg[a], p.*.cls, null, f);
+                while (p.blk[a] != b) : (a += 1)
+                    assert(a + 1 < p.narg);
+                fixarg(&p.arg[a], p.cls, null, f);
             }
         }
         if (n != 0) @memset(num[0..@intCast(n)], std.mem.zeroes(Num));

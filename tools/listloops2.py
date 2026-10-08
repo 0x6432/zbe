@@ -50,7 +50,7 @@ for f in sys.argv[1:]:
                         if not L[e].rstrip().endswith(';'): ok = False; break
                     else: ok = False; break
                     btxt = '\n'.join(L[j+2:e+ (0 if rest.strip()=='{' else 1)])
-                    if re.search(r'\b' + x + r'\s*=[^=]', btxt) or re.search(r'&' + x + r'\b', btxt): ok = False; break
+                    if re.search(r'\b' + x + r'\s*=[^=]', btxt) or re.search(r'&' + x + r'\b(?!\.)', btxt): ok = False; break
                     T = ty(init0, decl)
                     if T is None: ok = False; break
                     loops.append((j, e, init0, link, rest, i0, T))

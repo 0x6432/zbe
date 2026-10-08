@@ -470,10 +470,10 @@ pub fn simplcfg(f: *Fn) void {
     while (b != null) : (b = b.*.link)
         if (b.*.npred == 1) {
             const bb = b.*.pred[0];
-            var p: [*c]Phi = b.*.phi;
-            while (p != null) : (p = p.*.link) {
-                cpy.cls = @intCast(p.*.cls);
-                cpy.to = p.*.to;
+            var p_it: ?*Phi = b.*.phi;
+            while (p_it) |p| : (p_it = p.link) {
+                cpy.cls = @intCast(p.cls);
+                cpy.to = p.to;
                 cpy.arg[0] = phiarg(p, bb);
                 addins(&bb.*.ins, &bb.*.nins, &cpy);
             }

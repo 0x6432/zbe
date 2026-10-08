@@ -577,10 +577,10 @@ pub fn rega(f: *Fn) void {
         rcopy(&end[n], &cur);
         doblk(b, &cur);
         bscopy(&b.*.in, &cur.b);
-        var p: [*c]Phi = b.*.phi;
-        while (p != null) : (p = p.*.link) {
-            if (rtype(p.*.to) == RTmp)
-                bsclr(&b.*.in, p.*.to.val);
+        var p_it: ?*Phi = b.*.phi;
+        while (p_it) |p| : (p_it = p.link) {
+            if (rtype(p.to) == RTmp)
+                bsclr(&b.*.in, p.to.val);
         }
         rcopy(&beg[n], &cur);
     }
@@ -601,18 +601,18 @@ pub fn rega(f: *Fn) void {
         // to find the register of a phi in a
         // predecessor, we have to find the
         // corresponding argument
-        var p: [*c]Phi = s.*.phi;
-        while (p != null) : (p = p.*.link) {
-            if (rtype(p.*.to) != RTmp)
+        var p_it: ?*Phi = s.*.phi;
+        while (p_it) |p| : (p_it = p.link) {
+            if (rtype(p.to) != RTmp)
                 continue;
-            const r = rfind(m, @intCast(p.*.to.val));
+            const r = rfind(m, @intCast(p.to.val));
             if (r == -1)
                 continue;
             const ru: usize = @intCast(r);
             var u: uint = 0;
-            while (u < p.*.narg) : (u += 1) {
-                b = p.*.blk[u];
-                const src = p.*.arg[u];
+            while (u < p.narg) : (u += 1) {
+                b = p.blk[u];
+                const src = p.arg[u];
                 if (rtype(src) != RTmp)
                     continue;
                 const x = rfind(&end[b.*.id], @intCast(src.val));

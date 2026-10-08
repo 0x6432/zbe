@@ -31,10 +31,11 @@ for f in sys.argv[1:]:
         else:
             k += 1; continue
         btxt = '\n'.join(body)
-        if re.search(r'\b' + x + r'\s*=[^=]', btxt) or re.search(r'&' + x + r'\b', btxt):
+        if re.search(r'\b' + x + r'\s*=[^=]', btxt) or re.search(r'&' + x + r'\b(?!\.)', btxt):
             k += 1; continue
         fe = end + 1
-        while fe < len(L) and not L[fe].startswith('}'): fe += 1
+        # scope of X ends at the first closing line indented less than X's decl
+        while fe < len(L) and not (L[fe].strip().startswith('}') and len(L[fe]) - len(L[fe].lstrip()) < len(ind)): fe += 1
         if re.search(r'\b' + x + r'\b', '\n'.join(L[end+1:fe])):
             k += 1; continue
         T = 'Phi' if re.search(r'phi$', init) else 'Blk'

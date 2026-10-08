@@ -365,16 +365,16 @@ fn sinkref(f: *Fn, b: *Blk, pr: *Ref) void {
 /// use to reduce register pressure
 /// requires rpo, use; breaks use
 fn sink(f: *Fn) void {
-    var b: [*c]Blk = f.start;
-    while (b != null) : (b = b.*.link) {
-        var i = b.*.ins;
-        while (i < b.*.ins + b.*.nins) : (i += 1) {
+    var b_it: ?*Blk = f.start;
+    while (b_it) |b| : (b_it = b.link) {
+        var i = b.ins;
+        while (i < b.ins + b.nins) : (i += 1) {
             if (isload(i.*.op))
                 sinkref(f, b, &i.*.arg[0])
             else if (isstore(i.*.op))
                 sinkref(f, b, &i.*.arg[1]);
         }
-        sinkref(f, b, &b.*.jmp.arg);
+        sinkref(f, b, &b.jmp.arg);
     }
     const end: [*c]Ins = all.insbEnd();
     addgcmins(f, all.curi, @intCast(end - all.curi));

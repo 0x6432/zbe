@@ -1,6 +1,6 @@
 # HANDOFF – QBE → Zig translation
 
-Updated: 20261008-220131 UTC (backup 36)
+Updated: 20261008-221214 UTC (backup 37)
 
 ## Goal
 Translate QBE (C, cloned at /data/qbe-c, HEAD e786f06) to latest Zig master.
@@ -186,7 +186,7 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    `*allowzero T` (won't coerce to *T) -> rewrite pointer loops to
    slices/indices before converting struct fields to `[*]T`.
 
-## Next steps (current as of stage 6f, all checks green)
+## Next steps (current as of stage 6j, all checks green)
 DONE 5t (redone after sandbox reset): arm64/isel.zig (fixarg(pr: *Ref),
 selcmp(arg: *[2]Ref), seljmp backward index search with ?*Ins, list walks)
 and rv64/isel.zig (memarg/immarg/fixarg take *Ref/?*Ins). All isel files
@@ -225,9 +225,19 @@ DONE 6e/6f: target emit files: string tables/params are `[*:0]const u8`
 with null -> callers use `.fmt.?`); fmt walkers use `s[0]` instead of `s.*`;
 `&all.T.assym` / bufPrintZ buffers passed via `@ptrCast`.
 Fuzzers rerun at 6d: abifuzz 60/60, irfuzz 100/100.
-PLAN (user approved, in order): (1) strings -> sentinel/slices: emit.zig,
-then core names (all.zig name fields, util intern/str/strf/hash/newtmp,
-parse, main); (2) vectors (vnew/vgrow) -> typed growable arrays;
+DONE 6g-6j: STRINGS FINISHED - zero `[*c]` left in src (except a comment in
+amd64/targ.zig and check_tmp.zig). emit.zig tables/params `[*:0]const u8`;
+all.zig name/sec/secf/str fields `?[*:0]u8` (nullable because structs are
+zero-initialised; call sites use `.name.?` where C assumed non-null);
+util: hash/intern take `[*:0]const u8`, str()/strf() return `[*:0]u8`,
+newtmp prefix `?[*:0]const u8`, intern Bucket.str `[*][*:0]u8`;
+parse kwmap `[Ntok]?[*:0]const u8`, tokval.str `[*:0]u8` buffer;
+dbgfile fn type `fn ([*:0]const u8) void`. NUL-terminated stack buffers
+(bufPrintZ) are passed with `@ptrCast(&buf)`.
+Tool: /data/fixopt.py rebuilds and auto-inserts `.?` / `@ptrCast` for the
+common optional/sentinel errors (falls over when the caret points at a
+`.field`; fix those by hand).
+PLAN (user approved, in order): (1) strings DONE; (2) vectors (vnew/vgrow) -> typed growable arrays;
 (3) enums for ops/classes/jumps; (4) cut casts.
 NOTE: the sandbox can stop mid-session (files in /data survived once, but the
 last edits before the stop were partly lost) -> commit + back up often.
@@ -255,7 +265,7 @@ indices/slices); pointer subtraction on `[*]T` works; tmph needs
 > /data/qbe-c/qbe); build corpus with `sh tools/mkcorpus.sh` (Hare/cproc IR,
 > see Status section). Read HANDOFF.md fully first.
 > State: 1:1 translation done and verified (git tag `v1-literal`). Canonical
-> rewrite in progress, stages 1-6f done (see "Canonical rewrite").
+> rewrite in progress, stages 1-6j done (see "Canonical rewrite").
 > Verify after EVERY change: `sh tools/all.sh > /tmp/all.log 2>&1; head -1
 > /tmp/all.log; tail -8 /tmp/all.log` (FUZZ=1 also runs abifuzz/irfuzz).
 > Expected: "All is fine!", 0/76 differ on 6 targets + debug dumps, corpus

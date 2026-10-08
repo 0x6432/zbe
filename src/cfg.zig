@@ -505,8 +505,8 @@ pub fn simplcfg(f: *Fn) void {
         };
 
     fillcfg(f);
-    efree(@ptrCast(empty.ptr));
-    efree(@ptrCast(jmp.ptr));
+    efree((empty.ptr));
+    efree((jmp.ptr));
 
     if (all.debug['C'] != 0) {
         dprint("\n> After CFG simplification:\n", .{});

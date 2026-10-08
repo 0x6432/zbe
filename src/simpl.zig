@@ -82,7 +82,7 @@ const ulog2_tab64 = [64]i32{
 };
 
 fn ulog2(pow2: u64) i32 {
-    return ulog2_tab64[@intCast((pow2 *% 0x5b31ab928877a7e) >> 58)];
+    return ulog2_tab64[((pow2 *% 0x5b31ab928877a7e) >> 58)];
 }
 
 fn ispow2(v: u64) bool {
@@ -144,6 +144,6 @@ pub fn simpl(f: *Fn) void {
             ins(&k, &new, b, f);
         }
         if (new)
-            idup(b, all.curi, @intCast(all.insbTail()));
+            idup(b, all.curi, (all.insbTail()));
     }
 }

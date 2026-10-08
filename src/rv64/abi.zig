@@ -145,8 +145,8 @@ var fpreg = [10]i32{ FA0, FA1, FA2, FA3, FA4, FA5, FA6, FA7, 0, 0 };
 
 pub fn rv64_retregs(r: Ref, p: ?*[2]i32) bits {
     assert(rtype(r) == RCall);
-    var ngp: i32 = @intCast(r.val & 3);
-    var nfp: i32 = @intCast((r.val >> 2) & 3);
+    var ngp: i32 = (r.val & 3);
+    var nfp: i32 = ((r.val >> 2) & 3);
     if (p) |q|
         q.* = .{ ngp, nfp };
     var b: bits = 0;
@@ -163,9 +163,9 @@ pub fn rv64_retregs(r: Ref, p: ?*[2]i32) bits {
 
 pub fn rv64_argregs(r: Ref, p: ?*[2]i32) bits {
     assert(rtype(r) == RCall);
-    var ngp: i32 = @intCast((r.val >> 4) & 15);
-    var nfp: i32 = @intCast((r.val >> 8) & 15);
-    const t5: i32 = @intCast((r.val >> 12) & 1);
+    var ngp: i32 = ((r.val >> 4) & 15);
+    var nfp: i32 = ((r.val >> 8) & 15);
+    const t5: i32 = ((r.val >> 12) & 1);
     if (p) |q|
         q.* = .{ ngp + t5, nfp };
     var b: bits = 0;
@@ -483,7 +483,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
             k = if (KWIDE(c.cls[0]) != 0) Kl else Kw;
             r = newtmp("abi", k, f);
             emit(Ocopy, k, TMP(c.reg[0]), r, R);
-            c.reg[0] = @intCast(r.val);
+            c.reg[0] = r.val;
         } else {
             emit(Ocopy, c.cls[0], TMP(c.reg[0]), i.arg[0], R);
         }
@@ -692,7 +692,7 @@ pub fn rv64_abi(f: *Fn) void {
                 while (il) |l| : (il = l.link)
                     emiti(l.i);
             }
-            idup(b, all.curi, @intCast(all.insbTail()));
+            idup(b, all.curi, (all.insbTail()));
         }
         if (b == start) break;
     }

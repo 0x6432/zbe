@@ -134,9 +134,9 @@ pub fn cs(s: anytype) []const u8 {
         .pointer => |p| switch (p.size) {
             .c => {
                 if (s == null) return "(null)";
-                return std.mem.span(@as([*:0]const u8, @ptrCast(s)));
+                return std.mem.span(@as([*:0]const u8, (s)));
             },
-            .many => return std.mem.span(@as([*:0]const u8, @ptrCast(s))),
+            .many => return std.mem.span(@as([*:0]const u8, (s))),
             .slice => return std.mem.sliceTo(s, 0),
             .one => switch (@typeInfo(p.child)) {
                 .array => return std.mem.sliceTo(@as([]const u8, s), 0),
@@ -233,7 +233,7 @@ pub const CInt = struct {
 };
 
 pub fn cint(x: anytype, width: usize) CInt {
-    return .{ .v = @intCast(x), .width = width };
+    return .{ .v = (x), .width = width };
 }
 
 pub fn cfloat(x: anytype) CFloat {
@@ -276,7 +276,7 @@ pub fn emalloc(n: usize) ?*anyopaque {
     @memset(m, 0);
     const h: *Hdr = @ptrCast(m.ptr);
     h.size = m.len;
-    return @ptrCast(m.ptr + @sizeOf(Hdr));
+    return (m.ptr + @sizeOf(Hdr));
 }
 
 pub fn efree(p: ?*anyopaque) void {
@@ -292,7 +292,7 @@ pub fn alloc(n: usize) ?*anyopaque {
     const m = pool.allocator().alignedAlloc(u8, .of(Hdr), n) catch
         die("alloc, out of memory", .{});
     @memset(m, 0);
-    return @ptrCast(m.ptr);
+    return (m.ptr);
 }
 
 /// typed zeroed allocation of n T's from the per-function pool
@@ -359,7 +359,7 @@ pub fn vfree(p: anytype) void {
     const h = vhdr(p);
     if (h.pool == PHeap) {
         h.mag = 0;
-        efree(@ptrCast(h));
+        efree((h));
     }
 }
 
@@ -503,7 +503,7 @@ pub fn igroup(b: *Blk, n0: uint) struct { uint, uint } {
 }
 
 pub fn argcls(i: *Ins, n: anytype) i32 {
-    return all.optab[i.op].argcls[@intCast(n)][i.cls];
+    return all.optab[i.op].argcls[n][i.cls];
 }
 
 pub fn emit(op: anytype, k: anytype, to: Ref, arg0: Ref, arg1: Ref) void {
@@ -567,11 +567,11 @@ pub fn cmpop(cc: anytype) i32 {
 }
 
 pub fn cmpwlneg(op: anytype) i32 {
-    const o: i32 = @intCast(op);
+    const o: i32 = op;
     if (INRANGE(o, Ocmpw, Ocmpw1))
-        return cmptab[@intCast(o - Ocmpw)][0] + Ocmpw;
+        return cmptab[(o - Ocmpw)][0] + Ocmpw;
     if (INRANGE(o, Ocmpl, Ocmpl1))
-        return cmptab[@intCast(o - Ocmpl)][0] + Ocmpl;
+        return cmptab[(o - Ocmpl)][0] + Ocmpl;
     die("not a wl comparison", .{});
 }
 
@@ -756,7 +756,7 @@ inline fn firstbit(b_: bits) i32 {
         n += 4;
         b >>= 4;
     }
-    n += ([16]i32{ 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0 })[@intCast(b & 0xf)];
+    n += ([16]i32{ 4, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0 })[(b & 0xf)];
     return n;
 }
 

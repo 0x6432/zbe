@@ -85,7 +85,7 @@ const vnewT = all.vnewT;
 
 /// must work when w==8
 inline fn MASK(w: anytype) bits {
-    return BIT(8 * @as(i32, @intCast(w)) - 1) *% 2 -% 1;
+    return BIT(8 * @as(i32, (w)) - 1) *% 2 -% 1;
 }
 
 const LRoot = 0; // right above the original load

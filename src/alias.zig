@@ -168,7 +168,7 @@ pub fn fillalias(f: *Fn) void {
             const a = &f.tmp[p.to.val].alias;
             assert(a.type == ABot);
             a.type = AUnk;
-            a.base = @intCast(p.to.val);
+            a.base = p.to.val;
             a.offset = 0;
             a.slot = null;
         }
@@ -195,7 +195,7 @@ pub fn fillalias(f: *Fn) void {
                     ta.type = AUnk;
                     ta.slot = null;
                 }
-                ta.base = @intCast(i.to.val);
+                ta.base = i.to.val;
                 ta.offset = 0;
             }
             if (i.op == Ocopy)

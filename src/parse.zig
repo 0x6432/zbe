@@ -631,7 +631,7 @@ fn tmpref() Ref {
     var i: i32 = undefined;
 
     if (@divTrunc(tmphcap, 2) <= curf.ntmp - Tmp0) {
-        if (tmphcap != 0) efree(@ptrCast(tmph));
+        if (tmphcap != 0) efree((tmph));
         tmphcap = if (tmphcap != 0) tmphcap * 2 else TMask + 1;
         tmph = ealloc(i32, tmphcap);
         t = Tmp0;
@@ -828,7 +828,7 @@ fn findblk() *Blk {
 }
 
 fn closeblk() void {
-    idup(curb.?, &all.insb, @intCast(all.insbHead()));
+    idup(curb.?, &all.insb, (all.insbHead()));
     blink = &curb.?.link;
     all.curi = &all.insb;
 }
@@ -1490,7 +1490,7 @@ pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*:0]const 
             Teof => {
                 var n: uint = 0;
                 while (n < ntyp) : (n += 1) {
-                    efree(@ptrCast(all.typ[n].name));
+                    efree((all.typ[n].name));
                     if (all.typ[n].nunion != 0)
                         vfree(all.typ[n].fields);
                 }

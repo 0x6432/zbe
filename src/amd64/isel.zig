@@ -1022,9 +1022,9 @@ pub fn amd64_isel(f: *Fn) void {
             else
                 sel(b.ins[k], num, f);
         }
-        idup(b, all.curi, @intCast(all.insbTail()));
+        idup(b, all.curi, (all.insbTail()));
     }
-    efree(@ptrCast(num));
+    efree((num));
 
     if (all.debug['I'] != 0) {
         dprint("\n> After instruction selection:\n", .{});

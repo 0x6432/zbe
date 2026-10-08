@@ -161,8 +161,8 @@ pub fn amd64_winabi_retregs(r: Ref, p: ?*[2]i32) bits {
     assert(rtype(r) == RCall);
 
     var b: bits = 0;
-    const num_int_returns: i32 = @intCast(r.val & 1);
-    const num_float_returns: i32 = @intCast(r.val & 2);
+    const num_int_returns: i32 = (r.val & 1);
+    const num_float_returns: i32 = (r.val & 2);
     if (num_int_returns == 1) {
         b |= BIT(RAX);
     } else {
@@ -760,7 +760,7 @@ fn lower_func_parameters(func: *Fn) RegisterUsage {
     }
 
     const num_created_instrs: uint = @intCast(all.insbTail());
-    const num_other_after_instrs: uint = @intCast(start_block.nins - num_params);
+    const num_other_after_instrs: uint = (start_block.nins - num_params);
     const new_total_instrs = num_other_after_instrs + num_created_instrs;
     const new_instrs = vnewT(Ins, new_total_instrs, PFn);
     const instr_p = icpy(new_instrs, all.curi, num_created_instrs);

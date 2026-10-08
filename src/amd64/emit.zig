@@ -395,11 +395,11 @@ fn emitmem(ref: Ref, e: *E) Writer.Error!void {
         try emitcon(&m.offset, e);
     try e.f.writeByte('(');
     if (!req(m.base, R))
-        try e.f.print("%{s}", .{cs(regtoa(@intCast(m.base.val), SLong))})
+        try e.f.print("%{s}", .{cs(regtoa((m.base.val), SLong))})
     else if (m.offset.type == CAddr)
         try e.f.print("%rip", .{});
     if (!req(m.index, R))
-        try e.f.print(", %{s}, {d}", .{cs(regtoa(@intCast(m.index.val), SLong)), m.scale});
+        try e.f.print(", %{s}, {d}", .{cs(regtoa((m.index.val), SLong)), m.scale});
     try e.f.writeByte(')');
 }
 
@@ -482,7 +482,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
                     },
                     RTmp => {
                         assert(isreg(ref));
-                        try e.f.print("(%{s})", .{cs(regtoa(@intCast(ref.val), SLong))});
+                        try e.f.print("(%{s})", .{cs(regtoa((ref.val), SLong))});
                     },
                     else => die("unreachable", .{}),
                 }
@@ -496,7 +496,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
             switch (rtype(ref)) {
                 RTmp => {
                     assert(isreg(ref));
-                    try e.f.print("%{s}", .{cs(regtoa(@intCast(ref.val), sz))});
+                    try e.f.print("%{s}", .{cs(regtoa((ref.val), sz))});
                 },
                 RSlot => try e.f.print("{d}(%{s})", .{slot(ref, e), cs(regtoa(e.fp, SLong))}),
                 RMem => try emitmem(ref, e),
@@ -592,7 +592,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             if (KBASE(i.cls) == 0)
                 try emitf("neg%k %=", &i, e)
             else
-                try e.f.print("\txorp{c} {s}fp{d}(%rip), %{s}\n", .{"xxsd"[i.cls], cs(&all.T.asloc), stashbits(negmask[i.cls], 16), cs(regtoa(@intCast(i.to.val), SLong))});
+                try e.f.print("\txorp{c} {s}fp{d}(%rip), %{s}\n", .{"xxsd"[i.cls], cs(&all.T.asloc), stashbits(negmask[i.cls], 16), cs(regtoa((i.to.val), SLong))});
         },
         Odiv => {
             // use xmm15 to adjust the instruction when the
@@ -662,7 +662,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             const sym = str(con.sym.id);
             const pfx: [*:0]const u8 = if (sym[0] == '"') "" else @ptrCast(&all.T.assym);
             if (all.T.apple != 0 and (con.sym.type & SThr) != 0) {
-                try e.f.print("\tmovq {s}{s}@tlvp(%rip), %{s}\n", .{cs(pfx), cs(sym), cs(regtoa(@intCast(i.to.val), SLong))});
+                try e.f.print("\tmovq {s}{s}@tlvp(%rip), %{s}\n", .{cs(pfx), cs(sym), cs(regtoa((i.to.val), SLong))});
                 return;
             }
             if (all.T.windows != 0 and con.sym.type != SGlo)
@@ -675,19 +675,19 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
                     try e.f.print("\tleaq {s}{s}@tpoff", .{cs(pfx), cs(sym)});
                     if (con.bits.i != 0)
                         try e.f.print("{d:1}", .{con.bits.i});
-                    try e.f.print("(%{s}), %{s}\n", .{cs(regtoa(@intCast(i.to.val), SLong)), cs(regtoa(@intCast(i.to.val), SLong))});
+                    try e.f.print("(%{s}), %{s}\n", .{cs(regtoa((i.to.val), SLong)), cs(regtoa((i.to.val), SLong))});
                 },
                 SExtThr => {
                     // initial-exec TLS: load offset from
                     // GOT, add to thread-base register
                     assert(con.bits.i == 0);
                     try emitf("movq %%fs:0, %L=", &i, e);
-                    try e.f.print("\taddq {s}{s}@gottpoff(%rip), %{s}\n", .{cs(pfx), cs(sym), cs(regtoa(@intCast(i.to.val), SLong))});
+                    try e.f.print("\taddq {s}{s}@gottpoff(%rip), %{s}\n", .{cs(pfx), cs(sym), cs(regtoa((i.to.val), SLong))});
                 },
                 SExt => {
                     // load address from the GOT
                     assert(con.bits.i == 0);
-                    try e.f.print("\tmovq {s}{s}@gotpcrel(%rip), %{s}\n", .{cs(pfx), cs(sym), cs(regtoa(@intCast(i.to.val), SLong))});
+                    try e.f.print("\tmovq {s}{s}@gotpcrel(%rip), %{s}\n", .{cs(pfx), cs(sym), cs(regtoa((i.to.val), SLong))});
                 },
                 else => try emittable(&i, e),
             }

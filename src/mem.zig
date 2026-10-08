@@ -350,7 +350,7 @@ pub fn coalesce(f: *Fn) void {
             };
         br[bn].a = ip;
     }
-    efree(@ptrCast(br.ptr));
+    efree((br.ptr));
 
     // kill dead stores
     for (sl) |*s|
@@ -414,7 +414,7 @@ pub fn coalesce(f: *Fn) void {
                 assert(rtype(ui.to) == RTmp);
                 nstk += 1;
                 vgrow(&stk, nstk);
-                stk[nstk - 1] = @intCast(ui.to.val);
+                stk[nstk - 1] = ui.to.val;
             } else if (isarg(ui.op)) {
                 assert(ui.op == Oargc);
                 ui.arg[1] = CON_Z; // crash

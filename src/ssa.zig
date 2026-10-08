@@ -113,7 +113,7 @@ pub fn filluse(f: *Fn) void {
         var p_it: ?*Phi = b.phi;
         while (p_it) |p| : (p_it = p.link) {
             assert(rtype(p.to) == RTmp);
-            tp = @intCast(p.to.val);
+            tp = p.to.val;
             tmp[@intCast(tp)].bid = b.id;
             tmp[@intCast(tp)].ndef += 1;
             tmp[@intCast(tp)].cls = p.cls;
@@ -121,7 +121,7 @@ pub fn filluse(f: *Fn) void {
             var a: uint = 0;
             while (a < p.narg) : (a += 1)
                 if (rtype(p.arg[a]) == RTmp) {
-                    t = @intCast(p.arg[a].val);
+                    t = (p.arg[a].val);
                     adduse(&tmp[@intCast(t)], UPhi, b, @ptrCast(p));
                     t = phicls(t, f.tmp);
                     if (t != tp)
@@ -144,7 +144,7 @@ pub fn filluse(f: *Fn) void {
                     if (i.cls == Kw) {
                         w = WFull;
                     };
-                t = @intCast(i.to.val);
+                t = i.to.val;
                 tmp[@intCast(t)].width = w;
                 tmp[@intCast(t)].def = i;
                 tmp[@intCast(t)].bid = b.id;
@@ -154,7 +154,7 @@ pub fn filluse(f: *Fn) void {
             var m: usize = 0;
             while (m < 2) : (m += 1)
                 if (rtype(i.arg[m]) == RTmp) {
-                    t = @intCast(i.arg[m].val);
+                    t = (i.arg[m].val);
                     adduse(&tmp[@intCast(t)], UIns, b, @ptrCast(i));
                 };
         }
@@ -283,8 +283,8 @@ fn rendef(r: *Ref, b: *Blk, stk: []?*Name, f: *Fn) void {
     const t = r.val;
     if (req(r.*, R) or f.tmp[t].visit == 0)
         return;
-    const r1 = refindex(@intCast(t), f);
-    f.tmp[r1.val].visit = @intCast(t);
+    const r1 = refindex((t), f);
+    f.tmp[r1.val].visit = t;
     stk[t] = nnew(r1, b, stk[t]);
     r.* = r1;
 }

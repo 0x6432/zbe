@@ -365,7 +365,7 @@ pub fn arm64_isel(f: *Fn) void {
             i_n -= 1;
             sel(b.ins[i_n], f);
         }
-        idup(b, all.curi, @intCast(all.insbTail()));
+        idup(b, all.curi, (all.insbTail()));
     }
 
     if (all.debug['I'] != 0) {

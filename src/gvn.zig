@@ -109,7 +109,7 @@ fn replaceuse(f: *Fn, u: *Use, r1: Ref, r2: Ref) void {
                     pr.* = r2;
                 };
             if (t2) |t|
-                adduse(t, UPhi, b, @ptrCast(p));
+                adduse(t, UPhi, b, (p));
         },
         UIns => {
             const i = u.u.ins;
@@ -119,7 +119,7 @@ fn replaceuse(f: *Fn, u: *Use, r1: Ref, r2: Ref) void {
                     i.arg[n] = r2;
                 };
             if (t2) |t|
-                adduse(t, UIns, b, @ptrCast(i));
+                adduse(t, UIns, b, (i));
         },
         UJmp => {
             if (req(b.jmp.arg, r1))
@@ -155,7 +155,7 @@ fn dedupphi(f: *Fn, b: *Blk) void {
 fn rcmp(a: Ref, b: Ref) i32 {
     if (rtype(a) != rtype(b))
         return rtype(a) - rtype(b);
-    return @as(i32, @intCast(a.val)) - @as(i32, @intCast(b.val));
+    return @as(i32, (a.val)) - @as(i32, (b.val));
 }
 
 fn normins(f: *Fn, i: *Ins) void {
@@ -227,7 +227,7 @@ fn assoccon(f: *Fn, b: *Blk, i_1: *Ins) void {
     i_1.op = @intCast(op);
     i_1.arg[0] = i_2.arg[0];
     i_1.arg[1] = newcon(&c, f);
-    adduse(&f.tmp[i_1.arg[0].val], UIns, b, @ptrCast(i_1));
+    adduse(&f.tmp[i_1.arg[0].val], UIns, b, (i_1));
 }
 
 fn killins(f: *Fn, i: *Ins, r: Ref) void {

@@ -398,8 +398,8 @@ fn argsclass(ins: []const Ins, carg: []Class) i32 {
 
 pub fn arm64_retregs(r: Ref, p: ?*[2]i32) bits {
     assert(rtype(r) == RCall);
-    var ngp: i32 = @intCast(r.val & 3);
-    var nfp: i32 = @intCast((r.val >> 2) & 7);
+    var ngp: i32 = (r.val & 3);
+    var nfp: i32 = ((r.val >> 2) & 7);
     if (p) |q|
         q.* = .{ ngp, nfp };
     var b: bits = 0;
@@ -416,10 +416,10 @@ pub fn arm64_retregs(r: Ref, p: ?*[2]i32) bits {
 
 pub fn arm64_argregs(r: Ref, p: ?*[2]i32) bits {
     assert(rtype(r) == RCall);
-    var ngp: i32 = @intCast((r.val >> 5) & 15);
-    var nfp: i32 = @intCast((r.val >> 9) & 15);
-    const x8: i32 = @intCast((r.val >> 13) & 1);
-    const x9: i32 = @intCast((r.val >> 14) & 1);
+    var ngp: i32 = ((r.val >> 5) & 15);
+    var nfp: i32 = ((r.val >> 9) & 15);
+    const x8: i32 = ((r.val >> 13) & 1);
+    const x9: i32 = ((r.val >> 14) & 1);
     if (p) |q|
         q.* = .{ ngp + x8 + x9, nfp };
     var b: bits = 0;
@@ -623,7 +623,7 @@ fn selpar(f: *Fn, pars: []Ins) Params {
 fn split(f: *Fn, b: *Blk) *Blk {
     f.nblk += 1;
     const bn = newblk();
-    idup(bn, all.curi, @intCast(all.insbTail()));
+    idup(bn, all.curi, (all.insbTail()));
     all.curi = all.insbEnd();
     b.visit += 1;
     bn.visit = b.visit;
@@ -842,7 +842,7 @@ pub fn arm64_abi(f: *Fn) void {
                 while (il) |l| : (il = l.link)
                     emiti(l.i);
             }
-            idup(b, all.curi, @intCast(all.insbTail()));
+            idup(b, all.curi, (all.insbTail()));
         }
         if (b == start) break;
     }
@@ -900,7 +900,7 @@ pub fn apple_extsb(f: *Fn) void {
             }
             n = n0;
         }
-        idup(b, all.curi, @intCast(all.insbTail()));
+        idup(b, all.curi, (all.insbTail()));
     }
 
     if (all.debug['A'] != 0) {

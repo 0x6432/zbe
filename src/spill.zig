@@ -199,7 +199,7 @@ fn limit(b: *BSet, k: i32, f: ?*BSet) void {
     if (nt <= k)
         return;
     if (nt > limit_maxt) {
-        efree(@ptrCast(limit_tarr));
+        efree((limit_tarr));
         limit_tarr = ealloc(i32, nt);
         limit_maxt = nt;
     }
@@ -427,7 +427,7 @@ pub fn spill(f: *Fn) void {
                 v.t[0] |= all.T.retregs(b.jmp.arg, null);
         }
         if (rtype(b.jmp.arg) == RTmp) {
-            t = @intCast(b.jmp.arg.val);
+            t = b.jmp.arg.val;
             assert(KBASE(tmp[@intCast(t)].cls) == 0);
             bsset(&v, t);
             limit2(&v, 0, 0, null);
@@ -454,7 +454,7 @@ pub fn spill(f: *Fn) void {
             bszero(&w);
             if (!req(i.to, R)) {
                 assert(rtype(i.to) == RTmp);
-                t = @intCast(i.to.val);
+                t = i.to.val;
                 if (bshas(&v, t)) {
                     bsclr(&v, t);
                 } else {
@@ -475,7 +475,7 @@ pub fn spill(f: *Fn) void {
             while (n < 2) : (n += 1) {
                 switch (rtype(i.arg[n])) {
                     RMem => {
-                        t = @intCast(i.arg[n].val);
+                        t = (i.arg[n].val);
                         const m = &f.mem[@intCast(t)];
                         if (rtype(m.base) == RTmp) {
                             bsset(&v, m.base.val);
@@ -487,7 +487,7 @@ pub fn spill(f: *Fn) void {
                         }
                     },
                     RTmp => {
-                        t = @intCast(i.arg[n].val);
+                        t = (i.arg[n].val);
                         lvarg[n] = bshas(&v, t);
                         bsset(&v, t);
                         const jj = j;
@@ -503,7 +503,7 @@ pub fn spill(f: *Fn) void {
             n = 0;
             while (n < 2) : (n += 1) {
                 if (rtype(i.arg[n]) == RTmp) {
-                    t = @intCast(i.arg[n].val);
+                    t = (i.arg[n].val);
                     if (!bshas(&v, t)) {
                         // do not reload if the
                         // argument is dead
@@ -515,7 +515,7 @@ pub fn spill(f: *Fn) void {
             }
             reloads(&u, &v);
             if (!req(i.to, R)) {
-                t = @intCast(i.to.val);
+                t = i.to.val;
                 store(i.to, tmp[@intCast(t)].slot);
                 if (t >= Tmp0)
                     // in case i->to was a
@@ -535,16 +535,16 @@ pub fn spill(f: *Fn) void {
         var p_it: ?*Phi = b.phi;
         while (p_it) |p| : (p_it = p.link) {
             assert(rtype(p.to) == RTmp);
-            t = @intCast(p.to.val);
+            t = p.to.val;
             if (bshas(&v, t)) {
                 bsclr(&v, t);
                 store(p.to, tmp[@intCast(t)].slot);
             } else if (bshas(&b.in, t))
                 // only if the phi is live
-                p.to = slot(@intCast(p.to.val));
+                p.to = slot((p.to.val));
         }
         bscopy(&b.in, &v);
-        idup(b, all.curi, @intCast(all.insbTail()));
+        idup(b, all.curi, (all.insbTail()));
     }
 
     // align the locals to a 16 byte boundary

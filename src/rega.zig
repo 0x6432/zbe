@@ -284,7 +284,7 @@ fn pmgen() void {
 }
 
 fn move(r: i32, to: Ref, m: *RMap) void {
-    const r1 = if (req(to, R)) -1 else rfree(m, @intCast(to.val));
+    const r1 = if (req(to, R)) -1 else rfree(m, (to.val));
     if (bshas(&m.b, r)) {
         // r is used and not by to
         assert(r1 != r);
@@ -297,7 +297,7 @@ fn move(r: i32, to: Ref, m: *RMap) void {
         _ = ralloc(m, t);
         bsclr(&m.b, r);
     }
-    const t: i32 = if (req(to, R)) r else @intCast(to.val);
+    const t: i32 = if (req(to, R)) r else (to.val);
     radd(m, t, r);
 }
 
@@ -313,7 +313,7 @@ fn dopm(b: *Blk, last: uint, m: *RMap) uint {
     var i = last + 1;
     while (true) {
         i -= 1;
-        move(@intCast(b.ins[i].arg[0].val), b.ins[i].to, m);
+        move((b.ins[i].arg[0].val), b.ins[i].to, m);
         if (!(i != 0 and regcpy(&b.ins[i - 1]))) break;
     }
     assert(m0.n <= m.n);
@@ -339,8 +339,8 @@ fn dopm(b: *Blk, last: uint, m: *RMap) uint {
     }
     for (b.ins[i .. last + 1]) |*ip| {
         if (!req(ip.to, R))
-            _ = rfree(m, @intCast(ip.to.val));
-        const r: i32 = @intCast(ip.arg[0].val);
+            _ = rfree(m, (ip.to.val));
+        const r: i32 = (ip.arg[0].val);
         if (rfind(m, r) == -1)
             radd(m, r, r);
     }
@@ -353,7 +353,7 @@ fn prio1(r1: Ref, r2: Ref) bool {
     // later we can use the distance to
     // the definition instruction
     _ = r2;
-    return hint(@intCast(r1.val)) != -1;
+    return hint((r1.val)) != -1;
 }
 
 fn insert(r: *Ref, rs: *[4]*Ref, p: usize) void {
@@ -371,7 +371,7 @@ fn doblk(b: *Blk, cur: *RMap) void {
     var ra: [4]*Ref = undefined;
 
     if (rtype(b.jmp.arg) == RTmp)
-        b.jmp.arg = ralloc(cur, @intCast(b.jmp.arg.val));
+        b.jmp.arg = ralloc(cur, (b.jmp.arg.val));
     all.curi = all.insbEnd();
     var idx = b.nins;
     while (idx != 0) {
@@ -399,12 +399,12 @@ fn doblk(b: *Blk, cur: *RMap) void {
                     }
                     if (isreg(i.to))
                         if (rtype(i.arg[0]) == RTmp)
-                            sethint(@intCast(i.arg[0].val), @intCast(i.to.val));
+                            sethint((i.arg[0].val), (i.to.val));
                     // fall through
                 }
                 if (!req(i.to, R)) {
                     assert(rtype(i.to) == RTmp);
-                    const r: i32 = @intCast(i.to.val);
+                    const r: i32 = i.to.val;
                     if (r < Tmp0 and (BIT(r) & all.T.rglob) != 0)
                         break :sw;
                     rf = rfree(cur, r);
@@ -441,7 +441,7 @@ fn doblk(b: *Blk, cur: *RMap) void {
         }
         var r: usize = 0;
         while (r < nr) : (r += 1)
-            ra[r].* = ralloc(cur, @intCast(ra[r].val));
+            ra[r].* = ralloc(cur, (ra[r].val));
         if (i.op == Ocopy and req(i.to, i.arg[0]))
             all.curi += 1;
 
@@ -471,7 +471,7 @@ fn doblk(b: *Blk, cur: *RMap) void {
                 };
         }
     }
-    idup(b, all.curi, @intCast(all.insbTail()));
+    idup(b, all.curi, (all.insbTail()));
 }
 
 /// qsort() comparison function to peel
@@ -543,7 +543,7 @@ pub fn rega(f: *Fn) void {
         if (i.op != Ocopy or !isreg(i.arg[0]))
             break;
         assert(rtype(i.to) == RTmp);
-        sethint(@intCast(i.to.val), @intCast(i.arg[0].val));
+        sethint((i.to.val), (i.arg[0].val));
     }
 
     // 2. assign registers
@@ -606,7 +606,7 @@ pub fn rega(f: *Fn) void {
         while (p_it) |p| : (p_it = p.link) {
             if (rtype(p.to) != RTmp)
                 continue;
-            const r = rfind(m, @intCast(p.to.val));
+            const r = rfind(m, (p.to.val));
             if (r == -1)
                 continue;
             const ru: usize = @intCast(r);
@@ -615,7 +615,7 @@ pub fn rega(f: *Fn) void {
                 const src = p.arg[u];
                 if (rtype(src) != RTmp)
                     continue;
-                const x = rfind(&end[p.blk[u].id], @intCast(src.val));
+                const x = rfind(&end[p.blk[u].id], (src.val));
                 if (x == -1) // spilled
                     continue;
                 rl[ru] = if (rl[ru] == 0 or rl[ru] == x) x else -1;
@@ -692,7 +692,7 @@ pub fn rega(f: *Fn) void {
                 var dst = p.to;
                 assert(rtype(dst) == RSlot or rtype(dst) == RTmp);
                 if (rtype(dst) == RTmp) {
-                    const r = rfind(&beg[s.id], @intCast(dst.val));
+                    const r = rfind(&beg[s.id], (dst.val));
                     if (r == -1)
                         continue;
                     dst = TMP(r);
@@ -702,7 +702,7 @@ pub fn rega(f: *Fn) void {
                     assert(u + 1 < p.narg);
                 var src = p.arg[u];
                 if (rtype(src) == RTmp)
-                    src = rref(&end[b.id], @intCast(src.val));
+                    src = rref(&end[b.id], (src.val));
                 pmadd(src, dst, p.cls);
             }
             t = Tmp0;
@@ -723,7 +723,7 @@ pub fn rega(f: *Fn) void {
             b1.name = strf(PFn, "{s}_{s}", .{ cs(b.name), cs(s.name) });
             stmov += @intCast(all.insbTail());
             stblk += 1;
-            idup(b1, all.curi, @intCast(all.insbTail()));
+            idup(b1, all.curi, (all.insbTail()));
             b1.jmp.type = Jjmp;
             b1.s1 = s;
             psa[pi].* = b1;

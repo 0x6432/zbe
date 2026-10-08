@@ -345,7 +345,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
                 '=', '0' => {
                     r = if (c == '=') i.to else i.arg[0];
                     assert(isreg(r) or req(r, TMP(V31)));
-                    try e.f.writeAll(cs(rname(@intCast(r.val), k)));
+                    try e.f.writeAll(cs(rname((r.val), k)));
                 },
                 '1' => {
                     r = i.arg[1];
@@ -353,7 +353,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
                         else => die("invalid second argument", .{}),
                         RTmp => {
                             assert(isreg(r));
-                            try e.f.writeAll(cs(rname(@intCast(r.val), k)));
+                            try e.f.writeAll(cs(rname((r.val), k)));
                         },
                         RCon => {
                             const pc = &e.@"fn".con[r.val];
@@ -381,7 +381,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
                         else => die("todo (arm emit): unhandled ref", .{}),
                         RTmp => {
                             assert(isreg(r));
-                            try e.f.print("[{s}]", .{cs(rname(@intCast(r.val), Kl))});
+                            try e.f.print("[{s}]", .{cs(rname((r.val), Kl))});
                         },
                         RSlot => try e.f.print("[x29, {d}]", .{slot(r, e)}),
                     }
@@ -541,7 +541,7 @@ fn emitins(i: *Ins, e: *E) Writer.Error!void {
         },
         Oaddr => {
             assert(rtype(i.arg[0]) == RSlot);
-            const rn = rname(@intCast(i.to.val), Kl);
+            const rn = rname((i.to.val), Kl);
             const s = slot(i.arg[0], e);
             if (s <= 4095)
                 try e.f.print("\tadd\t{s}, x29, #{d}\n", .{cs(rn), s})

@@ -180,7 +180,7 @@ fn emitfin(f: *Writer, sec: *const [3][*:0]const u8) Writer.Error!void {
     }
     while (stash) |b| {
         stash = b.link;
-        efree(@ptrCast(b));
+        efree((b));
     }
 }
 

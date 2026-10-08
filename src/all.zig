@@ -99,7 +99,7 @@ pub inline fn rtype(r: Ref) i32 {
 }
 
 pub inline fn rsval(r: Ref) i32 {
-    return (@as(i32, @intCast(r.val)) ^ 0x10000000) - 0x10000000;
+    return (@as(i32, (r.val)) ^ 0x10000000) - 0x10000000;
 }
 
 // enum CmpI
@@ -394,7 +394,7 @@ pub const AEsc = 3; // stack escaping
 pub const ASym = 4;
 pub const AUnk = 6;
 pub inline fn astack(t: anytype) i32 {
-    return @as(i32, @intCast(t)) & 1;
+    return @as(i32, (t)) & 1;
 }
 
 pub const Alias = extern struct {
@@ -754,7 +754,7 @@ pub inline fn INS(op: anytype, k: anytype, to: Ref, a0: Ref, a1: Ref) Ins {
 }
 /// (Ins){.op = op}
 pub inline fn INS0(op: anytype) Ins {
-    return .{ .op = @intCast(op), .cls = 0, .to = R, .arg = .{ R, R } };
+    return .{ .op = (op), .cls = 0, .to = R, .arg = .{ R, R } };
 }
 /// C-like `x << n` on 64-bit words (count taken mod 64, as on amd64)
 pub inline fn shl64(x: bits, n: anytype) bits {

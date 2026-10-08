@@ -347,8 +347,8 @@ comptime {
 pub fn amd64_sysv_retregs(r: Ref, p: ?*[2]i32) bits {
     assert(rtype(r) == RCall);
     var b: bits = 0;
-    const ni: i32 = @intCast(r.val & 3);
-    const nf: i32 = @intCast((r.val >> 2) & 3);
+    const ni: i32 = (r.val & 3);
+    const nf: i32 = ((r.val >> 2) & 3);
     if (ni >= 1)
         b |= BIT(RAX);
     if (ni >= 2)
@@ -365,9 +365,9 @@ pub fn amd64_sysv_retregs(r: Ref, p: ?*[2]i32) bits {
 pub fn amd64_sysv_argregs(r: Ref, p: ?*[2]i32) bits {
     assert(rtype(r) == RCall);
     var b: bits = 0;
-    const ni: i32 = @intCast((r.val >> 4) & 15);
-    const nf: i32 = @intCast((r.val >> 8) & 15);
-    const ra: i32 = @intCast((r.val >> 12) & 1);
+    const ni: i32 = ((r.val >> 4) & 15);
+    const nf: i32 = ((r.val >> 8) & 15);
+    const ra: i32 = ((r.val >> 12) & 1);
     var j: i32 = 0;
     while (j < ni) : (j += 1)
         b |= BIT(amd64_sysv_rsave[@intCast(j)]);
@@ -599,7 +599,7 @@ fn selpar(f: *Fn, ins: []Ins) i32 {
 fn split(f: *Fn, b: *Blk) *Blk {
     f.nblk += 1;
     const bn = newblk();
-    idup(bn, all.curi, @intCast(all.insbTail()));
+    idup(bn, all.curi, (all.insbTail()));
     all.curi = all.insbEnd();
     b.visit += 1;
     bn.visit = b.visit;
@@ -778,7 +778,7 @@ pub fn amd64_sysv_abi(f: *Fn) void {
                 while (ral) |l| : (ral = l.link)
                     emiti(l.i);
             }
-            idup(b, all.curi, @intCast(all.insbTail()));
+            idup(b, all.curi, (all.insbTail()));
         }
         if (b == start) break;
     }

@@ -174,8 +174,9 @@ fn phiins(f: *Fn) void {
 
     bsinit(&u, f.nblk);
     bsinit(&defs, f.nblk);
-    const blist: [*c][*c]Blk = ealloc([*c]Blk, f.nblk);
-    const be = blist + f.nblk;
+    // work stack of blocks
+    const blist = ealloc(*Blk, f.nblk)[0..f.nblk];
+    var nb: usize = 0;
     const nt = f.ntmp;
     var t: i32 = Tmp0;
     while (t < nt) : (t += 1) {
@@ -186,23 +187,18 @@ fn phiins(f: *Fn) void {
         if (tt.ndef == 1) {
             var ok = true;
             const defb = tt.bid;
-            var use = tt.use;
-            var n = tt.nuse;
-            while (n != 0) : (use += 1) {
-                n -= 1;
-                ok = ok and (use.*.bid == defb);
-            }
+            for (tt.use[0..tt.nuse]) |use|
+                ok = ok and (use.bid == defb);
             if (ok or defb == f.start.?.id)
                 continue;
         }
         bszero(&u);
         k = Kx;
-        var bp = be;
-        var b: [*c]Blk = f.start;
-        while (b != null) : (b = b.*.link) {
-            b.*.visit = 0;
+        var b_it = f.start;
+        while (b_it) |b| : (b_it = b.link) {
+            b.visit = 0;
             var r = R;
-            for (b.*.ins[0..b.*.nins]) |*i| {
+            for (b.ins[0..b.nins]) |*i| {
                 if (!req(r, R)) {
                     if (req(i.arg[0], TMP(t)))
                         i.arg[0] = r;
@@ -210,76 +206,71 @@ fn phiins(f: *Fn) void {
                         i.arg[1] = r;
                 }
                 if (req(i.to, TMP(t))) {
-                    if (!bshas(&b.*.out, t)) {
+                    if (!bshas(&b.out, t)) {
                         r = refindex(t, f);
                         i.to = r;
                     } else {
-                        if (!bshas(&u, b.*.id)) {
-                            bsset(&u, b.*.id);
-                            bp -= 1;
-                            bp.* = b;
+                        if (!bshas(&u, b.id)) {
+                            bsset(&u, b.id);
+                            blist[nb] = b;
+                            nb += 1;
                         }
                         if (clsmerge(&k, @intCast(i.cls)))
                             die("invalid input", .{});
                     }
                 }
             }
-            if (!req(r, R) and req(b.*.jmp.arg, TMP(t)))
-                b.*.jmp.arg = r;
+            if (!req(r, R) and req(b.jmp.arg, TMP(t)))
+                b.jmp.arg = r;
         }
         bscopy(&defs, &u);
-        while (bp != be) {
+        while (nb > 0) {
             f.tmp[@intCast(t)].visit = t;
-            b = bp.*;
-            bp += 1;
-            bsclr(&u, b.*.id);
-            var n: uint = 0;
-            while (n < b.*.nfron) : (n += 1) {
-                const a = b.*.fron[n];
+            nb -= 1;
+            const b = blist[nb];
+            bsclr(&u, b.id);
+            for (b.fron[0..b.nfron]) |a| {
                 const v = a.visit;
                 a.visit += 1;
-                if (v == 0)
-                    if (bshas(&a.in, t)) {
-                        const p = pnew(Phi);
-                        p.cls = k;
-                        p.to = TMP(t);
-                        p.link = a.phi;
-                        p.arg = vnewT(Ref, 0, PFn);
-                        p.blk = vnewT(*Blk, 0, PFn);
-                        a.phi = p;
-                        if (!bshas(&defs, a.id))
-                            if (!bshas(&u, a.id)) {
-                                bsset(&u, a.id);
-                                bp -= 1;
-                                bp.* = a;
-                            };
-                    };
+                if (v == 0 and bshas(&a.in, t)) {
+                    const p = pnew(Phi);
+                    p.cls = k;
+                    p.to = TMP(t);
+                    p.link = a.phi;
+                    p.arg = vnewT(Ref, 0, PFn);
+                    p.blk = vnewT(*Blk, 0, PFn);
+                    a.phi = p;
+                    if (!bshas(&defs, a.id) and !bshas(&u, a.id)) {
+                        bsset(&u, a.id);
+                        blist[nb] = a;
+                        nb += 1;
+                    }
+                }
             }
         }
     }
-    efree(@ptrCast(blist));
+    efree(@ptrCast(blist.ptr));
 }
 
-const Name = extern struct {
+/// stack of renamed versions of a temporary
+const Name = struct {
     r: Ref,
-    b: [*c]Blk,
-    up: [*c]Name,
+    b: *Blk,
+    up: ?*Name,
 };
 
-var namel: [*c]Name = null;
+/// free list
+var namel: ?*Name = null;
 
-fn nnew(r: Ref, b: [*c]Blk, up: ?*Name) [*c]Name {
-    var n: ?*Name = undefined;
-    if (namel != null) {
-        n = namel;
-        namel = n.?.up;
+fn nnew(r: Ref, b: *Blk, up: ?*Name) *Name {
+    const n = if (namel) |n| blk: {
+        namel = n.up;
+        break :blk n;
     } else
         // could use alloc, here
         // but namel should be reset
-        n = enew(Name);
-    n.?.r = r;
-    n.?.b = b;
-    n.?.up = up;
+        enew(Name);
+    n.* = .{ .r = r, .b = b, .up = up };
     return n;
 }
 
@@ -288,7 +279,7 @@ fn nfree(n: *Name) void {
     namel = n;
 }
 
-fn rendef(r: *Ref, b: *Blk, stk: [*c][*c]Name, f: *Fn) void {
+fn rendef(r: *Ref, b: *Blk, stk: []?*Name, f: *Fn) void {
     const t = r.val;
     if (req(r.*, R) or f.tmp[t].visit == 0)
         return;
@@ -298,71 +289,55 @@ fn rendef(r: *Ref, b: *Blk, stk: [*c][*c]Name, f: *Fn) void {
     r.* = r1;
 }
 
-fn getstk(t: anytype, b: *Blk, stk: [*c][*c]Name) Ref {
-    var n = stk[@intCast(t)];
-    while (n != null and !dom(n.*.b, b)) {
-        const n1 = n;
-        n = n.*.up;
-        nfree(n1);
+fn getstk(t: anytype, b: *Blk, stk: []?*Name) Ref {
+    var n_ = stk[@intCast(t)];
+    while (n_) |n| {
+        if (dom(n.b, b)) break;
+        n_ = n.up;
+        nfree(n);
     }
-    stk[@intCast(t)] = n;
-    if (n == null) {
-        // uh, oh, warn
-        return UNDEF;
-    } else return n.*.r;
+    stk[@intCast(t)] = n_;
+    // uh, oh, warn if null
+    return if (n_) |n| n.r else UNDEF;
 }
 
-fn renblk(b: *Blk, stk: [*c][*c]Name, f: *Fn) void {
-    var succ: [3][*c]Blk = undefined;
-    var t: i32 = undefined;
-
-    var p: ?*Phi = b.phi;
-    while (p != null) : (p = p.?.link)
-        rendef(&p.?.to, b, stk, f);
+fn renblk(b: *Blk, stk: []?*Name, f: *Fn) void {
+    var p_it = b.phi;
+    while (p_it) |p| : (p_it = p.link)
+        rendef(&p.to, b, stk, f);
     for (b.ins[0..b.nins]) |*i| {
-        var m: usize = 0;
-        while (m < 2) : (m += 1) {
-            const tv = i.arg[m].val;
-            if (rtype(i.arg[m]) == RTmp)
-                if (f.tmp[tv].visit != 0) {
-                    i.arg[m] = getstk(tv, b, stk);
-                };
+        for (&i.arg) |*a| {
+            if (rtype(a.*) == RTmp and f.tmp[a.val].visit != 0)
+                a.* = getstk(a.val, b, stk);
         }
         rendef(&i.to, b, stk, f);
     }
-    const jv = b.jmp.arg.val;
-    if (rtype(b.jmp.arg) == RTmp)
-        if (f.tmp[jv].visit != 0) {
-            b.jmp.arg = getstk(jv, b, stk);
-        };
-    succ[0] = b.s1;
-    succ[1] = if (b.s2 == b.s1) null else b.s2;
-    succ[2] = null;
-    var ps: [*c][*c]Blk = &succ;
-    while (ps.* != null) : (ps += 1) {
-        const s = ps.*;
-        p = s.*.phi;
-        while (p != null) : (p = p.?.link) {
-            t = f.tmp[p.?.to.val].visit;
+    if (rtype(b.jmp.arg) == RTmp and f.tmp[b.jmp.arg.val].visit != 0)
+        b.jmp.arg = getstk(b.jmp.arg.val, b, stk);
+    const succ = [2]?*Blk{ b.s1, if (b.s2 == b.s1) null else b.s2 };
+    for (succ) |s_| {
+        const s = s_ orelse break;
+        p_it = s.phi;
+        while (p_it) |p| : (p_it = p.link) {
+            const t = f.tmp[p.to.val].visit;
             if (t != 0) {
-                const m = p.?.narg;
-                p.?.narg += 1;
-                vgrow(&p.?.arg, p.?.narg);
-                vgrow(&p.?.blk, p.?.narg);
-                p.?.arg[m] = getstk(t, b, stk);
-                p.?.blk[m] = b;
+                const m = p.narg;
+                p.narg += 1;
+                vgrow(&p.arg, p.narg);
+                vgrow(&p.blk, p.narg);
+                p.arg[m] = getstk(t, b, stk);
+                p.blk[m] = b;
             }
         }
     }
-    var s_it: ?*Blk = b.dom;
-    while (s_it) |s| : (s_it = s.*.dlink)
+    var s_it = b.dom;
+    while (s_it) |s| : (s_it = s.dlink)
         renblk(s, stk, f);
 }
 
 /// require rpo and use
 pub fn ssa(f: *Fn) void {
-    var nt = f.ntmp;
-    const stk: [*c][*c]Name = ealloc([*c]Name, nt);
+    const stk = ealloc(?*Name, f.ntmp)[0..@intCast(f.ntmp)];
     const d = all.debug['L'];
     all.debug['L'] = 0;
     filldom(f);
@@ -383,17 +358,16 @@ pub fn ssa(f: *Fn) void {
     filllive(f);
     phiins(f);
     renblk(f.start.?, stk, f);
+    var nt = stk.len;
     while (nt != 0) {
         nt -= 1;
-        while (true) {
-            const n = stk[@intCast(nt)];
-            if (n == null) break;
-            stk[@intCast(nt)] = n.*.up;
+        while (stk[nt]) |n| {
+            stk[nt] = n.up;
             nfree(n);
         }
     }
     all.debug['L'] = d;
-    efree(@ptrCast(stk));
+    efree(@ptrCast(stk.ptr));
     if (all.debug['N'] != 0) {
         dprint("\n> After SSA construction:\n", .{});
         printfn(f, all.dbg) catch {};
@@ -409,17 +383,17 @@ fn phicheck(p: *Phi, b: *Blk, t: Ref) bool {
 
 /// require use and ssa
 pub fn ssacheck(f: *Fn) void {
-    var t: [*c]Tmp = undefined;
+    var t: *Tmp = undefined;
     var bu: ?*Blk = undefined;
     var r: Ref = undefined;
 
     errblk: {
-        t = &f.tmp[Tmp0];
-        while (ptrdiff(t, f.tmp) < f.ntmp) : (t += 1) {
-            if (t.*.ndef > 1)
-                err("ssa temporary %{s} defined more than once", .{cs(t.*.name)});
-            if (t.*.nuse > 0 and t.*.ndef == 0) {
-                bu = f.rpo[t.*.use[0].bid];
+        for (f.tmp[Tmp0..@intCast(f.ntmp)]) |*tt| {
+            t = tt;
+            if (t.ndef > 1)
+                err("ssa temporary %{s} defined more than once", .{cs(t.name)});
+            if (t.nuse > 0 and t.ndef == 0) {
+                bu = f.rpo[t.use[0].bid];
                 break :errblk;
             }
         }
@@ -429,7 +403,7 @@ pub fn ssacheck(f: *Fn) void {
             while (p_it) |p| : (p_it = p.link) {
                 r = p.to;
                 t = &f.tmp[r.val];
-                for (t.*.use[0..t.*.nuse]) |*u| {
+                for (t.use[0..t.nuse]) |*u| {
                     bu = f.rpo[u.bid];
                     if (u.type == UPhi) {
                         if (phicheck(u.u.phi, b, r))
@@ -443,7 +417,7 @@ pub fn ssacheck(f: *Fn) void {
                     continue;
                 r = i.to;
                 t = &f.tmp[r.val];
-                for (t.*.use[0..t.*.nuse]) |*u| {
+                for (t.use[0..t.nuse]) |*u| {
                     bu = f.rpo[u.bid];
                     if (u.type == UPhi) {
                         if (phicheck(u.u.phi, b, r))
@@ -462,8 +436,8 @@ pub fn ssacheck(f: *Fn) void {
         return;
     }
     // Err:
-    if (t.*.visit != 0)
-        die("%{s} violates ssa invariant", .{cs(t.*.name)})
+    if (t.visit != 0)
+        die("%{s} violates ssa invariant", .{cs(t.name)})
     else
-        err("ssa temporary %{s} is used undefined in @{s}", .{cs(t.*.name), cs(bu.?.name)});
+        err("ssa temporary %{s} is used undefined in @{s}", .{cs(t.name), cs(bu.?.name)});
 }

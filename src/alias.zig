@@ -159,91 +159,85 @@ pub fn fillalias(f: *Fn) void {
     var a0: Alias = undefined;
     var a1: Alias = undefined;
 
-    var t: i32 = 0;
-    while (t < f.ntmp) : (t += 1)
-        f.tmp[@intCast(t)].alias.type = ABot;
-    var n: uint = 0;
-    while (n < f.nblk) : (n += 1) {
-        const b = f.rpo[n];
-        var p_it: ?*Phi = b.phi;
+    for (f.tmp[0..@intCast(f.ntmp)]) |*t|
+        t.alias.type = ABot;
+    for (f.rpo[0..f.nblk]) |b| {
+        var p_it = b.phi;
         while (p_it) |p| : (p_it = p.link) {
             assert(rtype(p.to) == RTmp);
             const a = &f.tmp[p.to.val].alias;
-            assert(a.*.type == ABot);
-            a.*.type = AUnk;
-            a.*.base = @intCast(p.to.val);
-            a.*.offset = 0;
-            a.*.slot = null;
+            assert(a.type == ABot);
+            a.type = AUnk;
+            a.base = @intCast(p.to.val);
+            a.offset = 0;
+            a.slot = null;
         }
-        var i: [*c]Ins = b.ins;
-        while (i < &b.ins[b.nins]) : (i += 1) {
-            var a: [*c]Alias = null;
-            if (!req(i.*.to, R)) {
-                assert(rtype(i.*.to) == RTmp);
-                a = &f.tmp[i.*.to.val].alias;
-                assert(a.*.type == ABot);
-                if (Oalloc <= i.*.op and i.*.op <= Oalloc1) {
-                    a.*.type = ALoc;
-                    a.*.slot = a;
-                    a.*.u.loc.sz = -1;
-                    if (rtype(i.*.arg[0]) == RCon) {
-                        const c = &f.con[i.*.arg[0].val];
+        var k: uint = 0;
+        while (k < b.nins) : (k += 1) {
+            var i = &b.ins[k];
+            var a: ?*Alias = null;
+            if (!req(i.to, R)) {
+                assert(rtype(i.to) == RTmp);
+                const ta = &f.tmp[i.to.val].alias;
+                a = ta;
+                assert(ta.type == ABot);
+                if (Oalloc <= i.op and i.op <= Oalloc1) {
+                    ta.type = ALoc;
+                    ta.slot = ta;
+                    ta.u.loc.sz = -1;
+                    if (rtype(i.arg[0]) == RCon) {
+                        const c = &f.con[i.arg[0].val];
                         const x = c.bits.i;
-                        if (c.type == CBits)
-                            if (0 <= x and x <= NBit) {
-                                a.*.u.loc.sz = @intCast(x);
-                            };
+                        if (c.type == CBits and 0 <= x and x <= NBit)
+                            ta.u.loc.sz = @intCast(x);
                     }
                 } else {
-                    a.*.type = AUnk;
-                    a.*.slot = null;
+                    ta.type = AUnk;
+                    ta.slot = null;
                 }
-                a.*.base = @intCast(i.*.to.val);
-                a.*.offset = 0;
+                ta.base = @intCast(i.to.val);
+                ta.offset = 0;
             }
-            if (i.*.op == Ocopy) {
-                assert(a != null);
-                getalias(a, i.*.arg[0], f);
-            }
-            if (i.*.op == Oadd) {
-                getalias(&a0, i.*.arg[0], f);
-                getalias(&a1, i.*.arg[1], f);
+            if (i.op == Ocopy)
+                getalias(a.?, i.arg[0], f);
+            if (i.op == Oadd) {
+                getalias(&a0, i.arg[0], f);
+                getalias(&a1, i.arg[1], f);
                 if (a0.type == ACon) {
-                    a.* = a1;
-                    a.*.offset +%= a0.offset;
+                    a.?.* = a1;
+                    a.?.offset +%= a0.offset;
                 } else if (a1.type == ACon) {
-                    a.* = a0;
-                    a.*.offset +%= a1.offset;
+                    a.?.* = a0;
+                    a.?.offset +%= a1.offset;
                 }
             }
-            if (req(i.*.to, R) or a.*.type == AUnk)
-                if (i.*.op != Oblit0) {
-                    if (!isload(i.*.op))
-                        esc(i.*.arg[0], f);
-                    if (!isstore(i.*.op))
-                        if (i.*.op != Oargc)
-                            esc(i.*.arg[1], f);
-                };
-            if (i.*.op == Oblit0) {
-                i += 1;
-                assert(i.*.op == Oblit1);
-                assert(rtype(i.*.arg[0]) == RInt);
-                const sz: i32 = @intCast(@abs(rsval(i.*.arg[0])));
-                store((i - 1).*.arg[1], sz, f);
+            if ((req(i.to, R) or a.?.type == AUnk) and i.op != Oblit0) {
+                if (!isload(i.op))
+                    esc(i.arg[0], f);
+                if (!isstore(i.op) and i.op != Oargc)
+                    esc(i.arg[1], f);
             }
-            if (isstore(i.*.op))
-                store(i.*.arg[1], storesz(i), f);
+            if (i.op == Oblit0) {
+                const blit0 = i;
+                k += 1;
+                i = &b.ins[k];
+                assert(i.op == Oblit1);
+                assert(rtype(i.arg[0]) == RInt);
+                const sz: i32 = @intCast(@abs(rsval(i.arg[0])));
+                store(blit0.arg[1], sz, f);
+            }
+            if (isstore(i.op))
+                store(i.arg[1], storesz(i), f);
         }
         if (b.jmp.type != Jretc)
             esc(b.jmp.arg, f);
     }
-    var b_it: ?*Blk = f.start;
+    var b_it = f.start;
     while (b_it) |b| : (b_it = b.link) {
-        var p_it: ?*Phi = b.phi;
+        var p_it = b.phi;
         while (p_it) |p| : (p_it = p.link) {
-            var k: uint = 0;
-            while (k < p.narg) : (k += 1)
-                esc(p.arg[k], f);
+            for (p.arg[0..p.narg]) |a|
+                esc(a, f);
         }
     }
 }

@@ -36,6 +36,7 @@ const newtmp = all.newtmp;
 const rsval = all.rsval;
 const rtype = all.rtype;
 const ulong = all.ulong;
+const uint = all.uint;
 // -- end imports --
 
 fn blit(sd: *[2]Ref, sz_: i32, f: *Fn) void {
@@ -88,40 +89,41 @@ fn ispow2(v: u64) bool {
     return v != 0 and (v & (v - 1)) == 0;
 }
 
-fn ins(pi: *[*c]Ins, new: *bool, b: *Blk, f: *Fn) void {
-    const i = pi.*;
+fn ins(pk: *uint, new: *bool, b: *Blk, f: *Fn) void {
+    const k = pk.*;
+    const i = &b.ins[k];
     // simplify more instructions here;
     // copy 0 into xor, bit rotations,
     // etc.
-    switch (i.*.op) {
+    switch (i.op) {
         Oblit1 => {
-            assert(i > b.ins);
-            assert((i - 1).*.op == Oblit0);
+            assert(k > 0);
+            assert(b.ins[k - 1].op == Oblit0);
             if (!new.*) {
                 all.curi = all.insbEnd();
-                const ni: ulong = @intCast((b.ins + b.nins) - (i + 1));
+                const ni: ulong = b.nins - (k + 1);
                 all.curi -= ni;
-                _ = icpy(all.curi, i + 1, ni);
+                _ = icpy(all.curi, b.ins + k + 1, ni);
                 new.* = true;
             }
-            blit(&(i - 1).*.arg, rsval(i.*.arg[0]), f);
-            pi.* = i - 1;
+            blit(&b.ins[k - 1].arg, rsval(i.arg[0]), f);
+            pk.* = k - 1;
             return;
         },
         Oudiv, Ourem => {
-            const r = i.*.arg[1];
-            if (KBASE(i.*.cls) == 0)
+            const r = i.arg[1];
+            if (KBASE(i.cls) == 0)
                 if (rtype(r) == RCon) {
                     const c = &f.con[r.val];
                     if (c.type == CBits)
                         if (ispow2(@bitCast(c.bits.i))) {
                             const n = ulog2(@bitCast(c.bits.i));
-                            if (i.*.op == Ourem) {
-                                i.*.op = Oand;
-                                i.*.arg[1] = getcon(@bitCast((@as(u64, 1) << @intCast(n)) - 1), f);
+                            if (i.op == Ourem) {
+                                i.op = Oand;
+                                i.arg[1] = getcon(@bitCast((@as(u64, 1) << @intCast(n)) - 1), f);
                             } else {
-                                i.*.op = Oshr;
-                                i.*.arg[1] = getcon(n, f);
+                                i.op = Oshr;
+                                i.arg[1] = getcon(n, f);
                             }
                         };
                 };
@@ -136,14 +138,12 @@ pub fn simpl(f: *Fn) void {
     var b_it: ?*Blk = f.start;
     while (b_it) |b| : (b_it = b.link) {
         var new = false;
-        var i: [*c]Ins = b.ins + b.nins;
-        while (i != b.ins) {
-            i -= 1;
-            ins(&i, &new, b, f);
+        var k: uint = b.nins;
+        while (k != 0) {
+            k -= 1;
+            ins(&k, &new, b, f);
         }
-        if (new) {
-            const end: [*c]Ins = all.insbEnd();
-            idup(b, all.curi, @intCast(end - all.curi));
-        }
+        if (new)
+            idup(b, all.curi, @intCast(all.insbTail()));
     }
 }

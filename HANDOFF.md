@@ -1,6 +1,6 @@
 # HANDOFF – QBE → Zig translation
 
-Updated: 20261008-204158 UTC (backup 31)
+Updated: 20261008-204408 UTC (backup 32)
 
 ## Goal
 Translate QBE (C, cloned at /data/qbe-c, HEAD e786f06) to latest Zig master.
@@ -188,7 +188,7 @@ tools/cmp.sh x6, tools/dbgcmp.sh x6, tools/corpus.sh, tests/*fuzz.py identical):
    `*allowzero T` (won't coerce to *T) -> rewrite pointer loops to
    slices/indices before converting struct fields to `[*]T`.
 
-## Next steps (current as of stage 5w, all checks green)
+## Next steps (current as of stage 5x, all checks green)
 DONE 5t (redone after sandbox reset): arm64/isel.zig (fixarg(pr: *Ref),
 selcmp(arg: *[2]Ref), seljmp backward index search with ?*Ins, list walks)
 and rv64/isel.zig (memarg/immarg/fixarg take *Ref/?*Ins). All isel files
@@ -206,7 +206,12 @@ strings (fmt/rname/loadaddr/ctoa; deliberate).
 DONE 5w: rv64/emit.zig: emitf/emitins take *Ins, fixmem(pr: *Ref), rclob
 for-loops, `cs(@as([*c]const u8, if .. "a" else "b"))` print args -> plain
 literals. Left: only C strings (fmt, ctoa table, loadaddr rn) -- deliberate.
-Remaining C-isms: amd64/emit ~12, emit.zig ~34, util ~30, simpl ~14, all ~13.
+DONE 5x: amd64/emit.zig: sysv/winabi rclob/rsave are slices
+(`amd64_sysv_rclob[0..NCLR_SYSV]`), push loops `for (rclob) |r|`, pop loops
+reverse index loops. Left: only C strings (fmt, ctoa/regtoa/clstoa tables).
+All three target emit files are done.
+NEXT: emit.zig (~34), util.zig (~30), simpl.zig (~14), all.zig (~13),
+leftovers parse/spill/main/cfg/amd64/targ.
 NOTE: the sandbox can stop mid-session (files in /data survived once, but the
 last edits before the stop were partly lost) -> commit + back up often.
 2. Emit files (arm64/emit ~70 `.*.`, rv64/emit ~57, amd64/emit ~35,
@@ -232,7 +237,7 @@ indices/slices); pointer subtraction on `[*]T` works; tmph needs
 > /data/qbe-c/qbe); build corpus with `sh tools/mkcorpus.sh` (Hare/cproc IR,
 > see Status section). Read HANDOFF.md fully first.
 > State: 1:1 translation done and verified (git tag `v1-literal`). Canonical
-> rewrite in progress, stages 1-5w done (see "Canonical rewrite").
+> rewrite in progress, stages 1-5x done (see "Canonical rewrite").
 > Verify after EVERY change: `sh tools/all.sh > /tmp/all.log 2>&1; head -1
 > /tmp/all.log; tail -8 /tmp/all.log` (FUZZ=1 also runs abifuzz/irfuzz).
 > Expected: "All is fine!", 0/76 differ on 6 targets + debug dumps, corpus

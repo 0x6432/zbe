@@ -635,7 +635,7 @@ const ctoa = blk: {
 
 var id0: i32 = 0;
 
-pub fn arm64_emitfn(f: [*c]Fn, out: *Writer) Writer.Error!void {
+pub fn arm64_emitfn(f: ?*Fn, out: *Writer) Writer.Error!void {
     var e_ = E{ .f = out, .@"fn" = f, .frame = 0, .padding = 0 };
     const e = &e_;
     if (all.T.apple != 0)
@@ -733,5 +733,5 @@ pub fn arm64_emitfn(f: [*c]Fn, out: *Writer) Writer.Error!void {
     }
     id0 += @intCast(e.@"fn".*.nblk);
     if (all.T.apple == 0)
-        try elf_emitfnfin(f.*.name, out);
+        try elf_emitfnfin(f.?.name, out);
 }

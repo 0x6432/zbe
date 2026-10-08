@@ -268,18 +268,18 @@ const Name = extern struct {
 
 var namel: [*c]Name = null;
 
-fn nnew(r: Ref, b: ?*Blk, up: [*c]Name) [*c]Name {
-    var n: [*c]Name = undefined;
+fn nnew(r: Ref, b: [*c]Blk, up: ?*Name) [*c]Name {
+    var n: ?*Name = undefined;
     if (namel != null) {
         n = namel;
-        namel = n.*.up;
+        namel = n.?.up;
     } else
         // could use alloc, here
         // but namel should be reset
         n = enew(Name);
-    n.*.r = r;
-    n.*.b = b;
-    n.*.up = up;
+    n.?.r = r;
+    n.?.b = b;
+    n.?.up = up;
     return n;
 }
 

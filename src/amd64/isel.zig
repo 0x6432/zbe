@@ -203,7 +203,7 @@ fn fixarg(r: [*c]Ref, k: i32, i: [*c]Ins, f: *Fn) void {
     var buf: [32]u8 = undefined;
     var a: Addr = undefined;
     var cc: Con = undefined;
-    var c: [*c]Con = undefined;
+    var c: ?*Con = undefined;
 
     var r0 = r.*;
     var r1 = r0;
@@ -245,21 +245,21 @@ fn fixarg(r: [*c]Ref, k: i32, i: [*c]Ins, f: *Fn) void {
         r1 = newtmp("isel", Kl, f);
         emit(Oaddr, Kl, r1, SLOT(s), R);
     } else if (op != Ocall and hascon(r0, &c, f) and
-        c.*.type == CAddr and ((c.*.sym.type & SExt) != 0 or
-        (all.T.apple != 0 and c.*.sym.type == SThr)))
+        c.?.type == CAddr and ((c.?.sym.type & SExt) != 0 or
+        (all.T.apple != 0 and c.?.sym.type == SThr)))
     {
         r1 = newtmp("isel", Kl, f);
         var r2: Ref = undefined;
         var r3: Ref = undefined;
-        if (c.*.bits.i != 0) {
+        if (c.?.bits.i != 0) {
             r2 = newtmp("isel", Kl, f);
             cc = std.mem.zeroes(Con);
             cc.type = CBits;
-            cc.bits.i = c.*.bits.i;
+            cc.bits.i = c.?.bits.i;
             r3 = newcon(&cc, f);
             emit(Oadd, Kl, r1, r2, r3);
         } else r2 = r1;
-        if (all.T.apple != 0 and (c.*.sym.type & SThr) != 0) {
+        if (all.T.apple != 0 and (c.?.sym.type & SThr) != 0) {
             emit(Ocopy, Kl, r2, TMP(RAX), R);
             r2 = newtmp("isel", Kl, f);
             r3 = newtmp("isel", Kl, f);
@@ -267,7 +267,7 @@ fn fixarg(r: [*c]Ref, k: i32, i: [*c]Ins, f: *Fn) void {
             emit(Ocopy, Kl, TMP(RDI), r2, R);
             emit(Oload, Kl, r3, r2, R);
         }
-        cc = c.*;
+        cc = c.?.*;
         cc.bits.i = 0;
         r3 = newcon(&cc, f);
         emit(Oaddr, Kl, r2, r3, R);
@@ -888,7 +888,7 @@ fn adisp(c: *Con, tn: [*c]Num, r_: Ref, f: *Fn, s: i32) Ref {
 
 const pat = [_]i32{ Pobis, Pobi1, Pbis, Pois, Pbi1, -1 };
 
-fn amatch(a: [*c]Addr, tn: [*c]Num, r: Ref, f: *Fn) bool {
+fn amatch(a: ?*Addr, tn: [*c]Num, r: Ref, f: *Fn) bool {
     var v: [4]Ref = undefined;
     var co: Con = undefined;
 
@@ -916,7 +916,7 @@ fn amatch(a: [*c]Addr, tn: [*c]Num, r: Ref, f: *Fn) bool {
 
     if (pat[p] < 0 and co.type != CUndef)
         if (amatch(a, tn, rb, f))
-            return addcon(&a.*.offset, &co, 1);
+            return addcon(&a.?.offset, &co, 1);
     if (!req(ro, R)) {
         assert(rtype(ro) == RCon);
         const c = &f.con[ro.val];
@@ -930,21 +930,21 @@ fn amatch(a: [*c]Addr, tn: [*c]Num, r: Ref, f: *Fn) bool {
         s = @truncate(c.bits.i);
     }
     ri = adisp(&co, tn, ri, f, s);
-    a.* = .{ .offset = co, .base = rb, .index = ri, .scale = s };
+    a.?.* = .{ .offset = co, .base = rb, .index = ri, .scale = s };
 
     if (rtype(ri) == RTmp)
         if (f.tmp[ri.val].slot != -1) {
-            if (a.*.scale != 1 or
+            if (a.?.scale != 1 or
                 f.tmp[rb.val].slot != -1)
                 return false;
-            a.*.base = ri;
-            a.*.index = rb;
+            a.?.base = ri;
+            a.?.index = rb;
         };
-    if (!req(a.*.base, R)) {
-        assert(rtype(a.*.base) == RTmp);
-        s = f.tmp[a.*.base.val].slot;
+    if (!req(a.?.base, R)) {
+        assert(rtype(a.?.base) == RTmp);
+        s = f.tmp[a.?.base.val].slot;
         if (s != -1)
-            a.*.base = SLOT(s);
+            a.?.base = SLOT(s);
     }
     return true;
 }

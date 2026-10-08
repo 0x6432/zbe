@@ -71,7 +71,7 @@ const vnewT = all.vnewT;
 
 /// require use, maintains use counts
 pub fn promote(f: *Fn) void {
-    var t: [*c]Tmp = undefined;
+    var t: ?*Tmp = undefined;
     var l: [*c]Ins = undefined;
     var s: i32 = undefined;
     var k: i32 = undefined;
@@ -85,12 +85,12 @@ pub fn promote(f: *Fn) void {
         // specific to NAlign == 3
         assert(rtype(i.*.to) == RTmp);
         t = &f.tmp[i.*.to.val];
-        if (t.*.ndef != 1)
+        if (t.?.ndef != 1)
             continue :outer; // goto Skip
         k = -1;
         s = -1;
-        var u = t.*.use;
-        while (u < &t.*.use[t.*.nuse]) : (u += 1) {
+        var u = t.?.use;
+        while (u < &t.?.use[t.?.nuse]) : (u += 1) {
             if (u.*.type != UIns)
                 continue :outer;
             l = u.*.u.ins;
@@ -111,9 +111,9 @@ pub fn promote(f: *Fn) void {
         }
         // get rid of the alloc and replace uses
         i.* = INS0(Onop);
-        t.*.ndef -= 1;
-        const ue = &t.*.use[t.*.nuse];
-        u = t.*.use;
+        t.?.ndef -= 1;
+        const ue = &t.?.use[t.?.nuse];
+        u = t.?.use;
         while (u != ue) : (u += 1) {
             l = u.*.u.ins;
             if (isstore(l.*.op)) {
@@ -121,8 +121,8 @@ pub fn promote(f: *Fn) void {
                 l.*.op = Ocopy;
                 l.*.to = l.*.arg[1];
                 l.*.arg[1] = R;
-                t.*.nuse -= 1;
-                t.*.ndef += 1;
+                t.?.nuse -= 1;
+                t.?.ndef += 1;
             } else {
                 if (k == -1)
                     err("slot %{s} is read but never stored to", .{cs(f.tmp[l.*.arg[0].val].name)});

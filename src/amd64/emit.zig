@@ -755,23 +755,23 @@ fn sysv_framesz(e: *E) void {
 
 var sysv_id0: i32 = 0;
 
-pub fn amd64_sysv_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
+pub fn amd64_sysv_emitfn(f: ?*Fn, fp: *Writer) Writer.Error!void {
     var itmp: Ins = undefined;
     var e_ = E{ .f = fp, .@"fn" = f, .fp = 0, .fsz = 0, .nclob = 0 };
     const e = &e_;
     const rclob: [*c]i32 = &tgt.sysv.amd64_sysv_rclob;
     const rsave: [*c]i32 = &tgt.sysv.amd64_sysv_rsave;
 
-    try emitfnlnk(f.*.name, &f.*.lnk, fp);
+    try emitfnlnk(f.?.name, &f.?.lnk, fp);
     try fp.writeAll("\tendbr64\n");
-    if (f.*.leaf == 0 or f.*.vararg != 0 or f.*.dynalloc != 0) {
+    if (f.?.leaf == 0 or f.?.vararg != 0 or f.?.dynalloc != 0) {
         e.fp = RBP;
         try fp.writeAll("\tpushq %rbp\n\tmovq %rsp, %rbp\n");
     } else e.fp = RSP;
     sysv_framesz(e);
     if (e.fsz != 0)
         try fp.print("\tsubq ${d}, %rsp\n", .{e.fsz});
-    if (f.*.vararg != 0) {
+    if (f.?.vararg != 0) {
         var o: i32 = -176;
         var r = rsave;
         while (r < rsave + 6) : ({
@@ -788,7 +788,7 @@ pub fn amd64_sysv_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
     }
     var r = rclob;
     while (r < rclob + NCLR_SYSV) : (r += 1) {
-        if ((f.*.reg & BIT(r.*)) != 0) {
+        if ((f.?.reg & BIT(r.*)) != 0) {
             itmp.arg[0] = TMP(r.*);
             try emitf("pushq %L0", &itmp, e);
             e.nclob += 1;
@@ -796,7 +796,7 @@ pub fn amd64_sysv_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
     }
 
     var lbl = false;
-    var b_it: ?*Blk = f.*.start;
+    var b_it: ?*Blk = f.?.start;
     while (b_it) |b| : (b_it = b.link) {
         if (lbl or b.npred > 1) {
             var p: uint = 0;
@@ -814,12 +814,12 @@ pub fn amd64_sysv_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
         sw: switch (b.jmp.type) {
             Jhlt => try fp.print("\tud2\n", .{}),
             Jret0 => {
-                if (f.*.dynalloc != 0)
+                if (f.?.dynalloc != 0)
                     try fp.print("\tmovq %rbp, %rsp\n" ++ "\tsubq ${d}, %rsp\n", .{e.fsz + @as(u64, @intCast(e.nclob)) * 8});
                 r = rclob + NCLR_SYSV;
                 while (r > rclob) {
                     r -= 1;
-                    if ((f.*.reg & BIT(r.*)) != 0) {
+                    if ((f.?.reg & BIT(r.*)) != 0) {
                         itmp.arg[0] = TMP(r.*);
                         try emitf("popq %L0", &itmp, e);
                     }
@@ -854,9 +854,9 @@ pub fn amd64_sysv_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
             },
         }
     }
-    sysv_id0 += @intCast(f.*.nblk);
+    sysv_id0 += @intCast(f.?.nblk);
     if (all.T.apple == 0)
-        try elf_emitfnfin(f.*.name, fp);
+        try elf_emitfnfin(f.?.name, fp);
 }
 
 fn winabi_framesz(e: *E) void {
@@ -880,21 +880,21 @@ fn winabi_framesz(e: *E) void {
 
 var winabi_id0: i32 = 0;
 
-pub fn amd64_winabi_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
+pub fn amd64_winabi_emitfn(f: ?*Fn, fp: *Writer) Writer.Error!void {
     var itmp: Ins = undefined;
     var e_ = E{ .f = fp, .@"fn" = f, .fp = 0, .fsz = 0, .nclob = 0 };
     const e = &e_;
     const rclob: [*c]i32 = &tgt.winabi.amd64_winabi_rclob;
 
-    try emitfnlnk(f.*.name, &f.*.lnk, fp);
+    try emitfnlnk(f.?.name, &f.?.lnk, fp);
     try fp.writeAll("\tendbr64\n");
-    if (f.*.vararg != 0) {
+    if (f.?.vararg != 0) {
         try fp.print("\tmovq %rcx, 0x8(%rsp)\n", .{});
         try fp.print("\tmovq %rdx, 0x10(%rsp)\n", .{});
         try fp.print("\tmovq %r8, 0x18(%rsp)\n", .{});
         try fp.print("\tmovq %r9, 0x20(%rsp)\n", .{});
     }
-    if (f.*.leaf == 0 or f.*.vararg != 0 or f.*.dynalloc != 0) {
+    if (f.?.leaf == 0 or f.?.vararg != 0 or f.?.dynalloc != 0) {
         e.fp = RBP;
         try fp.writeAll("\tpushq %rbp\n\tmovq %rsp, %rbp\n");
     } else e.fp = RSP;
@@ -903,7 +903,7 @@ pub fn amd64_winabi_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
         try fp.print("\tsubq ${d}, %rsp\n", .{e.fsz});
     var r = rclob;
     while (r < rclob + NCLR_WIN) : (r += 1) {
-        if ((f.*.reg & BIT(r.*)) != 0) {
+        if ((f.?.reg & BIT(r.*)) != 0) {
             itmp.arg[0] = TMP(r.*);
             try emitf("pushq %L0", &itmp, e);
             e.nclob += 1;
@@ -911,7 +911,7 @@ pub fn amd64_winabi_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
     }
 
     var lbl = false;
-    var b_it: ?*Blk = f.*.start;
+    var b_it: ?*Blk = f.?.start;
     while (b_it) |b| : (b_it = b.link) {
         if (lbl or b.npred > 1)
             try fp.print("{s}bb{d}:\n", .{cs(&all.T.asloc), winabi_id0 + @as(i32, @intCast(b.id))});
@@ -921,12 +921,12 @@ pub fn amd64_winabi_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
         sw: switch (b.jmp.type) {
             Jhlt => try fp.print("\tud2\n", .{}),
             Jret0 => {
-                if (f.*.dynalloc != 0)
+                if (f.?.dynalloc != 0)
                     try fp.print("\tmovq %rbp, %rsp\n" ++ "\tsubq ${d}, %rsp\n", .{e.fsz + @as(u64, @intCast(e.nclob)) * 8});
                 r = rclob + NCLR_WIN;
                 while (r > rclob) {
                     r -= 1;
-                    if ((f.*.reg & BIT(r.*)) != 0) {
+                    if ((f.?.reg & BIT(r.*)) != 0) {
                         itmp.arg[0] = TMP(r.*);
                         try emitf("popq %L0", &itmp, e);
                     }
@@ -961,5 +961,5 @@ pub fn amd64_winabi_emitfn(f: [*c]Fn, fp: *Writer) Writer.Error!void {
             },
         }
     }
-    winabi_id0 += @intCast(f.*.nblk);
+    winabi_id0 += @intCast(f.?.nblk);
 }

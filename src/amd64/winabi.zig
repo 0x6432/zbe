@@ -425,12 +425,12 @@ fn lower_call(func: *Fn, block: *Blk, call_instr: [*c]Ins, pextra_alloc: *[*c]Ex
     const stack_size_ref = getcon(-@as(i64, stack_usage + SHADOW_SPACE_SIZE), func);
     emit(Osalloc, Kl, R, stack_size_ref, R);
 
-    var return_pad: [*c]ExtraAlloc = null;
+    var return_pad: ?*ExtraAlloc = null;
     if (is_struct_return) {
         return_pad = pnew(ExtraAlloc);
         const ret_pad_ref = newtmp("abi.ret_pad", Kl, func);
-        return_pad.*.instr = INS(Oalloc8, Kl, ret_pad_ref, getcon(ret_arg_class.size, func), R);
-        return_pad.*.link = pextra_alloc.*;
+        return_pad.?.instr = INS(Oalloc8, Kl, ret_pad_ref, getcon(ret_arg_class.size, func), R);
+        return_pad.?.link = pextra_alloc.*;
         pextra_alloc.* = return_pad;
         reg_usage.rax_returned = true;
         emit(Ocopy, call_instr.*.cls, call_instr.*.to, TMP(RAX), R);
@@ -484,7 +484,7 @@ fn lower_call(func: *Fn, block: *Blk, call_instr: [*c]Ins, pextra_alloc: *[*c]Ex
     if (is_struct_return) {
         const first_reg = register_for_arg(Kl, reg_counter);
         reg_counter += 1;
-        emit(Ocopy, Kl, first_reg, return_pad.*.instr.to, R);
+        emit(Ocopy, Kl, first_reg, return_pad.?.instr.to, R);
     }
 
     // This is where we actually do the load of values into registers or into
@@ -817,7 +817,7 @@ pub fn amd64_winabi_abi(func: *Fn) void {
     // modifications can add allocations to the start block. In particular, we
     // need to add stack allocas for copies when structs are passed or returned by
     // value.
-    var extra_alloc: [*c]ExtraAlloc = null;
+    var extra_alloc: ?*ExtraAlloc = null;
     var block_it: ?*Blk = func.start.?.link;
     while (block_it) |block| : (block_it = block.link) {
         lower_args_for_block(func, block, &param_reg_usage, &extra_alloc);

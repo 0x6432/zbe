@@ -405,7 +405,7 @@ fn selcall(f: *Fn, i_0: [*c]Ins, i_1: [*c]Ins, rap: *[*c]RAlloc) void {
     var ca: i32 = undefined;
     var r: Ref = undefined;
     var r1: Ref = undefined;
-    var ra: [*c]RAlloc = undefined;
+    var ra: ?*RAlloc = undefined;
 
     var env = R;
     const nac: usize = @intCast(ptrdiff(i_1, i_0));
@@ -464,8 +464,8 @@ fn selcall(f: *Fn, i_0: [*c]Ins, i_1: [*c]Ins, rap: *[*c]RAlloc) void {
         ra = pnew(RAlloc);
         // specific to NAlign == 3
         const al: i32 = if (aret.@"align" >= 2) aret.@"align" - 2 else 0;
-        ra.*.i = INS(Oalloc + al, Kl, r1, getcon(aret.size, f), R);
-        ra.*.link = rap.*;
+        ra.?.i = INS(Oalloc + al, Kl, r1, getcon(aret.size, f), R);
+        ra.?.link = rap.*;
         rap.* = ra;
     } else {
         ra = null;
@@ -488,7 +488,7 @@ fn selcall(f: *Fn, i_0: [*c]Ins, i_1: [*c]Ins, rap: *[*c]RAlloc) void {
     var ni: i32 = 0;
     var ns: i32 = 0;
     if (ra != null and aret.inmem != 0)
-        emit(Ocopy, Kl, rarg(Kl, &ni, &ns), ra.*.i.to, R); // pass hidden argument
+        emit(Ocopy, Kl, rarg(Kl, &ni, &ns), ra.?.i.to, R); // pass hidden argument
 
     var i = i_0;
     a = ac;

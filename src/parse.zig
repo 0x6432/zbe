@@ -1054,7 +1054,7 @@ fn typecheck(f: *Fn) void {
     var pb: BSet = undefined;
     var ppb: BSet = undefined;
     var k: i32 = undefined;
-    var t: [*c]Tmp = undefined;
+    var t: ?*Tmp = undefined;
     var r: Ref = undefined;
 
     fillpreds(f);
@@ -1068,8 +1068,8 @@ fn typecheck(f: *Fn) void {
         for (b.ins[0..b.nins]) |*i|
             if (rtype(i.to) == RTmp) {
                 t = &f.tmp[i.to.val];
-                if (clsmerge(&t.*.cls, @intCast(i.cls)))
-                    err("temporary %{s} is assigned with multiple types", .{cs(t.*.name)});
+                if (clsmerge(&t.?.cls, @intCast(i.cls)))
+                    err("temporary %{s} is assigned with multiple types", .{cs(t.?.name)});
             };
     }
     b_it = f.start;
@@ -1084,15 +1084,15 @@ fn typecheck(f: *Fn) void {
             t = &f.tmp[p.to.val];
             n = 0;
             while (n < p.narg) : (n += 1) {
-                k = t.*.cls;
+                k = t.?.cls;
                 if (bshas(&ppb, p.blk[n].id))
-                    err("multiple entries for @{s} in phi %{s}", .{cs(p.blk[n].name), cs(t.*.name)});
+                    err("multiple entries for @{s} in phi %{s}", .{cs(p.blk[n].name), cs(t.?.name)});
                 if (!usecheck(p.arg[n], k, f))
-                    err("invalid type for operand %{s} in phi %{s}", .{cs(f.tmp[p.arg[n].val].name), cs(t.*.name)});
+                    err("invalid type for operand %{s} in phi %{s}", .{cs(f.tmp[p.arg[n].val].name), cs(t.?.name)});
                 bsset(&ppb, p.blk[n].id);
             }
             if (!bsequal(&pb, &ppb))
-                err("predecessors not matched in phi %{s}", .{cs(t.*.name)});
+                err("predecessors not matched in phi %{s}", .{cs(t.?.name)});
         }
         for (b.ins[0..b.nins]) |*i| {
             n = 0;
@@ -1110,7 +1110,7 @@ fn typecheck(f: *Fn) void {
                 if (rtype(r) == -1 and k != Kx)
                     err("missing {s} operand in {s}", .{cs(which), cs(all.optab[i.op].name)});
                 if (!usecheck(r, k, f))
-                    err("invalid type for {s} operand %{s} in {s}", .{cs(which), cs(t.*.name), cs(all.optab[i.op].name)});
+                    err("invalid type for {s} operand %{s} in {s}", .{cs(which), cs(t.?.name), cs(all.optab[i.op].name)});
             }
         }
         r = b.jmp.arg;
@@ -1134,7 +1134,7 @@ fn typecheck(f: *Fn) void {
     }
 }
 
-fn parsefn(lnk: [*c]Lnk) [*c]Fn {
+fn parsefn(lnk: ?*Lnk) [*c]Fn {
     var ps: PState = undefined;
 
     curb = null;
@@ -1155,7 +1155,7 @@ fn parsefn(lnk: [*c]Lnk) [*c]Fn {
     curf.*.con[0].type = CBits;
     curf.*.con[0].bits.i = 0xdeaddead; // UNDEF
     curf.*.con[1].type = CBits;
-    curf.*.lnk = lnk.*;
+    curf.*.lnk = lnk.?.*;
     curf.*.leaf = 1;
     blink = &curf.*.start;
     curf.*.retty = Kx;
@@ -1367,7 +1367,7 @@ fn parsedatstr(d: *Dat) void {
     d.u.str = strf(PFn, "{s}", .{cs(tokval.str)});
 }
 
-fn parsedat(cb: *const fn (*Dat) void, lnk: [*c]Lnk) void {
+fn parsedat(cb: *const fn (*Dat) void, lnk: ?*Lnk) void {
     var t: i32 = undefined;
     var d: Dat = undefined;
 
@@ -1375,13 +1375,13 @@ fn parsedat(cb: *const fn (*Dat) void, lnk: [*c]Lnk) void {
         err("data name, then = expected", .{});
     const name = strf(PFn, "{s}", .{cs(tokval.str)});
     t = nextnl();
-    lnk.*.@"align" = 8;
+    lnk.?.@"align" = 8;
     if (t == Talign) {
         if (nextnl() != Tint)
             err("alignment expected", .{});
         if (tokval.num <= 0 or tokval.num > 127 or (tokval.num & (tokval.num - 1)) != 0)
             err("invalid alignment", .{});
-        lnk.*.@"align" = @intCast(tokval.num);
+        lnk.?.@"align" = @intCast(tokval.num);
         t = nextnl();
     }
     d.type = DStart;

@@ -71,7 +71,7 @@ jobs:
           case ${{ matrix.target }} in
           arm64) sudo apt-get install -y -qq qemu-user gcc-aarch64-linux-gnu libc6-dev-arm64-cross ;;
           rv64) sudo apt-get install -y -qq qemu-user gcc-riscv64-linux-gnu libc6-dev-riscv64-cross ;;
-          amd64_win) sudo apt-get install -y -qq gcc-mingw-w64-x86-64 wine64 ;;
+          amd64_win) sudo apt-get install -y -qq gcc-mingw-w64-x86-64 wine64 wine && WINEDEBUG=-all wineboot -i || true ;;
           esac
       - run: zig build
       - run: sh tools/ci.sh cross ${{ matrix.target }}
@@ -108,7 +108,7 @@ jobs:
       - name: qbe compiled by cproc+zbe passes qbe's tests
         run: |
           cp -r $HOME/qbe-cfix $HOME/qbe-bycproc && cd $HOME/qbe-bycproc
-          make clean >/dev/null && make CC=$HOME/cproc/cproc CFLAGS='-std=c99 -D__CHAR_BIT__=8'
+          make clean >/dev/null && make CC=$HOME/cproc/cproc CFLAGS='-std=c99 -D__CHAR_BIT__=8 -D__SCHAR_MAX__=127 -D__SHRT_MAX__=32767 -D__INT_MAX__=2147483647 -D__LONG_MAX__=9223372036854775807L -D__LONG_LONG_MAX__=9223372036854775807LL'
           cd $GITHUB_WORKSPACE && bin=$HOME/qbe-bycproc/qbe sh tools/test.sh all | tail -1 | grep 'All is fine!'
       - name: IL corpus vs C reference
         run: |

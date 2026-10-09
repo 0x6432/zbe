@@ -72,7 +72,7 @@ cross)
   case $t in
   arm64) export CC="aarch64-linux-gnu-gcc -static" RUN=qemu-aarch64 QBET=arm64 ;;
   rv64) export CC="riscv64-linux-gnu-gcc -static" RUN=qemu-riscv64 QBET=rv64 ;;
-  amd64_win) export CC="x86_64-w64-mingw32-gcc -static" RUN=wine QBET=amd64_win WINEDEBUG=-all ;;
+  amd64_win) export CC="x86_64-w64-mingw32-gcc -static" RUN="sh $D/tools/winrun.sh" QBET=amd64_win WINEDEBUG=-all ;;
   esac
   if [ $t != amd64_win ]; then
     chk "behaviour -O2 $t (test.sh)" 'All is fine!' env TARGET=$t bin=$ZQBE sh tools/test.sh all

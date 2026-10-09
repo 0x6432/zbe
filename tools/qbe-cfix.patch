@@ -19,6 +19,41 @@ index 379244a..48f89dd 100644
  		if (fn->tmp[r0.val].slot != -1)
  			err("unlikely argument %%%s in %s",
  				fn->tmp[r0.val].name, optab[i.op].name);
+diff --git a/arm64/abi.c b/arm64/abi.c
+index c258948..fa4c6e2 100644
+--- a/arm64/abi.c
++++ b/arm64/abi.c
+@@ -211,6 +211,10 @@ selret(Blk *b, Fn *fn)
+ 	b->jmp.arg = CALL(cty);
+ }
+ 
++/* registers really consumed by named args (an aggregate that does
++ * not fit sets NSRN/NGRN to 8 without advancing gp/fp); for vastart */
++static int va_ngp, va_nfp;
++
+ static int
+ argsclass(Ins *i0, Ins *i1, Class *carg)
+ {
+@@ -293,6 +297,8 @@ argsclass(Ins *i0, Ins *i1, Class *carg)
+ 			die("unreachable");
+ 		}
+ 
++	va_ngp = 8 - ngp;
++	va_nfp = 8 - nfp;
+ 	return envc << 14 | (gp-gpreg) << 5 | (fp-fpreg) << 9;
+ }
+ 
+@@ -533,8 +539,8 @@ selpar(Fn *fn, Ins *i0, Ins *i1)
+ 
+ 	return (Params){
+ 		.stk = align(off, 8),
+-		.ngp = (cty >> 5) & 15,
+-		.nfp = (cty >> 9) & 15
++		.ngp = va_ngp,
++		.nfp = va_nfp
+ 	};
+ }
+ 
 diff --git a/ops.h b/ops.h
 index f59e757..d2851a7 100644
 --- a/ops.h

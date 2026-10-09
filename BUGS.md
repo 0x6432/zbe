@@ -89,3 +89,14 @@ Related harness fixes (not compiler bugs): abifuzz now extends sub-word
 (`sb/ub/sh/uh`) parameters in the callee IL, since on elimsb targets such as
 arm64 Linux they are words with unspecified high bits; abifuzz/irfuzz use
 `long long` for 64-bit C values (`long` is 32-bit on LLP64 Windows).
+
+## 7. FIXED (upstream, also in tools/qbe-cfix.patch): arm64 va_start after an HFA/aggregate that did not fit in registers
+
+`arm64/abi.c` `argsclass()` returned the named-argument register counts as
+`gp-gpreg` / `fp-fpreg`. When an aggregate does not fit, AAPCS64 (C.3/C.11)
+sets NSRN/NGRN to 8 and the code set `nfp = 0` / `ngp = 0` but never advanced
+`fp`/`gp`, so `vastart` initialised `__vr_offs`/`__gr_offs` as if registers
+were still free and `vaarg` read stale save-area slots (abifuzz arm64 seed
+1002 wrong value, seed 1003 segfault). Fix: track the consumed counts
+(`8 - ngp`, `8 - nfp`) separately and use them only for the vastart Params;
+call register masks are unchanged. Found with abifuzz under qemu-aarch64.

@@ -319,6 +319,11 @@ fn selret(b: *Blk, f: *Fn) void {
     b.jmp.arg = CALL(cty);
 }
 
+// registers really consumed by named args (an HFA/aggregate that does
+// not fit sets NSRN/NGRN to 8 without advancing gp/fp); used by vastart
+var va_ngp: i32 = 0;
+var va_nfp: i32 = 0;
+
 fn argsclass(ins: []const Ins, carg: []Class) i32 {
     var va = false;
     var envc: i32 = 0;
@@ -393,6 +398,8 @@ fn argsclass(ins: []const Ins, carg: []Class) i32 {
 
     const ngpu: i32 = @intCast(gp);
     const nfpu: i32 = @intCast(fp);
+    va_ngp = 8 - ngp;
+    va_nfp = 8 - nfp;
     return envc << 14 | ngpu << 5 | nfpu << 9;
 }
 
@@ -615,8 +622,8 @@ fn selpar(f: *Fn, pars: []Ins) Params {
 
     return .{
         .stk = alignu(off, 8),
-        .ngp = @intCast((cty >> 5) & 15),
-        .nfp = @intCast((cty >> 9) & 15),
+        .ngp = @intCast(va_ngp),
+        .nfp = @intCast(va_nfp),
     };
 }
 

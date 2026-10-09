@@ -257,6 +257,16 @@ fn sel(i_: Ins, f: *Fn) void {
         selcmp(i, ck, cc, f);
         return;
     }
+    if ((i.op == all.ops.Osar or i.op == all.ops.Oshr or i.op == all.ops.Oshl) and rtype(i.arg[1]) == RCon) {
+        // rv64 masks register shift counts to 5 (w) / 6 (l) bits, but an
+        // immediate shamt >= width does not assemble: mask it the same way
+        const c = &f.con[i.arg[1].val];
+        if (c.type == CBits) {
+            const m: i64 = if (i.cls == Kw) 31 else 63;
+            if (c.bits.i & m != c.bits.i)
+                i.arg[1] = getcon(c.bits.i & m, f);
+        }
+    }
     if (i.op != Onop) {
         emiti(i);
         const i_0 = &all.curi[0]; // fixarg() can change curi

@@ -108,7 +108,7 @@ jobs:
       - name: qbe compiled by cproc+zbe passes qbe's tests
         run: |
           cp -r $HOME/qbe-cfix $HOME/qbe-bycproc && cd $HOME/qbe-bycproc
-          make clean >/dev/null && make CC=$HOME/cproc/cproc
+          make clean >/dev/null && make CC=$HOME/cproc/cproc CFLAGS='-std=c99 -D__CHAR_BIT__=8'
           cd $GITHUB_WORKSPACE && bin=$HOME/qbe-bycproc/qbe sh tools/test.sh all | tail -1 | grep 'All is fine!'
       - name: IL corpus vs C reference
         run: |

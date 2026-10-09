@@ -64,7 +64,7 @@ done
 REF=${QBEREF:-/data/qbe-cfix/qbe}
 if [ -x "$REF" ]; then
   for f in $D/test/*.ssa; do
-    $REF $f > $W/a.s 2>/dev/null || continue
+    $REF -t amd64_sysv $f > $W/a.s 2>/dev/null || continue
     if $W/drv $f amd64_sysv 0 > $W/b.s && cmp -s $W/a.s $W/b.s; then pass=$((pass+1))
     else fail=$((fail+1)); echo "FAIL: ref $(basename $f)"; fi
   done

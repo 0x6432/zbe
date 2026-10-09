@@ -56,7 +56,7 @@ core)
   chk "zig package" 'amd64_sysv: [0-9]+ bytes' sh -c 'cd tests/pkg && zig build && ./zig-out/bin/cons'
   ;;
 native)
-  chk unit '.' zig build test
+  chk unit '^' zig build test
   chk "behaviour -O2 (test.sh)" 'All is fine!' env bin=$ZQBE sh tools/test.sh all
   chk "behaviour compat (test.sh)" 'All is fine!' C env bin=$ZQBE sh tools/test.sh all
   chk "compat asm vs C (default target)" ' 0/[0-9]+ differ' C sh tools/cmp.sh "$($ZQBE -t?)"
@@ -75,8 +75,8 @@ cross)
   amd64_win) export CC="x86_64-w64-mingw32-gcc -static" RUN=wine QBET=amd64_win WINEDEBUG=-all ;;
   esac
   if [ $t != amd64_win ]; then
-    chk "behaviour -O2 $t (test.sh)" 'All is fine!' env bin=$ZQBE sh tools/test.sh $t all
-    chk "behaviour compat $t (test.sh)" 'All is fine!' C env bin=$ZQBE sh tools/test.sh $t all
+    chk "behaviour -O2 $t (test.sh)" 'All is fine!' env TARGET=$t bin=$ZQBE sh tools/test.sh all
+    chk "behaviour compat $t (test.sh)" 'All is fine!' C env TARGET=$t bin=$ZQBE sh tools/test.sh all
   fi
   chk "jnz $t" ', 0 failed' sh tools/jnz.sh
   chk "opttable $t" '0 failures' python3 tests/opttable.py

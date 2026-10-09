@@ -12,6 +12,9 @@ import os, random, subprocess, sys, tempfile
 
 D = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 Z = os.environ.get('ZQBE', os.path.join(D, 'zig-out/bin/qbe'))
+CC = os.environ.get('CC', 'gcc').split()      # e.g. 'aarch64-linux-gnu-gcc -static'
+RUN = os.environ.get('RUN', '').split()       # e.g. 'qemu-aarch64'
+TGT = ['-t', os.environ['QBET']] if os.environ.get('QBET') else []
 TARGETS = ['amd64_apple', 'amd64_win', 'arm64', 'arm64_apple', 'rv64']
 
 SPECIAL = [0, 1, -1, 2, -2, 3, 5, 6, 7, 9, 10, 12, 25, 100, 641, 1000, 4096,
@@ -118,12 +121,12 @@ def one(seed, n, w):
     env = dict(os.environ); env.pop('QBE_COMPAT', None)
     for o in ('0', '1', '2'):
         s = os.path.join(w, 'p%s.s' % o)
-        r = subprocess.run([Z, '-O' + o, '-o', s, ssa], env=env, capture_output=True, text=True)
+        r = subprocess.run([Z] + TGT + ['-O' + o, '-o', s, ssa], env=env, capture_output=True, text=True)
         if r.returncode: return 'qbe -O%s failed: %s' % (o, r.stderr[:200])
         exe = os.path.join(w, 't' + o)
-        r = subprocess.run(['gcc', '-O0', '-w', '-o', exe, cf, s], capture_output=True, text=True)
+        r = subprocess.run(CC + ['-O0', '-w', '-o', exe, cf, s], capture_output=True, text=True)
         if r.returncode: return 'gcc failed (-O%s): %s' % (o, r.stderr[:300])
-        r = subprocess.run([exe], capture_output=True, text=True, timeout=30)
+        r = subprocess.run(RUN + [exe], capture_output=True, text=True, timeout=300)
         if r.returncode: return '-O%s mismatch: %s' % (o, r.stdout[:200])
     for tg in TARGETS:
         for o in ('1', '2'):

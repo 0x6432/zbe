@@ -73,7 +73,7 @@ int main(void) {
 EOF
 pass=0; fail=0
 for o in 0 1 2; do
-  if $Z -O$o $W/f.ssa > $W/f.s && gcc -o $W/t $W/m.c $W/f.s && $W/t; then pass=$((pass+1))
+  if $Z ${QBET:+-t $QBET} -O$o $W/f.ssa > $W/f.s && ${CC:-gcc} -o $W/t $W/m.c $W/f.s && $RUN $W/t; then pass=$((pass+1))
   else fail=$((fail+1)); echo "FAIL: run -O$o"; fi
 done
 for t in amd64_sysv amd64_apple amd64_win arm64 arm64_apple rv64; do

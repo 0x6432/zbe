@@ -11,6 +11,9 @@ import os, random, subprocess, sys, tempfile
 
 D = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 Z = os.environ.get('ZQBE', os.path.join(D, 'zig-out/bin/qbe'))
+CC = os.environ.get('CC', 'gcc').split()      # e.g. 'aarch64-linux-gnu-gcc -static'
+RUN = os.environ.get('RUN', '').split()       # e.g. 'qemu-aarch64'
+TGT = ['-t', os.environ['QBET']] if os.environ.get('QBET') else []
 TARGETS = ['amd64_apple', 'amd64_win', 'arm64', 'arm64_apple', 'rv64']
 OPS = ['add', 'sub', 'mul', 'and', 'or', 'xor', 'shl', 'shr', 'sar',
        'div', 'rem', 'udiv', 'urem']
@@ -105,13 +108,13 @@ def main():
             ssa = os.path.join(w, k + '.ssa'); open(ssa, 'w').write(il)
             cf = os.path.join(w, k + '.c'); open(cf, 'w').write(c)
             mo = os.path.join(w, k + 'm.o')
-            r = subprocess.run(['gcc', '-O0', '-w', '-c', '-o', mo, cf], capture_output=True, text=True)
+            r = subprocess.run(CC + ['-O0', '-w', '-c', '-o', mo, cf], capture_output=True, text=True)
             if r.returncode: print('gcc failed:', r.stderr[:400]); sys.exit(1)
             for o in '012':
                 s = os.path.join(w, '%s%s.s' % (k, o)); exe = os.path.join(w, 't')
-                r = subprocess.run([Z, '-O' + o, '-o', s, ssa], env=env, capture_output=True, text=True)
-                ok = r.returncode == 0 and subprocess.run(['gcc', '-o', exe, mo, s]).returncode == 0
-                out = subprocess.run([exe], capture_output=True, text=True, timeout=60) if ok else None
+                r = subprocess.run([Z] + TGT + ['-O' + o, '-o', s, ssa], env=env, capture_output=True, text=True)
+                ok = r.returncode == 0 and subprocess.run(CC + ['-o', exe, mo, s]).returncode == 0
+                out = subprocess.run(RUN + [exe], capture_output=True, text=True, timeout=300) if ok else None
                 if not ok or out.returncode:
                     fails += 1
                     print('FAIL %s -O%s: %s' % (k, o, (out.stdout if out else r.stderr)[:600]))

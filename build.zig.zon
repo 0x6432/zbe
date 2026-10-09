@@ -1,0 +1,15 @@
+.{
+    .name = .zbe,
+    .version = "1.4.0",
+    .fingerprint = 0xcc34a866a2f7771e,
+    .minimum_zig_version = "0.18.0-dev.35+5e754304d",
+    .dependencies = .{},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "include",
+        "LICENSE",
+        "README.md",
+    },
+}

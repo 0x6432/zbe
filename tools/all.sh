@@ -18,6 +18,7 @@ sh tools/bugs.sh 2>&1 | tail -1
 ( unset QBE_COMPAT; timeout 300 sh tools/optsweep.sh test/*.ssa 2>&1 | tail -1 )
 ( unset QBE_COMPAT; timeout 200 sh tools/lib.sh 2>/dev/null | tail -1 )
 ( unset QBE_COMPAT; sh tools/cli.sh 2>&1 | tail -1 )
+( unset QBE_COMPAT; sh tools/jnz.sh 2>&1 | tail -1 )
 sh tools/corpus.sh /data/corpus/*.qbe /data/corpus/hare/*.ssa 2>/dev/null | tail -3
 # behaviour fuzzing with all optimizations (native amd64 execution)
 ( unset QBE_COMPAT QBEREF; timeout 200 python3 tests/irfuzz.py -n 15 -s 9000 -k 20 2>&1 | tail -1 | sed 's/^/opt: /' )

@@ -292,6 +292,13 @@ STAGE 8 (optimizations, IN PROGRESS). QBE_COMPAT=1 in the environment turns
   x|0, x^0, x<<0 (count mod width), x&-1 -> copy; x*2^n -> shl; x*-1 -> neg (8b).
   Tests: tools/opt.sh (46 cases: each identity for w and l, compiled, linked
   with a C driver and RUN on 12 boundary inputs; asm-shape and compat checks).
+  8c DONE: -O0/-O1/-O2 (gcc style; -O = -O1, -O3/-Os = -O2; default 2;
+  QBE_COMPAT forces 0 and keeps upstream help text). O1: algebra() plus
+  x-x, x^x -> 0 and x&x, x|x -> x. O2: signed div/rem by 2^n via
+  sar/shr/add (sdivpow2), unsigned w div/rem by constant via one 64-bit
+  multiply (udivmagic: only magic numbers < 2^32 with a proven error bound;
+  others, e.g. 7, keep div). Test: tools/opt2.py (1348 division functions x
+  3 levels, ~12k inputs each, run natively).
   Known pre-existing failure: BUGS.md #4 (irfuzz seed 9029; C qbe fails too).
 NEXT after v3-bugfix: new optimization passes (user request), each verified
   with unit/edge/bugs/fuzz; output may then differ from C by design, so

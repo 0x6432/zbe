@@ -14,6 +14,7 @@ zig build test >/dev/null 2>&1 && echo "unit: ok" || echo "unit: FAILED"
 sh tools/edge.sh 2>&1 | tail -1
 sh tools/bugs.sh 2>&1 | tail -1
 ( unset QBE_COMPAT; sh tools/opt.sh 2>&1 | tail -1 )
+( unset QBE_COMPAT; timeout 200 python3 tools/opt2.py 2>&1 | tail -1 )
 sh tools/corpus.sh /data/corpus/*.qbe /data/corpus/hare/*.ssa 2>/dev/null | tail -3
 # behaviour fuzzing with all optimizations (native amd64 execution)
 ( unset QBE_COMPAT QBEREF; timeout 200 python3 tests/irfuzz.py -n 15 -s 9000 -k 20 2>&1 | tail -1 | sed 's/^/opt: /' )

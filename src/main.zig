@@ -322,6 +322,7 @@ fn usage(hf: *Writer, prog: []const u8) Writer.Error!void {
     }
     try hf.print("\n", .{});
     try hf.print("\t{s:<11} dump debug information\n", .{"-d <flags>"});
+    if (all.compat) return; // keep upstream's exact help text
     try hf.print("\t{s:<11} optimization level: 0 = upstream qbe output,\n", .{"-O<level>"});
     try hf.print("\t{s:<11} 1 = algebraic identities, 2 = also division\n", .{""});
     try hf.print("\t{s:<11} by constants (default: 2)\n", .{""});

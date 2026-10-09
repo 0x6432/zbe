@@ -1,0 +1,49 @@
+diff -ru -x '*.o' -x qbe -x config.h qbe-c/amd64/isel.c qbe-cfix/amd64/isel.c
+--- qbe-c/amd64/isel.c	2026-10-08 20:18:49.000000000 +0000
++++ qbe-cfix/amd64/isel.c	2026-10-09 06:14:27.000000000 +0000
+@@ -307,8 +307,15 @@
+ 	case Oshr:
+ 	case Oshl:
+ 		r0 = i.arg[1];
+-		if (rtype(r0) == RCon)
++		if (rtype(r0) == RCon) {
++			Con *c = &fn->con[r0.val];
++			if (c->type == CBits) {
++				int64_t m = k == Kw ? 31 : 63;
++				if ((c->bits.i & m) != c->bits.i)
++					i.arg[1] = getcon(c->bits.i & m, fn);
++			}
+ 			goto Emit;
++		}
+ 		if (fn->tmp[r0.val].slot != -1)
+ 			err("unlikely argument %%%s in %s",
+ 				fn->tmp[r0.val].name, optab[i.op].name);
+diff -ru -x '*.o' -x qbe -x config.h qbe-c/ops.h qbe-cfix/ops.h
+--- qbe-c/ops.h	2026-10-08 20:18:49.000000000 +0000
++++ qbe-cfix/ops.h	2026-10-09 06:14:27.000000000 +0000
+@@ -41,9 +41,9 @@
+ O(and,     T(w,l,e,e, w,l,e,e), F(1,0,0,1,1,1,0,0,0,0)) X(2,1,0) V(1)
+ O(or,      T(w,l,e,e, w,l,e,e), F(1,1,0,1,1,1,0,0,0,0)) X(2,1,0) V(1)
+ O(xor,     T(w,l,e,e, w,l,e,e), F(1,1,0,1,1,0,0,0,0,0)) X(2,1,0) V(1)
+-O(sar,     T(w,l,e,e, w,w,e,e), F(1,1,0,0,0,0,0,0,0,0)) X(1,1,0) V(1)
+-O(shr,     T(w,l,e,e, w,w,e,e), F(1,1,0,0,0,0,0,0,0,0)) X(1,1,0) V(1)
+-O(shl,     T(w,l,e,e, w,w,e,e), F(1,1,0,0,0,0,0,0,0,0)) X(1,1,0) V(1)
++O(sar,     T(w,l,e,e, w,w,e,e), F(1,1,0,0,0,0,0,0,0,0)) X(1,0,0) V(1)
++O(shr,     T(w,l,e,e, w,w,e,e), F(1,1,0,0,0,0,0,0,0,0)) X(1,0,0) V(1)
++O(shl,     T(w,l,e,e, w,w,e,e), F(1,1,0,0,0,0,0,0,0,0)) X(1,0,0) V(1)
+ 
+ /* Comparisons */
+ O(ceqw,    T(w,w,e,e, w,w,e,e), F(1,1,1,1,0,0,1,0,1,0)) X(0,1,0) V(0)
+diff -ru -x '*.o' -x qbe -x config.h qbe-c/util.c qbe-cfix/util.c
+--- qbe-c/util.c	2026-10-08 20:18:50.000000000 +0000
++++ qbe-cfix/util.c	2026-10-09 06:14:27.000000000 +0000
+@@ -291,7 +291,8 @@
+ 	case Osel1:
+ 		for (; i>ib && (i-1)->op == Osel1; i--)
+ 			;
+-		assert(i->op == Osel0);
++		assert(i>ib && (i-1)->op == Osel0);
++		i--;
+ 		/* fall through */
+ 	case Osel0:
+ 		*i0 = i++;

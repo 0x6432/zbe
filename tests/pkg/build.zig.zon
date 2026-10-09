@@ -1,0 +1,7 @@
+.{
+    .name = .cons,
+    .version = "0.0.0",
+    .fingerprint = 0x792e6d4382a62cd8,
+    .dependencies = .{ .zbe = .{ .path = "../.." } },
+    .paths = .{""},
+}

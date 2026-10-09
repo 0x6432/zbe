@@ -306,6 +306,14 @@ STAGE 8 (optimizations, IN PROGRESS). QBE_COMPAT=1 in the environment turns
   v4.1-opt. Guard: tools/optsweep.sh (every target x -O1/-O2 must succeed
   wherever C qbe does; test suite 910/0, corpus 3008/0). Lesson: amd64-only
   behaviour tests are not enough; there is no qemu in the sandbox.
+STAGE 10 DONE (tests + BUGS #4): BUGS #4 was a FUZZER bug: jnz tests only
+  the low 32 bits of a long (doc/il.txt); irfuzz now models that; seeds
+  9000..9039 40/40. New tests (all in all.sh): tools/jnz.sh (21),
+  tests/opttable.py (5898 op x const x class funcs x 3 levels vs gcc C oracle,
+  worst-case dividends), tests/optfuzz.py (random op chains vs C oracle),
+  tools/mutate.py (11 injected optimizer bugs, all killed; run it after any
+  simpl.zig change). NOTE: sandbox rolled back again at start of stage 10;
+  restored from GitHub.
 STAGE 9 DONE (QoL), TAG v5-qol: src/lib.zig (Zig module "qbe": compile(),
   targets(); C ABI qbe_compile/qbe_free/qbe_target/qbe_version), include/qbe.h,
   libqbe.a via zig build; main.zig items made pub for it. CLI: --help,

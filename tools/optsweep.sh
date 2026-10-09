@@ -8,7 +8,7 @@ D=$(cd "$(dirname "$0")/.." && pwd)
 Z=${ZQBE:-$D/zig-out/bin/qbe}
 REF=${QBEREF:-/data/qbe-cfix/qbe}
 unset QBE_COMPAT
-[ $# -eq 0 ] && set -- $D/test/*.ssa $(ls /data/corpus/*.qbe /data/corpus/hare/*.ssa 2>/dev/null)
+[ $# -eq 0 ] && set -- $D/test/*.ssa $(ls ${CORPUS:-/data/corpus}/*.qbe ${CORPUS:-/data/corpus}/hare/*.ssa 2>/dev/null)
 pass=0; fail=0
 for t in amd64_sysv amd64_apple amd64_win arm64 arm64_apple rv64; do
   for f in "$@"; do

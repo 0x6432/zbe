@@ -343,6 +343,20 @@ memory (Debug fills `undefined` with 0xaa); `[*]T` has no `<`/`>` (use
 indices/slices); pointer subtraction on `[*]T` works; tmph needs
 `tmphcap != 0` guard.
 
+## CI (current)
+
+- ci.yml: jobs call `sh tools/ci.sh <suite>` (core, native, cross <target>,
+  corpus, cproc, hare, win). The C reference qbe is built by tools/ci-ref.sh
+  from tools/qbe-ref.tar.gz (pristine e786f06) + tools/qbe-cfix.patch and
+  cached under ~/qbe-cfix. Zig pinned via env ZIG_VERSION. Comparison against C
+  is skipped on Darwin (libc qsort ordering differs). lib.sh treats rc >= 128
+  as a crash unless stderr has qbe's intentional "dying:".
+- nightly.yml: fuzz, zig-master (continue-on-error), memcheck (valgrind),
+  programs (Lua via cproc+zbe; SQLite gated by SQLITE=1: cproc lacks
+  long double), freebsd (vmactions).
+- Release: push a `v*` tag with a matching CHANGELOG.md section.
+- One-off scripts referenced below now live in tools/archive/.
+
 ## Prompt for the next agent
 > You are continuing a QBE (C compiler backend) -> Zig master translation.
 > Restore: `git clone https://github.com/0x6432/zbe /data/qbe-zig` and

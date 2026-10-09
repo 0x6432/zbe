@@ -215,15 +215,26 @@ fn sdivpow2(i: *Ins, b: *Blk, k: uint, new: *bool, f: *Fn) bool {
 /// the smallest s in 32..63 with m = ceil(2^s/d) < 2^32 and
 /// m*d - 2^s <= 2^(s-32); then x/d == (x*m) >> s for every x < 2^32
 /// (the error x*(m*d-2^s)/(d*2^s) stays below 1/d), and x*m < 2^64.
-/// Divisors needing a 33-bit magic (e.g. 7) are left alone.
+/// Divisors needing a 33-bit magic (e.g. 7) are handled by udivmagic33.
 pub fn udivmagic(d: u32, m: *u64, s: *u32) bool {
+    return udivmagicw(d, 32, m, s);
+}
+
+/// Like udivmagic but allows m < 2^33 (the "add" case, e.g. d = 7).
+/// With m = 2^32 + m', x*m >> s == ((x*m' >> 32) + x) >> (s - 32), and
+/// (x*m' >> 32) + x < 2^33, so everything fits in 64-bit registers.
+pub fn udivmagic33(d: u32, m: *u64, s: *u32) bool {
+    return udivmagicw(d, 33, m, s);
+}
+
+fn udivmagicw(d: u32, mbits: u32, m: *u64, s: *u32) bool {
     if (d < 3 or ispow2(d))
         return false;
     var sh: u32 = 32;
     while (sh < 64) : (sh += 1) {
         const p: u128 = @as(u128, 1) << @intCast(sh);
         const mm: u128 = (p + d - 1) / d;
-        if (mm >= (@as(u128, 1) << 32))
+        if (mm >= (@as(u128, 1) << @intCast(mbits)))
             continue;
         if (mm * d - p <= (@as(u128, 1) << @intCast(sh - 32))) {
             m.* = @intCast(mm);
@@ -241,7 +252,8 @@ fn udivconst(i: *Ins, b: *Blk, k: uint, new: *bool, f: *Fn) bool {
     const d: u32 = @truncate(@as(u64, @bitCast(f.con[i.arg[1].val].bits.i)));
     var m: u64 = 0;
     var s: u32 = 0;
-    if (!udivmagic(d, &m, &s))
+    const wide = !udivmagic(d, &m, &s);
+    if (wide and !udivmagic33(d, &m, &s))
         return false;
     const x = i.arg[0];
     const to = i.to;
@@ -259,8 +271,18 @@ fn udivconst(i: *Ins, b: *Blk, k: uint, new: *bool, f: *Fn) bool {
         emit(O.Omul, Kw, t3, q, getcon(d, f));
         emit(O.Ocopy, Kw, q, t2, R);
     }
-    emit(O.Oshr, Kl, t2, t1, getcon(s, f));
-    emit(O.Omul, Kl, t1, t0, getcon(@bitCast(m), f));
+    if (wide) {
+        // q = ((x * m' >> 32) + x) >> (s - 32), m' = m - 2^32
+        const t3 = newtmp("udv", Kl, f);
+        const t4 = newtmp("udv", Kl, f);
+        emit(O.Oshr, Kl, t2, t4, getcon(s - 32, f));
+        emit(O.Oadd, Kl, t4, t3, t0);
+        emit(O.Oshr, Kl, t3, t1, getcon(32, f));
+        emit(O.Omul, Kl, t1, t0, getcon(@bitCast(m - (@as(u64, 1) << 32)), f));
+    } else {
+        emit(O.Oshr, Kl, t2, t1, getcon(s, f));
+        emit(O.Omul, Kl, t1, t0, getcon(@bitCast(m), f));
+    }
     emit(O.Oextuw, Kl, t0, x, R);
     return true;
 }
@@ -318,6 +340,7 @@ fn ins(pk: *uint, new: *bool, b: *Blk, f: *Fn) void {
     if (new.*)
         emiti(i.*);
 }
+
 
 pub fn simpl(f: *Fn) void {
     var b_it: ?*Blk = f.start;

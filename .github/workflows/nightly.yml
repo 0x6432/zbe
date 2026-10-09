@@ -1,0 +1,107 @@
+name: nightly
+
+# Slow / exploratory checks that should not block a push:
+# long fuzzing, Zig master, memory checking, real programs, FreeBSD.
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly
+  cancel-in-progress: true
+
+env:
+  ZIG_VERSION: 0.18.0-dev.35+5e754304d
+  CPROC_REV: d1c53ddf56571573a7025324c8dd5c6d547a4d1f
+
+jobs:
+  # long fuzzing with fresh seeds every night (seed base = run number)
+  fuzz:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - run: echo "QBEREF=$(sh tools/ci-ref.sh $HOME/qbe-cfix)" >> $GITHUB_ENV
+      - run: zig build
+      - name: fuzz
+        run: |
+          S=$(( ${{ github.run_number }} * 1000 ))
+          set -e
+          QBE_COMPAT=1 python3 tests/irfuzz.py -n 20 -s $((S + 100000)) -k 400 | tail -3
+          QBE_COMPAT=1 python3 tests/abifuzz.py -n 20 -s $((S + 200000)) -k 400 | tail -3
+          env -u QBEREF python3 tests/irfuzz.py -n 20 -s $((S + 300000)) -k 400 | tail -3
+          python3 tests/optfuzz.py -n 30 -s $((S + 400000)) -k 300 | tail -3
+
+  # early warning for breaking changes in Zig master (allowed to fail)
+  zig-master:
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: master
+      - run: zig version && zig build && zig build test
+      - run: bin=$PWD/zig-out/bin/qbe sh tools/test.sh all | tail -1
+
+  # memory errors: valgrind on a Debug build over the test suite and corpus
+  # (qbe frees per-function arenas wholesale, so leaks are not checked)
+  memcheck:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq valgrind
+      - run: zig build -Doptimize=ReleaseSafe -p rs && zig build
+      - name: ReleaseSafe build passes the suite
+        run: bin=$PWD/rs/bin/qbe sh tools/test.sh all | tail -1 | grep 'All is fine!'
+      - name: valgrind over every test/*.ssa on all targets
+        run: sh tools/memcheck.sh
+
+  # real programs compiled by cproc with zbe as backend
+  programs:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - name: zbe on PATH as qbe
+        run: |
+          zig build -Doptimize=ReleaseSafe
+          mkdir -p $HOME/zbin && cp zig-out/bin/qbe $HOME/zbin/qbe
+          echo "$HOME/zbin" >> $GITHUB_PATH
+      - name: cproc
+        run: |
+          git clone -q https://git.sr.ht/~mcf/cproc $HOME/cproc
+          cd $HOME/cproc && git checkout -q $CPROC_REV && ./configure && make
+      - run: CPROC=$HOME/cproc/cproc sh tools/programs.sh $HOME/progs
+
+  # FreeBSD: zbe cross-built on linux, test suite run in a FreeBSD VM
+  freebsd:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - run: zig build -Dtarget=x86_64-freebsd -Doptimize=ReleaseSafe -p fbsd
+      - uses: vmactions/freebsd-vm@v1
+        with:
+          usesh: true
+          run: |
+            bin=$PWD/fbsd/bin/qbe sh tools/test.sh all | tail -3
+            bin=$PWD/fbsd/bin/qbe sh tools/test.sh all | tail -1 | grep 'All is fine!'

@@ -3,6 +3,7 @@ name: ci
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 
@@ -11,9 +12,11 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
+  # minimum_zig_version in build.zig.zon; bump both together
+  ZIG_VERSION: 0.18.0-dev.35+5e754304d
   CPROC_REV: d1c53ddf56571573a7025324c8dd5c6d547a4d1f
   HAREC_REV: fd2a6e3fc7b8408aa3f97d728f5f6f3b8451442d
 
@@ -25,6 +28,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/qbe-cfix
+          key: qbe-ref-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/qbe-cfix.patch', 'tools/ci-ref.sh', 'tools/qbe-ref.tar.gz') }}
       - name: C reference qbe
         run: echo "QBEREF=$(sh tools/ci-ref.sh $HOME/qbe-cfix)" >> $GITHUB_ENV
       - run: zig build
@@ -45,6 +54,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/qbe-cfix
+          key: qbe-ref-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/qbe-cfix.patch', 'tools/ci-ref.sh', 'tools/qbe-ref.tar.gz') }}
       - name: C reference qbe
         run: echo "QBEREF=$(sh tools/ci-ref.sh $HOME/qbe-cfix)" >> $GITHUB_ENV
       - run: zig build
@@ -65,6 +80,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
       - name: toolchains
         run: |
           sudo apt-get update -qq
@@ -89,6 +106,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/qbe-cfix
+          key: qbe-ref-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/qbe-cfix.patch', 'tools/ci-ref.sh', 'tools/qbe-ref.tar.gz') }}
       - name: C reference qbe
         run: echo "QBEREF=$(sh tools/ci-ref.sh $HOME/qbe-cfix)" >> $GITHUB_ENV
       - name: zbe on PATH as qbe
@@ -135,6 +158,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/qbe-cfix
+          key: qbe-ref-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/qbe-cfix.patch', 'tools/ci-ref.sh', 'tools/qbe-ref.tar.gz') }}
       - name: C reference qbe
         run: echo "QBEREF=$(sh tools/ci-ref.sh $HOME/qbe-cfix)" >> $GITHUB_ENV
       - name: zbe on PATH as qbe
@@ -167,9 +196,9 @@ jobs:
           name: "summary-hare-${{ matrix.os }}"
           path: ci-out
 
-  # every push to main that passes everything above becomes a release
+  # pushing a v* tag that passes everything above becomes a release
   release:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: [core, native, cross, cproc, hare]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -178,6 +207,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
       - uses: actions/download-artifact@v4
         with:
           pattern: "summary-*"
@@ -205,7 +236,10 @@ jobs:
       - name: release notes
         run: |
           {
-            echo "zbe (QBE in Zig) built from ${GITHUB_SHA::12} — all CI jobs passed."
+            echo "zbe (QBE in Zig) ${GITHUB_REF_NAME} (${GITHUB_SHA::12}) — all CI jobs passed."
+            echo
+            # this version's CHANGELOG.md section
+            awk -v v="${GITHUB_REF_NAME#v}" '/^## /{p = index($0, v) > 0; next} p' CHANGELOG.md
             echo
             echo "Usage: \`qbe [-O0|-O1|-O2] [-t target] [-o out.s] file.ssa\`; \`QBE_COMPAT=1\` = byte-identical to upstream qbe."
             echo
@@ -218,7 +252,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag=build-${{ github.run_number }}
-          gh release create $tag dist/* --target $GITHUB_SHA \
-            --title "zbe 1.4.0 build ${{ github.run_number }} (${GITHUB_SHA::7})" \
-            --notes-file notes.md --latest
+          gh release create "$GITHUB_REF_NAME" dist/* --verify-tag \
+            --title "zbe $GITHUB_REF_NAME" --notes-file notes.md --latest

@@ -81,6 +81,8 @@ cross)
   chk "jnz $t" ', 0 failed' sh tools/jnz.sh
   chk "opttable $t" '0 failures' python3 tests/opttable.py
   chk "optfuzz $t" 'iterations ok' python3 tests/optfuzz.py -n 20 -s 1 -k 10
+  chk "irfuzz -O2 $t" 'iterations ok' env -u QBEREF python3 tests/irfuzz.py -n 15 -s 9000 -k 20
+  chk "abifuzz $t" 'iterations ok' env -u QBEREF python3 tests/abifuzz.py -n 15 -s 1000 -k 20
   ;;
 corpus)
   dir=$1

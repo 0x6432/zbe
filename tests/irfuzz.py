@@ -9,6 +9,12 @@ usage: irfuzz.py [-n NFUNCS] [-s SEED] [-k ITERATIONS] [--keep DIR]
 """
 import argparse, os, random, subprocess, sys, tempfile, shutil, struct
 
+# cross execution, same convention as optfuzz.py: CC='aarch64-linux-gnu-gcc -static'
+# RUN=qemu-aarch64 QBET=arm64 (defaults: native cc, host target)
+CC = os.environ.get('CC', 'cc').split()
+RUN = os.environ.get('RUN', '').split()
+TGT = ['-t', os.environ['QBET']] if os.environ.get('QBET') else []
+
 M = {'w': (1 << 32) - 1, 'l': (1 << 64) - 1}
 BITS = {'w': 32, 'l': 64}
 
@@ -294,13 +300,13 @@ def main():
         open(os.path.join(d, 'main.c'), 'w').write('\n'.join(c) + '\n')
         open(os.path.join(d, 'f.ssa'), 'w').write('\n'.join(q) + '\n')
         ok = True
-        r = run([qbe, '-o', os.path.join(d, 'f.s'), os.path.join(d, 'f.ssa')])
+        r = run([qbe] + TGT + ['-o', os.path.join(d, 'f.s'), os.path.join(d, 'f.ssa')])
         if r.returncode: print('seed %d: qbe failed: %s' % (seed, r.stderr)); ok = False
         if ok:
-            r = run(['cc', '-o', os.path.join(d, 'a.out'), os.path.join(d, 'main.c'), os.path.join(d, 'f.s')])
+            r = run(CC + ['-o', os.path.join(d, 'a.out'), os.path.join(d, 'main.c'), os.path.join(d, 'f.s')])
             if r.returncode: print('seed %d: cc failed: %s' % (seed, r.stderr[:2000])); ok = False
         if ok:
-            r = run([os.path.join(d, 'a.out')], timeout=20)
+            r = run(RUN + [os.path.join(d, 'a.out')], timeout=120)
             if r.returncode: print('seed %d: run failed (%d): %s' % (seed, r.returncode, r.stdout[:500])); ok = False
         if ok and ref:
             for t in ['amd64_sysv', 'amd64_apple', 'amd64_win', 'arm64', 'arm64_apple', 'rv64']:

@@ -11,6 +11,12 @@ usage: abifuzz.py [-n NFUNCS] [-s SEED] [-k ITERATIONS] [--keep DIR]
 """
 import argparse, os, random, subprocess, sys, tempfile, shutil
 
+# cross execution, same convention as optfuzz.py: CC='aarch64-linux-gnu-gcc -static'
+# RUN=qemu-aarch64 QBET=arm64 (defaults: native cc, host target)
+CC = os.environ.get('CC', 'cc').split()
+RUN = os.environ.get('RUN', '').split()
+TGT = ['-t', os.environ['QBET']] if os.environ.get('QBET') else []
+
 SC = {  # qbe ext type -> (C type, size, align, qbe load op, cmp class, kind)
     'sb': ('signed char', 1, 1, 'loadsb', 'w', 'i'),
     'ub': ('unsigned char', 1, 1, 'loadub', 'w', 'i'),
@@ -288,13 +294,13 @@ def main():
         open(os.path.join(d, 'caller.c'), 'w').write(csrc)
         open(os.path.join(d, 'callee.ssa'), 'w').write(qsrc)
         ok = True
-        r = run([qbe, '-o', os.path.join(d, 'callee.s'), os.path.join(d, 'callee.ssa')])
+        r = run([qbe] + TGT + ['-o', os.path.join(d, 'callee.s'), os.path.join(d, 'callee.ssa')])
         if r.returncode: print('seed %d: qbe failed: %s' % (seed, r.stderr)); ok = False
         if ok:
-            r = run(['cc', '-o', os.path.join(d, 'a.out'), os.path.join(d, 'caller.c'), os.path.join(d, 'callee.s')])
+            r = run(CC + ['-o', os.path.join(d, 'a.out'), os.path.join(d, 'caller.c'), os.path.join(d, 'callee.s')])
             if r.returncode: print('seed %d: cc failed: %s' % (seed, r.stderr[:2000])); ok = False
         if ok:
-            r = run([os.path.join(d, 'a.out')], timeout=20)
+            r = run(RUN + [os.path.join(d, 'a.out')], timeout=120)
             if r.returncode: print('seed %d: run failed (%d): %s' % (seed, r.returncode, r.stdout[:500])); ok = False
         if ok and ref:
             for t in ['amd64_sysv', 'amd64_apple', 'amd64_win', 'arm64', 'arm64_apple', 'rv64']:

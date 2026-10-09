@@ -1,4 +1,4 @@
-# Optimization roadmap (not implemented yet)
+# Optimization roadmap
 
 These are the next candidate optimizations, in rough order of value/risk.
 Each must ship with the same verification as the existing ones:
@@ -10,7 +10,11 @@ including worst-case inputs), `tests/optfuzz.py` coverage, a new mutant in
 Rule of the project: a rewrite is only added if it is provably correct for
 every input; correctness beats the number of optimizations.
 
-## 9. Unsigned 32-bit division by "33-bit magic" constants (e.g. /7)
+## 9. Unsigned 32-bit division by "33-bit magic" constants (e.g. /7) — DONE (1.4.1)
+
+Implemented in simpl.zig (`udivmagic33`, `udivconst`): q = ((x*m' >> 32) + x) >> (s-32)
+in 64-bit registers. tools/opt2.py: unsigned divs left at -O2 went 270 -> 26.
+
 
 Status: `udivconst` (src/simpl.zig) only accepts a magic m < 2^32 with error
 <= 2^(s-32). About 1 in 5 divisors (7, 14, 19, 21, 27, 28, 31, ...) need
@@ -61,7 +65,13 @@ registers, and emitter changes in all 6 targets.
 Risk: high (touches isel/rega/emit on every target). Gain: large for 64-bit
 division-heavy code. Do 9 and 10 first.
 
-## 12. Redundant extension elimination
+## 12. Redundant extension elimination — INVESTIGATED, not needed
+
+A pass turning extsb(loadsb), extuh(extub x), extub(and x, 0x7f) into copies
+was written and measured (1.4.1 dev): 0 instructions saved on test/*.ssa
+(89 movs/movz before and after) — the existing isel/copy passes already
+remove these. Not merged.
+
 
 Remove `extsw`/`extuw`/`extsb`/... when the operand is already known to be
 extended the same way (e.g. result of a load with the same extension, or of

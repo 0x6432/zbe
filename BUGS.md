@@ -1,5 +1,11 @@
 # Upstream QBE issues found while testing the port
 
+**Status: all three FIXED in the Zig version since tag v3-bugfix** (stage 7).
+The same fixes are in tools/qbe-cfix.patch (applied to C qbe e786f06), which
+builds the reference used by every comparison tool. Regression tests:
+tools/bugs.sh (89 checks; the unfixed C fails 55 of them) and the unit tests
+"igroup: ..." in src/unit_tests.zig. irfuzz --upstream-bugs now passes.
+
 Found with tests/irfuzz.py against the C reference (qbe e786f06). The Zig
 1:1 port reproduces them faithfully (byte-identical output). Candidates for
 reporting upstream / fixing in the canonical Zig version.

@@ -20,10 +20,11 @@ M = [
     ('sdiv accepts divisor 1', 'if (sv < 2 or !ispow2', 'if (sv < 1 or !ispow2'),
     ('udiv magic bound loosened', '<= (@as(u128, 1) << @intCast(sh - 32))', '<= (@as(u128, 1) << @intCast(sh - 30))'),
     ('udiv sign-extends x', 'emit(O.Oextuw, Kl, t0, x, R);', 'emit(O.Oextsw, Kl, t0, x, R);'),
-    ('rewrites machine registers', 'return virt(i.to) and virt(i.arg[0]) and virt(i.arg[1]);', 'return true;'),
+    ('rewrites machine registers', 'return virt(i.to) and virt(i.arg[0]) and virt(i.arg[1]);', '_ = i; return true;'),
 ]
 TESTS = [
     ('opt.sh', 'timeout 120 sh tools/opt.sh'),
+    ('opttable', 'timeout 200 python3 tests/opttable.py'),
     ('optfuzz', 'timeout 200 python3 tests/optfuzz.py -n 20 -s 1 -k 4'),
     ('optsweep', 'timeout 300 sh tools/optsweep.sh test/*.ssa'),
 ]

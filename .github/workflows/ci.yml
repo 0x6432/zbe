@@ -147,7 +147,7 @@ jobs:
           git clone -q https://git.sr.ht/~sircmpwn/harec $HOME/harec
           cd $HOME/harec && git checkout -q $HAREC_REV
           cp configs/linux.mk config.mk
-          make && make check
+          make ARCH=$(uname -m) && make ARCH=$(uname -m) check
           echo "$HOME/harec/.bin" >> $GITHUB_PATH
       - name: hare stdlib make check
         run: |
@@ -155,7 +155,7 @@ jobs:
           cd $HOME/hare
           git checkout -q $(git rev-list -1 --before="$(git -C $HOME/harec log -1 --format=%cI)" HEAD)
           cp configs/linux.mk config.mk
-          make HAREC=$HOME/harec/.bin/harec QBE=qbe check
+          make ARCH=$(uname -m) HAREC=$HOME/harec/.bin/harec QBE=qbe check
       - name: hare IL corpus vs C reference
         run: |
           mkdir -p $HOME/hcorpus

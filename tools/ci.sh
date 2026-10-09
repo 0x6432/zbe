@@ -84,7 +84,7 @@ cross)
   ;;
 corpus)
   dir=$1
-  chk "corpus compat vs C ($(ls $dir | wc -l) files)" ' 0 differ' sh tools/corpus.sh $(find $dir -name '*.qbe' -o -name '*.ssa')
+  chk "corpus compat vs C ($(ls $dir | wc -l) files)" ' 0 differ' C sh tools/corpus.sh $(find $dir -name '*.qbe' -o -name '*.ssa')
   chk "corpus optsweep" ', 0 failed' sh tools/optsweep.sh $(find $dir -name '*.qbe' -o -name '*.ssa')
   ;;
 *) echo "unknown suite $suite"; exit 2 ;;

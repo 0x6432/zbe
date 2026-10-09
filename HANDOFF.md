@@ -273,7 +273,7 @@ used as table indices and in range arithmetic everywhere, so convert like 6m
 unifying these types would remove many of the remaining casts.
 TAG v2-idiomatic (= backup 40, 51b20dc): end of Phase 3, byte-identical to
 upstream C QBE e786f06.
-STAGE 7 (bug fixes, IN PROGRESS -> tag v3-bugfix when all.sh is green):
+STAGE 7 DONE, TAG v3-bugfix (all.sh pieces green: 0/76 x6 targets asm+debug, corpus 1608/0 differ, edge 291/0, bugs 89/0, unit 16/16, abifuzz 20/20, irfuzz 30/30 + 30/30 --upstream-bugs):
   The 3 BUGS.md issues are fixed in Zig (tools/s7_bugfix.py) AND in a patched
   C reference /data/qbe-cfix/qbe built from tools/qbe-cfix.patch
   (`cp -r /data/qbe-c /data/qbe-cfix; cd /data/qbe-cfix; patch -p1 <

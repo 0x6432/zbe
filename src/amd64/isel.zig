@@ -415,8 +415,16 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
         },
         Osar, Oshr, Oshl => {
             r0 = i.arg[1];
-            if (rtype(r0) == RCon)
+            if (rtype(r0) == RCon) {
+                // x86 masks the count; an immediate >= width does not assemble
+                const c = &f.con[r0.val];
+                if (c.type == CBits) {
+                    const m: i64 = if (k == Kw) 31 else 63;
+                    if (c.bits.i & m != c.bits.i)
+                        i.arg[1] = getcon(c.bits.i & m, f);
+                }
                 continue :sw Ocopy; // goto Emit
+            }
             if (f.tmp[r0.val].slot != -1)
                 err("unlikely argument %{s} in {s}", .{cs(f.tmp[r0.val].name), cs(all.optab[i.op].name)});
             i.arg[1] = TMP(RCX);

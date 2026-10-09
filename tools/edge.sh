@@ -3,7 +3,7 @@
 # and require identical stdout, exit status and (binary-name-normalised) stderr.
 # Usage: sh tools/edge.sh            (needs /data/qbe-c/qbe or QBEREF)
 cd "$(dirname "$0")/.."
-REF=${QBEREF:-/data/qbe-c/qbe}
+REF=${QBEREF:-/data/qbe-cfix/qbe}
 ZIG=$PWD/zig-out/bin/qbe
 W=$(mktemp -d)
 trap 'rm -rf "$W"' EXIT

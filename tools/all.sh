@@ -8,8 +8,9 @@ for t in amd64_sysv amd64_apple amd64_win arm64 arm64_apple rv64; do
 done
 zig build test >/dev/null 2>&1 && echo "unit: ok" || echo "unit: FAILED"
 sh tools/edge.sh 2>&1 | tail -1
+sh tools/bugs.sh 2>&1 | tail -1
 sh tools/corpus.sh /data/corpus/*.qbe /data/corpus/hare/*.ssa 2>/dev/null | tail -3
 if [ -n "$FUZZ" ]; then
-  QBEREF=/data/qbe-c/qbe python3 tests/abifuzz.py -n 15 -s 1000 -k 60 2>&1 | tail -1
-  QBEREF=/data/qbe-c/qbe python3 tests/irfuzz.py -n 15 -s 5000 -k 100 2>&1 | tail -1
+  QBEREF=${QBEREF:-/data/qbe-cfix/qbe} python3 tests/abifuzz.py -n 15 -s 1000 -k 60 2>&1 | tail -1
+  QBEREF=${QBEREF:-/data/qbe-cfix/qbe} python3 tests/irfuzz.py -n 15 -s 5000 -k 100 2>&1 | tail -1
 fi

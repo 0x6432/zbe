@@ -481,9 +481,9 @@ pub fn igroup(b: *Blk, n0: uint) struct { uint, uint } {
             return .{ lo, n + 1 };
         },
         Osel1 => {
-            // NOTE: same (unreachable in practice) assert as upstream
             while (n > 0 and ins[n - 1].op == Osel1) n -= 1;
-            assert(ins[n].op == Osel0);
+            assert(n > 0 and ins[n - 1].op == Osel0);
+            n -= 1;
             continue :sw Osel0;
         },
         Osel0 => {

@@ -1,7 +1,7 @@
 #!/bin/sh
 # usage: tools/corpus.sh FILE...  -- compare zig qbe vs C qbe on IL files
 # for all targets. env: QBEC (C reference), QBEZ (zig build)
-QBEC=${QBEC:-/data/qbe-c/qbe}
+QBEC=${QBEC:-${QBEREF:-/data/qbe-cfix/qbe}}
 QBEZ=${QBEZ:-$(dirname "$0")/../zig-out/bin/qbe}
 targets=${TARGETS:-"amd64_sysv amd64_apple amd64_win arm64 arm64_apple rv64"}
 n=0; fail=0; skip=0

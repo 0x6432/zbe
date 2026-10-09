@@ -232,3 +232,46 @@ test "ptrdiff" {
     try t.expectEqual(@as(isize, 7), u.ptrdiff(p + 7, p));
     try t.expectEqual(@as(isize, -3), u.ptrdiff(p, p + 3));
 }
+
+// ---- igroup (stage 7 bug fix) ---------------------------------------------
+
+fn mkblk(ops: []const u32, buf: []all.Ins) all.Blk {
+    var b = std.mem.zeroes(all.Blk);
+    for (ops, 0..) |o, i| {
+        buf[i] = std.mem.zeroes(all.Ins);
+        buf[i].op = o;
+    }
+    b.ins = buf.ptr;
+    b.nins = @intCast(ops.len);
+    return b;
+}
+
+test "igroup: sel1 run resolves to its sel0" {
+    const O = all.ops;
+    var buf: [6]all.Ins = undefined;
+    var b = mkblk(&.{ O.Ocopy, O.Osel0, O.Osel1, O.Osel1, O.Osel1, O.Ocopy }, &buf);
+    for ([_]u32{ 1, 2, 3, 4 }) |n| {
+        const g = u.igroup(&b, n);
+        try t.expectEqual(@as(all.uint, 1), g[0]);
+        try t.expectEqual(@as(all.uint, 5), g[1]);
+    }
+    // a plain instruction is its own group
+    const g = u.igroup(&b, 5);
+    try t.expectEqual(@as(all.uint, 5), g[0]);
+    try t.expectEqual(@as(all.uint, 6), g[1]);
+}
+
+test "igroup: lone sel0 and blit pairs" {
+    const O = all.ops;
+    var buf: [4]all.Ins = undefined;
+    var b = mkblk(&.{ O.Osel0, O.Oblit0, O.Oblit1, O.Ocopy }, &buf);
+    var g = u.igroup(&b, 0);
+    try t.expectEqual(@as(all.uint, 0), g[0]);
+    try t.expectEqual(@as(all.uint, 1), g[1]);
+    g = u.igroup(&b, 1);
+    try t.expectEqual(@as(all.uint, 1), g[0]);
+    try t.expectEqual(@as(all.uint, 3), g[1]);
+    g = u.igroup(&b, 2);
+    try t.expectEqual(@as(all.uint, 1), g[0]);
+    try t.expectEqual(@as(all.uint, 3), g[1]);
+}

@@ -284,6 +284,12 @@ STAGE 7 DONE, TAG v3-bugfix (all.sh pieces green: 0/76 x6 targets asm+debug, cor
   steps back onto the sel0. Tests: tools/bugs.sh (89 property checks; fails
   55/89 on unfixed C, 0 on fixed) + unit tests "igroup: ..." (16 unit tests).
   all.sh now also prints `bugs: N passed, 0 failed`.
+STAGE 8 (optimizations, IN PROGRESS). QBE_COMPAT=1 in the environment turns
+  every new optimization off (all.compat) so the byte-comparison tools still
+  match the fixed C reference; all.sh exports it for those steps and runs
+  test.sh + irfuzz WITHOUT it ("opt:" lines) to check program behaviour.
+  8a (WIP commit): simpl.zig algebra(): x*0, x&0 -> 0; x*1, x/1, x+0, x-0,
+  x|0, x^0, x<<0 (count mod width), x&-1 -> copy; x*2^n -> shl.
 NEXT after v3-bugfix: new optimization passes (user request), each verified
   with unit/edge/bugs/fuzz; output may then differ from C by design, so
   compare program BEHAVIOUR (abifuzz/irfuzz run the code) not bytes.

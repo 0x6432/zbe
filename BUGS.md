@@ -63,3 +63,14 @@ Tag v4-opt rewrote `%abi =l add R32, 0` (sp) into a copy from a machine
 register, which made rega assert on arm64/arm64_apple. Fixed in 878a8ad
 (rewrites only touch virtual temporaries); tag v4.1-opt. Regression
 guard: tools/optsweep.sh.
+
+## 4. amd64_win: float values allocated to general-purpose registers (open)
+
+Found by tests/abifuzz.py on amd64_win (seed 1000, `-t amd64_win`): the
+output contains e.g. `ucomisd "Lfp27"(%rip), %rbx` and `ucomiss ..., %rsi`,
+which gas rejects ("operand type mismatch"). The C reference qbe e786f06 (with
+qbe-cfix.patch) emits the same 8 errors, and zbe in compat mode is
+byte-identical, so this is inherited from upstream. Likely a Windows-ABI
+varargs/float-in-GPR lowering issue in amd64/abi (win part). Not fixed yet;
+abifuzz is skipped for amd64_win in tools/ci.sh.
+Repro: `python3 tests/abifuzz.py -s 1000 -k 1 --keep /tmp/af; qbe -t amd64_win /tmp/af/callee.ssa | as -o /dev/null`

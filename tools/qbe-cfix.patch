@@ -1,7 +1,8 @@
-diff -ru -x '*.o' -x qbe -x config.h qbe-c/amd64/isel.c qbe-cfix/amd64/isel.c
---- qbe-c/amd64/isel.c	2026-10-08 20:18:49.000000000 +0000
-+++ qbe-cfix/amd64/isel.c	2026-10-09 06:14:27.000000000 +0000
-@@ -307,8 +307,15 @@
+diff --git a/amd64/isel.c b/amd64/isel.c
+index 379244a..48f89dd 100644
+--- a/amd64/isel.c
++++ b/amd64/isel.c
+@@ -307,8 +307,15 @@ sel(Ins i, Num *tn, Fn *fn)
  	case Oshr:
  	case Oshl:
  		r0 = i.arg[1];
@@ -18,10 +19,11 @@ diff -ru -x '*.o' -x qbe -x config.h qbe-c/amd64/isel.c qbe-cfix/amd64/isel.c
  		if (fn->tmp[r0.val].slot != -1)
  			err("unlikely argument %%%s in %s",
  				fn->tmp[r0.val].name, optab[i.op].name);
-diff -ru -x '*.o' -x qbe -x config.h qbe-c/ops.h qbe-cfix/ops.h
---- qbe-c/ops.h	2026-10-08 20:18:49.000000000 +0000
-+++ qbe-cfix/ops.h	2026-10-09 06:14:27.000000000 +0000
-@@ -41,9 +41,9 @@
+diff --git a/ops.h b/ops.h
+index f59e757..d2851a7 100644
+--- a/ops.h
++++ b/ops.h
+@@ -41,9 +41,9 @@ O(mul,     T(w,l,s,d, w,l,s,d), F(1,1,1,1,0,0,0,0,0,0)) X(2,0,0) V(0)
  O(and,     T(w,l,e,e, w,l,e,e), F(1,0,0,1,1,1,0,0,0,0)) X(2,1,0) V(1)
  O(or,      T(w,l,e,e, w,l,e,e), F(1,1,0,1,1,1,0,0,0,0)) X(2,1,0) V(1)
  O(xor,     T(w,l,e,e, w,l,e,e), F(1,1,0,1,1,0,0,0,0,0)) X(2,1,0) V(1)
@@ -34,10 +36,31 @@ diff -ru -x '*.o' -x qbe -x config.h qbe-c/ops.h qbe-cfix/ops.h
  
  /* Comparisons */
  O(ceqw,    T(w,w,e,e, w,w,e,e), F(1,1,1,1,0,0,1,0,1,0)) X(0,1,0) V(0)
-diff -ru -x '*.o' -x qbe -x config.h qbe-c/util.c qbe-cfix/util.c
---- qbe-c/util.c	2026-10-08 20:18:50.000000000 +0000
-+++ qbe-cfix/util.c	2026-10-09 06:14:27.000000000 +0000
-@@ -291,7 +291,8 @@
+diff --git a/rv64/isel.c b/rv64/isel.c
+index ca62359..3691cea 100644
+--- a/rv64/isel.c
++++ b/rv64/isel.c
+@@ -188,6 +188,15 @@ sel(Ins i, Fn *fn)
+ 		selcmp(i, ck, cc, fn);
+ 		return;
+ 	}
++	if ((i.op == Osar || i.op == Oshr || i.op == Oshl)
++	&& rtype(i.arg[1]) == RCon) {
++		/* immediate shamt >= width does not assemble;
++		 * mask it like the hardware masks register counts */
++		Con *c = &fn->con[i.arg[1].val];
++		int64_t m = i.cls == Kw ? 31 : 63;
++		if (c->type == CBits && (c->bits.i & m) != c->bits.i)
++			i.arg[1] = getcon(c->bits.i & m, fn);
++	}
+ 	if (i.op != Onop) {
+ 		emiti(i);
+ 		i0 = curi; /* fixarg() can change curi */
+diff --git a/util.c b/util.c
+index 00bd92b..eb75b44 100644
+--- a/util.c
++++ b/util.c
+@@ -291,7 +291,8 @@ igroup(Blk *b, Ins *i, Ins **i0, Ins **i1)
  	case Osel1:
  		for (; i>ib && (i-1)->op == Osel1; i--)
  			;

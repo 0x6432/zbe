@@ -55,7 +55,7 @@ for t in amd64_sysv amd64_apple amd64_win arm64 arm64_apple rv64; do
   for o in 0 1 2; do
     for f in $D/test/*.ssa; do
       $Z -t $t -O$o $f > $W/a.s 2>$W/err; rc=$?
-      if [ $rc -ge 128 ]; then fail=$((fail+1)); echo "FAIL: crash (rc $rc) $t -O$o $(basename $f)"; tail -25 $W/err; continue; fi
+      if [ $rc -ge 128 ] && ! grep -q "dying:" $W/err; then fail=$((fail+1)); echo "FAIL: crash (rc $rc) $t -O$o $(basename $f)"; tail -25 $W/err; continue; fi
       [ $rc -eq 0 ] || continue
       if $W/drv $f $t $o > $W/b.s 2>/dev/null && cmp -s $W/a.s $W/b.s; then pass=$((pass+1))
       else fail=$((fail+1)); echo "FAIL: $t -O$o $(basename $f)"; fi

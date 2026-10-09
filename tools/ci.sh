@@ -50,8 +50,8 @@ core)
   chk opttable '0 failures' python3 tests/opttable.py
   chk optfuzz 'iterations ok' python3 tests/optfuzz.py -n 20 -s 1 -k 40
   chk "irfuzz -O2" 'iterations ok' env -u QBEREF python3 tests/irfuzz.py -n 15 -s 9000 -k 60
-  chk "irfuzz compat" 'iterations ok' python3 tests/irfuzz.py -n 15 -s 5000 -k 60
-  chk abifuzz 'iterations ok' python3 tests/abifuzz.py -n 15 -s 1000 -k 60
+  chk "irfuzz compat" 'iterations ok' C python3 tests/irfuzz.py -n 15 -s 5000 -k 60
+  chk abifuzz 'iterations ok' C python3 tests/abifuzz.py -n 15 -s 1000 -k 60
   chk mutation 'mutate: [0-9]+ killed, 0 survived' python3 tools/mutate.py
   chk "zig package" 'amd64_sysv: [0-9]+ bytes' sh -c 'cd tests/pkg && zig build && ./zig-out/bin/cons'
   ;;

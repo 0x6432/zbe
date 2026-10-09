@@ -23,6 +23,7 @@ const Ostoreh = all.ops.Ostoreh;
 const Ostorel = all.ops.Ostorel;
 const Ostorew = all.ops.Ostorew;
 const Oudiv = all.ops.Oudiv;
+const O = all.ops;
 const Ourem = all.ops.Ourem;
 const R = all.R;
 const RCon = all.RCon;
@@ -89,6 +90,43 @@ fn ispow2(v: u64) bool {
     return v != 0 and (v & (v - 1)) == 0;
 }
 
+/// Integer identities with a constant right operand (stage 8a):
+///   x*0 -> 0   x*1, x/1, x+0, x-0, x|0, x^0, x<<0, x>>0, x&-1 -> x
+///   x&0 -> 0   x*2^n -> x<<n
+fn algebra(i: *Ins, f: *Fn) void {
+    if (KBASE(i.cls) != 0 or rtype(i.arg[1]) != RCon)
+        return;
+    const c = &f.con[i.arg[1].val];
+    if (c.type != CBits)
+        return;
+    const wide = i.cls == Kl;
+    const mask: u64 = if (wide) ~@as(u64, 0) else 0xffffffff;
+    const v: u64 = @as(u64, @bitCast(c.bits.i)) & mask;
+    const shift = i.op == O.Oshl or i.op == O.Oshr or i.op == O.Osar;
+    // shift counts are taken modulo the width
+    const sv: u64 = if (shift) v & @as(u64, if (wide) 63 else 31) else v;
+    const ident = switch (i.op) {
+        O.Omul, O.Odiv => sv == 1,
+        O.Oand => sv == mask,
+        else => sv == 0,
+    };
+    if (ident) {
+        i.op = O.Ocopy;
+        i.arg[1] = R;
+        return;
+    }
+    if ((i.op == O.Omul or i.op == O.Oand) and sv == 0) {
+        i.op = O.Ocopy;
+        i.arg[0] = getcon(0, f);
+        i.arg[1] = R;
+        return;
+    }
+    if (i.op == O.Omul and ispow2(sv)) {
+        i.op = O.Oshl;
+        i.arg[1] = getcon(ulog2(sv), f);
+    }
+}
+
 fn ins(pk: *uint, new: *bool, b: *Blk, f: *Fn) void {
     const k = pk.*;
     const i = &b.ins[k];
@@ -109,6 +147,9 @@ fn ins(pk: *uint, new: *bool, b: *Blk, f: *Fn) void {
             blit(&b.ins[k - 1].arg, rsval(i.arg[0]), f);
             pk.* = k - 1;
             return;
+        },
+        O.Omul, O.Odiv, O.Oadd, O.Osub, O.Oor, O.Oxor, O.Oand, O.Oshl, O.Oshr, O.Osar => {
+            if (!all.compat) algebra(i, f);
         },
         Oudiv, Ourem => {
             const r = i.arg[1];

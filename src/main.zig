@@ -179,6 +179,7 @@ pub fn main(init: std.process.Init) u8 {
     const io = init.io;
     const arena = init.arena.allocator();
     const argv = init.minimal.args.vector;
+    all.compat = init.environ_map.get("QBE_COMPAT") != null;
     const prog = std.mem.span(argv[0]);
 
     err_fw = std.Io.File.stderr().writerStreaming(io, &stderr_buf);

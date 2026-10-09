@@ -593,6 +593,9 @@ pub const bufPrintZ = util.bufPrintZ;
 pub var dbg: *Writer = undefined;
 /// compiler output, flushed on error exit like C's exit()
 pub var outw: ?*Writer = null;
+/// QBE_COMPAT set in the environment: skip the optimizations that upstream
+/// C qbe does not have, so output stays byte-identical to it.
+pub var compat: bool = false;
 pub const emalloc = util.emalloc;
 pub const alloc = util.alloc;
 pub const freeall = util.freeall;

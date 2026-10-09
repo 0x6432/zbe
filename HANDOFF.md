@@ -271,6 +271,22 @@ REMAINING (optional, not started): ops/classes (Kw..Kd, O*) as enums - ops are
 used as table indices and in range arithmetic everywhere, so convert like 6m
 (enum + aliases + .int()/add()); Ins.op/cls are u32 while Tmp.cls is i16 -
 unifying these types would remove many of the remaining casts.
+TAG v2-idiomatic (= backup 40, 51b20dc): end of Phase 3, byte-identical to
+upstream C QBE e786f06.
+STAGE 7 (bug fixes, IN PROGRESS -> tag v3-bugfix when all.sh is green):
+  The 3 BUGS.md issues are fixed in Zig (tools/s7_bugfix.py) AND in a patched
+  C reference /data/qbe-cfix/qbe built from tools/qbe-cfix.patch
+  (`cp -r /data/qbe-c /data/qbe-cfix; cd /data/qbe-cfix; patch -p1 <
+  /data/qbe-zig/tools/qbe-cfix.patch; make`). All compare tools now default
+  to ${QBEREF:-/data/qbe-cfix/qbe}, so "byte-identical" now means identical to
+  the FIXED C. 1: ops.zig sar/shr/shl X(1,0,0) (no zero-flag reuse);
+  2: amd64/isel.zig masks constant shift counts to 31/63; 3: util.zig igroup
+  steps back onto the sel0. Tests: tools/bugs.sh (89 property checks; fails
+  55/89 on unfixed C, 0 on fixed) + unit tests "igroup: ..." (16 unit tests).
+  all.sh now also prints `bugs: N passed, 0 failed`.
+NEXT after v3-bugfix: new optimization passes (user request), each verified
+  with unit/edge/bugs/fuzz; output may then differ from C by design, so
+  compare program BEHAVIOUR (abifuzz/irfuzz run the code) not bytes.
 PLAN (user approved, in order): (1) strings DONE; (2) vectors DONE; (2b) tests DONE; (3) jump enum DONE, cast reduction pass DONE, then vectors (vnew/vgrow) -> typed growable arrays;
 (3) enums for ops/classes/jumps; (4) cut casts.
 NOTE: the sandbox can stop mid-session (files in /data survived once, but the
@@ -299,7 +315,7 @@ indices/slices); pointer subtraction on `[*]T` works; tmph needs
 > /data/qbe-c/qbe); build corpus with `sh tools/mkcorpus.sh` (Hare/cproc IR,
 > see Status section). Read HANDOFF.md fully first.
 > State: 1:1 translation done and verified (git tag `v1-literal`). Canonical
-> rewrite in progress, stages 1-6n done (see "Canonical rewrite").
+> rewrite in progress, stages 1-6n done + stage 7 bugfixes (see "Canonical rewrite").
 > Verify after EVERY change: `sh tools/all.sh > /tmp/all.log 2>&1; head -1
 > /tmp/all.log; tail -8 /tmp/all.log` (FUZZ=1 also runs abifuzz/irfuzz).
 > Expected: "All is fine!", 0/76 differ on 6 targets + debug dumps, corpus

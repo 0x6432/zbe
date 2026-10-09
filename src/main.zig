@@ -187,10 +187,10 @@ fn fail(comptime fmt: []const u8, args: anytype) noreturn {
 pub fn main(init: std.process.Init) u8 {
     const io = init.io;
     const arena = init.arena.allocator();
-    const argv = init.minimal.args.vector;
+    const argv = init.minimal.args.toSlice(arena) catch return 1;
     all.compat = init.environ_map.get("QBE_COMPAT") != null;
     if (all.compat) all.optlevel = 0;
-    const prog = std.mem.span(argv[0]);
+    const prog = argv[0];
 
     err_fw = std.Io.File.stderr().writerStreaming(io, &stderr_buf);
     all.dbg = &err_fw.interface;
@@ -207,7 +207,7 @@ pub fn main(init: std.process.Init) u8 {
     var a: usize = 1;
     var noopts = false;
     while (a < argv.len) : (a += 1) {
-        const arg = std.mem.span(argv[a]);
+        const arg = argv[a];
         if (noopts or arg.len < 2 or arg[0] != '-') {
             files.append(arena, arg) catch fail("out of memory\n", .{});
             continue;
@@ -243,7 +243,7 @@ pub fn main(init: std.process.Init) u8 {
                     optarg = arg[k + 1 ..];
                 } else if (a + 1 < argv.len) {
                     a += 1;
-                    optarg = std.mem.span(argv[a]);
+                    optarg = argv[a];
                 } else {
                     dprint("{s}: option requires an argument -- '{c}'\n", .{ prog, c });
                     usageExit(prog, 1);

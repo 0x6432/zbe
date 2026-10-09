@@ -50,8 +50,15 @@ const uint = all.uint;
 /// config.h: default target
 pub const version = "1.4.0-zig";
 
+/// Default target follows the host, like upstream's generated config.h.
 pub fn Deftgt() *Target {
-    return &amd64.targ.T_amd64_sysv;
+    const bi = @import("builtin");
+    const mac = bi.os.tag.isDarwin();
+    return switch (bi.cpu.arch) {
+        .aarch64 => if (mac) &arm64.targ.T_arm64_apple else &arm64.targ.T_arm64,
+        .riscv64 => &rv64.targ.T_rv64,
+        else => if (mac) &amd64.targ.T_amd64_apple else &amd64.targ.T_amd64_sysv,
+    };
 }
 
 pub var tlist: [7]?*Target = undefined;

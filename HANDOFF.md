@@ -289,7 +289,7 @@ STAGE 8 (optimizations, IN PROGRESS). QBE_COMPAT=1 in the environment turns
   match the fixed C reference; all.sh exports it for those steps and runs
   test.sh + irfuzz WITHOUT it ("opt:" lines) to check program behaviour.
   8a DONE: simpl.zig algebra(): x*0, x&0 -> 0; x*1, x/1, x+0, x-0,
-  x|0, x^0, x<<0 (count mod width), x&-1 -> copy; x*2^n -> shl.
+  x|0, x^0, x<<0 (count mod width), x&-1 -> copy; x*2^n -> shl; x*-1 -> neg (8b).
   Tests: tools/opt.sh (46 cases: each identity for w and l, compiled, linked
   with a C driver and RUN on 12 boundary inputs; asm-shape and compat checks).
   Known pre-existing failure: BUGS.md #4 (irfuzz seed 9029; C qbe fails too).

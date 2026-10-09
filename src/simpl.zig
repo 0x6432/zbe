@@ -92,7 +92,7 @@ fn ispow2(v: u64) bool {
 
 /// Integer identities with a constant right operand (stage 8a):
 ///   x*0 -> 0   x*1, x/1, x+0, x-0, x|0, x^0, x<<0, x>>0, x&-1 -> x
-///   x&0 -> 0   x*2^n -> x<<n
+///   x&0 -> 0   x*2^n -> x<<n   x*-1 -> neg x
 fn algebra(i: *Ins, f: *Fn) void {
     if (KBASE(i.cls) != 0 or rtype(i.arg[1]) != RCon)
         return;
@@ -118,6 +118,11 @@ fn algebra(i: *Ins, f: *Fn) void {
     if ((i.op == O.Omul or i.op == O.Oand) and sv == 0) {
         i.op = O.Ocopy;
         i.arg[0] = getcon(0, f);
+        i.arg[1] = R;
+        return;
+    }
+    if (i.op == O.Omul and sv == mask) { // x * -1 -> neg x
+        i.op = O.Oneg;
         i.arg[1] = R;
         return;
     }

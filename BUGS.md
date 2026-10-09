@@ -43,7 +43,15 @@ only hold if the run is empty; the intended code is presumably
 Not reachable today: gcm's schedblk always enters a sel group at its `sel0`.
 The Zig port keeps the upstream behavior (util.zig igroup).
 
-## 4. OPEN: irfuzz seed 9029 (`-n 15 -s 9000 -k 30`, f9) mismatches
+## 4. RESOLVED (fuzzer bug, not a compiler bug): irfuzz seed 9029
+Root cause: f9 does `jnz %t14` on a long whose value is 0xaf25000000000000.
+The IL spec (doc/il.txt, "Conditional jump") says jnz compares only the
+least significant 32 bits of a long argument, which are 0 here, so qbe
+correctly takes the zero branch. tests/irfuzz.py modelled the condition on
+all 64 bits; it now uses `(v & 0xffffffff) != 0`. Regression tests:
+seed 9029 and tools/jnz.sh.
+
+(original report) (`-n 15 -s 9000 -k 30`, f9) mismatches
 Upstream C qbe, the fixed C reference and the Zig version all produce the
 same wrong result (`f9 mismatch`), so it is either an upstream QBE bug or a
 modelling bug in tests/irfuzz.py. Not a regression of the port or of the

@@ -187,7 +187,8 @@ class Fn:
                     # upstream bug (BUGS.md): jnz on a shift result
                     # reuses flags, but x86 shifts by 0 keep flags
                     c = ('0', 'w', 0) if R.random() < .5 else ('1', 'w', 1)
-                cond = c[2] != 0
+                # IL spec: jnz compares only the low 32 bits, even of a long
+                cond = (c[2] & 0xffffffff) != 0
                 saved = list(self.vals)
                 L.append('\tjnz %s, @T%d, @F%d' % (c[0], b, b))
                 L.append('@T%d' % b)

@@ -48,13 +48,15 @@ const uint = all.uint;
 //   'S' spilling, 'R' reg. allocation
 
 /// config.h: default target
-fn Deftgt() *Target {
+pub const version = "1.4.0-zig";
+
+pub fn Deftgt() *Target {
     return &amd64.targ.T_amd64_sysv;
 }
 
-var tlist: [7]?*Target = undefined;
+pub var tlist: [7]?*Target = undefined;
 
-fn inittargets() void {
+pub fn inittargets() void {
     amd64.targ.init();
     arm64.targ.init();
     rv64.targ.init();
@@ -69,8 +71,8 @@ fn inittargets() void {
     };
 }
 
-var outf: *Writer = undefined;
-var dbg = false;
+pub var outf: *Writer = undefined;
+pub var dbg = false;
 
 var stdout_buf: [64 * 1024]u8 = undefined;
 var stderr_buf: [4096]u8 = undefined;
@@ -83,7 +85,7 @@ fn writeFailed() noreturn {
     std.process.exit(1);
 }
 
-fn data(d: *Dat) void {
+pub fn data(d: *Dat) void {
     if (dbg)
         return;
     emitdat(d, outf) catch writeFailed();
@@ -93,7 +95,7 @@ fn data(d: *Dat) void {
     }
 }
 
-fn func(f: *Fn) void {
+pub fn func(f: *Fn) void {
     if (dbg)
         dprint("**** Function {s} ****", .{cs(f.name)});
     if (all.debug['P'] != 0) {
@@ -163,7 +165,7 @@ fn func(f: *Fn) void {
     freeall();
 }
 
-fn dbgfile(f: [*:0]const u8) void {
+pub fn dbgfile(f: [*:0]const u8) void {
     emitdbgfile(f, outf) catch writeFailed();
 }
 
@@ -206,6 +208,24 @@ pub fn main(init: std.process.Init) u8 {
         if (std.mem.eql(u8, arg, "--")) {
             noopts = true;
             continue;
+        }
+        if (!all.compat and arg[1] == '-') {
+            if (std.mem.eql(u8, arg, "--help")) usageExit(prog, 0);
+            if (std.mem.eql(u8, arg, "--version")) {
+                outf.print("qbe (zig port) {s}\n", .{version}) catch writeFailed();
+                outf.flush() catch writeFailed();
+                std.process.exit(0);
+            }
+            if (std.mem.eql(u8, arg, "--list-targets")) {
+                for (tlist) |tp| {
+                    const t = tp orelse break;
+                    outf.print("{s}{s}\n", .{ cs(&t.name), if (t == Deftgt()) " (default)" else "" }) catch writeFailed();
+                }
+                outf.flush() catch writeFailed();
+                std.process.exit(0);
+            }
+            dprint("{s}: unrecognized option '{s}'\n", .{ prog, arg });
+            usageExit(prog, 1);
         }
         var k: usize = 1;
         while (k < arg.len) : (k += 1) {
@@ -326,4 +346,7 @@ fn usage(hf: *Writer, prog: []const u8) Writer.Error!void {
     try hf.print("\t{s:<11} optimization level: 0 = upstream qbe output,\n", .{"-O<level>"});
     try hf.print("\t{s:<11} 1 = algebraic identities, 2 = also division\n", .{""});
     try hf.print("\t{s:<11} by constants (default: 2)\n", .{""});
+    try hf.print("\t{s:<11} list targets\n", .{"--list-targets"});
+    try hf.print("\t{s:<11} print the version\n", .{"--version"});
+    try hf.print("\t{s:<11} QBE_COMPAT=1 in the environment = -O0 + upstream CLI\n", .{""});
 }

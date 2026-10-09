@@ -49,3 +49,9 @@ same wrong result (`f9 mismatch`), so it is either an upstream QBE bug or a
 modelling bug in tests/irfuzz.py. Not a regression of the port or of the
 stage 8 optimizations. Reproducer: tests/bug4-irfuzz-9029.ssa + .c
 (`qbe tests/bug4-irfuzz-9029.ssa > t.s && cc tests/bug4-irfuzz-9029.c t.s && ./a.out`).
+
+## 5. FIXED (in the port's own stage 8 code): -O1/-O2 crash on arm64
+Tag v4-opt rewrote `%abi =l add R32, 0` (sp) into a copy from a machine
+register, which made rega assert on arm64/arm64_apple. Fixed in 878a8ad
+(rewrites only touch virtual temporaries); tag v4.1-opt. Regression
+guard: tools/optsweep.sh.

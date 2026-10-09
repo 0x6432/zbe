@@ -299,6 +299,20 @@ STAGE 8 (optimizations, IN PROGRESS). QBE_COMPAT=1 in the environment turns
   multiply (udivmagic: only magic numbers < 2^32 with a proven error bound;
   others, e.g. 7, keep div). Test: tools/opt2.py (1348 division functions x
   3 levels, ~12k inputs each, run natively).
+  TAG v4-opt pushed, BUT it crashes on arm64/arm64_apple at -O1/-O2: the
+  abi passes emit arithmetic on machine registers (`%abi =l add R32, 0`)
+  and algebra() turned it into a register copy -> rega assert. FIXED in
+  878a8ad (virt()/allvirt(): rewrites only touch virtual temps). Use tag
+  v4.1-opt. Guard: tools/optsweep.sh (every target x -O1/-O2 must succeed
+  wherever C qbe does; test suite 910/0, corpus 3008/0). Lesson: amd64-only
+  behaviour tests are not enough; there is no qemu in the sandbox.
+STAGE 9 DONE (QoL), TAG v5-qol: src/lib.zig (Zig module "qbe": compile(),
+  targets(); C ABI qbe_compile/qbe_free/qbe_target/qbe_version), include/qbe.h,
+  libqbe.a via zig build; main.zig items made pub for it. CLI: --help,
+  --version (1.4.0-zig), --list-targets, -O levels; QBE_COMPAT keeps upstream
+  CLI. Tests: tools/lib.sh (1418/0: library output == CLI for 76 files x 6
+  targets x 3 levels, == C ref at -O0, API edge cases, 200 repeated calls),
+  tools/cli.sh (21/0). README.md documents everything.
   Known pre-existing failure: BUGS.md #4 (irfuzz seed 9029; C qbe fails too).
 NEXT after v3-bugfix: new optimization passes (user request), each verified
   with unit/edge/bugs/fuzz; output may then differ from C by design, so

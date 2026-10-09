@@ -1,0 +1,909 @@
+export function l $f0(l %p0, l %p1, w %p2, w %p3) {
+@start
+	%mem =l alloc8 16
+	%t1 =w add %p2, %p3
+	%t2 =l mul -2, %p1
+	%t3 =w udiv %p3, %p3
+	%t4 =l or %t2, %p1
+	%t5 =w div %p2, %t3
+	%t6 =w cled d_12.125, d_-79.5
+	%t7 =d swtof %p2
+@P1
+	jmp @H1
+@H1
+	%t8 =w phi @P1 0, @B1 %t10
+	%t9 =w phi @P1 %p2, @B1 %t11
+	%t12 =w csltw %t8, 5
+	jnz %t12, @B1, @E1
+@B1
+	%t11 =w xor %t9, %t3
+	%t10 =w add %t8, 1
+	jmp @H1
+@E1
+	%acc0 =l copy 0
+	%acc1m =l mul %acc0, 31
+	%acc1 =l xor %acc1m, %p0
+	%acc2m =l mul %acc1, 31
+	%acc2 =l xor %acc2m, %p1
+	%t13 =l extsw %p2
+	%acc3m =l mul %acc2, 31
+	%acc3 =l xor %acc3m, %t13
+	%t14 =l extsw %p3
+	%acc4m =l mul %acc3, 31
+	%acc4 =l xor %acc4m, %t14
+	%t15 =l extsw %t1
+	%acc5m =l mul %acc4, 31
+	%acc5 =l xor %acc5m, %t15
+	%acc6m =l mul %acc5, 31
+	%acc6 =l xor %acc6m, %t2
+	%t16 =l extsw %t3
+	%acc7m =l mul %acc6, 31
+	%acc7 =l xor %acc7m, %t16
+	%acc8m =l mul %acc7, 31
+	%acc8 =l xor %acc8m, %t4
+	%t17 =l extsw %t5
+	%acc9m =l mul %acc8, 31
+	%acc9 =l xor %acc9m, %t17
+	%t18 =l extsw %t6
+	%acc10m =l mul %acc9, 31
+	%acc10 =l xor %acc10m, %t18
+	%t19 =l dtosi %t7
+	%acc11m =l mul %acc10, 31
+	%acc11 =l xor %acc11m, %t19
+	%t20 =l extsw %t9
+	%acc12m =l mul %acc11, 31
+	%acc12 =l xor %acc12m, %t20
+	%t21 =l extsw %t8
+	%acc13m =l mul %acc12, 31
+	%acc13 =l xor %acc13m, %t21
+	ret %acc13
+}
+export function l $f1(w %p0) {
+@start
+	%mem =l alloc8 16
+	%t1 =l xor 1048576, -2
+	%t2 =l add %t1, %t1
+@P0
+	jmp @H0
+@H0
+	%t3 =w phi @P0 0, @B0 %t5
+	%t4 =w phi @P0 %p0, @B0 %t6
+	%t7 =w csltw %t3, 1
+	jnz %t7, @B0, @E0
+@B0
+	%t6 =w add %t4, %p0
+	%t5 =w add %t3, 1
+	jmp @H0
+@E0
+	jnz 31, @T1, @F1
+@T1
+	%t9 =w and %t3, 31
+	%t8 =w shr %p0, %t9
+	%t10 =l extsw %p0
+	jmp @J1
+@F1
+	%t11 =w urem %t3, %t3
+	jmp @J1
+@J1
+	%t12 =w phi @T1 %t3, @F1 %t3
+	%acc0 =l copy 0
+	%t13 =l extsw %p0
+	%acc1m =l mul %acc0, 31
+	%acc1 =l xor %acc1m, %t13
+	%acc2m =l mul %acc1, 31
+	%acc2 =l xor %acc2m, %t1
+	%acc3m =l mul %acc2, 31
+	%acc3 =l xor %acc3m, %t2
+	%t14 =l extsw %t4
+	%acc4m =l mul %acc3, 31
+	%acc4 =l xor %acc4m, %t14
+	%t15 =l extsw %t3
+	%acc5m =l mul %acc4, 31
+	%acc5 =l xor %acc5m, %t15
+	%t16 =l extsw %t12
+	%acc6m =l mul %acc5, 31
+	%acc6 =l xor %acc6m, %t16
+	ret %acc6
+}
+export function l $f2(l %p0, w %p1, w %p2, w %p3) {
+@start
+	%mem =l alloc8 16
+	%t1 =w csltw %p1, %p1
+	%t2 =l ceql 0, %p0
+	%t3 =l and %t2, %p0
+	%t4 =l cnel %t3, %t2
+	%t5 =w cltd d_-71.5, d_92.0
+	%t6 =w div %t5, %t5
+	%t7 =w dtosi d_110.25
+	%t8 =l sub %t2, %t2
+@P0
+	jmp @H0
+@H0
+	%t9 =w phi @P0 0, @B0 %t11
+	%t10 =l phi @P0 -1, @B0 %t12
+	%t13 =w csltw %t9, 11
+	jnz %t13, @B0, @E0
+@B0
+	%t12 =l add %t10, %p0
+	%t11 =w add %t9, 1
+	jmp @H0
+@E0
+	%t14 =s neg s_119.0
+	%t15 =w rem %t6, %t9
+	%t16 =l and %p0, %t4
+	%t17 =w xor %p1, %t15
+	%t18 =l or %t10, %t3
+	%acc0 =l copy 0
+	%acc1m =l mul %acc0, 31
+	%acc1 =l xor %acc1m, %p0
+	%t19 =l extsw %p1
+	%acc2m =l mul %acc1, 31
+	%acc2 =l xor %acc2m, %t19
+	%t20 =l extsw %p2
+	%acc3m =l mul %acc2, 31
+	%acc3 =l xor %acc3m, %t20
+	%t21 =l extsw %p3
+	%acc4m =l mul %acc3, 31
+	%acc4 =l xor %acc4m, %t21
+	%t22 =l extsw %t1
+	%acc5m =l mul %acc4, 31
+	%acc5 =l xor %acc5m, %t22
+	%acc6m =l mul %acc5, 31
+	%acc6 =l xor %acc6m, %t2
+	%acc7m =l mul %acc6, 31
+	%acc7 =l xor %acc7m, %t3
+	%acc8m =l mul %acc7, 31
+	%acc8 =l xor %acc8m, %t4
+	%t23 =l extsw %t5
+	%acc9m =l mul %acc8, 31
+	%acc9 =l xor %acc9m, %t23
+	%t24 =l extsw %t6
+	%acc10m =l mul %acc9, 31
+	%acc10 =l xor %acc10m, %t24
+	%t25 =l extsw %t7
+	%acc11m =l mul %acc10, 31
+	%acc11 =l xor %acc11m, %t25
+	%acc12m =l mul %acc11, 31
+	%acc12 =l xor %acc12m, %t8
+	%acc13m =l mul %acc12, 31
+	%acc13 =l xor %acc13m, %t10
+	%t26 =l extsw %t9
+	%acc14m =l mul %acc13, 31
+	%acc14 =l xor %acc14m, %t26
+	%t27 =l stosi %t14
+	%acc15m =l mul %acc14, 31
+	%acc15 =l xor %acc15m, %t27
+	%t28 =l extsw %t15
+	%acc16m =l mul %acc15, 31
+	%acc16 =l xor %acc16m, %t28
+	%acc17m =l mul %acc16, 31
+	%acc17 =l xor %acc17m, %t16
+	%t29 =l extsw %t17
+	%acc18m =l mul %acc17, 31
+	%acc18 =l xor %acc18m, %t29
+	%acc19m =l mul %acc18, 31
+	%acc19 =l xor %acc19m, %t18
+	ret %acc19
+}
+export function l $f3(l %p0) {
+@start
+	%mem =l alloc8 16
+	%t1 =l urem 7, %p0
+	%t2 =l rem 1048576, %p0
+@P0
+	jmp @H0
+@H0
+	%t3 =w phi @P0 0, @B0 %t5
+	%t4 =w phi @P0 7, @B0 %t6
+	%t7 =w csltw %t3, 0
+	jnz %t7, @B0, @E0
+@B0
+	%t6 =w add %t4, -1
+	%t5 =w add %t3, 1
+	jmp @H0
+@E0
+	%acc0 =l copy 0
+	%acc1m =l mul %acc0, 31
+	%acc1 =l xor %acc1m, %p0
+	%acc2m =l mul %acc1, 31
+	%acc2 =l xor %acc2m, %t1
+	%acc3m =l mul %acc2, 31
+	%acc3 =l xor %acc3m, %t2
+	%t8 =l extsw %t4
+	%acc4m =l mul %acc3, 31
+	%acc4 =l xor %acc4m, %t8
+	%t9 =l extsw %t3
+	%acc5m =l mul %acc4, 31
+	%acc5 =l xor %acc5m, %t9
+	ret %acc5
+}
+export function l $f4(l %p0, w %p1, l %p2) {
+@start
+	%mem =l alloc8 16
+	%t1 =l extsh %p1
+	%t2 =d sub d_61.875, d_32.625
+	%t3 =d exts s_79.25
+	%t4 =w udiv %p1, %p1
+	%t5 =w dtosi %t3
+	%t6 =w xor 0, %t5
+	storew %p1, %mem
+	%t7 =w loadw %mem
+	%t8 =l add %mem, 8
+	storeb %p1, %t8
+	%t9 =w loadsb %t8
+	storel %p0, %mem
+	%t10 =l loadl %mem
+	%t11 =l add %mem, 8
+	storeb %p0, %t11
+	%t12 =w loadsb %t11
+	%acc0 =l copy 0
+	%acc1m =l mul %acc0, 31
+	%acc1 =l xor %acc1m, %p0
+	%t13 =l extsw %p1
+	%acc2m =l mul %acc1, 31
+	%acc2 =l xor %acc2m, %t13
+	%acc3m =l mul %acc2, 31
+	%acc3 =l xor %acc3m, %p2
+	%acc4m =l mul %acc3, 31
+	%acc4 =l xor %acc4m, %t1
+	%t14 =l dtosi %t2
+	%acc5m =l mul %acc4, 31
+	%acc5 =l xor %acc5m, %t14
+	%t15 =l dtosi %t3
+	%acc6m =l mul %acc5, 31
+	%acc6 =l xor %acc6m, %t15
+	%t16 =l extsw %t4
+	%acc7m =l mul %acc6, 31
+	%acc7 =l xor %acc7m, %t16
+	%t17 =l extsw %t5
+	%acc8m =l mul %acc7, 31
+	%acc8 =l xor %acc8m, %t17
+	%t18 =l extsw %t6
+	%acc9m =l mul %acc8, 31
+	%acc9 =l xor %acc9m, %t18
+	%t19 =l extsw %t7
+	%acc10m =l mul %acc9, 31
+	%acc10 =l xor %acc10m, %t19
+	%t20 =l extsw %t9
+	%acc11m =l mul %acc10, 31
+	%acc11 =l xor %acc11m, %t20
+	%acc12m =l mul %acc11, 31
+	%acc12 =l xor %acc12m, %t10
+	%t21 =l extsw %t12
+	%acc13m =l mul %acc12, 31
+	%acc13 =l xor %acc13m, %t21
+	ret %acc13
+}
+export function l $f5(w %p0, l %p1) {
+@start
+	%mem =l alloc8 16
+	%t2 =l and %p1, 63
+	%t1 =l shl %p1, %t2
+	%t3 =s truncd d_118.875
+	%t4 =l extuh %p0
+	%t5 =l or %p1, %t4
+	%t7 =l and %p1, 63
+	%t6 =l sar %t5, %t7
+	%t8 =l div %t4, %p1
+	%t9 =w and %p0, %p0
+	%t10 =l or %t8, %t8
+@P0
+	jmp @H0
+@H0
+	%t11 =w phi @P0 0, @B0 %t13
+	%t12 =l phi @P0 %t1, @B0 %t14
+	%t15 =w csltw %t11, 4
+	jnz %t15, @B0, @E0
+@B0
+	%t14 =l sub %t12, %p1
+	%t13 =w add %t11, 1
+	jmp @H0
+@E0
+	jnz %t11, @T1, @F1
+@T1
+	%t16 =w cugew %t9, %p0
+	%t17 =w dtosi d_112.875
+	%t18 =l and %p1, %t12
+	%t19 =l neg %t1
+	jmp @J1
+@F1
+	%t20 =s truncd d_74.125
+	%t21 =l mul -5363456578994663076, %t6
+	%t22 =w dtosi d_-28.0
+	%t23 =d sub d_-83.375, d_-87.75
+	jmp @J1
+@J1
+	%t24 =l phi @T1 %t5, @F1 %p1
+	storel %t6, %mem
+	%t25 =l loadl %mem
+	%t26 =l add %mem, 8
+	storeb %t6, %t26
+	%t27 =w loadsb %t26
+	jnz 1, @T3, @F3
+@T3
+	jmp @J3
+@F3
+	%t28 =w cnes %t3, %t3
+	%t30 =l and %p1, 63
+	%t29 =l shl %t25, %t30
+	%t31 =l neg %p1
+	%t32 =l and %t10, %t12
+	jmp @J3
+@J3
+	%t33 =l phi @T3 1514736210, @F3 %t4
+	%acc0 =l copy 0
+	%t34 =l extsw %p0
+	%acc1m =l mul %acc0, 31
+	%acc1 =l xor %acc1m, %t34
+	%acc2m =l mul %acc1, 31
+	%acc2 =l xor %acc2m, %p1
+	%acc3m =l mul %acc2, 31
+	%acc3 =l xor %acc3m, %t1
+	%t35 =l stosi %t3
+	%acc4m =l mul %acc3, 31
+	%acc4 =l xor %acc4m, %t35
+	%acc5m =l mul %acc4, 31
+	%acc5 =l xor %acc5m, %t4
+	%acc6m =l mul %acc5, 31
+	%acc6 =l xor %acc6m, %t5
+	%acc7m =l mul %acc6, 31
+	%acc7 =l xor %acc7m, %t6
+	%acc8m =l mul %acc7, 31
+	%acc8 =l xor %acc8m, %t8
+	%t36 =l extsw %t9
+	%acc9m =l mul %acc8, 31
+	%acc9 =l xor %acc9m, %t36
+	%acc10m =l mul %acc9, 31
+	%acc10 =l xor %acc10m, %t10
+	%acc11m =l mul %acc10, 31
+	%acc11 =l xor %acc11m, %t12
+	%t37 =l extsw %t11
+	%acc12m =l mul %acc11, 31
+	%acc12 =l xor %acc12m, %t37
+	%acc13m =l mul %acc12, 31
+	%acc13 =l xor %acc13m, %t24
+	%acc14m =l mul %acc13, 31
+	%acc14 =l xor %acc14m, %t25
+	%t38 =l extsw %t27
+	%acc15m =l mul %acc14, 31
+	%acc15 =l xor %acc15m, %t38
+	%acc16m =l mul %acc15, 31
+	%acc16 =l xor %acc16m, %t33
+	ret %acc16
+}
+export function l $f6(w %p0) {
+@start
+	%mem =l alloc8 16
+	%t1 =w rem 7, %p0
+	%t2 =w or 0, %p0
+	%t3 =l stosi s_-69.5
+	%t4 =s sltof %t3
+	%t6 =w and %p0, 31
+	%t5 =w sar %t1, %t6
+	%t7 =l div %t3, %t3
+	%t8 =w div 9228190, %t2
+	%t9 =l rem %t3, %t7
+	jnz 1, @T0, @F0
+@T0
+	%t10 =w extsb %t7
+	%t11 =w cgtd d_-43.375, d_68.125
+	jmp @J0
+@F0
+	%t12 =l mul -1, %t9
+	%t13 =w cgts %t4, %t4
+	%t14 =w udiv %t8, -2
+	jmp @J0
+@J0
+	%t15 =l phi @T0 %t7, @F0 %t12
+	%t16 =w cged d_-36.75, d_95.75
+	%t17 =w div %t16, 2
+	%t18 =l rem %t7, %t7
+	jnz %t18, @T2, @F2
+@T2
+	%t20 =w and %t16, 31
+	%t19 =w shl %t17, %t20
+	%t21 =l mul %t7, %t18
+	jmp @J2
+@F2
+	%t22 =l add %t9, %t9
+	%t23 =w csgew 1698143018, %p0
+	%t25 =w and %t5, 31
+	%t24 =w shl 3, %t25
+	jmp @J2
+@J2
+	%t26 =w phi @T2 %t16, @F2 %t5
+	%acc0 =l copy 0
+	%t27 =l extsw %p0
+	%acc1m =l mul %acc0, 31
+	%acc1 =l xor %acc1m, %t27
+	%t28 =l extsw %t1
+	%acc2m =l mul %acc1, 31
+	%acc2 =l xor %acc2m, %t28
+	%t29 =l extsw %t2
+	%acc3m =l mul %acc2, 31
+	%acc3 =l xor %acc3m, %t29
+	%acc4m =l mul %acc3, 31
+	%acc4 =l xor %acc4m, %t3
+	%t30 =l stosi %t4
+	%acc5m =l mul %acc4, 31
+	%acc5 =l xor %acc5m, %t30
+	%t31 =l extsw %t5
+	%acc6m =l mul %acc5, 31
+	%acc6 =l xor %acc6m, %t31
+	%acc7m =l mul %acc6, 31
+	%acc7 =l xor %acc7m, %t7
+	%t32 =l extsw %t8
+	%acc8m =l mul %acc7, 31
+	%acc8 =l xor %acc8m, %t32
+	%acc9m =l mul %acc8, 31
+	%acc9 =l xor %acc9m, %t9
+	%acc10m =l mul %acc9, 31
+	%acc10 =l xor %acc10m, %t15
+	%t33 =l extsw %t16
+	%acc11m =l mul %acc10, 31
+	%acc11 =l xor %acc11m, %t33
+	%t34 =l extsw %t17
+	%acc12m =l mul %acc11, 31
+	%acc12 =l xor %acc12m, %t34
+	%acc13m =l mul %acc12, 31
+	%acc13 =l xor %acc13m, %t18
+	%t35 =l extsw %t26
+	%acc14m =l mul %acc13, 31
+	%acc14 =l xor %acc14m, %t35
+	ret %acc14
+}
+export function l $f7(w %p0, l %p1) {
+@start
+	%mem =l alloc8 16
+	%t1 =l extuw 3
+	%t2 =l xor %p1, %p1
+	%t3 =l dtosi d_79.625
+	jnz 255, @T0, @F0
+@T0
+	%t4 =l or %t2, %t1
+	%t5 =w div %p0, %p0
+	jmp @J0
+@F0
+	%t6 =w sub %p0, %p0
+	jmp @J0
+@J0
+	%t7 =l phi @T0 %t3, @F0 %p1
+	%acc0 =l copy 0
+	%t8 =l extsw %p0
+	%acc1m =l mul %acc0, 31
+	%acc1 =l xor %acc1m, %t8
+	%acc2m =l mul %acc1, 31
+	%acc2 =l xor %acc2m, %p1
+	%acc3m =l mul %acc2, 31
+	%acc3 =l xor %acc3m, %t1
+	%acc4m =l mul %acc3, 31
+	%acc4 =l xor %acc4m, %t2
+	%acc5m =l mul %acc4, 31
+	%acc5 =l xor %acc5m, %t3
+	%acc6m =l mul %acc5, 31
+	%acc6 =l xor %acc6m, %t7
+	ret %acc6
+}
+export function l $f8(l %p0, l %p1, l %p2, l %p3) {
+@start
+	%mem =l alloc8 16
+	%t1 =d add d_-26.125, d_-92.5
+	%t2 =w neg 0
+	%t3 =d add %t1, %t1
+	storew %t2, %mem
+	%t4 =w loadw %mem
+	%t5 =l add %mem, 8
+	storeb %t2, %t5
+	%t6 =w loadsb %t5
+	%acc0 =l copy 0
+	%acc1m =l mul %acc0, 31
+	%acc1 =l xor %acc1m, %p0
+	%acc2m =l mul %acc1, 31
+	%acc2 =l xor %acc2m, %p1
+	%acc3m =l mul %acc2, 31
+	%acc3 =l xor %acc3m, %p2
+	%acc4m =l mul %acc3, 31
+	%acc4 =l xor %acc4m, %p3
+	%t7 =l dtosi %t1
+	%acc5m =l mul %acc4, 31
+	%acc5 =l xor %acc5m, %t7
+	%t8 =l extsw %t2
+	%acc6m =l mul %acc5, 31
+	%acc6 =l xor %acc6m, %t8
+	%t9 =l dtosi %t3
+	%acc7m =l mul %acc6, 31
+	%acc7 =l xor %acc7m, %t9
+	%t10 =l extsw %t4
+	%acc8m =l mul %acc7, 31
+	%acc8 =l xor %acc8m, %t10
+	%t11 =l extsw %t6
+	%acc9m =l mul %acc8, 31
+	%acc9 =l xor %acc9m, %t11
+	ret %acc9
+}
+export function l $f9(l %p0, w %p1) {
+@start
+	%mem =l alloc8 16
+	%t1 =w or %p1, %p1
+	%t2 =w mul %p1, %t1
+	%t3 =s sub s_-70.5, s_61.75
+	%t4 =w copy %p1
+	%t6 =l and %p0, 63
+	%t5 =l shl -5416237491239035318, %t6
+	jnz %p0, @T0, @F0
+@T0
+	%t7 =l copy %p0
+	%t8 =l and %t5, %t5
+	%t9 =l dtosi d_23.625
+	%t10 =l xor 63, %t9
+	jmp @J0
+@F0
+	%t11 =w mul %t4, %p1
+	%t12 =l extub %p0
+	%t13 =d exts %t3
+	jmp @J0
+@J0
+	%t14 =l phi @T0 %t5, @F0 %p0
+	jnz %t14, @T1, @F1
+@T1
+	%t15 =l rem %t5, %t14
+	%t16 =l extsw %p1
+	%t18 =w and %t1, 31
+	%t17 =w shr %t4, %t18
+	%t19 =l add %p0, %t15
+	jmp @J1
+@F1
+	jmp @J1
+@J1
+	%t20 =w phi @T1 %t17, @F1 %t4
+	%acc0 =l copy 0
+	%acc1m =l mul %acc0, 31
+	%acc1 =l xor %acc1m, %p0
+	%t21 =l extsw %p1
+	%acc2m =l mul %acc1, 31
+	%acc2 =l xor %acc2m, %t21
+	%t22 =l extsw %t1
+	%acc3m =l mul %acc2, 31
+	%acc3 =l xor %acc3m, %t22
+	%t23 =l extsw %t2
+	%acc4m =l mul %acc3, 31
+	%acc4 =l xor %acc4m, %t23
+	%t24 =l stosi %t3
+	%acc5m =l mul %acc4, 31
+	%acc5 =l xor %acc5m, %t24
+	%t25 =l extsw %t4
+	%acc6m =l mul %acc5, 31
+	%acc6 =l xor %acc6m, %t25
+	%acc7m =l mul %acc6, 31
+	%acc7 =l xor %acc7m, %t5
+	%acc8m =l mul %acc7, 31
+	%acc8 =l xor %acc8m, %t14
+	%t26 =l extsw %t20
+	%acc9m =l mul %acc8, 31
+	%acc9 =l xor %acc9m, %t26
+	ret %acc9
+}
+export function l $f10(l %p0, l %p1) {
+@start
+	%mem =l alloc8 16
+	%t1 =s sub s_-114.5, s_-73.0
+	%t2 =l stosi s_80.375
+	%t3 =l copy %p1
+	%t4 =w and 31, 255
+	%t5 =d add d_-116.375, d_31.0
+	%t6 =l mul %p0, %p0
+	%t7 =s add %t1, %t1
+	%t8 =l extsw %t4
+	jnz 1, @T0, @F0
+@T0
+	%t9 =w or %t4, -2
+	jmp @J0
+@F0
+	%t10 =l mul 1048576, %t6
+	%t11 =w urem %t4, %t4
+	jmp @J0
+@J0
+	%t12 =l phi @T0 721888547, @F0 255
+	storew %t4, %mem
+	%t13 =w loadw %mem
+	%t14 =l add %mem, 8
+	storeb %t4, %t14
+	%t15 =w loadsb %t14
+	storew %t13, %mem
+	%t16 =w loadw %mem
+	%t17 =l add %mem, 8
+	storeb %t13, %t17
+	%t18 =w loadsb %t17
+	%acc0 =l copy 0
+	%acc1m =l mul %acc0, 31
+	%acc1 =l xor %acc1m, %p0
+	%acc2m =l mul %acc1, 31
+	%acc2 =l xor %acc2m, %p1
+	%t19 =l stosi %t1
+	%acc3m =l mul %acc2, 31
+	%acc3 =l xor %acc3m, %t19
+	%acc4m =l mul %acc3, 31
+	%acc4 =l xor %acc4m, %t2
+	%acc5m =l mul %acc4, 31
+	%acc5 =l xor %acc5m, %t3
+	%t20 =l extsw %t4
+	%acc6m =l mul %acc5, 31
+	%acc6 =l xor %acc6m, %t20
+	%t21 =l dtosi %t5
+	%acc7m =l mul %acc6, 31
+	%acc7 =l xor %acc7m, %t21
+	%acc8m =l mul %acc7, 31
+	%acc8 =l xor %acc8m, %t6
+	%t22 =l stosi %t7
+	%acc9m =l mul %acc8, 31
+	%acc9 =l xor %acc9m, %t22
+	%acc10m =l mul %acc9, 31
+	%acc10 =l xor %acc10m, %t8
+	%acc11m =l mul %acc10, 31
+	%acc11 =l xor %acc11m, %t12
+	%t23 =l extsw %t13
+	%acc12m =l mul %acc11, 31
+	%acc12 =l xor %acc12m, %t23
+	%t24 =l extsw %t15
+	%acc13m =l mul %acc12, 31
+	%acc13 =l xor %acc13m, %t24
+	%t25 =l extsw %t16
+	%acc14m =l mul %acc13, 31
+	%acc14 =l xor %acc14m, %t25
+	%t26 =l extsw %t18
+	%acc15m =l mul %acc14, 31
+	%acc15 =l xor %acc15m, %t26
+	ret %acc15
+}
+export function l $f11(l %p0, w %p1, l %p2, l %p3) {
+@start
+	%mem =l alloc8 16
+	%t2 =w and %p1, 31
+	%t1 =w shr %p1, %t2
+	%t3 =l xor %p3, %p3
+	%t4 =l rem %p2, 2
+	%t5 =w rem %t1, %p1
+	%t6 =l urem %p0, %p0
+	%t7 =d add d_44.875, d_-87.75
+	%t8 =l copy %t6
+	%t9 =d exts s_58.25
+	%t11 =l and %t4, 63
+	%t10 =l shl %p3, %t11
+	%t12 =l and %t8, %t8
+	%t13 =d swtof 1
+	%acc0 =l copy 0
+	%acc1m =l mul %acc0, 31
+	%acc1 =l xor %acc1m, %p0
+	%t14 =l extsw %p1
+	%acc2m =l mul %acc1, 31
+	%acc2 =l xor %acc2m, %t14
+	%acc3m =l mul %acc2, 31
+	%acc3 =l xor %acc3m, %p2
+	%acc4m =l mul %acc3, 31
+	%acc4 =l xor %acc4m, %p3
+	%t15 =l extsw %t1
+	%acc5m =l mul %acc4, 31
+	%acc5 =l xor %acc5m, %t15
+	%acc6m =l mul %acc5, 31
+	%acc6 =l xor %acc6m, %t3
+	%acc7m =l mul %acc6, 31
+	%acc7 =l xor %acc7m, %t4
+	%t16 =l extsw %t5
+	%acc8m =l mul %acc7, 31
+	%acc8 =l xor %acc8m, %t16
+	%acc9m =l mul %acc8, 31
+	%acc9 =l xor %acc9m, %t6
+	%t17 =l dtosi %t7
+	%acc10m =l mul %acc9, 31
+	%acc10 =l xor %acc10m, %t17
+	%acc11m =l mul %acc10, 31
+	%acc11 =l xor %acc11m, %t8
+	%t18 =l dtosi %t9
+	%acc12m =l mul %acc11, 31
+	%acc12 =l xor %acc12m, %t18
+	%acc13m =l mul %acc12, 31
+	%acc13 =l xor %acc13m, %t10
+	%acc14m =l mul %acc13, 31
+	%acc14 =l xor %acc14m, %t12
+	%t19 =l dtosi %t13
+	%acc15m =l mul %acc14, 31
+	%acc15 =l xor %acc15m, %t19
+	ret %acc15
+}
+export function l $f12(l %p0) {
+@start
+	%mem =l alloc8 16
+	%t1 =l udiv %p0, %p0
+	%t2 =d exts s_-104.125
+	%t3 =w sub 2, 255
+	%t4 =l neg %p0
+	%t5 =s neg s_28.75
+@P0
+	jmp @H0
+@H0
+	%t6 =w phi @P0 0, @B0 %t8
+	%t7 =l phi @P0 %t1, @B0 %t9
+	%t10 =w csltw %t6, 8
+	jnz %t10, @B0, @E0
+@B0
+	%t9 =l sub %t7, %t4
+	%t8 =w add %t6, 1
+	jmp @H0
+@E0
+	storel %t1, %mem
+	%t11 =l loadl %mem
+	%t12 =l add %mem, 8
+	storeb %t1, %t12
+	%t13 =w loadsb %t12
+	jnz %p0, @T2, @F2
+@T2
+	%t14 =l extub %t6
+	%t15 =w cuos %t5, s_112.25
+	%t16 =d sub %t2, %t2
+	%t17 =l mul %t4, -1
+	jmp @J2
+@F2
+	jmp @J2
+@J2
+	%t18 =w phi @T2 %t6, @F2 %t3
+	%acc0 =l copy 0
+	%acc1m =l mul %acc0, 31
+	%acc1 =l xor %acc1m, %p0
+	%acc2m =l mul %acc1, 31
+	%acc2 =l xor %acc2m, %t1
+	%t19 =l dtosi %t2
+	%acc3m =l mul %acc2, 31
+	%acc3 =l xor %acc3m, %t19
+	%t20 =l extsw %t3
+	%acc4m =l mul %acc3, 31
+	%acc4 =l xor %acc4m, %t20
+	%acc5m =l mul %acc4, 31
+	%acc5 =l xor %acc5m, %t4
+	%t21 =l stosi %t5
+	%acc6m =l mul %acc5, 31
+	%acc6 =l xor %acc6m, %t21
+	%acc7m =l mul %acc6, 31
+	%acc7 =l xor %acc7m, %t7
+	%t22 =l extsw %t6
+	%acc8m =l mul %acc7, 31
+	%acc8 =l xor %acc8m, %t22
+	%acc9m =l mul %acc8, 31
+	%acc9 =l xor %acc9m, %t11
+	%t23 =l extsw %t13
+	%acc10m =l mul %acc9, 31
+	%acc10 =l xor %acc10m, %t23
+	%t24 =l extsw %t18
+	%acc11m =l mul %acc10, 31
+	%acc11 =l xor %acc11m, %t24
+	ret %acc11
+}
+export function l $f13(w %p0, l %p1) {
+@start
+	%mem =l alloc8 16
+	%t1 =w copy -1365747694
+	%t2 =l div 3, %p1
+	%t3 =l udiv 1689687488296124829, -2
+	%t4 =l add %p1, %t3
+	%t5 =w urem %p0, %t1
+	%t6 =l add %t4, %t3
+	jnz 1107092342, @T1, @F1
+@T1
+	%t7 =l cslew %t5, %t1
+	jmp @J1
+@F1
+	%t8 =w stosi s_26.875
+	%t9 =l div %t3, %t4
+	%t10 =w urem %p0, %t1
+	%t11 =s truncd d_89.125
+	jmp @J1
+@J1
+	%t12 =l phi @T1 %t4, @F1 %p1
+	%acc0 =l copy 0
+	%t13 =l extsw %p0
+	%acc1m =l mul %acc0, 31
+	%acc1 =l xor %acc1m, %t13
+	%acc2m =l mul %acc1, 31
+	%acc2 =l xor %acc2m, %p1
+	%t14 =l extsw %t1
+	%acc3m =l mul %acc2, 31
+	%acc3 =l xor %acc3m, %t14
+	%acc4m =l mul %acc3, 31
+	%acc4 =l xor %acc4m, %t2
+	%acc5m =l mul %acc4, 31
+	%acc5 =l xor %acc5m, %t3
+	%acc6m =l mul %acc5, 31
+	%acc6 =l xor %acc6m, %t4
+	%t15 =l extsw %t5
+	%acc7m =l mul %acc6, 31
+	%acc7 =l xor %acc7m, %t15
+	%acc8m =l mul %acc7, 31
+	%acc8 =l xor %acc8m, %t6
+	%acc9m =l mul %acc8, 31
+	%acc9 =l xor %acc9m, %t12
+	ret %acc9
+}
+export function l $f14(w %p0, w %p1, l %p2) {
+@start
+	%mem =l alloc8 16
+	%t1 =w div %p1, %p0
+	%t2 =l dtosi d_95.5
+	%t3 =l div %p2, %t2
+	%t4 =l mul 255, %p2
+	%t5 =s neg s_38.75
+	%t6 =w csltl %t2, 31
+	%t7 =d exts %t5
+@P0
+	jmp @H0
+@H0
+	%t8 =w phi @P0 0, @B0 %t10
+	%t9 =l phi @P0 %t4, @B0 %t11
+	%t12 =w csltw %t8, 6
+	jnz %t12, @B0, @E0
+@B0
+	%t11 =l sub %t9, %t2
+	%t10 =w add %t8, 1
+	jmp @H0
+@E0
+	jnz %t3, @T1, @F1
+@T1
+	%t14 =w and %p0, 31
+	%t13 =w shl %t6, %t14
+	%t15 =l udiv %t4, %p2
+	%t16 =l mul %p2, %p2
+	%t17 =s truncd %t7
+	jmp @J1
+@F1
+	%t18 =w sub %t1, -2
+	jmp @J1
+@J1
+	%t19 =l phi @T1 %t3, @F1 %p2
+	jnz %p0, @T2, @F2
+@T2
+	jmp @J2
+@F2
+	%t20 =w extuh 255
+	%t21 =l urem 1, %t9
+	%t23 =l and %t4, 63
+	%t22 =l shl %t2, %t23
+	jmp @J2
+@J2
+	%t24 =w phi @T2 %t1, @F2 %t1
+	%acc0 =l copy 0
+	%t25 =l extsw %p0
+	%acc1m =l mul %acc0, 31
+	%acc1 =l xor %acc1m, %t25
+	%t26 =l extsw %p1
+	%acc2m =l mul %acc1, 31
+	%acc2 =l xor %acc2m, %t26
+	%acc3m =l mul %acc2, 31
+	%acc3 =l xor %acc3m, %p2
+	%t27 =l extsw %t1
+	%acc4m =l mul %acc3, 31
+	%acc4 =l xor %acc4m, %t27
+	%acc5m =l mul %acc4, 31
+	%acc5 =l xor %acc5m, %t2
+	%acc6m =l mul %acc5, 31
+	%acc6 =l xor %acc6m, %t3
+	%acc7m =l mul %acc6, 31
+	%acc7 =l xor %acc7m, %t4
+	%t28 =l stosi %t5
+	%acc8m =l mul %acc7, 31
+	%acc8 =l xor %acc8m, %t28
+	%t29 =l extsw %t6
+	%acc9m =l mul %acc8, 31
+	%acc9 =l xor %acc9m, %t29
+	%t30 =l dtosi %t7
+	%acc10m =l mul %acc9, 31
+	%acc10 =l xor %acc10m, %t30
+	%acc11m =l mul %acc10, 31
+	%acc11 =l xor %acc11m, %t9
+	%t31 =l extsw %t8
+	%acc12m =l mul %acc11, 31
+	%acc12 =l xor %acc12m, %t31
+	%acc13m =l mul %acc12, 31
+	%acc13 =l xor %acc13m, %t19
+	%t32 =l extsw %t24
+	%acc14m =l mul %acc13, 31
+	%acc14 =l xor %acc14m, %t32
+	ret %acc14
+}

@@ -42,3 +42,10 @@ only hold if the run is empty; the intended code is presumably
 `for (; (i-1)->op == Osel1; i--); i--;` (or asserting `(i-1)->op == Osel0`).
 Not reachable today: gcm's schedblk always enters a sel group at its `sel0`.
 The Zig port keeps the upstream behavior (util.zig igroup).
+
+## 4. OPEN: irfuzz seed 9029 (`-n 15 -s 9000 -k 30`, f9) mismatches
+Upstream C qbe, the fixed C reference and the Zig version all produce the
+same wrong result (`f9 mismatch`), so it is either an upstream QBE bug or a
+modelling bug in tests/irfuzz.py. Not a regression of the port or of the
+stage 8 optimizations. Reproducer: tests/bug4-irfuzz-9029.ssa + .c
+(`qbe tests/bug4-irfuzz-9029.ssa > t.s && cc tests/bug4-irfuzz-9029.c t.s && ./a.out`).

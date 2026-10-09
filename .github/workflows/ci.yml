@@ -1,0 +1,211 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CPROC_REV: d1c53ddf56571573a7025324c8dd5c6d547a4d1f
+  HAREC_REV: fd2a6e3fc7b8408aa3f97d728f5f6f3b8451442d
+
+jobs:
+  # x86_64 linux: compat byte-identity on all 6 targets, behaviour, fuzzers, mutation testing
+  core:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+      - name: C reference qbe
+        run: echo "QBEREF=$(sh tools/ci-ref.sh $HOME/qbe-cfix)" >> $GITHUB_ENV
+      - run: zig build
+      - run: sh tools/ci.sh core
+      - uses: actions/upload-artifact@v4
+        with: { name: summary-core, path: ci-out }
+
+  # native execution on real arm64 linux and macOS (arm64_apple) hardware
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04-arm, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+      - name: C reference qbe
+        run: echo "QBEREF=$(sh tools/ci-ref.sh $HOME/qbe-cfix)" >> $GITHUB_ENV
+      - run: zig build
+      - run: sh tools/ci.sh native
+      - uses: actions/upload-artifact@v4
+        with: { name: summary-native-${{ matrix.os }}, path: ci-out }
+
+  # emulated execution: arm64 and rv64 (qemu-user), amd64_win (wine)
+  cross:
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [arm64, rv64, amd64_win]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+      - name: toolchains
+        run: |
+          sudo apt-get update -qq
+          case ${{ matrix.target }} in
+          arm64) sudo apt-get install -y -qq qemu-user gcc-aarch64-linux-gnu libc6-dev-arm64-cross ;;
+          rv64) sudo apt-get install -y -qq qemu-user gcc-riscv64-linux-gnu libc6-dev-riscv64-cross ;;
+          amd64_win) sudo apt-get install -y -qq gcc-mingw-w64-x86-64 wine64 ;;
+          esac
+      - run: zig build
+      - run: sh tools/ci.sh cross ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with: { name: summary-cross-${{ matrix.target }}, path: ci-out }
+
+  # cproc: build, 3-stage bootstrap and test suite with zbe as the backend;
+  # then C qbe compiled by cproc+zbe must pass qbe's own test suite;
+  # finally an IL corpus from real C code is compared against the C reference.
+  cproc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+      - name: C reference qbe
+        run: echo "QBEREF=$(sh tools/ci-ref.sh $HOME/qbe-cfix)" >> $GITHUB_ENV
+      - name: zbe on PATH as qbe
+        run: |
+          zig build -Doptimize=ReleaseSafe
+          mkdir -p $HOME/zbin && cp zig-out/bin/qbe $HOME/zbin/qbe
+          echo "$HOME/zbin" >> $GITHUB_PATH
+      - name: build cproc with zbe
+        run: |
+          git clone -q https://git.sr.ht/~mcf/cproc $HOME/cproc
+          cd $HOME/cproc && git checkout -q $CPROC_REV
+          ./configure && make
+      - name: cproc bootstrap (stage2 == stage3)
+        run: cd $HOME/cproc && make bootstrap
+      - name: cproc test suite
+        run: cd $HOME/cproc && make check
+      - name: qbe compiled by cproc+zbe passes qbe's tests
+        run: |
+          cp -r $HOME/qbe-cfix $HOME/qbe-bycproc && cd $HOME/qbe-bycproc
+          make clean >/dev/null && make CC=$HOME/cproc/cproc
+          cd $GITHUB_WORKSPACE && bin=$HOME/qbe-bycproc/qbe sh tools/test.sh all | tail -1 | grep 'All is fine!'
+      - name: IL corpus vs C reference
+        run: |
+          mkdir -p $HOME/corpus
+          for f in $HOME/cproc/*.c $HOME/qbe-cfix/*.c $HOME/qbe-cfix/*/*.c bench/*.c; do
+            $HOME/cproc/cproc -emit-qbe -o $HOME/corpus/$(echo $f | tr / _).qbe $f || true
+          done
+          cp $HOME/cproc/test/*.qbe $HOME/corpus/ 2>/dev/null || true
+          zig build
+          sh tools/ci.sh corpus $HOME/corpus
+      - uses: actions/upload-artifact@v4
+        with: { name: summary-cproc, path: ci-out }
+
+  # hare: harec built and tested with zbe, then the hare stdlib test suite
+  hare:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+      - name: C reference qbe
+        run: echo "QBEREF=$(sh tools/ci-ref.sh $HOME/qbe-cfix)" >> $GITHUB_ENV
+      - name: zbe on PATH as qbe
+        run: |
+          zig build -Doptimize=ReleaseSafe
+          mkdir -p $HOME/zbin && cp zig-out/bin/qbe $HOME/zbin/qbe
+          echo "$HOME/zbin" >> $GITHUB_PATH
+      - name: harec build + make check
+        run: |
+          git clone -q https://git.sr.ht/~sircmpwn/harec $HOME/harec
+          cd $HOME/harec && git checkout -q $HAREC_REV
+          cp configs/linux.mk config.mk
+          make && make check
+          echo "$HOME/harec/.bin" >> $GITHUB_PATH
+      - name: hare stdlib make check
+        run: |
+          git clone -q https://git.sr.ht/~sircmpwn/hare $HOME/hare
+          cd $HOME/hare
+          git checkout -q $(git rev-list -1 --before="$(git -C $HOME/harec log -1 --format=%cI)" HEAD)
+          cp configs/linux.mk config.mk
+          make HAREC=$HOME/harec/.bin/harec QBE=qbe check
+      - name: hare IL corpus vs C reference
+        run: |
+          mkdir -p $HOME/hcorpus
+          find $HOME/harec $HOME/hare -name '*.ssa' -size -2M | head -400 | while read f; do cp "$f" $HOME/hcorpus/$(echo $f | md5sum | cut -c1-12).ssa; done
+          zig build
+          sh tools/ci.sh corpus $HOME/hcorpus
+      - uses: actions/upload-artifact@v4
+        with: { name: summary-hare-${{ matrix.os }}, path: ci-out }
+
+  # every push to main that passes everything above becomes a release
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [core, native, cross, cproc, hare]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+      - uses: actions/download-artifact@v4
+        with: { pattern: summary-*, path: summaries, merge-multiple: true }
+      - name: cross-build release binaries
+        run: |
+          mkdir -p dist
+          for t in x86_64-linux-musl aarch64-linux-musl riscv64-linux-musl x86_64-macos aarch64-macos x86_64-windows; do
+            zig build -Doptimize=ReleaseFast -Dtarget=$t -p out/$t
+            mkdir -p pkg/zbe-$t && cp -r out/$t/* include README.md pkg/zbe-$t/
+            [ -f LICENSE ] && cp LICENSE pkg/zbe-$t/
+            case $t in
+            *windows*) (cd pkg && zip -qr ../dist/zbe-$t.zip zbe-$t) ;;
+            *) tar -C pkg -czf dist/zbe-$t.tar.gz zbe-$t ;;
+            esac
+          done
+          (cd dist && sha256sum * > SHA256SUMS)
+      - name: benchmark
+        run: |
+          QBEREF=$(sh tools/ci-ref.sh $HOME/qbe-cfix)
+          git clone -q https://git.sr.ht/~mcf/cproc $HOME/cproc
+          (cd $HOME/cproc && git checkout -q $CPROC_REV && ./configure && make cproc cproc-qbe)
+          QBEREF=$QBEREF ZQBE=$PWD/out/x86_64-linux-musl/bin/qbe CPROC=$HOME/cproc/cproc REPS=5 python3 tools/bench.py bench.md
+      - name: release notes
+        run: |
+          {
+            echo "zbe (QBE in Zig) built from ${GITHUB_SHA::12} — all CI jobs passed."
+            echo
+            echo "Usage: \`qbe [-O0|-O1|-O2] [-t target] [-o out.s] file.ssa\`; \`QBE_COMPAT=1\` = byte-identical to upstream qbe."
+            echo
+            cat bench.md
+            echo
+            echo "### Test results"
+            for f in summaries/*.md; do echo; echo "#### $(basename $f .md)"; echo; cat $f; done
+          } > notes.md
+      - name: create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=build-${{ github.run_number }}
+          gh release create $tag dist/* --target $GITHUB_SHA \
+            --title "zbe 1.4.0 build ${{ github.run_number }} (${GITHUB_SHA::7})" \
+            --notes-file notes.md --latest

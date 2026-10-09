@@ -36,6 +36,19 @@ index f59e757..d2851a7 100644
  
  /* Comparisons */
  O(ceqw,    T(w,w,e,e, w,w,e,e), F(1,1,1,1,0,0,1,0,1,0)) X(0,1,0) V(0)
+diff --git a/rv64/abi.c b/rv64/abi.c
+index 1c51bfc..5a18bba 100644
+--- a/rv64/abi.c
++++ b/rv64/abi.c
+@@ -285,7 +285,7 @@ argsclass(Ins *i0, Ins *i1, Class *carg, int retptr)
+ 			t = &typ[i->arg[0].val];
+ 			typclass(c, t, 1, gp, fp);
+ 			if (c->nfp > 0)
+-			if (c->nfp >= nfp || c->ngp >= ngp)
++			if (c->nfp > nfp || c->ngp > ngp)
+ 				typclass(c, t, 0, gp, fp);
+ 			assert(c->nfp <= nfp);
+ 			if (c->ngp <= ngp) {
 diff --git a/rv64/isel.c b/rv64/isel.c
 index ca62359..3691cea 100644
 --- a/rv64/isel.c

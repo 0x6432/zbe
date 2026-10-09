@@ -363,7 +363,7 @@ fn argsclass(ins: []const Ins, carg: []Class, retptr: bool) i32 {
             Oparc, Oargc => {
                 const t = &all.typ[i.arg[0].val];
                 typclass(c, t, true, gpreg[gp..], fpreg[fp..]);
-                if (c.nfp > 0 and (c.nfp >= nfp or c.ngp >= ngp))
+                if (c.nfp > 0 and (c.nfp > nfp or c.ngp > ngp))
                     typclass(c, t, false, gpreg[gp..], fpreg[fp..]);
                 assert(c.nfp <= nfp);
                 if (c.ngp <= ngp) {

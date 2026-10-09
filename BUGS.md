@@ -74,3 +74,18 @@ byte-identical, so this is inherited from upstream. Likely a Windows-ABI
 varargs/float-in-GPR lowering issue in amd64/abi (win part). Not fixed yet;
 abifuzz is skipped for amd64_win in tools/ci.sh.
 Repro: `python3 tests/abifuzz.py -s 1000 -k 1 --keep /tmp/af; qbe -t amd64_win /tmp/af/callee.ssa | as -o /dev/null`
+
+## 6. FIXED (upstream, also in tools/qbe-cfix.patch): rv64 float-struct args passed on the stack when GPRs are exhausted
+
+`rv64/abi.c` `argsclass()` fell back to integer passing for an FP-flattened
+struct when `c->nfp >= nfp || c->ngp >= ngp`. A `struct { float }` needs
+0 GPRs, so once all 8 integer registers were used (`0 >= 0`) it went to the
+stack instead of the next free FA register (also wrong when exactly the last
+FA register was needed). gcc/clang pass it in FA regs, so the callee read
+garbage or crashed (abifuzz rv64 seeds 1003, 1004, 1011, 1013, 1015).
+Fix: use `>` in both comparisons. Found with abifuzz under qemu-riscv64.
+
+Related harness fixes (not compiler bugs): abifuzz now extends sub-word
+(`sb/ub/sh/uh`) parameters in the callee IL, since on elimsb targets such as
+arm64 Linux they are words with unspecified high bits; abifuzz/irfuzz use
+`long long` for 64-bit C values (`long` is 32-bit on LLP64 Windows).

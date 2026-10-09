@@ -94,8 +94,19 @@ fn ispow2(v: u64) bool {
 /// Integer identities with a constant right operand (stage 8a):
 ///   x*0 -> 0   x*1, x/1, x+0, x-0, x|0, x^0, x<<0, x>>0, x&-1 -> x
 ///   x&0 -> 0   x*2^n -> x<<n   x*-1 -> neg x   x-x, x^x -> 0   x&x, x|x -> x
+/// True unless r is a machine register: the abi passes emit arithmetic on
+/// physical registers (e.g. arm64 `%abi =l add R32, 0` for sp) that must not
+/// be turned into register copies, so the rewrites only touch virtual temps.
+fn virt(r: Ref) bool {
+    return rtype(r) != RTmp or r.val >= all.Tmp0;
+}
+
+fn allvirt(i: *Ins) bool {
+    return virt(i.to) and virt(i.arg[0]) and virt(i.arg[1]);
+}
+
 fn algebra(i: *Ins, f: *Fn) void {
-    if (KBASE(i.cls) != 0)
+    if (KBASE(i.cls) != 0 or !allvirt(i))
         return;
     if (all.req(i.arg[0], i.arg[1]) and rtype(i.arg[0]) == RTmp) {
         switch (i.op) {
@@ -168,7 +179,7 @@ fn startnew(new: *bool, b: *Blk, k: uint) void {
 ///   t1 = x sar (W-1); t2 = t1 shr (W-n); t3 = x + t2
 ///   div: t3 sar n            rem: x - (t3 & -2^n)
 fn sdivpow2(i: *Ins, b: *Blk, k: uint, new: *bool, f: *Fn) bool {
-    if (KBASE(i.cls) != 0 or rtype(i.arg[0]) != RTmp or rtype(i.arg[1]) != RCon)
+    if (KBASE(i.cls) != 0 or rtype(i.arg[0]) != RTmp or rtype(i.arg[1]) != RCon or !allvirt(i))
         return false;
     const c = &f.con[i.arg[1].val];
     if (c.type != CBits)
@@ -225,7 +236,7 @@ pub fn udivmagic(d: u32, m: *u64, s: *u32) bool {
 
 /// Unsigned 32-bit x / d and x % d by a constant: one 64-bit multiply.
 fn udivconst(i: *Ins, b: *Blk, k: uint, new: *bool, f: *Fn) bool {
-    if (i.cls != Kw or rtype(i.arg[0]) != RTmp)
+    if (i.cls != Kw or rtype(i.arg[0]) != RTmp or !allvirt(i))
         return false;
     const d: u32 = @truncate(@as(u64, @bitCast(f.con[i.arg[1].val].bits.i)));
     var m: u64 = 0;

@@ -23,7 +23,7 @@ SC = {  # qbe ext type -> (C type, size, align, qbe load op, cmp class, kind)
     'sh': ('short', 2, 2, 'loadsh', 'w', 'i'),
     'uh': ('unsigned short', 2, 2, 'loaduh', 'w', 'i'),
     'w': ('int', 4, 4, 'loadsw', 'w', 'i'),
-    'l': ('long', 8, 8, 'loadl', 'l', 'i'),
+    'l': ('long long', 8, 8, 'loadl', 'l', 'i'),
     's': ('float', 4, 4, 'loads', 's', 'f'),
     'd': ('double', 8, 8, 'loadd', 'd', 'f'),
 }
@@ -49,7 +49,7 @@ def qc(k, v):  # qbe constant
 def cc(k, v):  # C constant
     if k == 's': return '%rf' % float(v)
     if k == 'd': return '%r' % float(v)
-    if k == 'l': return '(long)%dLL' % v if v != -2**63 else '(-9223372036854775807LL-1)'
+    if k == 'l': return '(long long)%dLL' % v if v != -2**63 else '(-9223372036854775807LL-1)'
     if k == 'w': return '(int)%dLL' % v
     return '%d' % v
 
@@ -150,6 +150,11 @@ class Gen:
                 out += self.qcmp('%%v%s.%d' % (lbl, j), kk, x, '%s.%d' % (lbl, j))
         else:
             kk = SC[t][4]
+            if t in ('sb', 'ub', 'sh', 'uh'):
+                # sub-word params are words with unspecified high bits on
+                # targets using elimsb (e.g. arm64 Linux): extend first
+                out.append('\t%%e%s =w ext%s %s' % (lbl, t, r))
+                r = '%%e%s' % lbl
             out += self.qcmp(r, kk, v, lbl)
         return out
 

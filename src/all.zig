@@ -596,6 +596,8 @@ pub var outw: ?*Writer = null;
 /// QBE_COMPAT set in the environment: skip the optimizations that upstream
 /// C qbe does not have, so output stays byte-identical to it.
 pub var compat: bool = false;
+/// Optimization level (-O0/-O1/-O2). 0 = exactly upstream qbe.
+pub var optlevel: u8 = 2;
 pub const emalloc = util.emalloc;
 pub const alloc = util.alloc;
 pub const freeall = util.freeall;

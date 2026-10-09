@@ -180,6 +180,7 @@ pub fn main(init: std.process.Init) u8 {
     const arena = init.arena.allocator();
     const argv = init.minimal.args.vector;
     all.compat = init.environ_map.get("QBE_COMPAT") != null;
+    if (all.compat) all.optlevel = 0;
     const prog = std.mem.span(argv[0]);
 
     err_fw = std.Io.File.stderr().writerStreaming(io, &stderr_buf);
@@ -221,6 +222,21 @@ pub fn main(init: std.process.Init) u8 {
                     usageExit(prog, 1);
                 }
                 k = arg.len;
+            }
+            if (c == 'O') {
+                const lv: u8 = if (k + 1 < arg.len) arg[k + 1] else '1';
+                all.optlevel = switch (lv) {
+                    '0' => 0,
+                    '1', 'g' => 1,
+                    '2', '3', 's', 'z' => 2,
+                    else => {
+                        dprint("{s}: invalid optimization level '{s}'\n", .{ prog, arg[k..] });
+                        usageExit(prog, 1);
+                    },
+                };
+                if (all.compat) all.optlevel = 0;
+                k = arg.len;
+                continue;
             }
             switch (c) {
                 'd' => for (optarg) |ch| {
@@ -306,4 +322,7 @@ fn usage(hf: *Writer, prog: []const u8) Writer.Error!void {
     }
     try hf.print("\n", .{});
     try hf.print("\t{s:<11} dump debug information\n", .{"-d <flags>"});
+    try hf.print("\t{s:<11} optimization level: 0 = upstream qbe output,\n", .{"-O<level>"});
+    try hf.print("\t{s:<11} 1 = algebraic identities, 2 = also division\n", .{""});
+    try hf.print("\t{s:<11} by constants (default: 2)\n", .{""});
 }

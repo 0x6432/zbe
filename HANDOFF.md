@@ -388,3 +388,22 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - Optional fields (`?[*:0]u8`) stay nullable because IR structs are zero-initialised; call sites use `.?` where the C code assumed non-null.
 - Stack buffers that must be passed as strings use `bufPrintZ` and `@ptrCast`.
 - Revisit only if output is no longer compared byte-for-byte against the C reference.
+
+## Decisions: idiomatic rewrite (items 5-8)
+- Item 5 (enums): use kinds (`U`), alias results (`AliasRes`) and alias kinds
+  (`AKind`) are enums, following the jump enum `J`; the old constant names are
+  aliases, so call sites did not change. Kept as integers on purpose:
+  symbol kinds (`SGlo/SThr/SExt` are bit flags, combined as `SExtThr`),
+  widths (`W*`, used as array indices, `BIT()` positions and offsets that must
+  match the Oload/Oext order), comparison kinds (`Ci*`/`Cf*`, offsets added to
+  op numbers). Ops (158 constants, ~99 arithmetic sites, 28 `optab[]` lookups,
+  ~121 range checks) and classes (`Kw..Kd`, `Kx = -1`, ~700 uses) are not
+  converted yet; doing it needs `.int()`/`add()` helpers like `J`.
+- Item 6: `Ins.cls`, `Tmp.cls` and `Phi.cls` are all `i16` (signed because
+  `Kx = -1`); index sites cast to `usize`. Casts 545 -> 537. `Ins.op` stays u32.
+- Item 7: done in 6k (typed `vnewT`/`vgrow`/`vfree`); nothing left.
+- Item 8: `fillrpo`/`inter`/`filldom` were already idiomatic; only `filldom`
+  now uses a `changed` flag.
+- Local note: in some sandboxes the locally built C reference emits
+  `shlq $0` for wide shifts and `tools/edge.sh` shows 20 mismatches; CI is
+  authoritative (291/0).

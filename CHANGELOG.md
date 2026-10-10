@@ -10,6 +10,16 @@
 ### Fixes
 - rv64: shift-by-immediate counts are masked to the operand width (fixed in
   the C reference patch too).
+- rv64: float-flattened struct arguments are no longer passed on the stack
+  when general-purpose registers run out (BUGS.md #6, also in the C patch).
+- arm64: `va_start` after an aggregate that did not fit in registers no longer
+  leaves stale va register counts (BUGS.md #7, also in the C patch).
+
+### Code quality
+- Use kinds, alias results and alias kinds are Zig enums (old names kept as
+  aliases); switches over them are now checked for missing cases.
+- Instruction, temp and phi classes share one type (`i16`); 22 redundant
+  casts removed.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit
@@ -17,6 +27,9 @@
 - Zig version pinned; PR runs cancel in progress; C reference vendored
   (`tools/qbe-ref.tar.gz`) and cached; releases only on `v*` tags.
 - Fuzzers (irfuzz -O2, abifuzz) also run on arm64/rv64 cross jobs.
+- abifuzz sign/zero-extends sub-word parameters in the callee and uses
+  `long long` so it is correct on LLP64 Windows; `tools/bugs.sh` checks wide
+  shift immediates on arm64 and rv64 too.
 - New nightly workflow: long fuzz, Zig master (allow-fail), valgrind +
   ReleaseSafe, Lua 5.4.7 test suite built with cproc+zbe, FreeBSD.
 - One-off rewrite scripts moved to `tools/archive/`; `__pycache__` removed.

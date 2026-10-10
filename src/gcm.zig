@@ -183,7 +183,6 @@ fn schedlate(f: *Fn, r: Ref) uint {
             UPhi => uselatebid = latephi(f, u.u.phi, r),
             UIns => uselatebid = lateins(f, b, u.u.ins, r),
             UJmp => uselatebid = latejmp(b, r),
-            else => unreachable,
         }
         latebid = lcabid(f, latebid, uselatebid);
     }

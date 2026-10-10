@@ -351,13 +351,14 @@ pub const Blk = extern struct {
     name: ?[*:0]u8,
 };
 
-pub const UXXX = 0;
-pub const UPhi = 1;
-pub const UIns = 2;
-pub const UJmp = 3;
+pub const U = enum(i32) { xxx = 0, phi = 1, ins = 2, jmp = 3 };
+pub const UXXX = U.xxx;
+pub const UPhi = U.phi;
+pub const UIns = U.ins;
+pub const UJmp = U.jmp;
 
 pub const Use = extern struct {
-    type: i32,
+    type: U,
     bid: uint,
     u: extern union {
         ins: *Ins,

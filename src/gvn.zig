@@ -128,7 +128,6 @@ fn replaceuse(f: *Fn, u: *Use, r1: Ref, r2: Ref) void {
                 adduse(t, UJmp, b, null);
         },
         UXXX => die("unreachable", .{}),
-        else => {},
     }
 }
 

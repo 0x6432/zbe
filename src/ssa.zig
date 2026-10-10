@@ -69,7 +69,7 @@ const NOID: uint = std.math.maxInt(uint);
 
 /// C: adduse(Tmp *, int, Blk *, ...); the variadic argument is the
 /// Phi* (UPhi) or Ins* (UIns), and absent (null) for UJmp
-pub fn adduse(tmp: *Tmp, ty: i32, b: *Blk, x: ?*anyopaque) void {
+pub fn adduse(tmp: *Tmp, ty: all.U, b: *Blk, x: ?*anyopaque) void {
     if (tmp.use == null)
         return;
     const n = tmp.nuse;

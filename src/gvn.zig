@@ -154,8 +154,7 @@ fn normins(f: *Fn, i: *Ins) void {
 
     // truncate constant bits to
     // 32 bits for s/w uses
-    var n: usize = 0;
-    while (n < 2) : (n += 1) {
+    for (0..2) |n| {
         if (KWIDE(argcls(i, n)) == 0)
             if (isconbits(f, i.arg[n], &v))
                 if ((v & 0xffffffff) != v) {

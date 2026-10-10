@@ -48,8 +48,7 @@ test "vgrow: no-op when capacity suffices" {
 
 test "vgrow: preserves contents across many reallocations" {
     var v = u.vnewT(i32, 1, PHeap);
-    var n: usize = 0;
-    while (n < 1000) : (n += 1) {
+    for (0..1000) |n| {
         u.vgrow(&v, n + 1);
         v[n] = @intCast(n * 7);
     }

@@ -57,8 +57,7 @@ fn aggreg(hd: *Blk, b: *Blk) void {
     // aggregate looping information at
     // loop headers
     bsunion(&hd.gen, &b.gen);
-    var k: usize = 0;
-    while (k < 2) : (k += 1) {
+    for (0..2) |k| {
         if (b.nlive[k] > hd.nlive[k])
             hd.nlive[k] = b.nlive[k];
     }
@@ -112,8 +111,7 @@ pub fn fillcost(f: *Fn) void {
         while (p_it) |p| : (p_it = p.link) {
             const t = &f.tmp[p.to.val];
             tmpuse(p.to, false, 0, f);
-            var a: uint = 0;
-            while (a < p.narg) : (a += 1) {
+            for (0..p.narg) |a| {
                 const n = p.blk[a].loop;
                 t.cost +%= @bitCast(n);
                 tmpuse(p.arg[a], true, n, f);
@@ -390,8 +388,7 @@ pub fn spill(f: *Fn) void {
             // back-edge
             bszero(&v);
             hd.gen.t[0] |= all.T.rglob; // don't spill registers
-            var k: usize = 0;
-            while (k < 2) : (k += 1) {
+            for (0..2) |k| {
                 const n: i32 = if (k == 0) all.T.ngpr else all.T.nfpr;
                 bscopy(&u, &b.out);
                 bsinter(&u, &mask[k]);

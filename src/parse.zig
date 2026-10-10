@@ -1447,8 +1447,7 @@ pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*:0]const 
             Tdata => parsedat(data, &lnk),
             Ttype => parsetyp(),
             Teof => {
-                var n: uint = 0;
-                while (n < ntyp) : (n += 1) {
+                for (0..ntyp) |n| {
                     efree((all.typ[n].name));
                     if (all.typ[n].nunion != 0)
                         vfree(all.typ[n].fields);

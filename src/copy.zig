@@ -352,8 +352,7 @@ pub fn copyref(f: *Fn, b: *Blk, i: *Ins) Ref {
 
 fn phieq(pa: *Phi, pb: *Phi) bool {
     assert(pa.narg == pb.narg);
-    var n: uint = 0;
-    while (n < pa.narg) : (n += 1) {
+    for (0..pa.narg) |n| {
         const r = phiarg(pb, pa.blk[n]);
         if (!req(pa.arg[n], r))
             return false;

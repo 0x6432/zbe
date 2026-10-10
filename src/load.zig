@@ -410,8 +410,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
     p.narg = b.npred;
     p.arg = vnewT(Ref, p.narg, PFn);
     p.blk = vnewT(*Blk, p.narg, PFn);
-    var np: uint = 0;
-    while (np < b.npred) : (np += 1) {
+    for (0..b.npred) |np| {
         const bp = b.pred[np];
         if (bp.s2 == null and il.type != LNoLoad and bp.loop < il.blk.loop)
             l.type = LLoad

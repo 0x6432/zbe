@@ -144,8 +144,7 @@ pub fn filldom(f: *Fn) void {
     }
     while (true) {
         var changed = false;
-        var n: uint = 1;
-        while (n < f.nblk) : (n += 1) {
+        for (1..f.nblk) |n| {
             const b = f.rpo[n];
             var d: ?*Blk = null;
             for (b.pred[0..b.npred]) |p|

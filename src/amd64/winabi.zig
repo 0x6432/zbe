@@ -308,8 +308,7 @@ fn classify_arguments(reg_usage: *RegisterUsage, instrs: []const Ins, arg_classe
     // During a varargs call, float arguments have to be duplicated to their
     // associated integer register, so mark them as in-use too.
     if (reg_usage.is_varargs_call) {
-        var i: usize = 0;
-        while (i < 4) : (i += 1) {
+        for (0..4) |i| {
             if (reg_usage.regs_passed[1][i]) {
                 reg_usage.regs_passed[0][i] = true;
             }
@@ -369,8 +368,7 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
     // we can allocate the correct amount of space to stash the stack-located ones
     // into.
     var stack_usage: uint = 0;
-    var i: uint = 0;
-    while (i < num_args) : (i += 1) {
+    for (0..num_args) |i| {
         const arg = &arg_classes[i];
         // stack_usage only accounts for pushes that are for values that don't have
         // enough registers. Large struct copies are alloca'd separately, and then

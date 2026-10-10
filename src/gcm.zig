@@ -203,8 +203,7 @@ fn latephi(f: *Fn, p: *Phi, r: Ref) uint {
         return NOBID; // marked as unused
 
     var latebid: uint = NOBID;
-    var n: uint = 0;
-    while (n < p.narg) : (n += 1) {
+    for (0..p.narg) |n| {
         if (req(p.arg[n], r))
             latebid = lcabid(f, latebid, p.blk[n].id);
     }

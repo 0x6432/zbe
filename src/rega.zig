@@ -412,8 +412,7 @@ fn doblk(b: *Blk, cur: *RMap) void {
             },
         }
         var nr: usize = 0;
-        var x: usize = 0;
-        while (x < 2) : (x += 1) {
+        for (0..2) |x| {
             switch (rtype(i.arg[x])) {
                 RMem => {
                     const m = &mem[i.arg[x].val];

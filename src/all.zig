@@ -253,7 +253,11 @@ pub const Cls = enum(i16) {
 
 /// Class number of a `Cls` or integer.
 pub inline fn knum(k: anytype) i32 {
-    return @intFromEnum(kof(k));
+    return switch (@typeInfo(@TypeOf(k))) {
+        .@"enum", .enum_literal => @intFromEnum(@as(Cls, k)),
+        // ints may be extended classes (parse.zig Ksb..K0) outside Cls
+        else => @intCast(k),
+    };
 }
 /// `Cls` from a `Cls` or integer.
 pub inline fn kof(k: anytype) Cls {

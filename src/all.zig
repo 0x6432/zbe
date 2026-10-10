@@ -384,9 +384,10 @@ pub const Num = extern struct {
     r: Ref,
 };
 
-pub const NoAlias = 0;
-pub const MayAlias = 1;
-pub const MustAlias = 2;
+pub const AliasRes = enum(i32) { no = 0, may = 1, must = 2 };
+pub const NoAlias = AliasRes.no;
+pub const MayAlias = AliasRes.may;
+pub const MustAlias = AliasRes.must;
 
 pub const ABot = 0;
 pub const ALoc = 1; // stack local

@@ -69,7 +69,7 @@ pub fn getalias(a: *Alias, r: Ref, f: *Fn) void {
     }
 }
 
-pub fn alias(p: Ref, op: i32, sp: i32, q: Ref, sq: i32, delta: *i32, f: *Fn) i32 {
+pub fn alias(p: Ref, op: i32, sp: i32, q: Ref, sq: i32, delta: *i32, f: *Fn) all.AliasRes {
     var ap: Alias = undefined;
     var aq: Alias = undefined;
 

@@ -386,7 +386,6 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
                     return null;
             },
             NoAlias => continue,
-            else => die("unreachable", .{}),
         }
     }
 

@@ -389,18 +389,27 @@ pub const NoAlias = AliasRes.no;
 pub const MayAlias = AliasRes.may;
 pub const MustAlias = AliasRes.must;
 
-pub const ABot = 0;
-pub const ALoc = 1; // stack local
-pub const ACon = 2;
-pub const AEsc = 3; // stack escaping
-pub const ASym = 4;
-pub const AUnk = 6;
-pub inline fn astack(t: anytype) i32 {
-    return @as(i32, (t)) & 1;
+pub const AKind = enum(i32) {
+    bot = 0,
+    loc = 1, // stack local
+    con = 2,
+    esc = 3, // stack escaping
+    sym = 4,
+    unk = 6,
+};
+pub const ABot = AKind.bot;
+pub const ALoc = AKind.loc;
+pub const ACon = AKind.con;
+pub const AEsc = AKind.esc;
+pub const ASym = AKind.sym;
+pub const AUnk = AKind.unk;
+/// stack kinds (loc, esc) have the low bit set
+pub inline fn astack(t: AKind) i32 {
+    return @intFromEnum(t) & 1;
 }
 
 pub const Alias = extern struct {
-    type: i32,
+    type: AKind,
     base: i32,
     offset: i64,
     u: extern union {

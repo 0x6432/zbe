@@ -219,7 +219,7 @@ fn selcmp(arg: *[2]Ref, k: i32, f: *Fn) bool {
         arg[0] = r;
     }
     var fix = true;
-    var cmp: i32 = Oacmp;
+    var cmp: i32 = all.ops.num(Oacmp);
     var r = arg[1];
     if (rtype(r) == RCon) {
         const c = &f.con[r.val];
@@ -227,7 +227,7 @@ fn selcmp(arg: *[2]Ref, k: i32, f: *Fn) bool {
             else => {},
             Iplo12, Iphi12 => fix = false,
             Inlo12, Inhi12 => {
-                cmp = Oacmn;
+                cmp = all.ops.num(Oacmn);
                 r = getcon(n, f);
                 fix = false;
             },
@@ -267,9 +267,9 @@ fn sel(i_: Ins, f: *Fn) void {
         emit(Oflag, i.cls, i.to, R, R);
         const i_0 = &all.curi[0];
         if (selcmp(&i.arg, ck, f))
-            i_0.op += @intCast(cmpop(cc))
+            i_0.op = i_0.op.offset(cmpop(cc))
         else
-            i_0.op += @intCast(cc);
+            i_0.op = i_0.op.offset(cc);
         return;
     }
     if (i.op == Ocall and callable(i.arg[0], f)) {
@@ -324,14 +324,14 @@ pub fn arm64_isel(f: *Fn) void {
     const start = f.start.?;
     // specific to NAlign == 3
     // or change n=4 and sz /= 4 below
-    var al: i32 = Oalloc;
+    var al: i32 = all.ops.num(Oalloc);
     var n: i32 = 4;
-    while (al <= Oalloc1) : ({
+    while (al <= Oalloc1.int()) : ({
         al += 1;
         n *= 2;
     }) {
         for (start.ins[0..start.nins]) |*i| {
-            if (i.op == al) {
+            if (all.ops.num(i.op) == al) {
                 if (rtype(i.arg[0]) != RCon)
                     break;
                 var sz = f.con[i.arg[0].val].bits.i;

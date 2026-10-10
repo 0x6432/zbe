@@ -435,18 +435,18 @@ pub fn isreg(r: Ref) bool {
 }
 
 pub fn iscmp(op: anytype, pk: *i32, pc: *i32) bool {
-    const o: i32 = @intCast(op);
-    if (Ocmpw <= o and o <= Ocmpw1) {
-        pc.* = o - Ocmpw;
+    const o: i32 = all.ops.num(op);
+    if (all.ops.num(Ocmpw) <= o and o <= all.ops.num(Ocmpw1)) {
+        pc.* = o - all.ops.num(Ocmpw);
         pk.* = Kw;
-    } else if (Ocmpl <= o and o <= Ocmpl1) {
-        pc.* = o - Ocmpl;
+    } else if (all.ops.num(Ocmpl) <= o and o <= all.ops.num(Ocmpl1)) {
+        pc.* = o - all.ops.num(Ocmpl);
         pk.* = Kl;
-    } else if (Ocmps <= o and o <= Ocmps1) {
-        pc.* = NCmpI + o - Ocmps;
+    } else if (all.ops.num(Ocmps) <= o and o <= all.ops.num(Ocmps1)) {
+        pc.* = NCmpI + o - all.ops.num(Ocmps);
         pk.* = Ks;
-    } else if (Ocmpd <= o and o <= Ocmpd1) {
-        pc.* = NCmpI + o - Ocmpd;
+    } else if (all.ops.num(Ocmpd) <= o and o <= all.ops.num(Ocmpd1)) {
+        pc.* = NCmpI + o - all.ops.num(Ocmpd);
         pk.* = Kd;
     } else return false;
     return true;
@@ -503,7 +503,7 @@ pub fn igroup(b: *Blk, n0: uint) struct { uint, uint } {
 }
 
 pub fn argcls(i: *Ins, n: anytype) i32 {
-    return all.optab[i.op].argcls[n][@as(usize, @intCast(i.cls))];
+    return all.optab[i.op.int()].argcls[n][@as(usize, @intCast(i.cls))];
 }
 
 pub fn emit(op: anytype, k: anytype, to: Ref, arg0: Ref, arg1: Ref) void {
@@ -511,7 +511,7 @@ pub fn emit(op: anytype, k: anytype, to: Ref, arg0: Ref, arg1: Ref) void {
         die("emit, too many instructions", .{});
     all.curi -= 1;
     all.curi[0] = Ins{
-        .op = @intCast(op),
+        .op = all.ops.of(op),
         .cls = @intCast(k),
         .to = to,
         .arg = .{ arg0, arg1 },
@@ -569,9 +569,9 @@ pub fn cmpop(cc: anytype) i32 {
 pub fn cmpwlneg(op: anytype) i32 {
     const o: i32 = op;
     if (INRANGE(o, Ocmpw, Ocmpw1))
-        return cmptab[(o - Ocmpw)][0] + Ocmpw;
+        return cmptab[(o - all.ops.num(Ocmpw))][0] + Ocmpw;
     if (INRANGE(o, Ocmpl, Ocmpl1))
-        return cmptab[(o - Ocmpl)][0] + Ocmpl;
+        return cmptab[(o - all.ops.num(Ocmpl))][0] + Ocmpl;
     die("not a wl comparison", .{});
 }
 

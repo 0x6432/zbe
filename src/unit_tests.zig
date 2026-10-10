@@ -235,7 +235,7 @@ test "ptrdiff" {
 
 // ---- igroup (stage 7 bug fix) ---------------------------------------------
 
-fn mkblk(ops: []const u32, buf: []all.Ins) all.Blk {
+fn mkblk(ops: []const all.Opc, buf: []all.Ins) all.Blk {
     var b = std.mem.zeroes(all.Blk);
     for (ops, 0..) |o, i| {
         buf[i] = std.mem.zeroes(all.Ins);

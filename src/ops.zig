@@ -12,164 +12,345 @@ pub const OpDef = struct {
     v: u1,
 };
 
-pub const Oxxx = 0;
-pub const Oadd = 1;
-pub const Osub = 2;
-pub const Oneg = 3;
-pub const Odiv = 4;
-pub const Orem = 5;
-pub const Oudiv = 6;
-pub const Ourem = 7;
-pub const Omul = 8;
-pub const Oand = 9;
-pub const Oor = 10;
-pub const Oxor = 11;
-pub const Osar = 12;
-pub const Oshr = 13;
-pub const Oshl = 14;
-pub const Oceqw = 15;
-pub const Ocnew = 16;
-pub const Ocsgew = 17;
-pub const Ocsgtw = 18;
-pub const Ocslew = 19;
-pub const Ocsltw = 20;
-pub const Ocugew = 21;
-pub const Ocugtw = 22;
-pub const Oculew = 23;
-pub const Ocultw = 24;
-pub const Oceql = 25;
-pub const Ocnel = 26;
-pub const Ocsgel = 27;
-pub const Ocsgtl = 28;
-pub const Ocslel = 29;
-pub const Ocsltl = 30;
-pub const Ocugel = 31;
-pub const Ocugtl = 32;
-pub const Oculel = 33;
-pub const Ocultl = 34;
-pub const Oceqs = 35;
-pub const Ocges = 36;
-pub const Ocgts = 37;
-pub const Ocles = 38;
-pub const Oclts = 39;
-pub const Ocnes = 40;
-pub const Ocos = 41;
-pub const Ocuos = 42;
-pub const Oceqd = 43;
-pub const Ocged = 44;
-pub const Ocgtd = 45;
-pub const Ocled = 46;
-pub const Ocltd = 47;
-pub const Ocned = 48;
-pub const Ocod = 49;
-pub const Ocuod = 50;
-pub const Ostoreb = 51;
-pub const Ostoreh = 52;
-pub const Ostorew = 53;
-pub const Ostorel = 54;
-pub const Ostores = 55;
-pub const Ostored = 56;
-pub const Oloadsb = 57;
-pub const Oloadub = 58;
-pub const Oloadsh = 59;
-pub const Oloaduh = 60;
-pub const Oloadsw = 61;
-pub const Oloaduw = 62;
-pub const Oload = 63;
-pub const Oextsb = 64;
-pub const Oextub = 65;
-pub const Oextsh = 66;
-pub const Oextuh = 67;
-pub const Oextsw = 68;
-pub const Oextuw = 69;
-pub const Oexts = 70;
-pub const Otruncd = 71;
-pub const Ostosi = 72;
-pub const Ostoui = 73;
-pub const Odtosi = 74;
-pub const Odtoui = 75;
-pub const Oswtof = 76;
-pub const Ouwtof = 77;
-pub const Osltof = 78;
-pub const Oultof = 79;
-pub const Ocast = 80;
-pub const Oalloc4 = 81;
-pub const Oalloc8 = 82;
-pub const Oalloc16 = 83;
-pub const Ovaarg = 84;
-pub const Ovastart = 85;
-pub const Ocopy = 86;
-pub const Odbgloc = 87;
-pub const Onop = 88;
-pub const Oaddr = 89;
-pub const Oblit0 = 90;
-pub const Oblit1 = 91;
-pub const Osel0 = 92;
-pub const Osel1 = 93;
-pub const Oswap = 94;
-pub const Osign = 95;
-pub const Osalloc = 96;
-pub const Oxidiv = 97;
-pub const Oxdiv = 98;
-pub const Oxcmp = 99;
-pub const Oxtest = 100;
-pub const Oacmp = 101;
-pub const Oacmn = 102;
-pub const Oafcmp = 103;
-pub const Oreqz = 104;
-pub const Ornez = 105;
-pub const Opar = 106;
-pub const Oparsb = 107;
-pub const Oparub = 108;
-pub const Oparsh = 109;
-pub const Oparuh = 110;
-pub const Oparc = 111;
-pub const Opare = 112;
-pub const Oarg = 113;
-pub const Oargsb = 114;
-pub const Oargub = 115;
-pub const Oargsh = 116;
-pub const Oarguh = 117;
-pub const Oargc = 118;
-pub const Oarge = 119;
-pub const Oargv = 120;
-pub const Ocall = 121;
-pub const Oflagieq = 122;
-pub const Oflagine = 123;
-pub const Oflagisge = 124;
-pub const Oflagisgt = 125;
-pub const Oflagisle = 126;
-pub const Oflagislt = 127;
-pub const Oflagiuge = 128;
-pub const Oflagiugt = 129;
-pub const Oflagiule = 130;
-pub const Oflagiult = 131;
-pub const Oflagfeq = 132;
-pub const Oflagfge = 133;
-pub const Oflagfgt = 134;
-pub const Oflagfle = 135;
-pub const Oflagflt = 136;
-pub const Oflagfne = 137;
-pub const Oflagfo = 138;
-pub const Oflagfuo = 139;
-pub const Oxselieq = 140;
-pub const Oxseline = 141;
-pub const Oxselisge = 142;
-pub const Oxselisgt = 143;
-pub const Oxselisle = 144;
-pub const Oxselislt = 145;
-pub const Oxseliuge = 146;
-pub const Oxseliugt = 147;
-pub const Oxseliule = 148;
-pub const Oxseliult = 149;
-pub const Oxselfeq = 150;
-pub const Oxselfge = 151;
-pub const Oxselfgt = 152;
-pub const Oxselfle = 153;
-pub const Oxselflt = 154;
-pub const Oxselfne = 155;
-pub const Oxselfo = 156;
-pub const Oxselfuo = 157;
+pub const Opc = enum(u32) {
+    xxx,
+    add,
+    sub,
+    neg,
+    div,
+    rem,
+    udiv,
+    urem,
+    mul,
+    @"and",
+    @"or",
+    xor,
+    sar,
+    shr,
+    shl,
+    ceqw,
+    cnew,
+    csgew,
+    csgtw,
+    cslew,
+    csltw,
+    cugew,
+    cugtw,
+    culew,
+    cultw,
+    ceql,
+    cnel,
+    csgel,
+    csgtl,
+    cslel,
+    csltl,
+    cugel,
+    cugtl,
+    culel,
+    cultl,
+    ceqs,
+    cges,
+    cgts,
+    cles,
+    clts,
+    cnes,
+    cos,
+    cuos,
+    ceqd,
+    cged,
+    cgtd,
+    cled,
+    cltd,
+    cned,
+    cod,
+    cuod,
+    storeb,
+    storeh,
+    storew,
+    storel,
+    stores,
+    stored,
+    loadsb,
+    loadub,
+    loadsh,
+    loaduh,
+    loadsw,
+    loaduw,
+    load,
+    extsb,
+    extub,
+    extsh,
+    extuh,
+    extsw,
+    extuw,
+    exts,
+    truncd,
+    stosi,
+    stoui,
+    dtosi,
+    dtoui,
+    swtof,
+    uwtof,
+    sltof,
+    ultof,
+    cast,
+    alloc4,
+    alloc8,
+    alloc16,
+    vaarg,
+    vastart,
+    copy,
+    dbgloc,
+    nop,
+    addr,
+    blit0,
+    blit1,
+    sel0,
+    sel1,
+    swap,
+    sign,
+    salloc,
+    xidiv,
+    xdiv,
+    xcmp,
+    xtest,
+    acmp,
+    acmn,
+    afcmp,
+    reqz,
+    rnez,
+    par,
+    parsb,
+    parub,
+    parsh,
+    paruh,
+    parc,
+    pare,
+    arg,
+    argsb,
+    argub,
+    argsh,
+    arguh,
+    argc,
+    arge,
+    argv,
+    call,
+    flagieq,
+    flagine,
+    flagisge,
+    flagisgt,
+    flagisle,
+    flagislt,
+    flagiuge,
+    flagiugt,
+    flagiule,
+    flagiult,
+    flagfeq,
+    flagfge,
+    flagfgt,
+    flagfle,
+    flagflt,
+    flagfne,
+    flagfo,
+    flagfuo,
+    xselieq,
+    xseline,
+    xselisge,
+    xselisgt,
+    xselisle,
+    xselislt,
+    xseliuge,
+    xseliugt,
+    xseliule,
+    xseliult,
+    xselfeq,
+    xselfge,
+    xselfgt,
+    xselfle,
+    xselflt,
+    xselfne,
+    xselfo,
+    xselfuo,
+
+    /// offset into the op numbers, e.g. `Opc.storeb.offset(k)` (C: Ostoreb + k)
+    pub inline fn offset(o: Opc, n: anytype) Opc {
+        return @enumFromInt(@as(i64, @intFromEnum(o)) + @as(i64, @intCast(n)));
+    }
+    /// distance from another op (C: o - base)
+    pub inline fn diff(o: Opc, base: Opc) i32 {
+        return @as(i32, @intCast(@intFromEnum(o))) - @as(i32, @intCast(@intFromEnum(base)));
+    }
+    pub inline fn int(o: Opc) u32 {
+        return @intFromEnum(o);
+    }
+};
+pub const Oxxx = Opc.xxx;
+pub const Oadd = Opc.add;
+pub const Osub = Opc.sub;
+pub const Oneg = Opc.neg;
+pub const Odiv = Opc.div;
+pub const Orem = Opc.rem;
+pub const Oudiv = Opc.udiv;
+pub const Ourem = Opc.urem;
+pub const Omul = Opc.mul;
+pub const Oand = Opc.@"and";
+pub const Oor = Opc.@"or";
+pub const Oxor = Opc.xor;
+pub const Osar = Opc.sar;
+pub const Oshr = Opc.shr;
+pub const Oshl = Opc.shl;
+pub const Oceqw = Opc.ceqw;
+pub const Ocnew = Opc.cnew;
+pub const Ocsgew = Opc.csgew;
+pub const Ocsgtw = Opc.csgtw;
+pub const Ocslew = Opc.cslew;
+pub const Ocsltw = Opc.csltw;
+pub const Ocugew = Opc.cugew;
+pub const Ocugtw = Opc.cugtw;
+pub const Oculew = Opc.culew;
+pub const Ocultw = Opc.cultw;
+pub const Oceql = Opc.ceql;
+pub const Ocnel = Opc.cnel;
+pub const Ocsgel = Opc.csgel;
+pub const Ocsgtl = Opc.csgtl;
+pub const Ocslel = Opc.cslel;
+pub const Ocsltl = Opc.csltl;
+pub const Ocugel = Opc.cugel;
+pub const Ocugtl = Opc.cugtl;
+pub const Oculel = Opc.culel;
+pub const Ocultl = Opc.cultl;
+pub const Oceqs = Opc.ceqs;
+pub const Ocges = Opc.cges;
+pub const Ocgts = Opc.cgts;
+pub const Ocles = Opc.cles;
+pub const Oclts = Opc.clts;
+pub const Ocnes = Opc.cnes;
+pub const Ocos = Opc.cos;
+pub const Ocuos = Opc.cuos;
+pub const Oceqd = Opc.ceqd;
+pub const Ocged = Opc.cged;
+pub const Ocgtd = Opc.cgtd;
+pub const Ocled = Opc.cled;
+pub const Ocltd = Opc.cltd;
+pub const Ocned = Opc.cned;
+pub const Ocod = Opc.cod;
+pub const Ocuod = Opc.cuod;
+pub const Ostoreb = Opc.storeb;
+pub const Ostoreh = Opc.storeh;
+pub const Ostorew = Opc.storew;
+pub const Ostorel = Opc.storel;
+pub const Ostores = Opc.stores;
+pub const Ostored = Opc.stored;
+pub const Oloadsb = Opc.loadsb;
+pub const Oloadub = Opc.loadub;
+pub const Oloadsh = Opc.loadsh;
+pub const Oloaduh = Opc.loaduh;
+pub const Oloadsw = Opc.loadsw;
+pub const Oloaduw = Opc.loaduw;
+pub const Oload = Opc.load;
+pub const Oextsb = Opc.extsb;
+pub const Oextub = Opc.extub;
+pub const Oextsh = Opc.extsh;
+pub const Oextuh = Opc.extuh;
+pub const Oextsw = Opc.extsw;
+pub const Oextuw = Opc.extuw;
+pub const Oexts = Opc.exts;
+pub const Otruncd = Opc.truncd;
+pub const Ostosi = Opc.stosi;
+pub const Ostoui = Opc.stoui;
+pub const Odtosi = Opc.dtosi;
+pub const Odtoui = Opc.dtoui;
+pub const Oswtof = Opc.swtof;
+pub const Ouwtof = Opc.uwtof;
+pub const Osltof = Opc.sltof;
+pub const Oultof = Opc.ultof;
+pub const Ocast = Opc.cast;
+pub const Oalloc4 = Opc.alloc4;
+pub const Oalloc8 = Opc.alloc8;
+pub const Oalloc16 = Opc.alloc16;
+pub const Ovaarg = Opc.vaarg;
+pub const Ovastart = Opc.vastart;
+pub const Ocopy = Opc.copy;
+pub const Odbgloc = Opc.dbgloc;
+pub const Onop = Opc.nop;
+pub const Oaddr = Opc.addr;
+pub const Oblit0 = Opc.blit0;
+pub const Oblit1 = Opc.blit1;
+pub const Osel0 = Opc.sel0;
+pub const Osel1 = Opc.sel1;
+pub const Oswap = Opc.swap;
+pub const Osign = Opc.sign;
+pub const Osalloc = Opc.salloc;
+pub const Oxidiv = Opc.xidiv;
+pub const Oxdiv = Opc.xdiv;
+pub const Oxcmp = Opc.xcmp;
+pub const Oxtest = Opc.xtest;
+pub const Oacmp = Opc.acmp;
+pub const Oacmn = Opc.acmn;
+pub const Oafcmp = Opc.afcmp;
+pub const Oreqz = Opc.reqz;
+pub const Ornez = Opc.rnez;
+pub const Opar = Opc.par;
+pub const Oparsb = Opc.parsb;
+pub const Oparub = Opc.parub;
+pub const Oparsh = Opc.parsh;
+pub const Oparuh = Opc.paruh;
+pub const Oparc = Opc.parc;
+pub const Opare = Opc.pare;
+pub const Oarg = Opc.arg;
+pub const Oargsb = Opc.argsb;
+pub const Oargub = Opc.argub;
+pub const Oargsh = Opc.argsh;
+pub const Oarguh = Opc.arguh;
+pub const Oargc = Opc.argc;
+pub const Oarge = Opc.arge;
+pub const Oargv = Opc.argv;
+pub const Ocall = Opc.call;
+pub const Oflagieq = Opc.flagieq;
+pub const Oflagine = Opc.flagine;
+pub const Oflagisge = Opc.flagisge;
+pub const Oflagisgt = Opc.flagisgt;
+pub const Oflagisle = Opc.flagisle;
+pub const Oflagislt = Opc.flagislt;
+pub const Oflagiuge = Opc.flagiuge;
+pub const Oflagiugt = Opc.flagiugt;
+pub const Oflagiule = Opc.flagiule;
+pub const Oflagiult = Opc.flagiult;
+pub const Oflagfeq = Opc.flagfeq;
+pub const Oflagfge = Opc.flagfge;
+pub const Oflagfgt = Opc.flagfgt;
+pub const Oflagfle = Opc.flagfle;
+pub const Oflagflt = Opc.flagflt;
+pub const Oflagfne = Opc.flagfne;
+pub const Oflagfo = Opc.flagfo;
+pub const Oflagfuo = Opc.flagfuo;
+pub const Oxselieq = Opc.xselieq;
+pub const Oxseline = Opc.xseline;
+pub const Oxselisge = Opc.xselisge;
+pub const Oxselisgt = Opc.xselisgt;
+pub const Oxselisle = Opc.xselisle;
+pub const Oxselislt = Opc.xselislt;
+pub const Oxseliuge = Opc.xseliuge;
+pub const Oxseliugt = Opc.xseliugt;
+pub const Oxseliule = Opc.xseliule;
+pub const Oxseliult = Opc.xseliult;
+pub const Oxselfeq = Opc.xselfeq;
+pub const Oxselfge = Opc.xselfge;
+pub const Oxselfgt = Opc.xselfgt;
+pub const Oxselfle = Opc.xselfle;
+pub const Oxselflt = Opc.xselflt;
+pub const Oxselfne = Opc.xselfne;
+pub const Oxselfo = Opc.xselfo;
+pub const Oxselfuo = Opc.xselfuo;
+
+/// Accept an op given as `Opc` or as an integer (ported C code mixes both).
+pub inline fn of(x: anytype) Opc {
+    return if (@TypeOf(x) == Opc) x else @enumFromInt(@as(u32, @intCast(x)));
+}
+/// Op number of an `Opc` or integer.
+pub inline fn num(x: anytype) i32 {
+    return if (@TypeOf(x) == Opc) @intCast(@intFromEnum(x)) else @intCast(x);
+}
 pub const NOp = 158;
 
 pub const defs = [_]OpDef{

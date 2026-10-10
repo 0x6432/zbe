@@ -171,7 +171,7 @@ const Ki = -1; // matches Kw and Kl
 const Ka = -2; // matches all classes
 
 const OMap = struct {
-    op: i16,
+    op: all.Opc,
     cls: i16,
     fmt: ?[*:0]const u8,
 };
@@ -242,9 +242,9 @@ const omap = blk: {
     };
     var flags: [CMP.len]OMap = undefined;
     for (CMP, 0..) |x, n|
-        flags[n] = .{ .op = Oflag + x.c, .cls = Ki, .fmt = "cset %=, " ++ x.s0 };
+        flags[n] = .{ .op = Oflag.offset(x.c), .cls = Ki, .fmt = "cset %=, " ++ x.s0 };
     const tail = [_]OMap{
-        .{ .op = NOp, .cls = 0, .fmt = null },
+        .{ .op = .xxx, .cls = 0, .fmt = null }, // sentinel
     };
     break :blk base ++ flags ++ tail;
 };
@@ -499,7 +499,7 @@ fn emitins(i: *Ins, e: *E) Writer.Error!void {
                     if (req(i.arg[0], TMP(IP1))) {
                         try e.f.print("\tfmov\t{c}31, {c}17\n", .{"ds"[@intFromBool(i.cls == Kw)], "xw"[@intFromBool(i.cls == Kw)]});
                         i.arg[0] = TMP(V31);
-                        i.op = Ostores + (@as(u32, @intCast(i.cls)) - Kw);
+                        i.op = Ostores.offset(i.cls - Kw);
                     }
                     _ = try fixarg(&i.arg[1], storesz(i), IP1, e);
                 }
@@ -517,7 +517,7 @@ fn emitins(i: *Ins, e: *E) Writer.Error!void {
                     try emitins(i, e);
                     i.arg[0] = i.to;
                 }
-                i.op = Ostorew + @as(u32, @intCast(i.cls));
+                i.op = Ostorew.offset(@as(u32, @intCast(i.cls)));
                 i.cls = Kw;
                 i.arg[1] = r;
                 try emitins(i, e);
@@ -581,8 +581,8 @@ fn table(i: *Ins, e: *E) Writer.Error!void {
     while (true) : (o += 1) {
         // this linear search should really be a binary
         // search
-        if (omap[o].op == NOp)
-            die("no match for {s}({c})", .{cs(all.optab[i.op].name), "wlsd"[@as(usize, @intCast(i.cls))]});
+        if (omap[o].op == .xxx)
+            die("no match for {s}({c})", .{cs(all.optab[i.op.int()].name), "wlsd"[@as(usize, @intCast(i.cls))]});
         if (omap[o].op == i.op and
             (omap[o].cls == i.cls or omap[o].cls == Ka or
             (omap[o].cls == Ki and KBASE(i.cls) == 0)))
@@ -668,7 +668,7 @@ pub fn arm64_emitfn(f: *Fn, out: *Writer) Writer.Error!void {
         if (r < 0) break;
         if ((e.@"fn".reg & BIT(r)) != 0) {
             s -= 2;
-            var i = INS(@as(i32, if (r >= V0) Ostored else Ostorel), 0, R, TMP(r), SLOT(s));
+            var i = INS(if (r >= V0) Ostored else Ostorel, 0, R, TMP(r), SLOT(s));
             try emitins(&i, e);
         }
     }

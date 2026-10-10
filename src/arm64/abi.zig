@@ -160,10 +160,10 @@ var gpreg = [12]i32{ R0, R1, R2, R3, R4, R5, R6, R7, 0, 0, 0, 0 };
 var fpreg = [12]i32{ V0, V1, V2, V3, V4, V5, V6, V7, 0, 0, 0, 0 };
 const store = blk: {
     var s: [4]i32 = undefined;
-    s[Kw] = Ostorew;
-    s[Kl] = Ostorel;
-    s[Ks] = Ostores;
-    s[Kd] = Ostored;
+    s[Kw] = all.ops.num(Ostorew);
+    s[Kl] = all.ops.num(Ostorel);
+    s[Ks] = all.ops.num(Ostores);
+    s[Kd] = all.ops.num(Ostored);
     break :blk s;
 };
 
@@ -447,7 +447,7 @@ fn stkblob(r: Ref, c: *Class, f: *Fn, ilp: *?*Insl) void {
     if (al < 0)
         al = 0;
     const sz: u64 = if ((c.class & Cptr) != 0) c.t.?.size else c.size;
-    il.i = INS(Oalloc + al, Kl, r, getcon(@bitCast(sz), f), R);
+    il.i = INS(Oalloc.offset(al), Kl, r, getcon(@bitCast(sz), f), R);
     il.link = ilp.*;
     ilp.* = il;
 }
@@ -534,8 +534,8 @@ fn selcall(f: *Fn, args: []Ins, i_1: *Ins, ilp: *?*Insl) void {
         const r = newtmp("abi", Kl, f);
         if (i.op == Oarg or isargbh(i.op)) {
             switch (c.size) {
-                1 => op = Ostoreb,
-                2 => op = Ostoreh,
+                1 => op = all.ops.num(Ostoreb),
+                2 => op = all.ops.num(Ostoreh),
                 4, 8 => op = store[@intCast(c.cls[0])],
                 else => die("unreachable", .{}),
             }
@@ -610,9 +610,9 @@ fn selpar(f: *Fn, pars: []Ins) Params {
         } else if ((c.class & Cstk) != 0) {
             off = alignu(off, c.@"align");
             if (isparbh(i.op))
-                op = @intCast(Oloadsb + (i.op - Oparsb))
+                op = all.ops.num(Oloadsb.offset(i.op.diff(Oparsb)))
             else
-                op = Oload;
+                op = all.ops.num(Oload);
             emit(op, c.cls[0], i.to, SLOT(-@as(i32, @intCast(off + 2))), R);
             off += c.size;
         } else {
@@ -746,7 +746,7 @@ fn arm64_selvaarg(f: *Fn, b: *Blk, i: *Ins) void {
     b.jmp.arg = r1;
     b.s1 = breg;
     b.s2 = bstk;
-    emit(Ocmpw + Cislt, Kw, r1, nr, CON_Z);
+    emit(Ocmpw.offset(Cislt), Kw, r1, nr, CON_Z);
     emit(Oloadsw, Kl, nr, r0, R);
     emit(Oadd, Kl, r0, ap, if (isgp) c24 else c28);
 }
@@ -870,7 +870,7 @@ pub fn apple_extsb(f: *Fn) void {
         const j: i32 = b.jmp.type.int();
         if (isretbh(j)) {
             const r = newtmp("abi", Kw, f);
-            const op = Oextsb + (j - Jretsb.int());
+            const op = Oextsb.offset(j - Jretsb.int());
             emit(op, Kw, r, b.jmp.arg, R);
             b.jmp.arg = r;
             b.jmp.type = Jretw;
@@ -901,7 +901,7 @@ pub fn apple_extsb(f: *Fn) void {
                 k -= 1;
                 const i = &args[k];
                 if (isargbh(i.op)) {
-                    const op = Oextsb + (i.op - Oargsb);
+                    const op = Oextsb.offset(i.op.diff(Oargsb));
                     emit(op, Kw, i.to, i.arg[0], R);
                 }
             }

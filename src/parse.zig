@@ -730,7 +730,7 @@ fn parsecls(tyn: *i32) i32 {
 }
 
 inline fn mkins(op: anytype, k: anytype, to: Ref, a0: Ref, a1: Ref) Ins {
-    return .{ .op = @intCast(op), .cls = @intCast(k), .to = to, .arg = .{ a0, a1 } };
+    return .{ .op = op, .cls = @intCast(k), .to = to, .arg = .{ a0, a1 } };
 }
 
 fn parserefl(arg: bool) bool {
@@ -792,9 +792,9 @@ fn parserefl(arg: bool) bool {
                     all.curi[0] = mkins(Oparc, Kl, r, TYPE(ty), R);
             } else if (k >= Ksb) {
                 if (arg)
-                    all.curi[0] = mkins(Oargsb + (k - Ksb), Kw, R, r, R)
+                    all.curi[0] = mkins(Oargsb.offset(k - Ksb), Kw, R, r, R)
                 else
-                    all.curi[0] = mkins(Oparsb + (k - Ksb), Kw, r, R, R);
+                    all.curi[0] = mkins(Oparsb.offset(k - Ksb), Kw, r, R, R);
             } else {
                 if (arg)
                     all.curi[0] = mkins(Oarg, k, R, r, R)
@@ -854,7 +854,7 @@ fn parseline(ps: PState) PState {
             k = parsecls(&ty);
             op = next();
         },
-        Tblit, Tcall, Ovastart => {
+        Tblit, Tcall, all.ops.num(Ovastart) => {
             // operations without result
             r = R;
             k = Kw;
@@ -905,7 +905,7 @@ fn parseline(ps: PState) PState {
             curb.?.jmp.type = Jhlt;
             flow = .close;
         },
-        Odbgloc => {
+        all.ops.num(Odbgloc) => {
             op = t;
             k = Kw;
             r = R;
@@ -951,7 +951,7 @@ fn parseline(ps: PState) PState {
         curf.leaf = 0;
         arg[0] = parseref();
         _ = parserefl(true);
-        op = Ocall;
+        op = all.ops.num(Ocall);
         expect(Tnl);
         if (k == Kc) {
             k = Kl;
@@ -963,12 +963,12 @@ fn parseline(ps: PState) PState {
     }
     if (flow == .normal) {
         if (op == Tloadw)
-            op = Oloadsw;
+            op = all.ops.num(Oloadsw);
         if (op >= Tloadl and op <= Tloadd)
-            op = Oload;
+            op = all.ops.num(Oload);
         if (op == Talloc1 or op == Talloc2)
-            op = Oalloc;
-        if (op == Ovastart and curf.vararg == 0)
+            op = all.ops.num(Oalloc);
+        if (op == Ovastart.int() and curf.vararg == 0)
             err("cannot use vastart in non-variadic function", .{});
         if (k >= Ksb)
             err("size class must be w, l, s, or d", .{});
@@ -1037,7 +1037,7 @@ fn parseline(ps: PState) PState {
     // Ins:
     if (all.insbHead() >= NIns)
         err("too many instructions", .{});
-    all.curi[0].op = @intCast(op);
+    all.curi[0].op = all.ops.of(op);
     all.curi[0].cls = @intCast(k);
     all.curi[0].to = r;
     all.curi[0].arg[0] = arg[0];
@@ -1097,20 +1097,20 @@ fn typecheck(f: *Fn) void {
         for (b.ins[0..b.nins]) |*i| {
             n = 0;
             while (n < 2) : (n += 1) {
-                k = all.optab[i.op].argcls[n][@as(usize, @intCast(i.cls))];
+                k = all.optab[i.op.int()].argcls[n][@as(usize, @intCast(i.cls))];
                 r = i.arg[n];
                 t = &f.tmp[r.val];
                 const which: []const u8 = if (n == 1) "second" else "first";
                 if (k == Ke)
-                    err("invalid instruction type in {s}", .{cs(all.optab[i.op].name)});
+                    err("invalid instruction type in {s}", .{cs(all.optab[i.op.int()].name)});
                 if (rtype(r) == RType)
                     continue;
                 if (rtype(r) != -1 and k == Kx)
-                    err("no {s} operand expected in {s}", .{which, cs(all.optab[i.op].name)});
+                    err("no {s} operand expected in {s}", .{which, cs(all.optab[i.op.int()].name)});
                 if (rtype(r) == -1 and k != Kx)
-                    err("missing {s} operand in {s}", .{which, cs(all.optab[i.op].name)});
+                    err("missing {s} operand in {s}", .{which, cs(all.optab[i.op.int()].name)});
                 if (!usecheck(r, k, f))
-                    err("invalid type for {s} operand %{s} in {s}", .{which, cs(t.?.name), cs(all.optab[i.op].name)});
+                    err("invalid type for {s} operand %{s} in {s}", .{which, cs(t.?.name), cs(all.optab[i.op.int()].name)});
             }
         }
         r = b.jmp.arg;
@@ -1601,8 +1601,8 @@ pub fn printfn(f: *Fn, fp: *Writer) Writer.Error!void {
                 try printref(i.to, f, fp);
                 try fp.print(" ={c} ", .{ktoc[@as(usize, @intCast(i.cls))]});
             }
-            assert(all.optab[i.op].name != null);
-            try fp.print("{s}", .{cs(all.optab[i.op].name)});
+            assert(all.optab[i.op.int()].name != null);
+            try fp.print("{s}", .{cs(all.optab[i.op.int()].name)});
             if (req(i.to, R))
                 switch (i.op) {
                     Oarg, Oswap, Oxcmp, Oacmp, Oacmn, Oafcmp, Oxtest, Oxdiv, Oxidiv => try fp.writeByte(ktoc[@as(usize, @intCast(i.cls))]),

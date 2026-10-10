@@ -224,14 +224,15 @@ pub const Oflag = O.Oflagieq;
 pub const Oflag1 = O.Oflagfuo;
 pub const Oxsel = O.Oxselieq;
 pub const Oxsel1 = O.Oxselfuo;
-pub const NPubOp = O.Onop;
+pub const Opc = ops.Opc;
+pub const NPubOp = O.Onop.int();
 pub const Jjf = Jjfieq;
 pub const Jjf1 = Jjffuo;
 
 /// linear in x
 inline fn ordinal(x: anytype) i32 {
     return switch (@typeInfo(@TypeOf(x))) {
-        .@"enum", .enum_literal => @intFromEnum(x),
+        .@"enum", .enum_literal => @intCast(@intFromEnum(x)),
         else => @intCast(x),
     };
 }
@@ -303,7 +304,7 @@ pub const Op = struct {
 };
 
 pub const Ins = extern struct {
-    op: u32, // C: uint op:30
+    op: ops.Opc, // C: uint op:30
     cls: i16, // C: uint cls:2; same type as Tmp.cls and Phi.cls
     to: Ref,
     arg: [2]Ref,
@@ -766,7 +767,7 @@ pub const pe_emitfin = emit_.pe_emitfin;
 
 // helpers for C compound literals of Ins
 pub inline fn INS(op: anytype, k: anytype, to: Ref, a0: Ref, a1: Ref) Ins {
-    return .{ .op = @intCast(op), .cls = @intCast(k), .to = to, .arg = .{ a0, a1 } };
+    return .{ .op = ops.of(op), .cls = @intCast(k), .to = to, .arg = .{ a0, a1 } };
 }
 /// (Ins){.op = op}
 pub inline fn INS0(op: anytype) Ins {

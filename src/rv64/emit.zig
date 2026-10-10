@@ -132,7 +132,7 @@ const Ki = -1; // matches Kw and Kl
 const Ka = -2; // matches all classes
 
 const OMap = struct {
-    op: i16,
+    op: all.Opc,
     cls: i16,
     fmt: ?[*:0]const u8,
 };
@@ -219,7 +219,7 @@ const omap = [_]OMap{
     .{ .op = Oreqz, .cls = Ki, .fmt = "seqz %=, %0" },
     .{ .op = Ornez, .cls = Ki, .fmt = "snez %=, %0" },
     .{ .op = Ocall, .cls = Kw, .fmt = "jalr %0" },
-    .{ .op = NOp, .cls = 0, .fmt = null },
+    .{ .op = .xxx, .cls = 0, .fmt = null }, // sentinel
 };
 
 const rname = blk: {
@@ -411,8 +411,8 @@ fn table(i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
     while (true) : (o += 1) {
         // this linear search should really be a binary
         // search
-        if (omap[o].op == NOp)
-            die("no match for {s}({c})", .{cs(all.optab[i.op].name), "wlsd"[@as(usize, @intCast(i.cls))]});
+        if (omap[o].op == .xxx)
+            die("no match for {s}({c})", .{cs(all.optab[i.op.int()].name), "wlsd"[@as(usize, @intCast(i.cls))]});
         if (omap[o].op == i.op and
             (omap[o].cls == i.cls or omap[o].cls == Ka or
             (omap[o].cls == Ki and KBASE(i.cls) == 0)))

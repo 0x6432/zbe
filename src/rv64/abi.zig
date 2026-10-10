@@ -267,10 +267,10 @@ fn typclass(c: *Class, t: *Typ, fpabi: bool, gp: []const i32, fp: []const i32) v
 
 const st = blk: {
     var s: [4]i32 = undefined;
-    s[Kw] = Ostorew;
-    s[Kl] = Ostorel;
-    s[Ks] = Ostores;
-    s[Kd] = Ostored;
+    s[Kw] = all.ops.num(Ostorew);
+    s[Kl] = all.ops.num(Ostorel);
+    s[Ks] = all.ops.num(Ostores);
+    s[Kd] = all.ops.num(Ostored);
     break :blk s;
 };
 
@@ -404,7 +404,7 @@ fn stkblob(r: Ref, t: *Typ, f: *Fn, ilp: *?*Insl) void {
     if (al < 0)
         al = 0;
     const sz: u64 = (t.size + 7) & ~@as(u64, 7);
-    il.i = INS(Oalloc + al, Kl, r, getcon(@bitCast(sz), f), R);
+    il.i = INS(Oalloc.offset(al), Kl, r, getcon(@bitCast(sz), f), R);
     il.link = ilp.*;
     ilp.* = il;
 }
@@ -511,7 +511,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
             continue;
         if (i.op == Oarg) {
             r1 = newtmp("abi", Kl, f);
-            emit(Ostorew + i.cls, Kw, R, i.arg[0], r1);
+            emit(Ostorew.offset(i.cls), Kw, R, i.arg[0], r1);
             if (i.cls == Kw) {
                 // TODO: we only need this sign
                 // extension for l temps passed

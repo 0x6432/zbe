@@ -181,7 +181,7 @@ pub fn fillalias(f: *Fn) void {
                 const ta = &f.tmp[i.to.val].alias;
                 a = ta;
                 assert(ta.type == ABot);
-                if (Oalloc <= i.op and i.op <= Oalloc1) {
+                if (Oalloc.int() <= i.op.int() and i.op.int() <= Oalloc1.int()) {
                     ta.type = ALoc;
                     ta.slot = ta;
                     ta.u.loc.sz = -1;

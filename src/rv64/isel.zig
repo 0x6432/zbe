@@ -87,7 +87,7 @@ const vgrow = all.vgrow;
 
 fn memarg(r: *Ref, op: i32, i: ?*Ins) bool {
     const ii = i orelse return false;
-    if (isload(op) or op == Ocall)
+    if (isload(op) or op == Ocall.int())
         return r == &ii.arg[0];
     if (isstore(op))
         return r == &ii.arg[1];
@@ -104,7 +104,7 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
 
     const r0 = r.*;
     var r1 = r0;
-    const op: i32 = if (i) |ii| @intCast(ii.op) else Ocopy;
+    const op: i32 = if (i) |ii| all.ops.num(ii.op) else all.ops.num(Ocopy);
     switch (rtype(r0)) {
         RCon => blk: {
             var c: *Con = &f.con[r0.val];
@@ -215,7 +215,7 @@ fn selcmp(i_: Ins, k: i32, op_: i32, f: *Fn) void {
             const r0 = newtmp("isel", i.cls, f);
             const r1 = newtmp("isel", i.cls, f);
             emit(Oand, i.cls, i.to, r0, r1);
-            op = if (KWIDE(k) != 0) Oceqd else Oceqs;
+            op = if (KWIDE(k) != 0) all.ops.num(Oceqd) else all.ops.num(Oceqs);
             emit(op, i.cls, r0, i.arg[0], i.arg[0]);
             fixcmp(k, f);
             emit(op, i.cls, r1, i.arg[1], i.arg[1]);
@@ -286,14 +286,14 @@ pub fn rv64_isel(f: *Fn) void {
     const start = f.start.?;
     // specific to NAlign == 3
     // or change n=4 and sz /= 4 below
-    var al: i32 = Oalloc;
+    var al: i32 = all.ops.num(Oalloc);
     var n: i32 = 4;
-    while (al <= Oalloc1) : ({
+    while (al <= Oalloc1.int()) : ({
         al += 1;
         n *= 2;
     }) {
         for (start.ins[0..start.nins]) |*i| {
-            if (i.op == al) {
+            if (all.ops.num(i.op) == al) {
                 if (rtype(i.arg[0]) != RCon)
                     break;
                 var sz = f.con[i.arg[0].val].bits.i;

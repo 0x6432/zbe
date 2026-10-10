@@ -209,7 +209,7 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
     var r0 = r.*;
     var r1 = r0;
     const s = rslot(r0, f);
-    const op: i32 = if (i) |ii| @intCast(ii.op) else Ocopy;
+    const op: i32 = if (i) |ii| all.ops.num(ii.op) else all.ops.num(Ocopy);
     if (KBASE(k) == 1 and rtype(r0) == RCon) {
         // load floating points from memory
         // slots, they can't be used as
@@ -226,14 +226,14 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
         bufPrintZ(&buf, "\"{s}fp{d}\"", .{cs(&all.T.asloc), n});
         a.offset.sym.id = intern(@ptrCast(&buf));
         f.mem[@intCast(f.nmem - 1)] = a;
-    } else if (op == Ocall and r == &i.?.arg[0] and
+    } else if (op == Ocall.int() and r == &i.?.arg[0] and
         rtype(r0) == RCon and f.con[r0.val].type != CAddr)
     {
         // use a temporary register so that we
         // produce an indirect call
         r1 = newtmp("isel", Kl, f);
         emit(Ocopy, Kl, r1, r0, R);
-    } else if (op != Ocopy and k == Kl and noimm(r0, f)) {
+    } else if (op != Ocopy.int() and k == Kl and noimm(r0, f)) {
         // load constants that do not fit in
         // a 32bit signed integer into a
         // long temporary
@@ -245,7 +245,7 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
         // instruction
         r1 = newtmp("isel", Kl, f);
         emit(Oaddr, Kl, r1, SLOT(s), R);
-    } else if (op != Ocall and hascon(r0, &c, f) and
+    } else if (op != Ocall.int() and hascon(r0, &c, f) and
         c.type == CAddr and ((c.sym.type & SExt) != 0 or
         (all.T.apple != 0 and c.sym.type == SThr)))
     {
@@ -279,7 +279,7 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
             r1 = r0;
         }
     } else if (!(isstore(op) and r == &i.?.arg[1]) and
-        !isload(op) and op != Ocall and rtype(r0) == RCon and
+        !isload(op) and op != Ocall.int() and rtype(r0) == RCon and
         f.con[r0.val].type == CAddr)
     {
         // turn address operands into
@@ -400,7 +400,7 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
                 r0 = newtmp("isel", k, f);
             } else r0 = i.arg[1];
             if (f.tmp[r0.val].slot != -1)
-                err("unlikely argument %{s} in {s}", .{cs(f.tmp[r0.val].name), cs(all.optab[i.op].name)});
+                err("unlikely argument %{s} in {s}", .{cs(f.tmp[r0.val].name), cs(all.optab[i.op.int()].name)});
             if (i.op == Odiv or i.op == Orem) {
                 emit(Oxidiv, k, R, r0, R);
                 emit(Osign, k, TMP(RDX), TMP(RAX), R);
@@ -426,7 +426,7 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
                 continue :sw Ocopy; // goto Emit
             }
             if (f.tmp[r0.val].slot != -1)
-                err("unlikely argument %{s} in {s}", .{cs(f.tmp[r0.val].name), cs(all.optab[i.op].name)});
+                err("unlikely argument %{s} in {s}", .{cs(f.tmp[r0.val].name), cs(all.optab[i.op.int()].name)});
             i.arg[1] = TMP(RCX);
             emit(Ocopy, Kw, R, TMP(RCX), R);
             emiti(i);
@@ -576,11 +576,11 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
                 const swap = cmpswap(&i.arg, x);
                 if (swap)
                     x = cmpop(x);
-                emit(Oflag + x, k, i.to, R, R);
+                emit(Oflag.offset(x), k, i.to, R, R);
                 selcmp(&i.arg, kc, swap, f);
                 break :sw;
             }
-            die("unknown instruction {s}", .{cs(all.optab[i.op].name)});
+            die("unknown instruction {s}", .{cs(all.optab[i.op.int()].name)});
         },
     }
 
@@ -597,9 +597,9 @@ fn flagi(ins: []Ins) ?*Ins {
     while (n > 0) {
         n -= 1;
         const i = &ins[n];
-        if (amd64_op[i.op].zflag != 0)
+        if (amd64_op[i.op.int()].zflag != 0)
             return i;
-        if (amd64_op[i.op].lflag != 0)
+        if (amd64_op[i.op.int()].lflag != 0)
             continue;
         return null;
     }
@@ -684,7 +684,7 @@ fn selsel(f: *Fn, b: *Blk, n1: uint, tn: [*]Num) uint {
     var k1 = n1;
     while (n0 < k1) : (k1 -= 1) {
         const isel1 = &b.ins[k1];
-        isel1.op = @intCast(Oxsel + c);
+        isel1.op = Oxsel.offset(c);
         sel(isel1.*, tn, f);
     }
     assert(!gencmp or !gencpy);
@@ -801,14 +801,14 @@ fn opn(op: i32, l_: i32, r_: i32) i32 {
         r = t;
     }
     switch (op) {
-        Omul => {
+        all.ops.num(Omul) => {
             if (2 <= l)
                 if (r == 0) {
                     return 3;
                 };
             return 2;
         },
-        Oadd => return Oaddtbl[@intCast(@divTrunc(l + l * l, 2) + r)],
+        all.ops.num(Oadd) => return Oaddtbl[@intCast(@divTrunc(l + l * l, 2) + r)],
         else => return 2,
     }
 }
@@ -886,7 +886,7 @@ fn anumber(tn: [*]Num, b: *Blk, con: [*]Con) void {
         n.r = i.arg[1];
         n.nl = @truncate(@as(u32, @bitCast(refn(n.l, tn, con))));
         n.nr = @truncate(@as(u32, @bitCast(refn(n.r, tn, con))));
-        n.n = @truncate(@as(u32, @bitCast(opn(@intCast(i.op), n.nl, n.nr))));
+        n.n = @truncate(@as(u32, @bitCast(opn(all.ops.num(i.op), n.nl, n.nr))));
     }
 }
 
@@ -977,14 +977,14 @@ pub fn amd64_isel(f: *Fn) void {
     const start = f.start.?;
     // specific to NAlign == 3
     // or change n=4 and sz /= 4 below
-    var al: i32 = Oalloc;
+    var al: i32 = all.ops.num(Oalloc);
     var n: i32 = 4;
-    while (al <= Oalloc1) : ({
+    while (al <= Oalloc1.int()) : ({
         al += 1;
         n *= 2;
     }) {
         for (start.ins[0..start.nins]) |*i| {
-            if (i.op == al) {
+            if (all.ops.num(i.op) == al) {
                 if (rtype(i.arg[0]) != RCon)
                     break;
                 var sz = f.con[i.arg[0].val].bits.i;
@@ -996,7 +996,7 @@ pub fn amd64_isel(f: *Fn) void {
                     die("alloc too large", .{});
                 f.tmp[i.to.val].slot = f.slot;
                 f.slot += @intCast(sz);
-                f.salign = 2 + al - Oalloc;
+                f.salign = 2 + al - all.ops.num(Oalloc);
                 i.* = INS0(Onop);
             }
         }

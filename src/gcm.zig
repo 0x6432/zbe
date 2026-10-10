@@ -68,7 +68,7 @@ fn isdivwl(i: *Ins) bool {
 }
 
 pub fn pinned(i: *Ins) bool {
-    return all.optab[i.op].pinned != 0 or isdivwl(i);
+    return all.optab[i.op.int()].pinned != 0 or isdivwl(i);
 }
 
 /// pinned ins that can be eliminated if unused

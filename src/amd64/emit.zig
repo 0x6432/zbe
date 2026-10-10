@@ -207,7 +207,7 @@ const Ka = -2; // matches all classes
 //   S - single precision float
 //   D - double precision float
 const OMap = struct {
-    op: i16,
+    op: all.Opc,
     cls: i16,
     fmt: ?[*:0]const u8,
 };
@@ -268,11 +268,11 @@ const omap = blk: {
     };
     var flags: [CMP.len]OMap = undefined;
     for (CMP, 0..) |x, n|
-        flags[n] = .{ .op = Oflag + x.c, .cls = Ki, .fmt = "set" ++ x.s0 ++ " %B=\n\tmovzb%k %B=, %=" };
+        flags[n] = .{ .op = Oflag.offset(x.c), .cls = Ki, .fmt = "set" ++ x.s0 ++ " %B=\n\tmovzb%k %B=, %=" };
     const tail = [_]OMap{
         .{ .op = Oflagfeq, .cls = Ki, .fmt = "setz %B=\n\tmovzb%k %B=, %=" },
         .{ .op = Oflagfne, .cls = Ki, .fmt = "setnz %B=\n\tmovzb%k %B=, %=" },
-        .{ .op = NOp, .cls = 0, .fmt = null },
+        .{ .op = .xxx, .cls = 0, .fmt = null }, // sentinel
     };
     break :blk base ++ flags ++ tail;
 };
@@ -525,8 +525,8 @@ fn emittable(i: *Ins, e: *E) Writer.Error!void {
     while (true) : (o += 1) {
         // this linear search should really be a binary
         // search
-        if (omap[o].op == NOp)
-            die("no match for {s}({c})", .{cs(all.optab[i.op].name), "wlsd"[@as(usize, @intCast(i.cls))]});
+        if (omap[o].op == .xxx)
+            die("no match for {s}({c})", .{cs(all.optab[i.op.int()].name), "wlsd"[@as(usize, @intCast(i.cls))]});
         if (omap[o].op == i.op)
             if (omap[o].cls == i.cls or
                 (omap[o].cls == Ki and KBASE(i.cls) == 0) or
@@ -544,11 +544,11 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             if (isxsel(i.op)) {
                 // case_Oxsel:
                 if (req(i.to, i.arg[1])) {
-                    try emitf(cmov[i.op - Oxsel][0], &i, e);
+                    try emitf(cmov[@intCast(i.op.diff(Oxsel))][0], &i, e);
                 } else {
                     if (!req(i.to, i.arg[0]))
                         try emitf("mov %0, %=", &i, e);
-                    try emitf(cmov[i.op - Oxsel][1], &i, e);
+                    try emitf(cmov[@intCast(i.op.diff(Oxsel))][1], &i, e);
                 }
                 return;
             }

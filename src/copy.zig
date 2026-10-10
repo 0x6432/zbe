@@ -74,7 +74,7 @@ const ext_tbl = [_]Ext{
 fn ext(i: *Ins, e: *Ext) bool {
     if (!isext(i.op))
         return false;
-    e.* = ext_tbl[i.op - Oextsb];
+    e.* = ext_tbl[@intCast(i.op.diff(Oextsb))];
     return true;
 }
 
@@ -308,7 +308,7 @@ pub fn copyref(f: *Fn, b: *Blk, i: *Ins) Ref {
     var e: Ext = undefined;
     var v: i64 = undefined;
     var z: i32 = undefined;
-    const op = &all.optab[i.op];
+    const op = &all.optab[i.op.int()];
 
     if (i.op == Ocopy)
         return i.arg[0];
@@ -346,7 +346,7 @@ pub fn copyref(f: *Fn, b: *Blk, i: *Ins) Ref {
         if (KWIDE(i.cls) > KWIDE(t.cls))
             return R;
 
-        const w = Wsb + (i.op - Oextsb);
+        const w = Wsb + i.op.diff(Oextsb);
         if ((BIT(w) & extcpy[@intCast(t.width)]) != 0)
             return i.arg[0];
 

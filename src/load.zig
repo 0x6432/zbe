@@ -169,21 +169,21 @@ fn cast(r: *Ref, cls: i32, l: *Loc) void {
         return;
     if (KWIDE(cls0) < KWIDE(cls)) {
         if (cls0 == Ks)
-            r.* = iins(Kw, Ocast, r.*, R, l);
-        r.* = iins(Kl, Oextuw, r.*, R, l);
+            r.* = iins(Kw, all.ops.num(Ocast), r.*, R, l);
+        r.* = iins(Kl, all.ops.num(Oextuw), r.*, R, l);
         if (cls == Kd)
-            r.* = iins(Kd, Ocast, r.*, R, l);
+            r.* = iins(Kd, all.ops.num(Ocast), r.*, R, l);
     } else {
         if (cls0 == Kd and cls != Kl)
-            r.* = iins(Kl, Ocast, r.*, R, l);
+            r.* = iins(Kl, all.ops.num(Ocast), r.*, R, l);
         if (cls0 != Kd or cls != Kw)
-            r.* = iins(cls, Ocast, r.*, R, l);
+            r.* = iins(cls, all.ops.num(Ocast), r.*, R, l);
     }
 }
 
 inline fn mask(cls: i32, r: *Ref, msk: bits, l: *Loc) void {
     cast(r, cls, l);
-    r.* = iins(cls, Oand, r.*, getcon(@bitCast(msk), curf), l);
+    r.* = iins(cls, all.ops.num(Oand), r.*, getcon(@bitCast(msk), curf), l);
 }
 
 fn load(sl: Slice, msk: bits, l: *Loc) Ref {
@@ -192,10 +192,10 @@ fn load(sl: Slice, msk: bits, l: *Loc) Ref {
     var c: Con = undefined;
 
     const ld: i32 = switch (sl.sz) {
-        1 => Oloadub,
-        2 => Oloaduh,
-        4 => Oloaduw,
-        8 => Oload,
+        1 => all.ops.num(Oloadub),
+        2 => all.ops.num(Oloaduh),
+        4 => all.ops.num(Oloaduw),
+        8 => all.ops.num(Oload),
         else => 0,
     };
     const all_ = msk == MASK(sl.sz);
@@ -214,7 +214,7 @@ fn load(sl: Slice, msk: bits, l: *Loc) Ref {
                 r = TMP(a.base);
                 if (a.offset != 0) {
                     const r1 = getcon(a.offset, curf);
-                    r = iins(Kl, Oadd, r, r1, l);
+                    r = iins(Kl, all.ops.num(Oadd), r, r1, l);
                 }
             },
             ACon, ASym => {
@@ -347,10 +347,10 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
                 if (off < 0) {
                     off = -off;
                     msk1 = shl64(MASK(sz), 8 * off) & msks;
-                    op = Oshl;
+                    op = all.ops.num(Oshl);
                 } else {
                     msk1 = (MASK(sz) >> @intCast(8 * off)) & msks;
-                    op = Oshr;
+                    op = all.ops.num(Oshr);
                 }
                 if ((msk1 & msk) == 0)
                     continue;
@@ -361,7 +361,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
                 }
                 if (off != 0) {
                     cls1 = cls;
-                    if (op == Oshr and off + sl.sz > 4)
+                    if (op == Oshr.int() and off + sl.sz > 4)
                         cls1 = Kl;
                     cast(&r, cls1, il);
                     r1 = getcon(8 * off, curf);
@@ -373,7 +373,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
                     r1 = def(sl, msk & ~msk1, b, idx, il);
                     if (req(r1, R))
                         return null;
-                    r = iins(cls, Oor, r, r1, il);
+                    r = iins(cls, all.ops.num(Oor), r, r1, il);
                 }
                 if (msk == msks)
                     cast(&r, sl.cls, il);
@@ -515,7 +515,7 @@ pub fn loadopt(f: *Fn) void {
                 i = &b.ins[ni];
                 ni += 1;
                 if (isload(i.op) and !req(i.arg[1], R)) {
-                    const ext = Oextsb + i.op - Oloadsb;
+                    const ext = Oextsb.offset(i.op.diff(Oloadsb));
                     sw: switch (i.op) {
                         Oloadsb, Oloadub, Oloadsh, Oloaduh => i.op = ext,
                         Oloadsw, Oloaduw => {

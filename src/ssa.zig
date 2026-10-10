@@ -133,11 +133,11 @@ pub fn filluse(f: *Fn) void {
                 assert(rtype(i.to) == RTmp);
                 w = WFull;
                 if (isparbh(i.op))
-                    w = @intCast(Wsb + (i.op - Oparsb));
+                    w = @intCast(Wsb + i.op.diff(Oparsb));
                 if (isload(i.op) and i.op != Oload)
-                    w = @intCast(Wsb + (i.op - Oloadsb));
+                    w = @intCast(Wsb + i.op.diff(Oloadsb));
                 if (isext(i.op))
-                    w = @intCast(Wsb + (i.op - Oextsb));
+                    w = @intCast(Wsb + i.op.diff(Oextsb));
                 if (iscmp(i.op, &x, &x))
                     w = Wub;
                 if (w == Wsw or w == Wuw)

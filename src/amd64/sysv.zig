@@ -273,8 +273,8 @@ fn argsclass(ins: []const Ins, ac: []AClass, op: i32, aret: ?*const AClass, env:
     var varc: i32 = 0;
     var envc: i32 = 0;
     for (ins, ac) |*i, *a| {
-        switch (@as(i32, @intCast(i.op)) - op + Oarg) {
-            Oarg => {
+        switch (all.ops.num(i.op) - op + all.ops.num(Oarg)) {
+            all.ops.num(Oarg) => {
                 const pn: *i32 = if (KBASE(i.cls) == 0) &nint else &nsse;
                 if (pn.* > 0) {
                     pn.* -= 1;
@@ -284,7 +284,7 @@ fn argsclass(ins: []const Ins, ac: []AClass, op: i32, aret: ?*const AClass, env:
                 a.size = 8;
                 a.cls[0] = i.cls;
             },
-            Oargc => {
+            all.ops.num(Oargc) => {
                 const n0 = i.arg[0].val;
                 typclass(a, &all.typ[n0]);
                 if (a.inmem != 0)
@@ -303,14 +303,14 @@ fn argsclass(ins: []const Ins, ac: []AClass, op: i32, aret: ?*const AClass, env:
                     nsse -= ns;
                 } else a.inmem = 1;
             },
-            Oarge => {
+            all.ops.num(Oarge) => {
                 envc = 1;
-                if (op == Opar)
+                if (op == Opar.int())
                     env.* = i.to
                 else
                     env.* = i.arg[0];
             },
-            Oargv => varc = 1,
+            all.ops.num(Oargv) => varc = 1,
             else => die("unreachable", .{}),
         }
     }
@@ -406,8 +406,8 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
     if (!req(i_1.arg[1], R)) {
         assert(rtype(i_1.arg[1]) == RType);
         typclass(&aret, &all.typ[i_1.arg[1].val]);
-        ca = argsclass(ins, ac, Oarg, &aret, &env);
-    } else ca = argsclass(ins, ac, Oarg, null, &env);
+        ca = argsclass(ins, ac, all.ops.num(Oarg), &aret, &env);
+    } else ca = argsclass(ins, ac, all.ops.num(Oarg), null, &env);
 
     var stk: uint = 0;
     var k = ac.len;
@@ -457,7 +457,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
         const ra1 = pnew(RAlloc);
         // specific to NAlign == 3
         const al: i32 = if (aret.@"align" >= 2) aret.@"align" - 2 else 0;
-        ra1.i = INS(Oalloc + al, Kl, r1, getcon(aret.size, f), R);
+        ra1.i = INS(Oalloc.offset(al), Kl, r1, getcon(aret.size, f), R);
         ra1.link = rap.*;
         rap.* = ra1;
         ra = ra1;
@@ -485,7 +485,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
         emit(Ocopy, Kl, rarg(Kl, &ni, &ns), ra.?.i.to, R); // pass hidden argument
 
     for (ins, ac) |*i, *a| {
-        if (i.op >= Oarge or a.inmem != 0)
+        if (i.op.int() >= Oarge.int() or a.inmem != 0)
             continue;
         r1 = rarg(a.cls[0], &ni, &ns);
         if (i.op == Oargc) {
@@ -505,7 +505,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
     r = newtmp("abi", Kl, f);
     var off: uint = 0;
     for (ins, ac) |*i, *a| {
-        if (i.op >= Oarge or a.inmem == 0)
+        if (i.op.int() >= Oarge.int() or a.inmem == 0)
             continue;
         r1 = newtmp("abi", Kl, f);
         if (i.op == Oargc) {
@@ -533,8 +533,8 @@ fn selpar(f: *Fn, ins: []Ins) i32 {
 
     if (f.retty >= 0) {
         typclass(&aret, &all.typ[@intCast(f.retty)]);
-        fa = argsclass(ins, ac, Opar, &aret, &env);
-    } else fa = argsclass(ins, ac, Opar, null, &env);
+        fa = argsclass(ins, ac, all.ops.num(Opar), &aret, &env);
+    } else fa = argsclass(ins, ac, all.ops.num(Opar), null, &env);
     f.reg = amd64_sysv_argregs(CALL(fa), null);
 
     for (ins, ac) |*i, *a| {
@@ -550,7 +550,7 @@ fn selpar(f: *Fn, ins: []Ins) i32 {
         emit(Ostorel, 0, R, a.ref[0], i.to);
         // specific to NAlign == 3
         const al: i32 = if (a.@"align" >= 2) a.@"align" - 2 else 0;
-        emit(Oalloc + al, Kl, i.to, getcon(a.size, f), R);
+        emit(Oalloc.offset(al), Kl, i.to, getcon(a.size, f), R);
     }
 
     if (f.retty >= 0 and aret.inmem != 0) {
@@ -705,7 +705,7 @@ fn selvaarg(f: *Fn, b: *Blk, i: *Ins) void {
     b.s1 = breg;
     b.s2 = bstk;
     const c = getcon(if (isint) 48 else 176, f);
-    emit(Ocmpw + Ciult, Kw, r1, nr, c);
+    emit(Ocmpw.offset(Ciult), Kw, r1, nr, c);
     emit(Oloadsw, Kl, nr, r0, R);
     emit(Oadd, Kl, r0, ap, if (isint) CON_Z else c4);
 }

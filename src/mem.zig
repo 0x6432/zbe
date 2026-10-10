@@ -74,7 +74,7 @@ pub fn promote(f: *Fn) void {
     // promote uniform stack slots to temporaries
     const b = f.start.?;
     outer: for (b.ins[0..b.nins]) |*i| {
-        if (Oalloc > i.op or i.op > Oalloc1)
+        if (Oalloc.int() > i.op.int() or i.op.int() > Oalloc1.int())
             continue;
         // specific to NAlign == 3
         assert(rtype(i.to) == RTmp);
@@ -95,9 +95,9 @@ pub fn promote(f: *Fn) void {
             if (isstore(l.op))
                 if (req(i.to, l.arg[1]) and !req(i.to, l.arg[0]))
                     if (s == -1 or s == storesz(l))
-                        if (k == -1 or k == all.optab[l.op].argcls[0][0]) {
+                        if (k == -1 or k == all.optab[l.op.int()].argcls[0][0]) {
                             s = storesz(l);
-                            k = all.optab[l.op].argcls[0][0];
+                            k = all.optab[l.op.int()].argcls[0][0];
                             continue;
                         };
             continue :outer;
@@ -122,7 +122,7 @@ pub fn promote(f: *Fn) void {
                 sw: switch (l.op) {
                     Oloadsw, Oloaduw => {
                         if (k == Kl)
-                            continue :sw 0; // goto Extend
+                            continue :sw .xxx; // goto Extend
                         continue :sw Oload;
                     },
                     Oload => {
@@ -132,7 +132,7 @@ pub fn promote(f: *Fn) void {
                             l.op = Ocopy;
                     },
                     else => { // Extend:
-                        l.op = Oextsb + (l.op - Oloadsb);
+                        l.op = Oextsb.offset(l.op.diff(Oloadsb));
                     },
                 }
             }

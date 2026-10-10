@@ -42,7 +42,7 @@ const uint = all.uint;
 // -- end imports --
 
 fn blit(sd: *[2]Ref, sz_: i32, f: *Fn) void {
-    const E = struct { st: i32, ld: i32, cls: i32, size: i32 };
+    const E = struct { st: all.Opc, ld: all.Opc, cls: i32, size: i32 };
     const tbl = [_]E{
         .{ .st = Ostorel, .ld = Oload, .cls = Kl, .size = 8 },
         .{ .st = Ostorew, .ld = Oload, .cls = Kw, .size = 4 },

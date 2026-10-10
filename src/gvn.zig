@@ -71,7 +71,7 @@ inline fn rhash(r: Ref) uint {
 }
 
 fn ihash(i: *Ins) uint {
-    var h = mix(i.op, @as(u32, @intCast(i.cls)));
+    var h = mix(i.op.int(), @as(u32, @intCast(i.cls)));
     h = mix(h, rhash(i.arg[0]));
     h = mix(h, rhash(i.arg[1]));
     return h;
@@ -173,7 +173,7 @@ fn normins(f: *Fn, i: *Ins) void {
     // order arg[0] <= arg[1] for
     // commutative ops, preferring
     // RTmp in arg[0]
-    if (all.optab[i.op].commutes != 0)
+    if (all.optab[i.op.int()].commutes != 0)
         if (rcmp(i.arg[0], i.arg[1]) > 0) {
             const r = i.arg[1];
             i.arg[1] = i.arg[0];
@@ -185,15 +185,15 @@ fn negcon(cls: anytype, c: *Con) bool {
     var z = std.mem.zeroes(Con);
     z.type = CBits;
     z.bits.i = 0;
-    return foldint(c, Osub, cls != 0, &z, c);
+    return foldint(c, all.ops.num(Osub), cls != 0, &z, c);
 }
 
 fn assoccon(f: *Fn, b: *Blk, i_1: *Ins) void {
     var c: Con = undefined;
 
-    var op: i32 = @intCast(i_1.op);
-    if (op == Osub)
-        op = Oadd;
+    var op: i32 = @intCast(i_1.op.int());
+    if (op == Osub.int())
+        op = all.ops.num(Oadd);
 
     if (all.optab[@intCast(op)].assoc == 0 or KBASE(i_1.cls) != 0 or rtype(i_1.arg[0]) != RTmp or rtype(i_1.arg[1]) != RCon)
         return;
@@ -202,7 +202,7 @@ fn assoccon(f: *Fn, b: *Blk, i_1: *Ins) void {
     const t2 = &f.tmp[i_1.arg[0].val];
     const i_2 = t2.def orelse return;
 
-    if (op != (if (i_2.op == Osub) Oadd else i_2.op) or rtype(i_2.arg[1]) != RCon)
+    if (op != all.ops.num(if (i_2.op == Osub) Oadd else i_2.op) or rtype(i_2.arg[1]) != RCon)
         return;
     var c2 = f.con[i_2.arg[1].val];
 
@@ -216,14 +216,14 @@ fn assoccon(f: *Fn, b: *Blk, i_1: *Ins) void {
     if (foldint(&c, op, i_1.cls != 0, &c1, &c2))
         return;
 
-    if (op == Oadd and c.type == CBits)
+    if (op == Oadd.int() and c.type == CBits)
         if ((i_1.cls == Kl and c.bits.i < 0) or (i_1.cls == Kw and @as(i32, @truncate(c.bits.i)) < 0)) {
             const fail = negcon(i_1.cls, &c);
             assert(!fail);
-            op = Osub;
+            op = all.ops.num(Osub);
         };
 
-    i_1.op = @intCast(op);
+    i_1.op = all.ops.of(op);
     i_1.arg[0] = i_2.arg[0];
     i_1.arg[1] = newcon(&c, f);
     adduse(&f.tmp[i_1.arg[0].val], UIns, b, (i_1));
@@ -264,11 +264,11 @@ pub fn cmpeqz(f: *Fn, r: Ref, arg: *Ref, cls: *i32, eqval: *i32) bool {
     if (rtype(r) != RTmp)
         return false;
     const i = f.tmp[r.val].def orelse return false;
-    if (all.optab[i.op].cmpeqwl == 0 or !req(i.arg[1], CON_Z))
+    if (all.optab[i.op.int()].cmpeqwl == 0 or !req(i.arg[1], CON_Z))
         return false;
     arg.* = i.arg[0];
     cls.* = argcls(i, 0);
-    eqval.* = all.optab[i.op].eqval;
+    eqval.* = all.optab[i.op.int()].eqval;
     return true;
 }
 
@@ -396,7 +396,7 @@ fn rebuildcfg(f: *Fn) void {
         // blk unreachable after GVN
         assert(b != s);
         for (b.ins[0..b.nins]) |*i|
-            if (all.optab[i.op].pinned == 0)
+            if (all.optab[i.op.int()].pinned == 0)
                 if (gvndup(i, false) == i)
                     addins(&s.ins, &s.nins, i);
     }

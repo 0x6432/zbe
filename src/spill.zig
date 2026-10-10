@@ -262,7 +262,7 @@ fn reloads(u: *BSet, v: *BSet) void {
 
 fn store(r: Ref, s: i32) void {
     if (s != -1)
-        emit(Ostorew + @as(i32, tmp[r.val].cls), 0, R, r, SLOT(s));
+        emit(Ostorew.offset(tmp[r.val].cls), 0, R, r, SLOT(s));
 }
 
 fn regcpy(i: *Ins) bool {
@@ -465,7 +465,7 @@ pub fn spill(f: *Fn) void {
                     bsset(&w, t);
                 }
             }
-            var j = all.T.memargs(@intCast(i.op));
+            var j = all.T.memargs(@intCast(i.op.int()));
             var n: usize = 0;
             while (n < 2) : (n += 1) {
                 if (rtype(i.arg[n]) == RMem)

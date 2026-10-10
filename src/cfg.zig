@@ -149,7 +149,7 @@ pub fn filldom(f: *Fn) void {
         b.dlink = null;
     }
     while (true) {
-        var ch: i32 = 0;
+        var changed = false;
         var n: uint = 1;
         while (n < f.nblk) : (n += 1) {
             const b = f.rpo[n];
@@ -159,11 +159,11 @@ pub fn filldom(f: *Fn) void {
                     d = inter(d, p);
                 };
             if (d != b.idom) {
-                ch += 1;
+                changed = true;
                 b.idom = d;
             }
         }
-        if (ch == 0) break;
+        if (!changed) break;
     }
     b_it = f.start;
     while (b_it) |b| : (b_it = b.link) {

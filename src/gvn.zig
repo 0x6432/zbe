@@ -71,7 +71,7 @@ inline fn rhash(r: Ref) uint {
 }
 
 fn ihash(i: *Ins) uint {
-    var h = mix(i.op.int(), @as(u32, @intCast(i.cls)));
+    var h = mix(i.op.int(), @as(u32, @intCast(i.cls.int())));
     h = mix(h, rhash(i.arg[0]));
     h = mix(h, rhash(i.arg[1]));
     return h;
@@ -185,7 +185,7 @@ fn negcon(cls: anytype, c: *Con) bool {
     var z = std.mem.zeroes(Con);
     z.type = CBits;
     z.bits.i = 0;
-    return foldint(c, all.ops.num(Osub), cls != 0, &z, c);
+    return foldint(c, all.ops.num(Osub), cls != .w, &z, c);
 }
 
 fn assoccon(f: *Fn, b: *Blk, i_1: *Ins) void {
@@ -213,7 +213,7 @@ fn assoccon(f: *Fn, b: *Blk, i_1: *Ins) void {
         return;
     if (i_2.op == Osub and negcon(i_2.cls, &c2))
         return;
-    if (foldint(&c, op, i_1.cls != 0, &c1, &c2))
+    if (foldint(&c, op, i_1.cls != .w, &c1, &c2))
         return;
 
     if (op == Oadd.int() and c.type == CBits)
@@ -299,7 +299,7 @@ pub fn zeroval(f: *Fn, b: *Blk, r: Ref, cls: i32, z: *i32) bool {
     while (d_it) |d| : (d_it = d.idom) {
         if (d.jmp.type != Jjnz)
             continue;
-        if (req(r, d.jmp.arg) and cls == Kw and domzero(f, d, b, z)) {
+        if (req(r, d.jmp.arg) and cls == Kw.int() and domzero(f, d, b, z)) {
             return true;
         }
         if (cmpeqz(f, d.jmp.arg, &arg, &cls1, &eqval) and req(r, arg) and cls == cls1 and domzero(f, d, b, z)) {
@@ -313,21 +313,21 @@ pub fn zeroval(f: *Fn, b: *Blk, r: Ref, cls: i32, z: *i32) bool {
 fn usecls(u: *Use, r: Ref, cls: i32) i32 {
     switch (u.type) {
         UIns => {
-            var k: i32 = Kx; // widest use
+            var k: i32 = all.knum(Kx); // widest use
             if (req(u.u.ins.arg[0], r))
                 k = argcls(u.u.ins, 0);
             if (req(u.u.ins.arg[1], r))
-                if (k == Kx or KWIDE(k) == 0) {
+                if (k == Kx.int() or KWIDE(k) == 0) {
                     k = argcls(u.u.ins, 1);
                 };
-            return if (k == Kx) cls else k;
+            return if (k == Kx.int()) cls else k;
         },
         UPhi => {
             if (req(u.u.phi.to, R))
                 return cls; // eliminated
-            return u.u.phi.cls;
+            return u.u.phi.cls.int();
         },
-        UJmp => return Kw,
+        UJmp => return all.knum(Kw),
         else => {},
     }
     die("unreachable", .{});
@@ -359,7 +359,7 @@ fn dedupjmp(f: *Fn, b: *Blk) void {
         return;
 
     // propagate jmp arg as 0 through s2
-    propjnz0(f, b, b.s2.?, b.s1.?, b.jmp.arg, Kw);
+    propjnz0(f, b, b.s2.?, b.s1.?, b.jmp.arg, all.knum(Kw));
     // propagate cmp eq/ne 0 def of jmp arg as 0
     if (cmpeqz(f, b.jmp.arg, &arg, &cls, &eqval)) {
         const ps = [2]*Blk{ b.s1.?, b.s2.? };
@@ -369,7 +369,7 @@ fn dedupjmp(f: *Fn, b: *Blk) void {
     // collapse trivial/constant jnz to jmp
     v = 1;
     z = 0;
-    if (b.s1 == b.s2 or isconbits(f, b.jmp.arg, &v) or zeroval(f, b, b.jmp.arg, Kw, &z)) {
+    if (b.s1 == b.s2 or isconbits(f, b.jmp.arg, &v) or zeroval(f, b, b.jmp.arg, all.knum(Kw), &z)) {
         if (v == 0 or z != 0)
             b.s1 = b.s2;
         // we later move active ins out of dead blks

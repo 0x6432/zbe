@@ -160,10 +160,10 @@ var gpreg = [12]i32{ R0, R1, R2, R3, R4, R5, R6, R7, 0, 0, 0, 0 };
 var fpreg = [12]i32{ V0, V1, V2, V3, V4, V5, V6, V7, 0, 0, 0, 0 };
 const store = blk: {
     var s: [4]i32 = undefined;
-    s[Kw] = all.ops.num(Ostorew);
-    s[Kl] = all.ops.num(Ostorel);
-    s[Ks] = all.ops.num(Ostores);
-    s[Kd] = all.ops.num(Ostored);
+    s[Kw.idx()] = all.ops.num(Ostorew);
+    s[Kl.idx()] = all.ops.num(Ostorel);
+    s[Ks.idx()] = all.ops.num(Ostores);
+    s[Kd.idx()] = all.ops.num(Ostored);
     break :blk s;
 };
 
@@ -186,14 +186,14 @@ fn isfloatv(t: *Typ, cls: *i8) bool {
             if (f.type == FEnd) break;
             switch (f.type) {
                 Fs => {
-                    if (cls.* == Kd)
+                    if (cls.* == Kd.int())
                         return false;
-                    cls.* = Ks;
+                    cls.* = @intCast(Ks.int());
                 },
                 Fd => {
-                    if (cls.* == Ks)
+                    if (cls.* == Ks.int())
                         return false;
-                    cls.* = Kd;
+                    cls.* = @intCast(Kd.int());
                 },
                 FTyp => {
                     if (!isfloatv(&all.typ[f.len], cls))
@@ -218,7 +218,7 @@ fn typclass(c: *Class, t: *Typ, gp: []const i32, fp: []const i32) void {
         err("alignments larger than 8 are not supported", .{});
 
     c.size = @truncate(sz);
-    c.hfa.base = Kx;
+    c.hfa.base = @intCast(Kx.int());
     var ishfa = isfloatv(t, &c.hfa.base);
     const hfasz: u64 = t.size / @as(u64, if (KWIDE(c.hfa.base) != 0) 8 else 4);
     ishfa = ishfa and t.isdark == 0 and hfasz <= 4;
@@ -243,7 +243,7 @@ fn typclass(c: *Class, t: *Typ, gp: []const i32, fp: []const i32) void {
         c.size = 8;
         c.ngp = 1;
         c.reg[0] = gp[0];
-        c.cls[0] = Kl;
+        c.cls[0] = all.knum(Kl);
     } else {
         var n: uint = 0;
         while (n < sz / 8) : ({
@@ -251,7 +251,7 @@ fn typclass(c: *Class, t: *Typ, gp: []const i32, fp: []const i32) void {
             c.ngp += 1;
         }) {
             c.reg[n] = gp[n];
-            c.cls[n] = Kl;
+            c.cls[n] = all.knum(Kl);
         }
         c.nreg = @intCast(n);
     }
@@ -363,7 +363,7 @@ fn argsclass(ins: []const Ins, carg: []Class) i32 {
             },
             Opare, Oarge => {
                 c.reg[0] = R9;
-                c.cls[0] = Kl;
+                c.cls[0] = all.knum(Kl);
                 envc = 1;
             },
             Oargv => {
@@ -373,7 +373,7 @@ fn argsclass(ins: []const Ins, carg: []Class) i32 {
         }
         if (scalar) {
             c.@"align" = c.size;
-            c.cls[0] = i.cls;
+            c.cls[0] = all.knum(i.cls);
             if (va) {
                 c.class |= Cstk;
                 c.size = 8;

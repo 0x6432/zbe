@@ -108,7 +108,7 @@ pub fn promote(f: *Fn) void {
         for (t.use.?[0..t.nuse]) |*u| {
             const l = u.u.ins;
             if (isstore(l.op)) {
-                l.cls = @intCast(k);
+                l.cls = all.kof(k);
                 l.op = Ocopy;
                 l.to = l.arg[1];
                 l.arg[1] = R;
@@ -121,7 +121,7 @@ pub fn promote(f: *Fn) void {
                 // can eliminate them later
                 sw: switch (l.op) {
                     Oloadsw, Oloaduw => {
-                        if (k == Kl)
+                        if (k == Kl.int())
                             continue :sw .xxx; // goto Extend
                         continue :sw Oload;
                     },

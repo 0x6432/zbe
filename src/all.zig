@@ -275,17 +275,46 @@ pub inline fn isxsel(o: anytype) bool {
     return INRANGE(o, Oxsel, Oxsel1);
 }
 
-pub const Kx = -1; // "top" class (see usecheck() and clsmerge())
-pub const Kw = 0;
-pub const Kl = 1;
-pub const Ks = 2;
-pub const Kd = 3;
+/// Value class of a temporary or instruction result (C: Kw/Kl/Ks/Kd).
+pub const Cls = enum(i16) {
+    /// "top" class (see usecheck() and clsmerge())
+    x = -1,
+    w = 0,
+    l = 1,
+    s = 2,
+    d = 3,
 
+    pub inline fn int(k: Cls) i32 {
+        return @intFromEnum(k);
+    }
+    /// Table index; the class must not be `x`.
+    pub inline fn idx(k: Cls) usize {
+        return @intCast(@intFromEnum(k));
+    }
+    /// Offset a class (C: Kw + n, e.g. KBASE arithmetic).
+    pub inline fn offset(k: Cls, n: anytype) Cls {
+        return @enumFromInt(@as(i16, @intFromEnum(k)) + @as(i16, @intCast(n)));
+    }
+};
+pub const Kx = Cls.x;
+pub const Kw = Cls.w;
+pub const Kl = Cls.l;
+pub const Ks = Cls.s;
+pub const Kd = Cls.d;
+
+/// Class number of a `Cls` or integer.
+pub inline fn knum(k: anytype) i32 {
+    return if (@TypeOf(k) == Cls) @intFromEnum(k) else @intCast(k);
+}
+/// `Cls` from a `Cls` or integer.
+pub inline fn kof(k: anytype) Cls {
+    return if (@TypeOf(k) == Cls) k else @enumFromInt(@as(i16, @intCast(k)));
+}
 pub inline fn KWIDE(k: anytype) i32 {
-    return @as(i32, @intCast(k)) & 1;
+    return knum(k) & 1;
 }
 pub inline fn KBASE(k: anytype) i32 {
-    return @as(i32, @intCast(k)) >> 1;
+    return knum(k) >> 1;
 }
 
 pub const Op = struct {
@@ -305,14 +334,14 @@ pub const Op = struct {
 
 pub const Ins = extern struct {
     op: ops.Opc, // C: uint op:30
-    cls: i16, // C: uint cls:2; same type as Tmp.cls and Phi.cls
+    cls: Cls, // C: uint cls:2; same type as Tmp.cls and Phi.cls
     to: Ref,
     arg: [2]Ref,
 };
 
 pub const Phi = extern struct {
     to: Ref,
-    cls: i16,
+    cls: Cls,
     visit: i32,
     narg: uint,
     arg: [*]Ref,
@@ -440,7 +469,7 @@ pub const Tmp = extern struct {
     bid: uint, // id of a defining block
     cost: uint,
     slot: i32, // -1 for unset
-    cls: i16,
+    cls: Cls,
     hint: extern struct {
         r: i32, // register or -1
         w: i32, // weight
@@ -767,11 +796,11 @@ pub const pe_emitfin = emit_.pe_emitfin;
 
 // helpers for C compound literals of Ins
 pub inline fn INS(op: anytype, k: anytype, to: Ref, a0: Ref, a1: Ref) Ins {
-    return .{ .op = ops.of(op), .cls = @intCast(k), .to = to, .arg = .{ a0, a1 } };
+    return .{ .op = ops.of(op), .cls = kof(k), .to = to, .arg = .{ a0, a1 } };
 }
 /// (Ins){.op = op}
 pub inline fn INS0(op: anytype) Ins {
-    return .{ .op = (op), .cls = 0, .to = R, .arg = .{ R, R } };
+    return .{ .op = (op), .cls = .w, .to = R, .arg = .{ R, R } };
 }
 /// C-like `x << n` on 64-bit words (count taken mod 64, as on amd64)
 pub inline fn shl64(x: bits, n: anytype) bits {

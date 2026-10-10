@@ -438,16 +438,16 @@ pub fn iscmp(op: anytype, pk: *i32, pc: *i32) bool {
     const o: i32 = all.ops.num(op);
     if (all.ops.num(Ocmpw) <= o and o <= all.ops.num(Ocmpw1)) {
         pc.* = o - all.ops.num(Ocmpw);
-        pk.* = Kw;
+        pk.* = all.knum(Kw);
     } else if (all.ops.num(Ocmpl) <= o and o <= all.ops.num(Ocmpl1)) {
         pc.* = o - all.ops.num(Ocmpl);
-        pk.* = Kl;
+        pk.* = all.knum(Kl);
     } else if (all.ops.num(Ocmps) <= o and o <= all.ops.num(Ocmps1)) {
         pc.* = NCmpI + o - all.ops.num(Ocmps);
-        pk.* = Ks;
+        pk.* = all.knum(Ks);
     } else if (all.ops.num(Ocmpd) <= o and o <= all.ops.num(Ocmpd1)) {
         pc.* = NCmpI + o - all.ops.num(Ocmpd);
-        pk.* = Kd;
+        pk.* = all.knum(Kd);
     } else return false;
     return true;
 }
@@ -503,7 +503,7 @@ pub fn igroup(b: *Blk, n0: uint) struct { uint, uint } {
 }
 
 pub fn argcls(i: *Ins, n: anytype) i32 {
-    return all.optab[i.op.int()].argcls[n][@as(usize, @intCast(i.cls))];
+    return all.optab[i.op.int()].argcls[n][i.cls.idx()];
 }
 
 pub fn emit(op: anytype, k: anytype, to: Ref, arg0: Ref, arg1: Ref) void {
@@ -512,7 +512,7 @@ pub fn emit(op: anytype, k: anytype, to: Ref, arg0: Ref, arg1: Ref) void {
     all.curi -= 1;
     all.curi[0] = Ins{
         .op = all.ops.of(op),
-        .cls = @intCast(k),
+        .cls = all.kof(k),
         .to = to,
         .arg = .{ arg0, arg1 },
     };
@@ -575,7 +575,7 @@ pub fn cmpwlneg(op: anytype) i32 {
     die("not a wl comparison", .{});
 }
 
-pub fn clsmerge(pk: *i16, k: i16) bool {
+pub fn clsmerge(pk: *all.Cls, k: all.Cls) bool {
     const k1 = pk.*;
     if (k1 == Kx) {
         pk.* = k;
@@ -623,7 +623,7 @@ pub fn newtmp(prfx: ?[*:0]const u8, k: anytype, f: *Fn) Ref {
         newtmp_n += 1;
         f.tmp[t].name = strf(PFn, "{s}.{d}", .{ cs(prfx), newtmp_n });
     }
-    f.tmp[t].cls = @intCast(k);
+    f.tmp[t].cls = all.kof(k);
     f.tmp[t].slot = -1;
     f.tmp[t].nuse = 1;
     f.tmp[t].ndef = 1;

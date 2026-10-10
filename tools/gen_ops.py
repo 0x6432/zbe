@@ -27,7 +27,7 @@ out += [f"    {q(n)}," for n in names]
 out += ["",
         "    /// offset into the op numbers, e.g. `Opc.storeb.offset(k)` (C: Ostoreb + k)",
         "    pub inline fn offset(o: Opc, n: anytype) Opc {",
-        "        return @enumFromInt(@as(i64, @intFromEnum(o)) + @as(i64, @intCast(n)));",
+        "        return @enumFromInt(@as(i64, @intFromEnum(o)) + @as(i64, if (@typeInfo(@TypeOf(n)) == .@\"enum\") @intFromEnum(n) else @intCast(n)));",
         "    }",
         "    /// distance from another op (C: o - base)",
         "    pub inline fn diff(o: Opc, base: Opc) i32 {",

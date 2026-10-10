@@ -42,7 +42,7 @@ const uint = all.uint;
 // -- end imports --
 
 fn blit(sd: *[2]Ref, sz_: i32, f: *Fn) void {
-    const E = struct { st: all.Opc, ld: all.Opc, cls: i32, size: i32 };
+    const E = struct { st: all.Opc, ld: all.Opc, cls: all.Cls, size: i32 };
     const tbl = [_]E{
         .{ .st = Ostorel, .ld = Oload, .cls = Kl, .size = 8 },
         .{ .st = Ostorew, .ld = Oload, .cls = Kw, .size = 4 },
@@ -190,7 +190,7 @@ fn sdivpow2(i: *Ins, b: *Blk, k: uint, new: *bool, f: *Fn) bool {
         return false;
     const w: i64 = if (wide) 64 else 32;
     const n: i64 = ulog2(@bitCast(sv));
-    const cls: i32 = i.cls;
+    const cls: i32 = all.knum(i.cls);
     const x = i.arg[0];
     const to = i.to;
     const isdiv = i.op == O.Odiv;

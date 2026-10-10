@@ -102,7 +102,7 @@ pub fn filluse(f: *Fn) void {
         tt.bid = NOID;
         tt.ndef = 0;
         tt.nuse = 0;
-        tt.cls = 0;
+        tt.cls = .w;
         tt.phi = 0;
         tt.width = WFull;
         if (tt.use == null)
@@ -170,7 +170,7 @@ fn refindex(t: i32, f: *Fn) Ref {
 fn phiins(f: *Fn) void {
     var u: BSet = undefined;
     var defs: BSet = undefined;
-    var k: i16 = undefined;
+    var k: all.Cls = undefined;
 
     bsinit(&u, f.nblk);
     bsinit(&defs, f.nblk);

@@ -300,14 +300,14 @@ fn foldflt(res: *Con, op: i32, w: bool, cl: *Con, cr: *Con) void {
 fn opfold(op: i32, cls: i32, cl: *Con, cr: *Con, f: *Fn) Ref {
     var c: Con = undefined;
 
-    if (cls == Kw or cls == Kl) {
-        if (foldint(&c, op, cls == Kl, cl, cr))
+    if (cls == Kw.int() or cls == Kl.int()) {
+        if (foldint(&c, op, cls == Kl.int(), cl, cr))
             return R;
-    } else foldflt(&c, op, cls == Kd, cl, cr);
+    } else foldflt(&c, op, cls == Kd.int(), cl, cr);
     if (KWIDE(cls) == 0)
         c.bits.i &= 0xffffffff;
     const r = newcon(&c, f);
-    assert(!(cls == Ks or cls == Kd) or c.flt != 0);
+    assert(!(cls == Ks.int() or cls == Kd.int()) or c.flt != 0);
     return r;
 }
 
@@ -326,7 +326,7 @@ pub fn foldref(f: *Fn, i: *Ins) Ref {
             return R;
         const cr = &f.con[rr.val];
 
-        return opfold(@intCast(i.op.int()), i.cls, cl, cr, f);
+        return opfold(@intCast(i.op.int()), all.knum(i.cls), cl, cr, f);
     }
     return R;
 }

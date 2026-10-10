@@ -149,13 +149,13 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
                 emit(Oaddr, k, r1, SLOT(s), R);
                 break :blk;
             }
-            if (k == Kw and f.tmp[r0.val].cls == Kl) {
+            if (k == Kw.int() and f.tmp[r0.val].cls == Kl) {
                 // TODO: this sign extension isn't needed
                 // for 32-bit arithmetic instructions
                 r1 = newtmp("isel", k, f);
                 emit(Oextsw, Kl, r1, r0, R);
             } else {
-                assert(k == f.tmp[r0.val].cls);
+                assert(k == f.tmp[r0.val].cls.int());
             }
         },
         else => {},
@@ -250,7 +250,7 @@ fn sel(i_: Ins, f: *Fn) void {
     if (INRANGE(i.op, Oalloc, Oalloc1)) {
         const i_0 = &(all.curi - 1)[0];
         salloc(i.to, i.arg[0], f);
-        fixarg(&i_0.arg[0], Kl, i_0, f);
+        fixarg(&i_0.arg[0], all.knum(Kl), i_0, f);
         return;
     }
     if (iscmp(i.op, &ck, &cc)) {
@@ -278,7 +278,7 @@ fn sel(i_: Ins, f: *Fn) void {
 fn seljmp(b: *Blk, f: *Fn) void {
     // TODO: replace cmp+jnz with beq/bne/blt[u]/bge[u]
     if (b.jmp.type == Jjnz)
-        fixarg(&b.jmp.arg, Kw, null, f);
+        fixarg(&b.jmp.arg, all.knum(Kw), null, f);
 }
 
 pub fn rv64_isel(f: *Fn) void {
@@ -320,7 +320,7 @@ pub fn rv64_isel(f: *Fn) void {
                 var a: uint = 0;
                 while (p.blk[a] != b) : (a += 1)
                     assert(a + 1 < p.narg);
-                fixarg(&p.arg[a], p.cls, null, f);
+                fixarg(&p.arg[a], all.knum(p.cls), null, f);
             }
         }
         seljmp(b, f);

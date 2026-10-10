@@ -199,19 +199,19 @@ fn fpstruct(t: *Typ, off_: i32, c: *Class) i32 {
             switch (f.type) {
                 else => die("unreachable", .{}),
                 Fb, Fh, Fw => {
-                    c.cls[n] = Kw;
+                    c.cls[n] = all.knum(Kw);
                     c.ngp += 1;
                 },
                 Fl => {
-                    c.cls[n] = Kl;
+                    c.cls[n] = all.knum(Kl);
                     c.ngp += 1;
                 },
                 Fs => {
-                    c.cls[n] = Ks;
+                    c.cls[n] = all.knum(Ks);
                     c.nfp += 1;
                 },
                 Fd => {
-                    c.cls[n] = Kd;
+                    c.cls[n] = all.knum(Kd);
                     c.nfp += 1;
                 },
             }
@@ -237,13 +237,13 @@ fn typclass(c: *Class, t: *Typ, fpabi: bool, gp: []const i32, fp: []const i32) v
         // pointer to some caller-allocated
         // memory
         c.class |= Cptr;
-        c.cls[0] = Kl;
+        c.cls[0] = all.knum(Kl);
         c.off[0] = 0;
         c.ngp = 1;
     } else if (!fpabi or fpstruct(t, 0, c) <= 0) {
         var n: uint = 0;
         while (8 * @as(u64, n) < t.size) : (n += 1) {
-            c.cls[n] = Kl;
+            c.cls[n] = all.knum(Kl);
             c.off[n] = @intCast(8 * n);
         }
         c.nfp = 0;
@@ -267,10 +267,10 @@ fn typclass(c: *Class, t: *Typ, fpabi: bool, gp: []const i32, fp: []const i32) v
 
 const st = blk: {
     var s: [4]i32 = undefined;
-    s[Kw] = all.ops.num(Ostorew);
-    s[Kl] = all.ops.num(Ostorel);
-    s[Ks] = all.ops.num(Ostores);
-    s[Kd] = all.ops.num(Ostored);
+    s[Kw.idx()] = all.ops.num(Ostorew);
+    s[Kl.idx()] = all.ops.num(Ostorel);
+    s[Ks.idx()] = all.ops.num(Ostores);
+    s[Kd.idx()] = all.ops.num(Ostored);
     break :blk s;
 };
 
@@ -346,7 +346,7 @@ fn argsclass(ins: []const Ins, carg: []Class, retptr: bool) i32 {
     for (ins, carg) |*i, *c| {
         switch (i.op) {
             Opar, Oarg => {
-                c.cls[0] = i.cls;
+                c.cls[0] = all.knum(i.cls);
                 if (!vararg and KBASE(i.cls) == 1 and nfp > 0) {
                     nfp -= 1;
                     c.reg[0] = fpreg[fp];
@@ -387,7 +387,7 @@ fn argsclass(ins: []const Ins, carg: []Class, retptr: bool) i32 {
             },
             Opare, Oarge => {
                 c.reg[0] = T5;
-                c.cls[0] = Kl;
+                c.cls[0] = all.knum(Kl);
                 envc = 1;
             },
             else => {},
@@ -480,7 +480,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
         if (i.op == Oargc) {
             ldregs(c, i.arg[1], f);
         } else if ((c.class & Cfpint) != 0) {
-            k = if (KWIDE(c.cls[0]) != 0) Kl else Kw;
+            k = if (KWIDE(c.cls[0]) != 0) all.knum(Kl) else all.knum(Kw);
             r = newtmp("abi", k, f);
             emit(Ocopy, k, TMP(c.reg[0]), r, R);
             c.reg[0] = r.val;
@@ -491,7 +491,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
 
     for (ins, ca) |*i, *c| {
         if ((c.class & Cfpint) != 0) {
-            k = if (KWIDE(c.cls[0]) != 0) Kl else Kw;
+            k = if (KWIDE(c.cls[0]) != 0) all.knum(Kl) else all.knum(Kw);
             emit(Ocast, k, TMP(c.reg[0]), i.arg[0], R);
         }
         if ((c.class & Cptr) != 0) {
@@ -573,14 +573,14 @@ fn selpar(f: *Fn, ins: []Ins) Params {
         if ((c.class & Cfpint) != 0) {
             const r = i.to;
             const k = c.cls[0];
-            c.cls[0] = if (KWIDE(k) != 0) Kl else Kw;
+            c.cls[0] = if (KWIDE(k) != 0) all.knum(Kl) else all.knum(Kw);
             i.to = newtmp("abi", k, f);
             emit(Ocast, k, r, i.to, R);
         }
         if (i.op == Oparc and (c.class & Cptr) == 0 and c.nreg != 0) {
             var nt: i32 = c.nreg;
             if ((c.class & Cstk2) != 0) {
-                c.cls[1] = Kl;
+                c.cls[1] = all.knum(Kl);
                 c.off[1] = 8;
                 assert(nt == 1);
                 nt = 2;

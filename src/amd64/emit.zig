@@ -178,8 +178,8 @@ const SWord = 1;
 const SShort = 2;
 const SByte = 3;
 
-const Ki = -1; // matches Kw and Kl
-const Ka = -2; // matches all classes
+/// omap class pattern: a concrete class, `i` (Kw or Kl) or `a` (any class)
+const KPat = enum(i16) { a = -2, i = -1, w, l, s, d };
 
 // Instruction format strings:
 //
@@ -208,71 +208,71 @@ const Ka = -2; // matches all classes
 //   D - double precision float
 const OMap = struct {
     op: all.Opc,
-    cls: i16,
+    cls: KPat,
     fmt: ?[*:0]const u8,
 };
 const omap = blk: {
     const base = [_]OMap{
-        .{ .op = Oadd, .cls = Ka, .fmt = "+add%k %1, %=" },
-        .{ .op = Osub, .cls = Ka, .fmt = "-sub%k %1, %=" },
-        .{ .op = Oand, .cls = Ki, .fmt = "+and%k %1, %=" },
-        .{ .op = Oor, .cls = Ki, .fmt = "+or%k %1, %=" },
-        .{ .op = Oxor, .cls = Ki, .fmt = "+xor%k %1, %=" },
-        .{ .op = Osar, .cls = Ki, .fmt = "-sar%k %B1, %=" },
-        .{ .op = Oshr, .cls = Ki, .fmt = "-shr%k %B1, %=" },
-        .{ .op = Oshl, .cls = Ki, .fmt = "-shl%k %B1, %=" },
-        .{ .op = Omul, .cls = Ki, .fmt = "+imul%k %1, %=" },
-        .{ .op = Omul, .cls = Ks, .fmt = "+mulss %1, %=" },
-        .{ .op = Omul, .cls = Kd, .fmt = "+mulsd %1, %=" },
-        .{ .op = Odiv, .cls = Ka, .fmt = "-div%k %1, %=" },
-        .{ .op = Ostorel, .cls = Ka, .fmt = "movq %L0, %M1" },
-        .{ .op = Ostorew, .cls = Ka, .fmt = "movl %W0, %M1" },
-        .{ .op = Ostoreh, .cls = Ka, .fmt = "movw %H0, %M1" },
-        .{ .op = Ostoreb, .cls = Ka, .fmt = "movb %B0, %M1" },
-        .{ .op = Ostores, .cls = Ka, .fmt = "movss %S0, %M1" },
-        .{ .op = Ostored, .cls = Ka, .fmt = "movsd %D0, %M1" },
-        .{ .op = Oload, .cls = Ka, .fmt = "mov%k %M0, %=" },
-        .{ .op = Oloadsw, .cls = Kl, .fmt = "movslq %M0, %L=" },
-        .{ .op = Oloadsw, .cls = Kw, .fmt = "movl %M0, %W=" },
-        .{ .op = Oloaduw, .cls = Ki, .fmt = "movl %M0, %W=" },
-        .{ .op = Oloadsh, .cls = Ki, .fmt = "movsw%k %M0, %=" },
-        .{ .op = Oloaduh, .cls = Ki, .fmt = "movzw%k %M0, %=" },
-        .{ .op = Oloadsb, .cls = Ki, .fmt = "movsb%k %M0, %=" },
-        .{ .op = Oloadub, .cls = Ki, .fmt = "movzb%k %M0, %=" },
-        .{ .op = Oextsw, .cls = Kl, .fmt = "movslq %W0, %L=" },
-        .{ .op = Oextuw, .cls = Kl, .fmt = "movl %W0, %W=" },
-        .{ .op = Oextsh, .cls = Ki, .fmt = "movsw%k %H0, %=" },
-        .{ .op = Oextuh, .cls = Ki, .fmt = "movzw%k %H0, %=" },
-        .{ .op = Oextsb, .cls = Ki, .fmt = "movsb%k %B0, %=" },
-        .{ .op = Oextub, .cls = Ki, .fmt = "movzb%k %B0, %=" },
+        .{ .op = Oadd, .cls = .a, .fmt = "+add%k %1, %=" },
+        .{ .op = Osub, .cls = .a, .fmt = "-sub%k %1, %=" },
+        .{ .op = Oand, .cls = .i, .fmt = "+and%k %1, %=" },
+        .{ .op = Oor, .cls = .i, .fmt = "+or%k %1, %=" },
+        .{ .op = Oxor, .cls = .i, .fmt = "+xor%k %1, %=" },
+        .{ .op = Osar, .cls = .i, .fmt = "-sar%k %B1, %=" },
+        .{ .op = Oshr, .cls = .i, .fmt = "-shr%k %B1, %=" },
+        .{ .op = Oshl, .cls = .i, .fmt = "-shl%k %B1, %=" },
+        .{ .op = Omul, .cls = .i, .fmt = "+imul%k %1, %=" },
+        .{ .op = Omul, .cls = .s, .fmt = "+mulss %1, %=" },
+        .{ .op = Omul, .cls = .d, .fmt = "+mulsd %1, %=" },
+        .{ .op = Odiv, .cls = .a, .fmt = "-div%k %1, %=" },
+        .{ .op = Ostorel, .cls = .a, .fmt = "movq %L0, %M1" },
+        .{ .op = Ostorew, .cls = .a, .fmt = "movl %W0, %M1" },
+        .{ .op = Ostoreh, .cls = .a, .fmt = "movw %H0, %M1" },
+        .{ .op = Ostoreb, .cls = .a, .fmt = "movb %B0, %M1" },
+        .{ .op = Ostores, .cls = .a, .fmt = "movss %S0, %M1" },
+        .{ .op = Ostored, .cls = .a, .fmt = "movsd %D0, %M1" },
+        .{ .op = Oload, .cls = .a, .fmt = "mov%k %M0, %=" },
+        .{ .op = Oloadsw, .cls = .l, .fmt = "movslq %M0, %L=" },
+        .{ .op = Oloadsw, .cls = .w, .fmt = "movl %M0, %W=" },
+        .{ .op = Oloaduw, .cls = .i, .fmt = "movl %M0, %W=" },
+        .{ .op = Oloadsh, .cls = .i, .fmt = "movsw%k %M0, %=" },
+        .{ .op = Oloaduh, .cls = .i, .fmt = "movzw%k %M0, %=" },
+        .{ .op = Oloadsb, .cls = .i, .fmt = "movsb%k %M0, %=" },
+        .{ .op = Oloadub, .cls = .i, .fmt = "movzb%k %M0, %=" },
+        .{ .op = Oextsw, .cls = .l, .fmt = "movslq %W0, %L=" },
+        .{ .op = Oextuw, .cls = .l, .fmt = "movl %W0, %W=" },
+        .{ .op = Oextsh, .cls = .i, .fmt = "movsw%k %H0, %=" },
+        .{ .op = Oextuh, .cls = .i, .fmt = "movzw%k %H0, %=" },
+        .{ .op = Oextsb, .cls = .i, .fmt = "movsb%k %B0, %=" },
+        .{ .op = Oextub, .cls = .i, .fmt = "movzb%k %B0, %=" },
 
-        .{ .op = Oexts, .cls = Kd, .fmt = "cvtss2sd %0, %=" },
-        .{ .op = Otruncd, .cls = Ks, .fmt = "cvtsd2ss %0, %=" },
-        .{ .op = Ostosi, .cls = Ki, .fmt = "cvttss2si%k %0, %=" },
-        .{ .op = Odtosi, .cls = Ki, .fmt = "cvttsd2si%k %0, %=" },
-        .{ .op = Oswtof, .cls = Ka, .fmt = "cvtsi2%k %W0, %=" },
-        .{ .op = Osltof, .cls = Ka, .fmt = "cvtsi2%k %L0, %=" },
-        .{ .op = Ocast, .cls = Ki, .fmt = "movq %D0, %L=" },
-        .{ .op = Ocast, .cls = Ka, .fmt = "movq %L0, %D=" },
+        .{ .op = Oexts, .cls = .d, .fmt = "cvtss2sd %0, %=" },
+        .{ .op = Otruncd, .cls = .s, .fmt = "cvtsd2ss %0, %=" },
+        .{ .op = Ostosi, .cls = .i, .fmt = "cvttss2si%k %0, %=" },
+        .{ .op = Odtosi, .cls = .i, .fmt = "cvttsd2si%k %0, %=" },
+        .{ .op = Oswtof, .cls = .a, .fmt = "cvtsi2%k %W0, %=" },
+        .{ .op = Osltof, .cls = .a, .fmt = "cvtsi2%k %L0, %=" },
+        .{ .op = Ocast, .cls = .i, .fmt = "movq %D0, %L=" },
+        .{ .op = Ocast, .cls = .a, .fmt = "movq %L0, %D=" },
 
-        .{ .op = Oaddr, .cls = Ki, .fmt = "lea%k %M0, %=" },
-        .{ .op = Oswap, .cls = Ki, .fmt = "xchg%k %0, %1" },
-        .{ .op = Osign, .cls = Kl, .fmt = "cqto" },
-        .{ .op = Osign, .cls = Kw, .fmt = "cltd" },
-        .{ .op = Oxdiv, .cls = Ki, .fmt = "div%k %0" },
-        .{ .op = Oxidiv, .cls = Ki, .fmt = "idiv%k %0" },
-        .{ .op = Oxcmp, .cls = Ks, .fmt = "ucomiss %S0, %S1" },
-        .{ .op = Oxcmp, .cls = Kd, .fmt = "ucomisd %D0, %D1" },
-        .{ .op = Oxcmp, .cls = Ki, .fmt = "cmp%k %0, %1" },
-        .{ .op = Oxtest, .cls = Ki, .fmt = "test%k %0, %1" },
+        .{ .op = Oaddr, .cls = .i, .fmt = "lea%k %M0, %=" },
+        .{ .op = Oswap, .cls = .i, .fmt = "xchg%k %0, %1" },
+        .{ .op = Osign, .cls = .l, .fmt = "cqto" },
+        .{ .op = Osign, .cls = .w, .fmt = "cltd" },
+        .{ .op = Oxdiv, .cls = .i, .fmt = "div%k %0" },
+        .{ .op = Oxidiv, .cls = .i, .fmt = "idiv%k %0" },
+        .{ .op = Oxcmp, .cls = .s, .fmt = "ucomiss %S0, %S1" },
+        .{ .op = Oxcmp, .cls = .d, .fmt = "ucomisd %D0, %D1" },
+        .{ .op = Oxcmp, .cls = .i, .fmt = "cmp%k %0, %1" },
+        .{ .op = Oxtest, .cls = .i, .fmt = "test%k %0, %1" },
     };
     var flags: [CMP.len]OMap = undefined;
     for (CMP, 0..) |x, n|
-        flags[n] = .{ .op = Oflag.offset(x.c), .cls = Ki, .fmt = "set" ++ x.s0 ++ " %B=\n\tmovzb%k %B=, %=" };
+        flags[n] = .{ .op = Oflag.offset(x.c), .cls = .i, .fmt = "set" ++ x.s0 ++ " %B=\n\tmovzb%k %B=, %=" };
     const tail = [_]OMap{
-        .{ .op = Oflagfeq, .cls = Ki, .fmt = "setz %B=\n\tmovzb%k %B=, %=" },
-        .{ .op = Oflagfne, .cls = Ki, .fmt = "setnz %B=\n\tmovzb%k %B=, %=" },
-        .{ .op = .xxx, .cls = 0, .fmt = null }, // sentinel
+        .{ .op = Oflagfeq, .cls = .i, .fmt = "setz %B=\n\tmovzb%k %B=, %=" },
+        .{ .op = Oflagfne, .cls = .i, .fmt = "setnz %B=\n\tmovzb%k %B=, %=" },
+        .{ .op = .xxx, .cls = .w, .fmt = null }, // sentinel
     };
     break :blk base ++ flags ++ tail;
 };
@@ -376,7 +376,7 @@ fn emitcopy(r1: Ref, r2: Ref, k: i32, e: *E) Writer.Error!void {
     icp.op = Ocopy;
     icp.arg[0] = r2;
     icp.to = r1;
-    icp.cls = @intCast(k);
+    icp.cls = all.kof(k);
     try emitins(icp, e);
 }
 
@@ -419,7 +419,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
                 // fall through
             }
             assert(!req(i.arg[1], i.to) or req(i.arg[0], i.to)); // cannot convert to 2-address
-            try emitcopy(i.to, i.arg[0], i.cls, e);
+            try emitcopy(i.to, i.arg[0], all.knum(i.cls), e);
             s += 1;
         },
         else => {},
@@ -441,7 +441,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
         var doref = false;
         switch (c) {
             '%' => try e.f.writeByte('%'),
-            'k' => try e.f.writeAll(cs(clstoa[@as(usize, @intCast(i.cls))])),
+            'k' => try e.f.writeAll(cs(clstoa[i.cls.idx()])),
             '0', '1', '=' => {
                 sz = if (KWIDE(i.cls) != 0) SLong else SWord;
                 s -= 1;
@@ -512,8 +512,8 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
 
 const negmask = blk: {
     var t: [4]bits = @splat(0);
-    t[Ks] = 0x80000000;
-    t[Kd] = 0x8000000000000000;
+    t[Ks.idx()] = 0x80000000;
+    t[Kd.idx()] = 0x8000000000000000;
     break :blk t;
 };
 
@@ -526,11 +526,11 @@ fn emittable(i: *Ins, e: *E) Writer.Error!void {
         // this linear search should really be a binary
         // search
         if (omap[o].op == .xxx)
-            die("no match for {s}({c})", .{cs(all.optab[i.op.int()].name), "wlsd"[@as(usize, @intCast(i.cls))]});
+            die("no match for {s}({c})", .{cs(all.optab[i.op.int()].name), "wlsd"[i.cls.idx()]});
         if (omap[o].op == i.op)
-            if (omap[o].cls == i.cls or
-                (omap[o].cls == Ki and KBASE(i.cls) == 0) or
-                (omap[o].cls == Ka))
+            if (@intFromEnum(omap[o].cls) == @intFromEnum(i.cls) or
+                (omap[o].cls == .i and KBASE(i.cls) == 0) or
+                (omap[o].cls == .a))
                 break;
     }
     try emitf(omap[o].fmt.?, i, e);
@@ -592,7 +592,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             if (KBASE(i.cls) == 0)
                 try emitf("neg%k %=", &i, e)
             else
-                try e.f.print("\txorp{c} {s}fp{d}(%rip), %{s}\n", .{"xxsd"[@as(usize, @intCast(i.cls))], cs(&all.T.asloc), stashbits(negmask[@as(usize, @intCast(i.cls))], 16), cs(regtoa((i.to.val), SLong))});
+                try e.f.print("\txorp{c} {s}fp{d}(%rip), %{s}\n", .{"xxsd"[i.cls.idx()], cs(&all.T.asloc), stashbits(negmask[i.cls.idx()], 16), cs(regtoa((i.to.val), SLong))});
         },
         Odiv => {
             // use xmm15 to adjust the instruction when the
@@ -717,7 +717,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             assert(e.fp == RBP);
             try emitf("subq %L0, %%rsp", &i, e);
             if (!req(i.to, R))
-                try emitcopy(i.to, TMP(RSP), Kl, e);
+                try emitcopy(i.to, TMP(RSP), all.knum(Kl), e);
         },
         Oswap => {
             if (KBASE(i.cls) == 0) {
@@ -726,9 +726,9 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             }
             // for floats, there is no swap instruction
             // so we use xmm15 as a temporary
-            try emitcopy(TMP(XMM0 + 15), i.arg[0], i.cls, e);
-            try emitcopy(i.arg[0], i.arg[1], i.cls, e);
-            try emitcopy(i.arg[1], TMP(XMM0 + 15), i.cls, e);
+            try emitcopy(TMP(XMM0 + 15), i.arg[0], all.knum(i.cls), e);
+            try emitcopy(i.arg[0], i.arg[1], all.knum(i.cls), e);
+            try emitcopy(i.arg[1], TMP(XMM0 + 15), all.knum(i.cls), e);
         },
         Odbgloc => try emitdbgloc(i.arg[0].val, i.arg[1].val, e.f),
     }

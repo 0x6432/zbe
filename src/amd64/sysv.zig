@@ -157,12 +157,12 @@ fn classify(a: *AClass, t: *Typ, s_: uint) void {
                     s += f.len;
                 },
                 Fs, Fd => {
-                    if (cls.* == Kx)
-                        cls.* = Kd;
+                    if (cls.* == Kx.int())
+                        cls.* = all.knum(Kd);
                     s += f.len;
                 },
                 Fb, Fh, Fw, Fl => {
-                    cls.* = Kl;
+                    cls.* = all.knum(Kl);
                     s += f.len;
                 },
                 FTyp => {
@@ -199,8 +199,8 @@ fn typclass(a: *AClass, t: *Typ) void {
         return;
     }
 
-    a.cls[0] = Kx;
-    a.cls[1] = Kx;
+    a.cls[0] = all.knum(Kx);
+    a.cls[1] = all.knum(Kx);
     a.inmem = 0;
     classify(a, t, 0);
 }
@@ -282,7 +282,7 @@ fn argsclass(ins: []const Ins, ac: []AClass, op: i32, aret: ?*const AClass, env:
                 } else a.inmem = 2;
                 a.@"align" = 3;
                 a.size = 8;
-                a.cls[0] = i.cls;
+                a.cls[0] = all.knum(i.cls);
             },
             all.ops.num(Oargc) => {
                 const n0 = i.arg[0].val;
@@ -482,7 +482,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
     var ni: i32 = 0;
     var ns: i32 = 0;
     if (ra != null and aret.inmem != 0)
-        emit(Ocopy, Kl, rarg(Kl, &ni, &ns), ra.?.i.to, R); // pass hidden argument
+        emit(Ocopy, Kl, rarg(all.knum(Kl), &ni, &ns), ra.?.i.to, R); // pass hidden argument
 
     for (ins, ac) |*i, *a| {
         if (i.op.int() >= Oarge.int() or a.inmem != 0)
@@ -555,7 +555,7 @@ fn selpar(f: *Fn, ins: []Ins) i32 {
 
     if (f.retty >= 0 and aret.inmem != 0) {
         r = newtmp("abi", Kl, f);
-        emit(Ocopy, Kl, r, rarg(Kl, &ni, &ns), R);
+        emit(Ocopy, Kl, r, rarg(all.knum(Kl), &ni, &ns), R);
         f.retr = r;
     }
 

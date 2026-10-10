@@ -233,7 +233,7 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
         // produce an indirect call
         r1 = newtmp("isel", Kl, f);
         emit(Ocopy, Kl, r1, r0, R);
-    } else if (op != Ocopy.int() and k == Kl and noimm(r0, f)) {
+    } else if (op != Ocopy.int() and k == Kl.int() and noimm(r0, f)) {
         // load constants that do not fit in
         // a 32bit signed integer into a
         // long temporary
@@ -354,7 +354,7 @@ fn selcmp(arg: *[2]Ref, k: i32, swap: bool, f: *Fn) void {
     emit(Oxcmp, k, R, arg[1], arg[0]);
     const icmp = &all.curi[0];
     if (rtype(arg[0]) == RCon) {
-        assert(k != Kw);
+        assert(k != Kw.int());
         icmp.arg[1] = newtmp("isel", k, f);
         emit(Ocopy, k, icmp.arg[1], arg[0], R);
         fixarg(&all.curi[0].arg[0], k, &all.curi[0], f);
@@ -380,7 +380,7 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
                 return;
             };
     const i_0 = all.curi;
-    const k: i32 = i.cls;
+    const k: i32 = all.knum(i.cls);
     sw: switch (i.op) {
         Odiv, Orem, Oudiv, Ourem => {
             if (KBASE(k) == 1)
@@ -419,7 +419,7 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
                 // x86 masks the count; an immediate >= width does not assemble
                 const c = &f.con[r0.val];
                 if (c.type == CBits) {
-                    const m: i64 = if (k == Kw) 31 else 63;
+                    const m: i64 = if (k == Kw.int()) 31 else 63;
                     if (c.bits.i & m != c.bits.i)
                         i.arg[1] = getcon(c.bits.i & m, f);
                 }
@@ -452,11 +452,11 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
             // %result =d cast %sum
             r0 = newtmp("utof", k, f);
             var sh: i32 = undefined;
-            if (k == Ks) {
-                kc = Kw;
+            if (k == Ks.int()) {
+                kc = all.knum(Kw);
                 sh = 23;
             } else {
-                kc = Kl;
+                kc = all.knum(Kl);
                 sh = 52;
             }
             var j: usize = 0;
@@ -475,22 +475,22 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
             all.curi += 1;
             sel(ci.*, null, f);
             emit(Oshr, Kl, tmp[1], i.arg[0], getcon(63, f));
-            fixarg(&all.curi[0].arg[0], Kl, &all.curi[0], f);
+            fixarg(&all.curi[0].arg[0], all.knum(Kl), &all.curi[0], f);
             emit(Oand, Kl, tmp[0], i.arg[0], getcon(1, f));
-            fixarg(&all.curi[0].arg[0], Kl, &all.curi[0], f);
+            fixarg(&all.curi[0].arg[0], all.knum(Kl), &all.curi[0], f);
         },
         Ostoui, Odtoui => {
             if (i.op == Ostoui) {
                 i.op = Ostosi;
-                kc = Ks;
+                kc = all.knum(Ks);
                 tmp[4] = getcon(0xdf000000, f);
             } else {
                 i.op = Odtosi;
-                kc = Kd;
+                kc = all.knum(Kd);
                 tmp[4] = getcon(@bitCast(@as(u64, 0xc3e0000000000000)), f);
             }
             // Oftoui:
-            if (k == Kw) {
+            if (k == Kw.int()) {
                 r0 = newtmp("ftou", Kl, f);
                 emit(Ocopy, Kw, i.to, r0, R);
                 i.cls = Kl;
@@ -521,7 +521,7 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
             fixarg(&i_1.arg[1], kc, i_1, f);
             emit(Osar, Kl, tmp[1], tmp[0], getcon(63, f));
             emit(i.op, Kl, tmp[0], i.arg[0], R);
-            fixarg(&all.curi[0].arg[0], Kl, &all.curi[0], f);
+            fixarg(&all.curi[0].arg[0], all.knum(Kl), &all.curi[0], f);
         },
         Onop => {},
         Ostored, Ostores, Ostorel, Ostorew, Ostoreh, Ostoreb => {
@@ -629,7 +629,7 @@ fn selsel(f: *Fn, b: *Blk, n1: uint, tn: [*]Num) uint {
     var gencmp = false;
     var gencpy = false;
     var swap = false;
-    var k: i32 = Kw;
+    var k: i32 = all.knum(Kw);
     var c: i32 = Cine;
     var other = false;
     if (fi_ == null or !req(fi_.?.to, r)) {
@@ -718,7 +718,7 @@ fn seljmp(b: *Blk, f: *Fn) void {
     const fi_ = flagi(b.ins[0..b.nins]);
     if (fi_ == null or !req(fi_.?.to, r)) {
         var cr = [2]Ref{ r, CON_Z };
-        selcmp(&cr, Kw, false, f);
+        selcmp(&cr, all.knum(Kw), false, f);
         b.jmp.type = Jjf.add(Cine);
         return;
     }
@@ -1015,7 +1015,7 @@ pub fn amd64_isel(f: *Fn) void {
                 var a: uint = 0;
                 while (p.blk[a] != b) : (a += 1)
                     assert(a + 1 < p.narg);
-                fixarg(&p.arg[a], p.cls, null, f);
+                fixarg(&p.arg[a], all.knum(p.cls), null, f);
             }
         }
         if (n != 0) @memset(num[0..@intCast(n)], std.mem.zeroes(Num));

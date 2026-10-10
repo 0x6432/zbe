@@ -83,7 +83,7 @@ fn imm(c: *Con, k: i32, pn: *i64) i32 {
     if (c.type != CBits)
         return Iother;
     var n = c.bits.i;
-    if (k == Kw)
+    if (k == Kw.int())
         n = @as(i32, @truncate(n));
     var i: i32 = Iplo12;
     if (n < 0) {
@@ -102,7 +102,7 @@ fn imm(c: *Con, k: i32, pn: *i64) i32 {
 
 pub fn arm64_logimm(x_: u64, k: i32) bool {
     var x = x_;
-    if (k == Kw)
+    if (k == Kw.int())
         x = (x & 0xffffffff) | x << 32;
     if ((x & 1) != 0)
         x = ~x;
@@ -260,7 +260,7 @@ fn sel(i_: Ins, f: *Fn) void {
     if (INRANGE(i.op, Oalloc, Oalloc1)) {
         const i_0 = &(all.curi - 1)[0];
         salloc(i.to, i.arg[0], f);
-        fixarg(&i_0.arg[0], Kl, false, f);
+        fixarg(&i_0.arg[0], all.knum(Kl), false, f);
         return;
     }
     if (iscmp(i.op, &ck, &cc)) {
@@ -314,7 +314,7 @@ fn seljmp(b: *Blk, f: *Fn) void {
         ir.* = INS0(Onop);
     } else {
         var a = [2]Ref{ r, CON_Z };
-        _ = selcmp(&a, Kw, f);
+        _ = selcmp(&a, all.knum(Kw), f);
         b.jmp.type = Jjfine;
     }
 }
@@ -356,7 +356,7 @@ pub fn arm64_isel(f: *Fn) void {
                 var a: uint = 0;
                 while (p.blk[a] != b) : (a += 1)
                     assert(a + 1 < p.narg);
-                fixarg(&p.arg[a], p.cls, true, f);
+                fixarg(&p.arg[a], all.knum(p.cls), true, f);
             }
         }
         seljmp(b, f);

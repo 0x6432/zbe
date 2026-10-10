@@ -148,12 +148,12 @@ const Km = Kl; // memory pointer
 
 fn kcls(ch: u8) i16 {
     return switch (ch) {
-        'w' => Kw,
-        'l' => Kl,
-        's' => Ks,
-        'd' => Kd,
-        'm' => Km,
-        'x' => Kx,
+        'w' => @intFromEnum(Kw),
+        'l' => @intFromEnum(Kl),
+        's' => @intFromEnum(Ks),
+        'd' => @intFromEnum(Kd),
+        'm' => @intFromEnum(Km),
+        'x' => @intFromEnum(Kx),
         'e' => Ke,
         else => unreachable,
     };
@@ -721,16 +721,16 @@ fn parsecls(tyn: *i32) i32 {
         Tub => return Kub,
         Tsh => return Ksh,
         Tuh => return Kuh,
-        Tw => return Kw,
-        Tl => return Kl,
-        Ts => return Ks,
-        Td => return Kd,
+        Tw => return all.knum(Kw),
+        Tl => return all.knum(Kl),
+        Ts => return all.knum(Ks),
+        Td => return all.knum(Kd),
         else => err("invalid class specifier", .{}),
     }
 }
 
 inline fn mkins(op: anytype, k: anytype, to: Ref, a0: Ref, a1: Ref) Ins {
-    return .{ .op = op, .cls = @intCast(k), .to = to, .arg = .{ a0, a1 } };
+    return .{ .op = op, .cls = all.kof(k), .to = to, .arg = .{ a0, a1 } };
 }
 
 fn parserefl(arg: bool) bool {
@@ -767,7 +767,7 @@ fn parserefl(arg: bool) bool {
                 hasenv = true;
                 env = true;
                 _ = next();
-                k = Kl;
+                k = all.knum(Kl);
             },
             else => {
                 env = false;
@@ -857,7 +857,7 @@ fn parseline(ps: PState) PState {
         Tblit, Tcall, all.ops.num(Ovastart) => {
             // operations without result
             r = R;
-            k = Kw;
+            k = all.knum(Kw);
             op = t;
         },
         Trbrace => return PEnd,
@@ -907,7 +907,7 @@ fn parseline(ps: PState) PState {
         },
         all.ops.num(Odbgloc) => {
             op = t;
-            k = Kw;
+            k = all.knum(Kw);
             r = R;
             expect(Tint);
             arg[0] = INT(tokval.num);
@@ -925,7 +925,7 @@ fn parseline(ps: PState) PState {
         else => {
             if (isstore(t)) {
                 r = R;
-                k = Kw;
+                k = all.knum(Kw);
                 op = t;
             } else err("label, instruction or jump expected", .{});
         },
@@ -954,11 +954,11 @@ fn parseline(ps: PState) PState {
         op = all.ops.num(Ocall);
         expect(Tnl);
         if (k == Kc) {
-            k = Kl;
+            k = all.knum(Kl);
             arg[1] = TYPE(ty);
         }
         if (k >= Ksb)
-            k = Kw;
+            k = all.knum(Kw);
         flow = .ins;
     }
     if (flow == .normal) {
@@ -999,7 +999,7 @@ fn parseline(ps: PState) PState {
                     err("unexpected phi instruction", .{});
                 const phi = pnew(Phi);
                 phi.to = r;
-                phi.cls = @intCast(k);
+                phi.cls = all.kof(k);
                 phi.arg = vnewT(Ref, i, PFn);
                 @memcpy(phi.arg[0..i], arg[0..i]);
                 phi.blk = vnewT(*Blk, i, PFn);
@@ -1038,7 +1038,7 @@ fn parseline(ps: PState) PState {
     if (all.insbHead() >= NIns)
         err("too many instructions", .{});
     all.curi[0].op = all.ops.of(op);
-    all.curi[0].cls = @intCast(k);
+    all.curi[0].cls = all.kof(k);
     all.curi[0].to = r;
     all.curi[0].arg[0] = arg[0];
     all.curi[0].arg[1] = arg[1];
@@ -1047,7 +1047,7 @@ fn parseline(ps: PState) PState {
 }
 
 fn usecheck(r: Ref, k: i32, f: *Fn) bool {
-    return rtype(r) != RTmp or f.tmp[r.val].cls == k or (f.tmp[r.val].cls == Kl and k == Kw);
+    return rtype(r) != RTmp or f.tmp[r.val].cls.int() == k or (f.tmp[r.val].cls == Kl and k == Kw.int());
 }
 
 fn typecheck(f: *Fn) void {
@@ -1084,7 +1084,7 @@ fn typecheck(f: *Fn) void {
             t = &f.tmp[p.to.val];
             n = 0;
             while (n < p.narg) : (n += 1) {
-                k = t.?.cls;
+                k = t.?.cls.int();
                 if (bshas(&ppb, p.blk[n].id))
                     err("multiple entries for @{s} in phi %{s}", .{cs(p.blk[n].name), cs(t.?.name)});
                 if (!usecheck(p.arg[n], k, f))
@@ -1097,7 +1097,7 @@ fn typecheck(f: *Fn) void {
         for (b.ins[0..b.nins]) |*i| {
             n = 0;
             while (n < 2) : (n += 1) {
-                k = all.optab[i.op.int()].argcls[n][@as(usize, @intCast(i.cls))];
+                k = all.optab[i.op.int()].argcls[n][i.cls.idx()];
                 r = i.arg[n];
                 t = &f.tmp[r.val];
                 const which: []const u8 = if (n == 1) "second" else "first";
@@ -1105,9 +1105,9 @@ fn typecheck(f: *Fn) void {
                     err("invalid instruction type in {s}", .{cs(all.optab[i.op.int()].name)});
                 if (rtype(r) == RType)
                     continue;
-                if (rtype(r) != -1 and k == Kx)
+                if (rtype(r) != -1 and k == Kx.int())
                     err("no {s} operand expected in {s}", .{which, cs(all.optab[i.op.int()].name)});
-                if (rtype(r) == -1 and k != Kx)
+                if (rtype(r) == -1 and k != Kx.int())
                     err("missing {s} operand in {s}", .{which, cs(all.optab[i.op.int()].name)});
                 if (!usecheck(r, k, f))
                     err("invalid type for {s} operand %{s} in {s}", .{which, cs(t.?.name), cs(all.optab[i.op.int()].name)});
@@ -1117,15 +1117,15 @@ fn typecheck(f: *Fn) void {
         var jerr = false;
         if (isret(b.jmp.type)) {
             if (b.jmp.type == Jretc)
-                k = Kl
+                k = all.knum(Kl)
             else if (b.jmp.type.int() >= Jretsb.int())
-                k = Kw
+                k = all.knum(Kw)
             else
                 k = b.jmp.type.int() - Jretw.int();
             if (!usecheck(r, k, f))
                 jerr = true;
         }
-        if (jerr or (b.jmp.type == Jjnz and !usecheck(r, Kw, f)))
+        if (jerr or (b.jmp.type == Jjnz and !usecheck(r, all.knum(Kw), f)))
             err("invalid type for jump argument %{s} in block @{s}", .{cs(f.tmp[r.val].name), cs(b.name)});
         if (b.s1 != null and b.s1.?.jmp.type == Jxxx)
             err("block @{s} is used undefined", .{cs(b.s1.?.name)});
@@ -1158,7 +1158,7 @@ fn parsefn(lnk: *Lnk) *Fn {
     curf.lnk = lnk.*;
     curf.leaf = 1;
     blink = &curf.start;
-    curf.retty = Kx;
+    curf.retty = all.knum(Kx);
     if (peek() != Tglo)
         rcls = parsecls(&curf.retty)
     else
@@ -1583,7 +1583,7 @@ pub fn printfn(f: *Fn, fp: *Writer) Writer.Error!void {
         while (p_it) |p| : (p_it = p.link) {
             try fp.print("\t", .{});
             try printref(p.to, f, fp);
-            try fp.print(" ={c} phi ", .{ktoc[@intCast(p.cls)]});
+            try fp.print(" ={c} phi ", .{ktoc[p.cls.idx()]});
             assert(p.narg != 0);
             var n: uint = 0;
             while (true) : (n += 1) {
@@ -1599,13 +1599,13 @@ pub fn printfn(f: *Fn, fp: *Writer) Writer.Error!void {
             try fp.print("\t", .{});
             if (!req(i.to, R)) {
                 try printref(i.to, f, fp);
-                try fp.print(" ={c} ", .{ktoc[@as(usize, @intCast(i.cls))]});
+                try fp.print(" ={c} ", .{ktoc[i.cls.idx()]});
             }
             assert(all.optab[i.op.int()].name != null);
             try fp.print("{s}", .{cs(all.optab[i.op.int()].name)});
             if (req(i.to, R))
                 switch (i.op) {
-                    Oarg, Oswap, Oxcmp, Oacmp, Oacmn, Oafcmp, Oxtest, Oxdiv, Oxidiv => try fp.writeByte(ktoc[@as(usize, @intCast(i.cls))]),
+                    Oarg, Oswap, Oxcmp, Oacmp, Oacmn, Oafcmp, Oxtest, Oxdiv, Oxidiv => try fp.writeByte(ktoc[i.cls.idx()]),
                     else => {},
                 };
             if (!req(i.arg[0], R)) {

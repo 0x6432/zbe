@@ -289,7 +289,7 @@ fn classify_arguments(reg_usage: *RegisterUsage, instrs: []const Ins, arg_classe
         switch (instr.op) {
             Oarg, Opar => {
                 assign_register_or_stack(reg_usage, arg, KBASE(instr.cls) != 0, false);
-                arg.cls = instr.cls;
+                arg.cls = instr.cls.int();
                 arg.@"align" = 3;
                 arg.size = 8;
             },
@@ -298,9 +298,9 @@ fn classify_arguments(reg_usage: *RegisterUsage, instrs: []const Ins, arg_classe
                 const @"type" = &all.typ[typ_index];
                 const by_copy = type_is_by_copy(@"type");
                 assign_register_or_stack(reg_usage, arg, false, by_copy);
-                arg.cls = Kl;
+                arg.cls = all.knum(Kl);
                 if (!by_copy and @"type".size <= 4) {
-                    arg.cls = Kw;
+                    arg.cls = all.knum(Kw);
                 }
                 arg.@"align" = 3;
                 arg.size = @intCast(@"type".size);
@@ -437,7 +437,7 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
             emit(Ostorel, 0, R, copy, call_instr.to);
             emit(Ocopy, Kl, copy, TMP(RAX), R);
             reg_usage.rax_returned = true;
-        } else if (is_integer_type(call_instr.cls)) {
+        } else if (is_integer_type(call_instr.cls.int())) {
             // Only a basic type returned from the call, integer.
             emit(Ocopy, call_instr.cls, call_instr.to, TMP(RAX), R);
             reg_usage.rax_returned = true;
@@ -471,7 +471,7 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
 
     var reg_counter: i32 = 0;
     if (is_struct_return) {
-        const first_reg = register_for_arg(Kl, reg_counter);
+        const first_reg = register_for_arg(all.knum(Kl), reg_counter);
         reg_counter += 1;
         emit(Ocopy, Kl, first_reg, return_pad.?.instr.to, R);
     }
@@ -745,7 +745,7 @@ fn lower_func_parameters(func: *Fn) RegisterUsage {
             .APS_CopyAndPointerInRegister => {
                 // Because this has to be a copy (that we own), it is sufficient to just
                 // copy the register to the target.
-                const from = register_for_arg(Kl, reg_counter);
+                const from = register_for_arg(all.knum(Kl), reg_counter);
                 reg_counter += 1;
                 emit(Ocopy, Kl, instr.to, from, R);
             },

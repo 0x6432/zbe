@@ -238,7 +238,7 @@ fn pmrec(status: []PMStat, i: usize, k: *i32) i32 {
         return -1;
     }
     assert(KBASE(pm[i].cls) == KBASE(k.*));
-    assert((Kw | Kl) == Kl and (Ks | Kd) == Kd);
+    assert((Kw.int() | Kl.int()) == Kl.int() and (Ks.int() | Kd.int()) == Kd.int());
     k.* |= pm[i].cls;
     var j: usize = 0;
     while (j < npm) : (j += 1) {
@@ -333,9 +333,9 @@ fn dopm(b: *Blk, last: uint, m: *RMap) uint {
         const r1 = m.r[n];
         const r = rfind(&m0, t);
         if (r != -1)
-            pmadd(TMP(r1), TMP(r), tmp[@intCast(t)].cls)
+            pmadd(TMP(r1), TMP(r), tmp[@intCast(t)].cls.int())
         else if (s != -1)
-            pmadd(TMP(r1), SLOT(s), tmp[@intCast(t)].cls);
+            pmadd(TMP(r1), SLOT(s), tmp[@intCast(t)].cls.int());
     }
     for (b.ins[i .. last + 1]) |*ip| {
         if (!req(ip.to, R))
@@ -649,7 +649,7 @@ pub fn rega(f: *Fn) void {
             const x = rl[@intCast(r)];
             assert(x != 0 or t < Tmp0); // todo, ditto
             if (x > 0 and !bshas(&m.b, x)) {
-                pmadd(TMP(x), TMP(r), tmp[@intCast(t)].cls);
+                pmadd(TMP(x), TMP(r), tmp[@intCast(t)].cls.int());
                 m.r[j] = x;
                 bsset(&m.b, x);
             }
@@ -703,13 +703,13 @@ pub fn rega(f: *Fn) void {
                 var src = p.arg[u];
                 if (rtype(src) == RTmp)
                     src = rref(&end[b.id], (src.val));
-                pmadd(src, dst, p.cls);
+                pmadd(src, dst, all.knum(p.cls));
             }
             t = Tmp0;
             while (bsiter(&s.in, &t)) : (t += 1) {
                 const src = rref(&end[b.id], t);
                 const dst = rref(&beg[s.id], t);
-                pmadd(src, dst, tmp[@intCast(t)].cls);
+                pmadd(src, dst, tmp[@intCast(t)].cls.int());
             }
             all.curi = all.insbEnd();
             pmgen();

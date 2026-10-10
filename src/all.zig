@@ -196,16 +196,16 @@ pub inline fn INRANGE(x: anytype, comptime l: anytype, comptime u: anytype) bool
     return @as(u32, @bitCast(ordinal(x) -% lo)) <= hi - lo;
 }
 pub inline fn isstore(o: anytype) bool {
-    return INRANGE(o, .storeb, .stored);
+    return INRANGE(o, Opc.storeb, Opc.stored);
 }
 pub inline fn isload(o: anytype) bool {
-    return INRANGE(o, .loadsb, .load);
+    return INRANGE(o, Opc.loadsb, Opc.load);
 }
 pub inline fn isalloc(o: anytype) bool {
-    return INRANGE(o, .alloc4, .alloc16);
+    return INRANGE(o, Opc.alloc4, Opc.alloc16);
 }
 pub inline fn isext(o: anytype) bool {
-    return INRANGE(o, .extsb, .extuw);
+    return INRANGE(o, Opc.extsb, Opc.extuw);
 }
 pub inline fn ispar(o: anytype) bool {
     return INRANGE(o, Opc.par, Opc.pare);
@@ -214,16 +214,16 @@ pub inline fn isarg(o: anytype) bool {
     return INRANGE(o, Opc.arg, Opc.argv);
 }
 pub inline fn isret(j: anytype) bool {
-    return INRANGE(j, .retw, .ret0);
+    return INRANGE(j, J.retw, J.ret0);
 }
 pub inline fn isparbh(o: anytype) bool {
-    return INRANGE(o, .parsb, .paruh);
+    return INRANGE(o, Opc.parsb, Opc.paruh);
 }
 pub inline fn isargbh(o: anytype) bool {
-    return INRANGE(o, .argsb, .arguh);
+    return INRANGE(o, Opc.argsb, Opc.arguh);
 }
 pub inline fn isretbh(j: anytype) bool {
-    return INRANGE(j, .retsb, .retuh);
+    return INRANGE(j, J.retsb, J.retuh);
 }
 pub inline fn isxsel(o: anytype) bool {
     return INRANGE(o, Opc.xsel_first, Opc.xsel_last);
@@ -253,11 +253,14 @@ pub const Cls = enum(i16) {
 
 /// Class number of a `Cls` or integer.
 pub inline fn knum(k: anytype) i32 {
-    return if (@TypeOf(k) == Cls) @intFromEnum(k) else @intCast(k);
+    return @intFromEnum(kof(k));
 }
 /// `Cls` from a `Cls` or integer.
 pub inline fn kof(k: anytype) Cls {
-    return if (@TypeOf(k) == Cls) k else @enumFromInt(@as(i16, @intCast(k)));
+    return switch (@typeInfo(@TypeOf(k))) {
+        .@"enum", .enum_literal => k,
+        else => @enumFromInt(@as(i16, @intCast(k))),
+    };
 }
 pub inline fn KWIDE(k: anytype) i32 {
     return knum(k) & 1;

@@ -107,12 +107,12 @@ const Km = Cls.l; // memory pointer
 
 fn kcls(ch: u8) i16 {
     return switch (ch) {
-        'w' => @intFromEnum(.w),
-        'l' => @intFromEnum(.l),
-        's' => @intFromEnum(.s),
-        'd' => @intFromEnum(.d),
+        'w' => @intFromEnum(Cls.w),
+        'l' => @intFromEnum(Cls.l),
+        's' => @intFromEnum(Cls.s),
+        'd' => @intFromEnum(Cls.d),
         'm' => @intFromEnum(Km),
-        'x' => @intFromEnum(.x),
+        'x' => @intFromEnum(Cls.x),
         'e' => Ke,
         else => unreachable,
     };

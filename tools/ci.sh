@@ -86,10 +86,8 @@ cross)
   # GPRs for some calls (`ucomisd mem, %rbx`), see BUGS.md #4 -> skipped there.
   if [ $t != amd64_win ]; then
     chk "abifuzz compat $t" 'iterations ok' C env -u QBEREF python3 tests/abifuzz.py -n 15 -s 1000 -k 20
-    # -O2 under emulation: informational until the cross failures are triaged
-    echo "::group::abifuzz -O2 $t (informational)"
-    env -u QBEREF python3 tests/abifuzz.py -n 15 -s 1000 -k 20 || echo "[WARN] abifuzz -O2 $t failed (not fatal)"
-    echo "::endgroup::"
+    # -O2 under emulation (required since the rv64/arm64 ABI fixes, BUGS.md #6/#7)
+    chk "abifuzz -O2 $t" 'iterations ok' env -u QBEREF python3 tests/abifuzz.py -n 15 -s 1000 -k 20
   fi
   ;;
 corpus)

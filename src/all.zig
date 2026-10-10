@@ -304,7 +304,7 @@ pub const Op = struct {
 
 pub const Ins = extern struct {
     op: u32, // C: uint op:30
-    cls: u32, // C: uint cls:2
+    cls: i16, // C: uint cls:2; same type as Tmp.cls and Phi.cls
     to: Ref,
     arg: [2]Ref,
 };

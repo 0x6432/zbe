@@ -486,7 +486,7 @@ pub fn loadopt(f: *Fn) void {
             if (!isload(i.op))
                 continue;
             const sz = loadsz(i);
-            var sl: Slice = .{ .ref = i.arg[0], .off = 0, .sz = @intCast(sz), .cls = @intCast(i.cls) };
+            var sl: Slice = .{ .ref = i.arg[0], .off = 0, .sz = @intCast(sz), .cls = i.cls };
             var l: Loc = .{ .type = LRoot, .off = @intCast(n), .blk = b };
             rebase(&sl);
             i.arg[1] = def(sl, MASK(sz), b, @intCast(n), &l);

@@ -289,7 +289,7 @@ fn classify_arguments(reg_usage: *RegisterUsage, instrs: []const Ins, arg_classe
         switch (instr.op) {
             Oarg, Opar => {
                 assign_register_or_stack(reg_usage, arg, KBASE(instr.cls) != 0, false);
-                arg.cls = @intCast(instr.cls);
+                arg.cls = instr.cls;
                 arg.@"align" = 3;
                 arg.size = 8;
             },
@@ -437,7 +437,7 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
             emit(Ostorel, 0, R, copy, call_instr.to);
             emit(Ocopy, Kl, copy, TMP(RAX), R);
             reg_usage.rax_returned = true;
-        } else if (is_integer_type(@intCast(call_instr.cls))) {
+        } else if (is_integer_type(call_instr.cls)) {
             // Only a basic type returned from the call, integer.
             emit(Ocopy, call_instr.cls, call_instr.to, TMP(RAX), R);
             reg_usage.rax_returned = true;

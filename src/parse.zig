@@ -1068,7 +1068,7 @@ fn typecheck(f: *Fn) void {
         for (b.ins[0..b.nins]) |*i|
             if (rtype(i.to) == RTmp) {
                 t = &f.tmp[i.to.val];
-                if (clsmerge(&t.?.cls, @intCast(i.cls)))
+                if (clsmerge(&t.?.cls, i.cls))
                     err("temporary %{s} is assigned with multiple types", .{cs(t.?.name)});
             };
     }
@@ -1097,7 +1097,7 @@ fn typecheck(f: *Fn) void {
         for (b.ins[0..b.nins]) |*i| {
             n = 0;
             while (n < 2) : (n += 1) {
-                k = all.optab[i.op].argcls[n][i.cls];
+                k = all.optab[i.op].argcls[n][@as(usize, @intCast(i.cls))];
                 r = i.arg[n];
                 t = &f.tmp[r.val];
                 const which: []const u8 = if (n == 1) "second" else "first";
@@ -1599,13 +1599,13 @@ pub fn printfn(f: *Fn, fp: *Writer) Writer.Error!void {
             try fp.print("\t", .{});
             if (!req(i.to, R)) {
                 try printref(i.to, f, fp);
-                try fp.print(" ={c} ", .{ktoc[i.cls]});
+                try fp.print(" ={c} ", .{ktoc[@as(usize, @intCast(i.cls))]});
             }
             assert(all.optab[i.op].name != null);
             try fp.print("{s}", .{cs(all.optab[i.op].name)});
             if (req(i.to, R))
                 switch (i.op) {
-                    Oarg, Oswap, Oxcmp, Oacmp, Oacmn, Oafcmp, Oxtest, Oxdiv, Oxidiv => try fp.writeByte(ktoc[i.cls]),
+                    Oarg, Oswap, Oxcmp, Oacmp, Oacmn, Oafcmp, Oxtest, Oxdiv, Oxidiv => try fp.writeByte(ktoc[@as(usize, @intCast(i.cls))]),
                     else => {},
                 };
             if (!req(i.arg[0], R)) {

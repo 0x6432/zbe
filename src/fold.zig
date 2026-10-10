@@ -326,7 +326,7 @@ pub fn foldref(f: *Fn, i: *Ins) Ref {
             return R;
         const cr = &f.con[rr.val];
 
-        return opfold(@intCast(i.op), @intCast(i.cls), cl, cr, f);
+        return opfold(@intCast(i.op), i.cls, cl, cr, f);
     }
     return R;
 }

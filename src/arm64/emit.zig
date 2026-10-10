@@ -302,7 +302,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
 
     var sp = false;
     while (true) {
-        var k: i32 = @intCast(i.cls);
+        var k: i32 = i.cls;
         while (true) {
             c = s[0];
             s += 1;
@@ -499,7 +499,7 @@ fn emitins(i: *Ins, e: *E) Writer.Error!void {
                     if (req(i.arg[0], TMP(IP1))) {
                         try e.f.print("\tfmov\t{c}31, {c}17\n", .{"ds"[@intFromBool(i.cls == Kw)], "xw"[@intFromBool(i.cls == Kw)]});
                         i.arg[0] = TMP(V31);
-                        i.op = Ostores + (i.cls - Kw);
+                        i.op = Ostores + (@as(u32, @intCast(i.cls)) - Kw);
                     }
                     _ = try fixarg(&i.arg[1], storesz(i), IP1, e);
                 }
@@ -517,7 +517,7 @@ fn emitins(i: *Ins, e: *E) Writer.Error!void {
                     try emitins(i, e);
                     i.arg[0] = i.to;
                 }
-                i.op = Ostorew + i.cls;
+                i.op = Ostorew + @as(u32, @intCast(i.cls));
                 i.cls = Kw;
                 i.arg[1] = r;
                 try emitins(i, e);
@@ -527,7 +527,7 @@ fn emitins(i: *Ins, e: *E) Writer.Error!void {
             switch (rtype(i.arg[0])) {
                 RCon => {
                     const c = &e.@"fn".con[i.arg[0].val];
-                    try loadcon(c, @intCast(i.to.val), @intCast(i.cls), e);
+                    try loadcon(c, @intCast(i.to.val), i.cls, e);
                 },
                 RSlot => {
                     i.op = Oload;
@@ -582,7 +582,7 @@ fn table(i: *Ins, e: *E) Writer.Error!void {
         // this linear search should really be a binary
         // search
         if (omap[o].op == NOp)
-            die("no match for {s}({c})", .{cs(all.optab[i.op].name), "wlsd"[i.cls]});
+            die("no match for {s}({c})", .{cs(all.optab[i.op].name), "wlsd"[@as(usize, @intCast(i.cls))]});
         if (omap[o].op == i.op and
             (omap[o].cls == i.cls or omap[o].cls == Ka or
             (omap[o].cls == Ki and KBASE(i.cls) == 0)))

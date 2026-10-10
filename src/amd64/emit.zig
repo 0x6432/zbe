@@ -419,7 +419,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
                 // fall through
             }
             assert(!req(i.arg[1], i.to) or req(i.arg[0], i.to)); // cannot convert to 2-address
-            try emitcopy(i.to, i.arg[0], @intCast(i.cls), e);
+            try emitcopy(i.to, i.arg[0], i.cls, e);
             s += 1;
         },
         else => {},
@@ -441,7 +441,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
         var doref = false;
         switch (c) {
             '%' => try e.f.writeByte('%'),
-            'k' => try e.f.writeAll(cs(clstoa[i.cls])),
+            'k' => try e.f.writeAll(cs(clstoa[@as(usize, @intCast(i.cls))])),
             '0', '1', '=' => {
                 sz = if (KWIDE(i.cls) != 0) SLong else SWord;
                 s -= 1;
@@ -526,7 +526,7 @@ fn emittable(i: *Ins, e: *E) Writer.Error!void {
         // this linear search should really be a binary
         // search
         if (omap[o].op == NOp)
-            die("no match for {s}({c})", .{cs(all.optab[i.op].name), "wlsd"[i.cls]});
+            die("no match for {s}({c})", .{cs(all.optab[i.op].name), "wlsd"[@as(usize, @intCast(i.cls))]});
         if (omap[o].op == i.op)
             if (omap[o].cls == i.cls or
                 (omap[o].cls == Ki and KBASE(i.cls) == 0) or
@@ -592,7 +592,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             if (KBASE(i.cls) == 0)
                 try emitf("neg%k %=", &i, e)
             else
-                try e.f.print("\txorp{c} {s}fp{d}(%rip), %{s}\n", .{"xxsd"[i.cls], cs(&all.T.asloc), stashbits(negmask[i.cls], 16), cs(regtoa((i.to.val), SLong))});
+                try e.f.print("\txorp{c} {s}fp{d}(%rip), %{s}\n", .{"xxsd"[@as(usize, @intCast(i.cls))], cs(&all.T.asloc), stashbits(negmask[@as(usize, @intCast(i.cls))], 16), cs(regtoa((i.to.val), SLong))});
         },
         Odiv => {
             // use xmm15 to adjust the instruction when the
@@ -726,9 +726,9 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             }
             // for floats, there is no swap instruction
             // so we use xmm15 as a temporary
-            try emitcopy(TMP(XMM0 + 15), i.arg[0], @intCast(i.cls), e);
-            try emitcopy(i.arg[0], i.arg[1], @intCast(i.cls), e);
-            try emitcopy(i.arg[1], TMP(XMM0 + 15), @intCast(i.cls), e);
+            try emitcopy(TMP(XMM0 + 15), i.arg[0], i.cls, e);
+            try emitcopy(i.arg[0], i.arg[1], i.cls, e);
+            try emitcopy(i.arg[1], TMP(XMM0 + 15), i.cls, e);
         },
         Odbgloc => try emitdbgloc(i.arg[0].val, i.arg[1].val, e.f),
     }

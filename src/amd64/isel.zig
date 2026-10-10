@@ -380,7 +380,7 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
                 return;
             };
     const i_0 = all.curi;
-    const k: i32 = @intCast(i.cls);
+    const k: i32 = i.cls;
     sw: switch (i.op) {
         Odiv, Orem, Oudiv, Ourem => {
             if (KBASE(k) == 1)

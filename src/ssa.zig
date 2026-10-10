@@ -149,7 +149,7 @@ pub fn filluse(f: *Fn) void {
                 tmp[@intCast(t)].def = i;
                 tmp[@intCast(t)].bid = b.id;
                 tmp[@intCast(t)].ndef += 1;
-                tmp[@intCast(t)].cls = @intCast(i.cls);
+                tmp[@intCast(t)].cls = i.cls;
             }
             var m: usize = 0;
             while (m < 2) : (m += 1)
@@ -215,7 +215,7 @@ fn phiins(f: *Fn) void {
                             blist[nb] = b;
                             nb += 1;
                         }
-                        if (clsmerge(&k, @intCast(i.cls)))
+                        if (clsmerge(&k, i.cls))
                             die("invalid input", .{});
                     }
                 }

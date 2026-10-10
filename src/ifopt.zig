@@ -88,7 +88,7 @@ fn convert(ifb: *Blk, thenb: *Blk, elseb: *Blk, joinb: *Blk) void {
     var p_it: ?*Phi = joinb.phi;
     while (p_it) |p| : (p_it = p.link) {
         sel.to = p.to;
-        sel.cls = @intCast(p.cls);
+        sel.cls = p.cls;
         sel.arg[0] = phiarg(p, thenb);
         sel.arg[1] = phiarg(p, elseb);
         addins(&ins, &nins, &sel);

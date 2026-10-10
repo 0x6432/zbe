@@ -269,7 +269,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
 
     try f.writeByte('\t');
     while (true) {
-        const k: i32 = @intCast(i.cls);
+        const k: i32 = i.cls;
         while (true) {
             c = s[0];
             s += 1;
@@ -291,7 +291,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
             },
             'k' => {
                 if (i.cls != Kl)
-                    try f.writeByte(clschr[i.cls]);
+                    try f.writeByte(clschr[@as(usize, @intCast(i.cls))]);
             },
             '=', '0' => {
                 r = if (c == '=') i.to else i.arg[0];
@@ -412,7 +412,7 @@ fn table(i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
         // this linear search should really be a binary
         // search
         if (omap[o].op == NOp)
-            die("no match for {s}({c})", .{cs(all.optab[i.op].name), "wlsd"[i.cls]});
+            die("no match for {s}({c})", .{cs(all.optab[i.op].name), "wlsd"[@as(usize, @intCast(i.cls))]});
         if (omap[o].op == i.op and
             (omap[o].cls == i.cls or omap[o].cls == Ka or
             (omap[o].cls == Ki and KBASE(i.cls) == 0)))
@@ -455,7 +455,7 @@ fn emitins(i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
             }
             assert(isreg(i.to));
             switch (rtype(i.arg[0])) {
-                RCon => try loadcon(&fn_.con[i.arg[0].val], @intCast(i.to.val), @intCast(i.cls), f),
+                RCon => try loadcon(&fn_.con[i.arg[0].val], @intCast(i.to.val), i.cls, f),
                 RSlot => {
                     i.op = Oload;
                     try fixmem(&i.arg[0], fn_, f);

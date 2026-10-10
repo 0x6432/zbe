@@ -282,7 +282,7 @@ fn argsclass(ins: []const Ins, ac: []AClass, op: i32, aret: ?*const AClass, env:
                 } else a.inmem = 2;
                 a.@"align" = 3;
                 a.size = 8;
-                a.cls[0] = @intCast(i.cls);
+                a.cls[0] = i.cls;
             },
             Oargc => {
                 const n0 = i.arg[0].val;

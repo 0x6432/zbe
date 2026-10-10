@@ -71,7 +71,7 @@ inline fn rhash(r: Ref) uint {
 }
 
 fn ihash(i: *Ins) uint {
-    var h = mix(i.op, i.cls);
+    var h = mix(i.op, @as(u32, @intCast(i.cls)));
     h = mix(h, rhash(i.arg[0]));
     h = mix(h, rhash(i.arg[1]));
     return h;

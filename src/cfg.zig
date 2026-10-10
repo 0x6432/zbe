@@ -438,7 +438,7 @@ pub fn simplcfg(f: *Fn) void {
             const bb = b.pred[0];
             var p_it = b.phi;
             while (p_it) |p| : (p_it = p.link) {
-                cpy.cls = @intCast(p.cls);
+                cpy.cls = p.cls;
                 cpy.to = p.to;
                 cpy.arg[0] = phiarg(p, bb);
                 addins(&bb.ins, &bb.nins, &cpy);

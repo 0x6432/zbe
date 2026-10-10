@@ -3,17 +3,14 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("all.zig");
+const Cls = all.Cls;
+const J = all.J;
 const BIT = all.BIT;
 const BSet = all.BSet;
 const Blk = all.Blk;
 const Fn = all.Fn;
 const Ins = all.Ins;
-const Jjmp = all.Jjmp;
 const KBASE = all.KBASE;
-const Kd = all.Kd;
-const Kl = all.Kl;
-const Ks = all.Ks;
-const Kw = all.Kw;
 const Mem = all.Mem;
 const PFn = all.PFn;
 const Phi = all.Phi;
@@ -235,7 +232,7 @@ fn pmrec(status: []PMStat, i: usize, k: *i32) i32 {
         return -1;
     }
     assert(KBASE(pm[i].cls) == KBASE(k.*));
-    assert((Kw.int() | Kl.int()) == Kl.int() and (Ks.int() | Kd.int()) == Kd.int());
+    assert((Cls.w.int() | Cls.l.int()) == Cls.l.int() and (Cls.s.int() | Cls.d.int()) == Cls.d.int());
     k.* |= pm[i].cls;
     var j: usize = 0;
     while (j < npm) : (j += 1) {
@@ -721,7 +718,7 @@ pub fn rega(f: *Fn) void {
             stmov += @intCast(all.insbTail());
             stblk += 1;
             idup(b1, all.curi, (all.insbTail()));
-            b1.jmp.type = Jjmp;
+            b1.jmp.type = .jmp;
             b1.s1 = s;
             psa[pi].* = b1;
         }

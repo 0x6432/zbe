@@ -3,6 +3,8 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("../all.zig");
+const Cls = all.Cls;
+const J = all.J;
 const Opc = all.Opc;
 const tgt = @import("all.zig");
 const BIT = all.BIT;
@@ -32,17 +34,8 @@ const Fn = all.Fn;
 const INS = all.INS;
 const IP1 = tgt.IP1;
 const Ins = all.Ins;
-const Jhlt = all.Jhlt;
-const Jjf = all.Jjf;
-const Jjmp = all.Jjmp;
-const Jret0 = all.Jret0;
 const KBASE = all.KBASE;
 const KWIDE = all.KWIDE;
-const Kd = all.Kd;
-const Kl = all.Kl;
-const Ks = all.Ks;
-const Kw = all.Kw;
-const Kx = all.Kx;
 const LR = tgt.LR;
 const NCmp = all.NCmp;
 const NCmpI = all.NCmpI;
@@ -202,25 +195,25 @@ var rname_buf: [4]u8 = undefined;
 fn rname(r: i32, k: i32) [*:0]u8 {
     const buf: [*]u8 = &rname_buf;
     if (r == SP) {
-        assert(k == Kl.int());
+        assert(k == Cls.l.int());
         bufPrintZ(&rname_buf, "sp", .{});
     } else if (R0 <= r and r <= LR) {
         switch (k) {
             else => die("invalid class", .{}),
-            all.knum(Kw) => bufPrintZ(&rname_buf, "w{d}", .{r - R0}),
-            all.knum(Kx), all.knum(Kl) => bufPrintZ(&rname_buf, "x{d}", .{r - R0}),
+            all.knum(.w) => bufPrintZ(&rname_buf, "w{d}", .{r - R0}),
+            all.knum(.x), all.knum(.l) => bufPrintZ(&rname_buf, "x{d}", .{r - R0}),
         }
     } else if (V0 <= r and r <= V30) {
         switch (k) {
             else => die("invalid class", .{}),
-            all.knum(Ks) => bufPrintZ(&rname_buf, "s{d}", .{r - V0}),
-            all.knum(Kx), all.knum(Kd) => bufPrintZ(&rname_buf, "d{d}", .{r - V0}),
+            all.knum(.s) => bufPrintZ(&rname_buf, "s{d}", .{r - V0}),
+            all.knum(.x), all.knum(.d) => bufPrintZ(&rname_buf, "d{d}", .{r - V0}),
         }
     } else if (r == V31) {
         switch (k) {
             else => die("invalid class", .{}),
-            all.knum(Ks) => bufPrintZ(&rname_buf, "s31", .{}),
-            all.knum(Kd) => bufPrintZ(&rname_buf, "d31", .{}),
+            all.knum(.s) => bufPrintZ(&rname_buf, "s31", .{}),
+            all.knum(.d) => bufPrintZ(&rname_buf, "d31", .{}),
         }
     } else die("invalid register", .{});
     return @ptrCast(buf);
@@ -267,19 +260,19 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
             switch (c) {
                 else => die("invalid escape", .{}),
                 'W' => {
-                    k = all.knum(Kw);
+                    k = all.knum(.w);
                     continue :sw;
                 },
                 'L' => {
-                    k = all.knum(Kl);
+                    k = all.knum(.l);
                     continue :sw;
                 },
                 'S' => {
-                    k = all.knum(Ks);
+                    k = all.knum(.s);
                     continue :sw;
                 },
                 'D' => {
-                    k = all.knum(Kd);
+                    k = all.knum(.d);
                     continue :sw;
                 },
                 '?' => {
@@ -327,7 +320,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
                         else => die("todo (arm emit): unhandled ref", .{}),
                         RTmp => {
                             assert(isreg(r));
-                            try e.f.print("[{s}]", .{cs(rname((r.val), all.knum(Kl)))});
+                            try e.f.print("[{s}]", .{cs(rname((r.val), all.knum(.l)))});
                         },
                         RSlot => try e.f.print("[x29, {d}]", .{slot(r, e)}),
                     }
@@ -397,7 +390,7 @@ fn loadcon(c: *Con, r: i32, k: i32, e: *E) Writer.Error!void {
     var rn = rname(r, k);
     var n = c.bits.i;
     if (c.type == CAddr) {
-        rn = rname(r, all.knum(Kl));
+        rn = rname(r, all.knum(.l));
         try loadaddr(c, rn, e);
         return;
     }
@@ -426,7 +419,7 @@ fn fixarg(pr: *Ref, sz: i32, t: i32, e: *E) Writer.Error!bool {
         if (s > @as(u32, @bitCast(sz)) *% 4095) {
             if (t < 0)
                 return true;
-            var i = INS(.addr, Kl, TMP(t), r, R);
+            var i = INS(.addr, .l, TMP(t), r, R);
             try emitins(&i, e);
             pr.* = TMP(t);
         }
@@ -443,9 +436,9 @@ fn emitins(i: *Ins, e: *E) Writer.Error!void {
                 const t: i32 = if (all.T.apple != 0) -1 else R18;
                 if (try fixarg(&i.arg[1], storesz(i), t, e)) {
                     if (req(i.arg[0], TMP(IP1))) {
-                        try e.f.print("\tfmov\t{c}31, {c}17\n", .{"ds"[@intFromBool(i.cls == Kw)], "xw"[@intFromBool(i.cls == Kw)]});
+                        try e.f.print("\tfmov\t{c}31, {c}17\n", .{"ds"[@intFromBool(i.cls == .w)], "xw"[@intFromBool(i.cls == .w)]});
                         i.arg[0] = TMP(V31);
-                        i.op = Opc.stores.offset(i.cls.int() - Kw.int());
+                        i.op = Opc.stores.offset(i.cls.int() - Cls.w.int());
                     }
                     _ = try fixarg(&i.arg[1], storesz(i), IP1, e);
                 }
@@ -464,7 +457,7 @@ fn emitins(i: *Ins, e: *E) Writer.Error!void {
                     i.arg[0] = i.to;
                 }
                 i.op = Opc.storew.offset(i.cls);
-                i.cls = Kw;
+                i.cls = .w;
                 i.arg[1] = r;
                 try emitins(i, e);
                 return;
@@ -487,7 +480,7 @@ fn emitins(i: *Ins, e: *E) Writer.Error!void {
         },
         .addr => {
             assert(rtype(i.arg[0]) == RSlot);
-            const rn = rname((i.to.val), all.knum(Kl));
+            const rn = rname((i.to.val), all.knum(.l));
             const s = slot(i.arg[0], e);
             if (s <= 4095)
                 try e.f.print("\tadd\t{s}, x29, #{d}\n", .{cs(rn), s})
@@ -629,14 +622,14 @@ pub fn arm64_emitfn(f: *Fn, out: *Writer) Writer.Error!void {
         lbl = true;
         var jmp = false;
         switch (b.jmp.type) {
-            Jhlt => try e.f.print("\tbrk\t#1000\n", .{}),
-            Jret0 => {
+            .hlt => try e.f.print("\tbrk\t#1000\n", .{}),
+            .ret0 => {
                 s = @intCast((e.frame - e.padding) / 4);
                 for (arm64_rclob) |r| {
                     if (r < 0) break;
                     if ((e.@"fn".reg & BIT(r)) != 0) {
                         s -= 2;
-                        var in = INS(.load, @as(i32, if (r >= V0) all.knum(Kd) else all.knum(Kl)), TMP(r), SLOT(s), R);
+                        var in = INS(.load, @as(i32, if (r >= V0) all.knum(.d) else all.knum(.l)), TMP(r), SLOT(s), R);
                         try emitins(&in, e);
                     }
                 }
@@ -655,9 +648,9 @@ pub fn arm64_emitfn(f: *Fn, out: *Writer) Writer.Error!void {
                     try e.f.print("\tldp\tx29, x30, [sp], 16\n" ++ "\tmov\tx16, #{d}\n" ++ "\tmovk\tx16, #{d}, lsl #16\n" ++ "\tadd\tsp, sp, x16\n", .{(o - 16) & 0xFFFF, (o - 16) >> 16});
                 try e.f.print("\tret\n", .{});
             },
-            Jjmp => jmp = true,
+            .jmp => jmp = true,
             else => {
-                const c: i32 = b.jmp.type.int() - Jjf.int();
+                const c: i32 = b.jmp.type.int() - J.jf_first.int();
                 if (c < 0 or c > NCmp)
                     die("unhandled jump {d}", .{b.jmp.type});
                 var n: usize = undefined;

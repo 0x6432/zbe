@@ -3,6 +3,8 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("../all.zig");
+const Cls = all.Cls;
+const J = all.J;
 const Opc = all.Opc;
 const tgt = @import("all.zig");
 const Blk = all.Blk;
@@ -32,11 +34,8 @@ const Fn = all.Fn;
 const INRANGE = all.INRANGE;
 const INS0 = all.INS0;
 const Ins = all.Ins;
-const Jjnz = all.Jjnz;
 const KBASE = all.KBASE;
 const KWIDE = all.KWIDE;
-const Kl = all.Kl;
-const Kw = all.Kw;
 const NCmpI = all.NCmpI;
 const Phi = all.Phi;
 const R = all.R;
@@ -134,11 +133,11 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
                 emit(.addr, k, r1, SLOT(s), R);
                 break :blk;
             }
-            if (k == Kw.int() and f.tmp[r0.val].cls == Kl) {
+            if (k == Cls.w.int() and f.tmp[r0.val].cls == .l) {
                 // TODO: this sign extension isn't needed
                 // for 32-bit arithmetic instructions
                 r1 = newtmp("isel", k, f);
-                emit(.extsw, Kl, r1, r0, R);
+                emit(.extsw, .l, r1, r0, R);
             } else {
                 assert(k == f.tmp[r0.val].cls.int());
             }
@@ -149,8 +148,8 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
 }
 
 fn negate(pr: *Ref, f: *Fn) void {
-    const r = newtmp("isel", Kw, f);
-    emit(.xor, Kw, pr.*, r, getcon(1, f));
+    const r = newtmp("isel", .w, f);
+    emit(.xor, .w, pr.*, r, getcon(1, f));
     pr.* = r;
 }
 
@@ -235,19 +234,19 @@ fn sel(i_: Ins, f: *Fn) void {
     if (INRANGE(i.op, Opc.alloc_first, Opc.alloc_last)) {
         const i_0 = &(all.curi - 1)[0];
         salloc(i.to, i.arg[0], f);
-        fixarg(&i_0.arg[0], all.knum(Kl), i_0, f);
+        fixarg(&i_0.arg[0], all.knum(.l), i_0, f);
         return;
     }
     if (iscmp(i.op, &ck, &cc)) {
         selcmp(i, ck, cc, f);
         return;
     }
-    if ((i.op == Opc.sar or i.op == Opc.shr or i.op == Opc.shl) and rtype(i.arg[1]) == RCon) {
+    if ((i.op == .sar or i.op == .shr or i.op == .shl) and rtype(i.arg[1]) == RCon) {
         // rv64 masks register shift counts to 5 (w) / 6 (l) bits, but an
         // immediate shamt >= width does not assemble: mask it the same way
         const c = &f.con[i.arg[1].val];
         if (c.type == CBits) {
-            const m: i64 = if (i.cls == Kw) 31 else 63;
+            const m: i64 = if (i.cls == .w) 31 else 63;
             if (c.bits.i & m != c.bits.i)
                 i.arg[1] = getcon(c.bits.i & m, f);
         }
@@ -262,8 +261,8 @@ fn sel(i_: Ins, f: *Fn) void {
 
 fn seljmp(b: *Blk, f: *Fn) void {
     // TODO: replace cmp+jnz with beq/bne/blt[u]/bge[u]
-    if (b.jmp.type == Jjnz)
-        fixarg(&b.jmp.arg, all.knum(Kw), null, f);
+    if (b.jmp.type == .jnz)
+        fixarg(&b.jmp.arg, all.knum(.w), null, f);
 }
 
 pub fn rv64_isel(f: *Fn) void {

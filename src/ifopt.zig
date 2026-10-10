@@ -3,14 +3,14 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("all.zig");
+const Cls = all.Cls;
+const J = all.J;
 const Blk = all.Blk;
 const Fn = all.Fn;
 const INS = all.INS;
 const INS0 = all.INS0;
 const Ins = all.Ins;
-const Jjmp = all.Jjmp;
 const KBASE = all.KBASE;
-const Kw = all.Kw;
 const PHeap = all.PHeap;
 const Phi = all.Phi;
 const R = all.R;
@@ -77,7 +77,7 @@ fn convert(ifb: *Blk, thenb: *Blk, elseb: *Blk, joinb: *Blk) void {
     assert(joinb.npred == 2);
     var sel: Ins = undefined;
     if (joinb.phi != null) {
-        sel = INS(.sel0, Kw, R, ifb.jmp.arg, R);
+        sel = INS(.sel0, .w, R, ifb.jmp.arg, R);
         addins(&ins, &nins, &sel);
     }
     sel = INS0(.sel1);
@@ -90,7 +90,7 @@ fn convert(ifb: *Blk, thenb: *Blk, elseb: *Blk, joinb: *Blk) void {
         addins(&ins, &nins, &sel);
     }
     idup(ifb, ins, nins);
-    ifb.jmp.type = Jjmp;
+    ifb.jmp.type = .jmp;
     ifb.jmp.arg = R;
     ifb.s1 = joinb;
     ifb.s2 = null;

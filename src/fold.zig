@@ -3,6 +3,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("all.zig");
+const Cls = all.Cls;
 const Opc = all.Opc;
 const CAddr = all.CAddr;
 const CBits = all.CBits;
@@ -29,10 +30,6 @@ const Con = all.Con;
 const Fn = all.Fn;
 const Ins = all.Ins;
 const KWIDE = all.KWIDE;
-const Kd = all.Kd;
-const Kl = all.Kl;
-const Ks = all.Ks;
-const Kw = all.Kw;
 const R = all.R;
 const RCon = all.RCon;
 const RTmp = all.RTmp;
@@ -262,14 +259,14 @@ fn foldflt(res: *Con, op: i32, w: bool, cl: *Con, cr: *Con) void {
 fn opfold(op: i32, cls: i32, cl: *Con, cr: *Con, f: *Fn) Ref {
     var c: Con = undefined;
 
-    if (cls == Kw.int() or cls == Kl.int()) {
-        if (foldint(&c, op, cls == Kl.int(), cl, cr))
+    if (cls == Cls.w.int() or cls == Cls.l.int()) {
+        if (foldint(&c, op, cls == Cls.l.int(), cl, cr))
             return R;
-    } else foldflt(&c, op, cls == Kd.int(), cl, cr);
+    } else foldflt(&c, op, cls == Cls.d.int(), cl, cr);
     if (KWIDE(cls) == 0)
         c.bits.i &= 0xffffffff;
     const r = newcon(&c, f);
-    assert(!(cls == Ks.int() or cls == Kd.int()) or c.flt != 0);
+    assert(!(cls == Cls.s.int() or cls == Cls.d.int()) or c.flt != 0);
     return r;
 }
 

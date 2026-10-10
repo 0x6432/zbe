@@ -249,7 +249,7 @@ fn mkblk(ops: []const all.Opc, buf: []all.Ins) all.Blk {
 
 test "igroup: sel1 run resolves to its sel0" {
     var buf: [6]all.Ins = undefined;
-    var b = mkblk(&.{ Opc.copy, Opc.sel0, Opc.sel1, Opc.sel1, Opc.sel1, Opc.copy }, &buf);
+    var b = mkblk(&.{ .copy, .sel0, .sel1, .sel1, .sel1, .copy }, &buf);
     for ([_]u32{ 1, 2, 3, 4 }) |n| {
         const g = u.igroup(&b, n);
         try t.expectEqual(@as(all.uint, 1), g[0]);
@@ -263,7 +263,7 @@ test "igroup: sel1 run resolves to its sel0" {
 
 test "igroup: lone sel0 and blit pairs" {
     var buf: [4]all.Ins = undefined;
-    var b = mkblk(&.{ Opc.sel0, Opc.blit0, Opc.blit1, Opc.copy }, &buf);
+    var b = mkblk(&.{ .sel0, .blit0, .blit1, .copy }, &buf);
     var g = u.igroup(&b, 0);
     try t.expectEqual(@as(all.uint, 0), g[0]);
     try t.expectEqual(@as(all.uint, 1), g[1]);

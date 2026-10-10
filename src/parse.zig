@@ -3,6 +3,8 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("all.zig");
+const Cls = all.Cls;
+const J = all.J;
 const Opc = all.Opc;
 const Op = all.Op;
 const BSet = all.BSet;
@@ -32,25 +34,6 @@ const Fs = all.Fs;
 const Fw = all.Fw;
 const INT = all.INT;
 const Ins = all.Ins;
-const Jhlt = all.Jhlt;
-const Jjmp = all.Jjmp;
-const Jjnz = all.Jjnz;
-const Jret0 = all.Jret0;
-const Jretc = all.Jretc;
-const Jretd = all.Jretd;
-const Jretl = all.Jretl;
-const Jrets = all.Jrets;
-const Jretsb = all.Jretsb;
-const Jretsh = all.Jretsh;
-const Jretub = all.Jretub;
-const Jretuh = all.Jretuh;
-const Jretw = all.Jretw;
-const Jxxx = all.Jxxx;
-const Kd = all.Kd;
-const Kl = all.Kl;
-const Ks = all.Ks;
-const Kw = all.Kw;
-const Kx = all.Kx;
 const Lnk = all.Lnk;
 const Mem = all.Mem;
 const NField = all.NField;
@@ -120,16 +103,16 @@ const Kuh = 7;
 const Kc = 8;
 const K0 = 9;
 const Ke = -2; // erroneous mode
-const Km = Kl; // memory pointer
+const Km = Cls.l; // memory pointer
 
 fn kcls(ch: u8) i16 {
     return switch (ch) {
-        'w' => @intFromEnum(Kw),
-        'l' => @intFromEnum(Kl),
-        's' => @intFromEnum(Ks),
-        'd' => @intFromEnum(Kd),
+        'w' => @intFromEnum(.w),
+        'l' => @intFromEnum(.l),
+        's' => @intFromEnum(.s),
+        'd' => @intFromEnum(.d),
         'm' => @intFromEnum(Km),
-        'x' => @intFromEnum(Kx),
+        'x' => @intFromEnum(.x),
         'e' => Ke,
         else => unreachable,
     };
@@ -625,7 +608,7 @@ fn tmpref() Ref {
     }
     t = curf.ntmp;
     tmph[@intCast(i)] = t;
-    _ = newtmp(null, Kx, curf);
+    _ = newtmp(null, .x, curf);
     curf.tmp[@intCast(t)].name = strf(PFn, "{s}", .{cs(tokval.str)});
     return TMP(t);
 }
@@ -697,10 +680,10 @@ fn parsecls(tyn: *i32) i32 {
         Tub => return Kub,
         Tsh => return Ksh,
         Tuh => return Kuh,
-        Tw => return all.knum(Kw),
-        Tl => return all.knum(Kl),
-        Ts => return all.knum(Ks),
-        Td => return all.knum(Kd),
+        Tw => return all.knum(.w),
+        Tl => return all.knum(.l),
+        Ts => return all.knum(.s),
+        Td => return all.knum(.d),
         else => err("invalid class specifier", .{}),
     }
 }
@@ -743,7 +726,7 @@ fn parserefl(arg: bool) bool {
                 hasenv = true;
                 env = true;
                 _ = next();
-                k = all.knum(Kl);
+                k = all.knum(.l);
             },
             else => {
                 env = false;
@@ -763,14 +746,14 @@ fn parserefl(arg: bool) bool {
                     all.curi[0] = mkins(.pare, k, r, R, R);
             } else if (k == Kc) {
                 if (arg)
-                    all.curi[0] = mkins(.argc, Kl, R, TYPE(ty), r)
+                    all.curi[0] = mkins(.argc, .l, R, TYPE(ty), r)
                 else
-                    all.curi[0] = mkins(.parc, Kl, r, TYPE(ty), R);
+                    all.curi[0] = mkins(.parc, .l, r, TYPE(ty), R);
             } else if (k >= Ksb) {
                 if (arg)
-                    all.curi[0] = mkins(Opc.argsb.offset(k - Ksb), Kw, R, r, R)
+                    all.curi[0] = mkins(Opc.argsb.offset(k - Ksb), .w, R, r, R)
                 else
-                    all.curi[0] = mkins(Opc.parsb.offset(k - Ksb), Kw, r, R, R);
+                    all.curi[0] = mkins(Opc.parsb.offset(k - Ksb), .w, r, R, R);
             } else {
                 if (arg)
                     all.curi[0] = mkins(.arg, k, R, r, R)
@@ -833,18 +816,18 @@ fn parseline(ps: PState) PState {
         Tblit, Tcall, all.ops.num(.vastart) => {
             // operations without result
             r = R;
-            k = all.knum(Kw);
+            k = all.knum(.w);
             op = t;
         },
         Trbrace => return PEnd,
         Tlbl => {
             const b = findblk();
-            if (curb != null and curb.?.jmp.type == Jxxx) {
+            if (curb != null and curb.?.jmp.type == .xxx) {
                 closeblk();
-                curb.?.jmp.type = Jjmp;
+                curb.?.jmp.type = .jmp;
                 curb.?.s1 = b;
             }
-            if (b.jmp.type != Jxxx)
+            if (b.jmp.type != .xxx)
                 err("multiple definitions of block @{s}", .{cs(b.name)});
             blink.* = b;
             curb = b;
@@ -853,9 +836,9 @@ fn parseline(ps: PState) PState {
             return PPhi;
         },
         Tret => {
-            curb.?.jmp.type = Jretw.add(rcls);
+            curb.?.jmp.type = J.retw.add(rcls);
             if (peek() == Tnl)
-                curb.?.jmp.type = Jret0
+                curb.?.jmp.type = .ret0
             else if (rcls != K0) {
                 r = parseref();
                 if (req(r, R))
@@ -865,11 +848,11 @@ fn parseline(ps: PState) PState {
             flow = .close;
         },
         Tjmp => {
-            curb.?.jmp.type = Jjmp;
+            curb.?.jmp.type = .jmp;
             flow = .jump;
         },
         Tjnz => {
-            curb.?.jmp.type = Jjnz;
+            curb.?.jmp.type = .jnz;
             r = parseref();
             if (req(r, R))
                 err("invalid argument for jnz jump", .{});
@@ -878,12 +861,12 @@ fn parseline(ps: PState) PState {
             flow = .jump;
         },
         Thlt => {
-            curb.?.jmp.type = Jhlt;
+            curb.?.jmp.type = .hlt;
             flow = .close;
         },
         all.ops.num(.dbgloc) => {
             op = t;
-            k = all.knum(Kw);
+            k = all.knum(.w);
             r = R;
             expect(Tint);
             arg[0] = INT(tokval.num);
@@ -901,7 +884,7 @@ fn parseline(ps: PState) PState {
         else => {
             if (isstore(t)) {
                 r = R;
-                k = all.knum(Kw);
+                k = all.knum(.w);
                 op = t;
             } else err("label, instruction or jump expected", .{});
         },
@@ -909,7 +892,7 @@ fn parseline(ps: PState) PState {
     if (flow == .jump) {
         expect(Tlbl);
         curb.?.s1 = findblk();
-        if (curb.?.jmp.type != Jjmp) {
+        if (curb.?.jmp.type != .jmp) {
             expect(Tcomma);
             expect(Tlbl);
             curb.?.s2 = findblk();
@@ -930,11 +913,11 @@ fn parseline(ps: PState) PState {
         op = all.ops.num(.call);
         expect(Tnl);
         if (k == Kc) {
-            k = all.knum(Kl);
+            k = all.knum(.l);
             arg[1] = TYPE(ty);
         }
         if (k >= Ksb)
-            k = all.knum(Kw);
+            k = all.knum(.w);
         flow = .ins;
     }
     if (flow == .normal) {
@@ -1023,7 +1006,7 @@ fn parseline(ps: PState) PState {
 }
 
 fn usecheck(r: Ref, k: i32, f: *Fn) bool {
-    return rtype(r) != RTmp or f.tmp[r.val].cls.int() == k or (f.tmp[r.val].cls == Kl and k == Kw.int());
+    return rtype(r) != RTmp or f.tmp[r.val].cls.int() == k or (f.tmp[r.val].cls == .l and k == Cls.w.int());
 }
 
 fn typecheck(f: *Fn) void {
@@ -1081,9 +1064,9 @@ fn typecheck(f: *Fn) void {
                     err("invalid instruction type in {s}", .{cs(all.optab[i.op.int()].name)});
                 if (rtype(r) == RType)
                     continue;
-                if (rtype(r) != -1 and k == Kx.int())
+                if (rtype(r) != -1 and k == Cls.x.int())
                     err("no {s} operand expected in {s}", .{which, cs(all.optab[i.op.int()].name)});
-                if (rtype(r) == -1 and k != Kx.int())
+                if (rtype(r) == -1 and k != Cls.x.int())
                     err("missing {s} operand in {s}", .{which, cs(all.optab[i.op.int()].name)});
                 if (!usecheck(r, k, f))
                     err("invalid type for {s} operand %{s} in {s}", .{which, cs(t.?.name), cs(all.optab[i.op.int()].name)});
@@ -1092,20 +1075,20 @@ fn typecheck(f: *Fn) void {
         r = b.jmp.arg;
         var jerr = false;
         if (isret(b.jmp.type)) {
-            if (b.jmp.type == Jretc)
-                k = all.knum(Kl)
-            else if (b.jmp.type.int() >= Jretsb.int())
-                k = all.knum(Kw)
+            if (b.jmp.type == .retc)
+                k = all.knum(.l)
+            else if (b.jmp.type.int() >= J.retsb.int())
+                k = all.knum(.w)
             else
-                k = b.jmp.type.int() - Jretw.int();
+                k = b.jmp.type.int() - J.retw.int();
             if (!usecheck(r, k, f))
                 jerr = true;
         }
-        if (jerr or (b.jmp.type == Jjnz and !usecheck(r, all.knum(Kw), f)))
+        if (jerr or (b.jmp.type == .jnz and !usecheck(r, all.knum(.w), f)))
             err("invalid type for jump argument %{s} in block @{s}", .{cs(f.tmp[r.val].name), cs(b.name)});
-        if (b.s1 != null and b.s1.?.jmp.type == Jxxx)
+        if (b.s1 != null and b.s1.?.jmp.type == .xxx)
             err("block @{s} is used undefined", .{cs(b.s1.?.name)});
-        if (b.s2 != null and b.s2.?.jmp.type == Jxxx)
+        if (b.s2 != null and b.s2.?.jmp.type == .xxx)
             err("block @{s} is used undefined", .{cs(b.s2.?.name)});
     }
 }
@@ -1124,9 +1107,9 @@ fn parsefn(lnk: *Lnk) *Fn {
     var i: i32 = 0;
     while (i < Tmp0) : (i += 1)
         if (all.T.fpr0 <= i and i < all.T.fpr0 + all.T.nfpr) {
-            _ = newtmp(null, Kd, curf);
+            _ = newtmp(null, .d, curf);
         } else {
-            _ = newtmp(null, Kl, curf);
+            _ = newtmp(null, .l, curf);
         };
     curf.con[0].type = CBits;
     curf.con[0].bits.i = 0xdeaddead; // UNDEF
@@ -1134,7 +1117,7 @@ fn parsefn(lnk: *Lnk) *Fn {
     curf.lnk = lnk.*;
     curf.leaf = 1;
     blink = &curf.start;
-    curf.retty = all.knum(Kx);
+    curf.retty = all.knum(.x);
     if (peek() != Tglo)
         rcls = parsecls(&curf.retty)
     else
@@ -1152,7 +1135,7 @@ fn parsefn(lnk: *Lnk) *Fn {
     }
     if (curb == null)
         err("empty function", .{});
-    if (curb.?.jmp.type == Jxxx)
+    if (curb.?.jmp.type == .xxx)
         err("last block misses jump", .{});
     curf.mem = vnewT(Mem, 0, PFn);
     curf.nmem = 0;
@@ -1595,24 +1578,24 @@ pub fn printfn(f: *Fn, fp: *Writer) Writer.Error!void {
             try fp.print("\n", .{});
         }
         switch (b.jmp.type) {
-            Jret0, Jretsb, Jretub, Jretsh, Jretuh, Jretw, Jretl, Jrets, Jretd, Jretc => {
+            .ret0, .retsb, .retub, .retsh, .retuh, .retw, .retl, .rets, .retd, .retc => {
                 try fp.print("\t{s}", .{cs(jtoa[@intCast(b.jmp.type.int() - 1)].ptr)});
-                if (b.jmp.type != Jret0 or !req(b.jmp.arg, R)) {
+                if (b.jmp.type != .ret0 or !req(b.jmp.arg, R)) {
                     try fp.print(" ", .{});
                     try printref(b.jmp.arg, f, fp);
                 }
-                if (b.jmp.type == Jretc)
+                if (b.jmp.type == .retc)
                     try fp.print(", :{s}", .{cs(all.typ[@intCast(f.retty)].name)});
                 try fp.print("\n", .{});
             },
-            Jhlt => try fp.print("\thlt\n", .{}),
-            Jjmp => {
+            .hlt => try fp.print("\thlt\n", .{}),
+            .jmp => {
                 if (b.s1 != b.link)
                     try fp.print("\tjmp @{s}\n", .{cs(b.s1.?.name)});
             },
             else => {
                 try fp.print("\t{s} ", .{cs(jtoa[@intCast(b.jmp.type.int() - 1)].ptr)});
-                if (b.jmp.type == Jjnz) {
+                if (b.jmp.type == .jnz) {
                     try printref(b.jmp.arg, f, fp);
                     try fp.print(", ", .{});
                 }

@@ -3,6 +3,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("all.zig");
+const J = all.J;
 const Opc = all.Opc;
 const ABot = all.ABot;
 const ACon = all.ACon;
@@ -17,7 +18,6 @@ const CAddr = all.CAddr;
 const CBits = all.CBits;
 const Fn = all.Fn;
 const Ins = all.Ins;
-const Jretc = all.Jretc;
 const MayAlias = all.MayAlias;
 const MustAlias = all.MustAlias;
 const NBit = all.NBit;
@@ -223,7 +223,7 @@ pub fn fillalias(f: *Fn) void {
             if (isstore(i.op))
                 store(i.arg[1], storesz(i), f);
         }
-        if (b.jmp.type != Jretc)
+        if (b.jmp.type != .retc)
             esc(b.jmp.arg, f);
     }
     var b_it = f.start;

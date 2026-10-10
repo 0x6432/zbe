@@ -3,6 +3,8 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("../all.zig");
+const Cls = all.Cls;
+const J = all.J;
 const tgt = @import("all.zig");
 const BIT = all.BIT;
 const Blk = all.Blk;
@@ -11,12 +13,7 @@ const Fn = all.Fn;
 const INS = all.INS;
 const INT = all.INT;
 const Ins = all.Ins;
-const Jret0 = all.Jret0;
-const Jretc = all.Jretc;
-const Jretw = all.Jretw;
 const KBASE = all.KBASE;
-const Kl = all.Kl;
-const Kw = all.Kw;
 const NCLR_WIN = tgt.NCLR_WIN;
 const NFPS = tgt.NFPS;
 const NGPS_WIN = tgt.NGPS_WIN;
@@ -279,9 +276,9 @@ fn classify_arguments(reg_usage: *RegisterUsage, instrs: []const Ins, arg_classe
                 const @"type" = &all.typ[typ_index];
                 const by_copy = type_is_by_copy(@"type");
                 assign_register_or_stack(reg_usage, arg, false, by_copy);
-                arg.cls = all.knum(Kl);
+                arg.cls = all.knum(.l);
                 if (!by_copy and @"type".size <= 4) {
-                    arg.cls = all.knum(Kw);
+                    arg.cls = all.knum(.w);
                 }
                 arg.@"align" = 3;
                 arg.size = @intCast(@"type".size);
@@ -393,13 +390,13 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
     // instructions in reverse order), so we're doing a negative stack
     // allocation to clean up after the call.
     const stack_size_ref = getcon(-@as(i64, stack_usage + SHADOW_SPACE_SIZE), func);
-    emit(.salloc, Kl, R, stack_size_ref, R);
+    emit(.salloc, .l, R, stack_size_ref, R);
 
     var return_pad: ?*ExtraAlloc = null;
     if (is_struct_return) {
         return_pad = pnew(ExtraAlloc);
-        const ret_pad_ref = newtmp("abi.ret_pad", Kl, func);
-        return_pad.?.instr = INS(.alloc8, Kl, ret_pad_ref, getcon(ret_arg_class.size, func), R);
+        const ret_pad_ref = newtmp("abi.ret_pad", .l, func);
+        return_pad.?.instr = INS(.alloc8, .l, ret_pad_ref, getcon(ret_arg_class.size, func), R);
         return_pad.?.link = pextra_alloc.*;
         pextra_alloc.* = return_pad;
         reg_usage.rax_returned = true;
@@ -411,12 +408,12 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
             // pointer, we need to store the return value into an alloca because
             // subsequent IL will still be treating the function return as a pointer.
             const return_copy = pnew(ExtraAlloc);
-            return_copy.instr = INS(.alloc8, Kl, call_instr.to, getcon(8, func), R);
+            return_copy.instr = INS(.alloc8, .l, call_instr.to, getcon(8, func), R);
             return_copy.link = pextra_alloc.*;
             pextra_alloc.* = return_copy;
-            const copy = newtmp("abi.copy", Kl, func);
+            const copy = newtmp("abi.copy", .l, func);
             emit(.storel, 0, R, copy, call_instr.to);
-            emit(.copy, Kl, copy, TMP(RAX), R);
+            emit(.copy, .l, copy, TMP(RAX), R);
             reg_usage.rax_returned = true;
         } else if (is_integer_type(call_instr.cls.int())) {
             // Only a basic type returned from the call, integer.
@@ -437,29 +434,29 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
 
     if (!req(R, env)) {
         // If there's an env arg to be passed, it gets stashed in RAX.
-        emit(.copy, Kl, TMP(RAX), env, R);
+        emit(.copy, .l, TMP(RAX), env, R);
     }
 
     if (reg_usage.is_varargs_call) {
         // Any float arguments need to be duplicated to integer registers. This is
         // required by the calling convention so that dumping to shadow space can be
         // done without a prototype and for varargs.
-        if (reg_usage.regs_passed[1][0]) emit(.cast, Kl, TMP(RCX), TMP(XMM0), R);
-        if (reg_usage.regs_passed[1][1]) emit(.cast, Kl, TMP(RDX), TMP(XMM1), R);
-        if (reg_usage.regs_passed[1][2]) emit(.cast, Kl, TMP(R8), TMP(XMM2), R);
-        if (reg_usage.regs_passed[1][3]) emit(.cast, Kl, TMP(R9), TMP(XMM3), R);
+        if (reg_usage.regs_passed[1][0]) emit(.cast, .l, TMP(RCX), TMP(XMM0), R);
+        if (reg_usage.regs_passed[1][1]) emit(.cast, .l, TMP(RDX), TMP(XMM1), R);
+        if (reg_usage.regs_passed[1][2]) emit(.cast, .l, TMP(R8), TMP(XMM2), R);
+        if (reg_usage.regs_passed[1][3]) emit(.cast, .l, TMP(R9), TMP(XMM3), R);
     }
 
     var reg_counter: i32 = 0;
     if (is_struct_return) {
-        const first_reg = register_for_arg(all.knum(Kl), reg_counter);
+        const first_reg = register_for_arg(all.knum(.l), reg_counter);
         reg_counter += 1;
-        emit(.copy, Kl, first_reg, return_pad.?.instr.to, R);
+        emit(.copy, .l, first_reg, return_pad.?.instr.to, R);
     }
 
     // This is where we actually do the load of values into registers or into
     // stack slots.
-    const arg_stack_slots = newtmp("abi.args", Kl, func);
+    const arg_stack_slots = newtmp("abi.args", .l, func);
     var slot_offset: uint = SHADOW_SPACE_SIZE;
     for (args, arg_classes) |*instr, *arg| {
         switch (arg.style) {
@@ -477,7 +474,7 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
                 }
             },
             .APS_InlineOnStack => {
-                const slot = newtmp("abi.off", Kl, func);
+                const slot = newtmp("abi.off", .l, func);
                 if (instr.op == .argc) {
                     // This is a small struct, so it's not passed by copy, but the
                     // instruction is a pointer. So we need to copy it into the stack
@@ -490,15 +487,15 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
                     // Stash the value into the stack slot.
                     emit(.storel, 0, R, instr.arg[0], slot);
                 }
-                emit(.add, Kl, slot, arg_stack_slots, getcon(slot_offset, func));
+                emit(.add, .l, slot, arg_stack_slots, getcon(slot_offset, func));
                 slot_offset += arg.size;
             },
             .APS_CopyAndPointerInRegister, .APS_CopyAndPointerOnStack => {
                 // Alloca a space to copy into, and blit the value from the instr to the
                 // copied location.
                 const arg_copy = pnew(ExtraAlloc);
-                const copy_ref = newtmp("abi.copy", Kl, func);
-                arg_copy.instr = INS(.alloc8, Kl, copy_ref, getcon(arg.size, func), R);
+                const copy_ref = newtmp("abi.copy", .l, func);
+                arg_copy.instr = INS(.alloc8, .l, copy_ref, getcon(arg.size, func), R);
                 arg_copy.link = pextra_alloc.*;
                 pextra_alloc.* = arg_copy;
                 emit(.blit1, 0, R, INT(arg.size), R);
@@ -508,12 +505,12 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
                 if (arg.style == .APS_CopyAndPointerInRegister) {
                     const into = register_for_arg(arg.cls, reg_counter);
                     reg_counter += 1;
-                    emit(.copy, Kl, into, copy_ref, R);
+                    emit(.copy, .l, into, copy_ref, R);
                 } else {
                     assert(arg.style == .APS_CopyAndPointerOnStack);
-                    const slot = newtmp("abi.off", Kl, func);
+                    const slot = newtmp("abi.off", .l, func);
                     emit(.storel, 0, R, copy_ref, slot);
-                    emit(.add, Kl, slot, arg_stack_slots, getcon(slot_offset, func));
+                    emit(.add, .l, slot, arg_stack_slots, getcon(slot_offset, func));
                     slot_offset += 8;
                 }
             },
@@ -527,12 +524,12 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
     if (stack_usage != 0) {
         // The last (first in call order) thing we do is allocate the the stack
         // space we're going to fill with temporaries.
-        emit(.salloc, Kl, arg_stack_slots, getcon(stack_usage + SHADOW_SPACE_SIZE, func), R);
+        emit(.salloc, .l, arg_stack_slots, getcon(stack_usage + SHADOW_SPACE_SIZE, func), R);
     } else {
         // When there's no usage for temporaries, we can add this into the other
         // alloca, but otherwise emit it separately (not storing into a reference)
         // so that it doesn't get removed later for being useless.
-        emit(.salloc, Kl, R, getcon(SHADOW_SPACE_SIZE, func), R);
+        emit(.salloc, .l, R, getcon(SHADOW_SPACE_SIZE, func), R);
     }
 
     return earliest_arg;
@@ -541,30 +538,30 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
 fn lower_block_return(func: *Fn, block: *Blk) void {
     const jmp_type: i32 = block.jmp.type.int();
 
-    if (!isret(jmp_type) or jmp_type == Jret0.int()) {
+    if (!isret(jmp_type) or jmp_type == J.ret0.int()) {
         return;
     }
 
     // Save the argument, and set the block to be a void return because once it's
     // lowered it's handled by the the register/stack manipulation.
     const ret_arg = block.jmp.arg;
-    block.jmp.type = Jret0;
+    block.jmp.type = .ret0;
 
     var reg_usage = std.mem.zeroes(RegisterUsage);
 
-    if (jmp_type == Jretc.int()) {
+    if (jmp_type == J.retc.int()) {
         const @"type" = &all.typ[@intCast(func.retty)];
         if (type_is_by_copy(@"type")) {
             assert(rtype(func.retr) == RTmp);
-            emit(.copy, Kl, TMP(RAX), func.retr, R);
+            emit(.copy, .l, TMP(RAX), func.retr, R);
             emit(.blit1, 0, R, INT(@"type".size), R);
             emit(.blit0, 0, R, ret_arg, func.retr);
         } else {
-            emit(.load, Kl, TMP(RAX), ret_arg, R);
+            emit(.load, .l, TMP(RAX), ret_arg, R);
         }
         reg_usage.rax_returned = true;
     } else {
-        const k = jmp_type - Jretw.int();
+        const k = jmp_type - J.retw.int();
         if (is_integer_type(k)) {
             emit(.copy, k, TMP(RAX), ret_arg, R);
             reg_usage.rax_returned = true;
@@ -587,24 +584,24 @@ fn lower_vastart(func: *Fn, param_reg_usage: *RegisterUsage, valist: Ref) void {
     // So, the ... argument is just indexed past rbp by the number of named values
     // that were actually passed.
 
-    const offset = newtmp("abi.vastart", Kl, func);
+    const offset = newtmp("abi.vastart", .l, func);
     emit(.storel, 0, R, offset, valist);
 
     // *8 for sizeof(u64), +16 because the return address and rbp have been pushed
     // by the time we get to the body of the function.
-    emit(.add, Kl, offset, TMP(RBP), getcon(param_reg_usage.num_named_args_passed * 8 + 16, func));
+    emit(.add, .l, offset, TMP(RBP), getcon(param_reg_usage.num_named_args_passed * 8 + 16, func));
 }
 
 fn lower_vaarg(func: *Fn, vaarg_instr: *Ins) void {
     // va_list is just a void** on winx64, so load the pointer, then load the
     // argument from that pointer, then increment the pointer to the next arg.
     // (All emitted backwards as usual.)
-    const inc = newtmp("abi.vaarg.inc", Kl, func);
-    const ptr = newtmp("abi.vaarg.ptr", Kl, func);
+    const inc = newtmp("abi.vaarg.inc", .l, func);
+    const ptr = newtmp("abi.vaarg.ptr", .l, func);
     emit(.storel, 0, R, inc, vaarg_instr.arg[0]);
-    emit(.add, Kl, inc, ptr, getcon(8, func));
+    emit(.add, .l, inc, ptr, getcon(8, func));
     emit(.load, vaarg_instr.cls, vaarg_instr.to, ptr, R);
-    emit(.load, Kl, ptr, vaarg_instr.arg[0], R);
+    emit(.load, .l, ptr, vaarg_instr.arg[0], R);
 }
 
 fn lower_args_for_block(func: *Fn, block: *Blk, param_reg_usage: *RegisterUsage, pextra_alloc: *?*ExtraAlloc) void {
@@ -679,8 +676,8 @@ fn lower_func_parameters(func: *Fn) RegisterUsage {
         const by_copy = type_is_by_copy(&all.typ[@intCast(func.retty)]);
         if (by_copy) {
             assign_register_or_stack(&reg_usage, &arg_ret, false, by_copy);
-            const ret_ref = newtmp("abi.ret", Kl, func);
-            emit(.copy, Kl, ret_ref, TMP(RCX), R);
+            const ret_ref = newtmp("abi.ret", .l, func);
+            emit(.copy, .l, ret_ref, TMP(RCX), R);
             func.retr = ret_ref;
             reg_counter += 1;
         }
@@ -700,35 +697,35 @@ fn lower_func_parameters(func: *Fn) RegisterUsage {
                 // If it's a struct at the IL level, we need to copy the register into
                 // an alloca so we have something to point at (same for InlineOnStack).
                 if (instr.op == .parc) {
-                    arg.ref = newtmp("abi", Kl, func);
+                    arg.ref = newtmp("abi", .l, func);
                     emit(.storel, 0, R, arg.ref, instr.to);
                     emit(.copy, instr.cls, arg.ref, from, R);
-                    emit(.alloc8, Kl, instr.to, getcon(arg.size, func), R);
+                    emit(.alloc8, .l, instr.to, getcon(arg.size, func), R);
                 } else {
                     emit(.copy, instr.cls, instr.to, from, R);
                 }
             },
             .APS_InlineOnStack => {
                 if (instr.op == .parc) {
-                    arg.ref = newtmp("abi", Kl, func);
+                    arg.ref = newtmp("abi", .l, func);
                     emit(.storel, 0, R, arg.ref, instr.to);
                     emit(.copy, instr.cls, arg.ref, SLOT(-slot_offset), R);
-                    emit(.alloc8, Kl, instr.to, getcon(arg.size, func), R);
+                    emit(.alloc8, .l, instr.to, getcon(arg.size, func), R);
                 } else {
-                    emit(.copy, Kl, instr.to, SLOT(-slot_offset), R);
+                    emit(.copy, .l, instr.to, SLOT(-slot_offset), R);
                 }
                 slot_offset += 2;
             },
             .APS_CopyAndPointerOnStack => {
-                emit(.load, Kl, instr.to, SLOT(-slot_offset), R);
+                emit(.load, .l, instr.to, SLOT(-slot_offset), R);
                 slot_offset += 2;
             },
             .APS_CopyAndPointerInRegister => {
                 // Because this has to be a copy (that we own), it is sufficient to just
                 // copy the register to the target.
-                const from = register_for_arg(all.knum(Kl), reg_counter);
+                const from = register_for_arg(all.knum(.l), reg_counter);
                 reg_counter += 1;
-                emit(.copy, Kl, instr.to, from, R);
+                emit(.copy, .l, instr.to, from, R);
             },
             .APS_EnvTag => {},
             .APS_VarargsTag, .APS_Invalid => die("unreachable", .{}),
@@ -737,7 +734,7 @@ fn lower_func_parameters(func: *Fn) RegisterUsage {
 
     // If there was an `env`, it was passed in RAX, so copy it into the env ref.
     if (!req(R, env)) {
-        emit(.copy, Kl, env, TMP(RAX), R);
+        emit(.copy, .l, env, TMP(RAX), R);
     }
 
     const num_created_instrs: uint = @intCast(all.insbTail());

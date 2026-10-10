@@ -3,6 +3,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("all.zig");
+const U = all.U;
 const Blk = all.Blk;
 const Fn = all.Fn;
 const INS0 = all.INS0;
@@ -14,9 +15,6 @@ const Phi = all.Phi;
 const R = all.R;
 const RTmp = all.RTmp;
 const Ref = all.Ref;
-const UIns = all.UIns;
-const UJmp = all.UJmp;
-const UPhi = all.UPhi;
 const UXXX = all.UXXX;
 const addins = all.addins;
 const die = all.die;
@@ -165,9 +163,9 @@ fn schedlate(f: *Fn, r: Ref) uint {
         var uselatebid: uint = undefined;
         switch (u.type) {
             UXXX => die("unreachable", .{}),
-            UPhi => uselatebid = latephi(f, u.u.phi, r),
-            UIns => uselatebid = lateins(f, b, u.u.ins, r),
-            UJmp => uselatebid = latejmp(b, r),
+            .phi => uselatebid = latephi(f, u.u.phi, r),
+            .ins => uselatebid = lateins(f, b, u.u.ins, r),
+            .jmp => uselatebid = latejmp(b, r),
         }
         latebid = lcabid(f, latebid, uselatebid);
     }

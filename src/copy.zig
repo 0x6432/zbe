@@ -3,24 +3,22 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("all.zig");
+const Cls = all.Cls;
+const J = all.J;
+const U = all.U;
 const BIT = all.BIT;
 const Blk = all.Blk;
 const CON_Z = all.CON_Z;
 const Fn = all.Fn;
 const INS0 = all.INS0;
 const Ins = all.Ins;
-const Jjmp = all.Jjmp;
-const Jjnz = all.Jjnz;
 const KBASE = all.KBASE;
 const KWIDE = all.KWIDE;
-const Kw = all.Kw;
 const PFn = all.PFn;
 const Phi = all.Phi;
 const R = all.R;
 const RTmp = all.RTmp;
 const Ref = all.Ref;
-const UIns = all.UIns;
-const UPhi = all.UPhi;
 const WFull = all.WFull;
 const Wsb = all.Wsb;
 const Wsh = all.Wsh;
@@ -91,7 +89,7 @@ fn uwl(f: *Fn, r: Ref, w: i32) bool {
     const t = &f.tmp[r.val];
     for (t.use.?[0..t.nuse]) |*u| {
         switch (u.type) {
-            UPhi => {
+            .phi => {
                 const p = u.u.phi;
                 // during gvn, phi nodes may be
                 // replaced by other temps; in
@@ -105,7 +103,7 @@ fn uwl(f: *Fn, r: Ref, w: i32) bool {
                 if (uwl(f, p.to, w))
                     continue;
             },
-            UIns => {
+            .ins => {
                 const i = u.u.ins;
                 if (i.op == .copy)
                     if (uwl(f, i.to, w))
@@ -156,7 +154,7 @@ fn dwl(f: *Fn, r: Ref, w_: i32) bool {
     if (rtype(r) != RTmp)
         return false;
     const t = &f.tmp[r.val];
-    if (t.cls != Kw)
+    if (t.cls != .w)
         return false;
 
     if (t.def == null) {
@@ -263,7 +261,7 @@ pub fn narrowpars(f: *Fn) void {
 
     for (b.ins[0..npar], b.ins[npar .. 2 * npar]) |*i, *ext_slot| {
         e = INS0(.nop);
-        if (i.cls == Kw)
+        if (i.cls == .w)
             if (usewidthle(f, i.to, 16)) {
                 e.op = .extuh;
                 if (usewidthle(f, i.to, 8))
@@ -322,7 +320,7 @@ pub fn copyref(f: *Fn, b: *Blk, i: *Ins) Ref {
     if (i.op == .@"and" and isconbits(f, i.arg[1], &v) and (v > 0 and ((v +% 1) & v) == 0) and defwidthle(f, i.arg[0], bitwidth(@bitCast(v))))
         return i.arg[0];
 
-    if (i.cls == Kw and (i.op == .extsw or i.op == .extuw))
+    if (i.cls == .w and (i.op == .extsw or i.op == .extuw))
         return i.arg[0];
 
     if (ext(i, &e) and rtype(i.arg[0]) == RTmp) {
@@ -385,7 +383,7 @@ pub fn phicopyref(f: *Fn, b: *Blk, p: *Phi) Ref {
     // can be replaced by a
     // dominating jnz arg
     const d = b.idom.?;
-    if (p.narg != 2 or d.jmp.type != Jjnz or !isw1(f, d.jmp.arg))
+    if (p.narg != 2 or d.jmp.type != .jnz or !isw1(f, d.jmp.arg))
         return R;
 
     var s = [2]?*Blk{ null, null };
@@ -399,7 +397,7 @@ pub fn phicopyref(f: *Fn, b: *Blk, p: *Phi) Ref {
     // if s1 ends with a jnz on either b
     // or s2; the inference below is wrong
     // without the jump type checks
-    if (d.s1 == s[1] and d.s2 == s[0] and d.s1.?.jmp.type == Jjmp and d.s2.?.jmp.type == Jjmp)
+    if (d.s1 == s[1] and d.s2 == s[0] and d.s1.?.jmp.type == .jmp and d.s2.?.jmp.type == .jmp)
         return d.jmp.arg;
 
     return R;

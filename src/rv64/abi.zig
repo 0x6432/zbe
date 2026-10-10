@@ -4,6 +4,8 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("../all.zig");
+const Cls = all.Cls;
+const J = all.J;
 const Opc = all.Opc;
 const tgt = @import("all.zig");
 const A0 = tgt.A0;
@@ -39,15 +41,8 @@ const Fw = all.Fw;
 const INS = all.INS;
 const INT = all.INT;
 const Ins = all.Ins;
-const Jret0 = all.Jret0;
-const Jretc = all.Jretc;
-const Jretw = all.Jretw;
 const KBASE = all.KBASE;
 const KWIDE = all.KWIDE;
-const Kd = all.Kd;
-const Kl = all.Kl;
-const Ks = all.Ks;
-const Kw = all.Kw;
 const R = all.R;
 const RCall = all.RCall;
 const RTmp = all.RTmp;
@@ -176,19 +171,19 @@ fn fpstruct(t: *Typ, off_: i32, c: *Class) i32 {
             switch (f.type) {
                 else => die("unreachable", .{}),
                 Fb, Fh, Fw => {
-                    c.cls[n] = all.knum(Kw);
+                    c.cls[n] = all.knum(.w);
                     c.ngp += 1;
                 },
                 Fl => {
-                    c.cls[n] = all.knum(Kl);
+                    c.cls[n] = all.knum(.l);
                     c.ngp += 1;
                 },
                 Fs => {
-                    c.cls[n] = all.knum(Ks);
+                    c.cls[n] = all.knum(.s);
                     c.nfp += 1;
                 },
                 Fd => {
-                    c.cls[n] = all.knum(Kd);
+                    c.cls[n] = all.knum(.d);
                     c.nfp += 1;
                 },
             }
@@ -214,13 +209,13 @@ fn typclass(c: *Class, t: *Typ, fpabi: bool, gp: []const i32, fp: []const i32) v
         // pointer to some caller-allocated
         // memory
         c.class |= Cptr;
-        c.cls[0] = all.knum(Kl);
+        c.cls[0] = all.knum(.l);
         c.off[0] = 0;
         c.ngp = 1;
     } else if (!fpabi or fpstruct(t, 0, c) <= 0) {
         var n: uint = 0;
         while (8 * @as(u64, n) < t.size) : (n += 1) {
-            c.cls[n] = all.knum(Kl);
+            c.cls[n] = all.knum(.l);
             c.off[n] = @intCast(8 * n);
         }
         c.nfp = 0;
@@ -244,10 +239,10 @@ fn typclass(c: *Class, t: *Typ, fpabi: bool, gp: []const i32, fp: []const i32) v
 
 const st = blk: {
     var s: [4]Opc = undefined;
-    s[Kw.idx()] = .storew;
-    s[Kl.idx()] = .storel;
-    s[Ks.idx()] = .stores;
-    s[Kd.idx()] = .stored;
+    s[Cls.w.idx()] = .storew;
+    s[Cls.l.idx()] = .storel;
+    s[Cls.s.idx()] = .stores;
+    s[Cls.d.idx()] = .stored;
     break :blk s;
 };
 
@@ -257,18 +252,18 @@ fn sttmps(tmp: []Ref, ntmp: i32, c: *Class, mem: Ref, f: *Fn) void {
     var i: usize = 0;
     while (i < ntmp) : (i += 1) {
         tmp[i] = newtmp("abi", c.cls[i], f);
-        const r = newtmp("abi", Kl, f);
+        const r = newtmp("abi", .l, f);
         emit(st[@intCast(c.cls[i])], 0, R, tmp[i], r);
-        emit(.add, Kl, r, mem, getcon(c.off[i], f));
+        emit(.add, .l, r, mem, getcon(c.off[i], f));
     }
 }
 
 fn ldregs(c: *Class, mem: Ref, f: *Fn) void {
     var i: usize = 0;
     while (i < c.nreg) : (i += 1) {
-        const r = newtmp("abi", Kl, f);
+        const r = newtmp("abi", .l, f);
         emit(.load, c.cls[i], TMP(c.reg[i]), r, R);
-        emit(.add, Kl, r, mem, getcon(c.off[i], f));
+        emit(.add, .l, r, mem, getcon(c.off[i], f));
     }
 }
 
@@ -278,13 +273,13 @@ fn selret(b: *Blk, f: *Fn) void {
 
     const j: i32 = b.jmp.type.int();
 
-    if (!isret(j) or j == Jret0.int())
+    if (!isret(j) or j == J.ret0.int())
         return;
 
     const r = b.jmp.arg;
-    b.jmp.type = Jret0;
+    b.jmp.type = .ret0;
 
-    if (j == Jretc.int()) {
+    if (j == J.retc.int()) {
         typclass(&cr, &all.typ[@intCast(f.retty)], true, &gpreg, &fpreg);
         if ((cr.class & Cptr) != 0) {
             assert(rtype(f.retr) == RTmp);
@@ -296,7 +291,7 @@ fn selret(b: *Blk, f: *Fn) void {
             cty = (@as(i32, cr.nfp) << 2) | cr.ngp;
         }
     } else {
-        const k = j - Jretw.int();
+        const k = j - J.retw.int();
         if (KBASE(k) == 0) {
             emit(.copy, k, TMP(A0), r, R);
             cty = 1;
@@ -364,7 +359,7 @@ fn argsclass(ins: []const Ins, carg: []Class, retptr: bool) i32 {
             },
             .pare, .arge => {
                 c.reg[0] = T5;
-                c.cls[0] = all.knum(Kl);
+                c.cls[0] = all.knum(.l);
                 envc = 1;
             },
             else => {},
@@ -381,7 +376,7 @@ fn stkblob(r: Ref, t: *Typ, f: *Fn, ilp: *?*Insl) void {
     if (al < 0)
         al = 0;
     const sz: u64 = (t.size + 7) & ~@as(u64, 7);
-    il.i = INS(Opc.alloc_first.offset(al), Kl, r, getcon(@bitCast(sz), f), R);
+    il.i = INS(Opc.alloc_first.offset(al), .l, r, getcon(@bitCast(sz), f), R);
     il.link = ilp.*;
     ilp.* = il;
 }
@@ -407,7 +402,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
         if (i.op == .argv)
             continue;
         if ((c.class & Cptr) != 0) {
-            i.arg[0] = newtmp("abi", Kl, f);
+            i.arg[0] = newtmp("abi", .l, f);
             stkblob(i.arg[0], c.type.?, f, ilp);
             i.op = .arg;
         }
@@ -418,7 +413,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
     }
     stk += stk & 15;
     if (stk != 0)
-        emit(.salloc, Kl, R, getcon(-%@as(i64, @bitCast(stk)), f), R);
+        emit(.salloc, .l, R, getcon(-%@as(i64, @bitCast(stk)), f), R);
 
     if (!req(i_1.arg[1], R)) {
         stkblob(i_1.to, cr.type.?, f, ilp);
@@ -427,7 +422,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
             // spill & rega expect calls to be
             // followed by copies from regs,
             // so we emit a dummy
-            emit(.copy, Kw, R, TMP(A0), R);
+            emit(.copy, .w, R, TMP(A0), R);
         } else {
             sttmps(&tmp, cr.nreg, &cr, i_1.to, f);
             var j: usize = 0;
@@ -448,7 +443,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
 
     if ((cr.class & Cptr) != 0)
         // struct return argument
-        emit(.copy, Kl, TMP(A0), i_1.to, R);
+        emit(.copy, .l, TMP(A0), i_1.to, R);
 
     // move arguments into registers
     for (ins, ca) |*i, *c| {
@@ -457,7 +452,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
         if (i.op == .argc) {
             ldregs(c, i.arg[1], f);
         } else if ((c.class & Cfpint) != 0) {
-            k = if (KWIDE(c.cls[0]) != 0) all.knum(Kl) else all.knum(Kw);
+            k = if (KWIDE(c.cls[0]) != 0) all.knum(.l) else all.knum(.w);
             r = newtmp("abi", k, f);
             emit(.copy, k, TMP(c.reg[0]), r, R);
             c.reg[0] = r.val;
@@ -468,7 +463,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
 
     for (ins, ca) |*i, *c| {
         if ((c.class & Cfpint) != 0) {
-            k = if (KWIDE(c.cls[0]) != 0) all.knum(Kl) else all.knum(Kw);
+            k = if (KWIDE(c.cls[0]) != 0) all.knum(.l) else all.knum(.w);
             emit(.cast, k, TMP(c.reg[0]), i.arg[0], R);
         }
         if ((c.class & Cptr) != 0) {
@@ -482,47 +477,47 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
 
     // populate the stack
     var off: u64 = 0;
-    r = newtmp("abi", Kl, f);
+    r = newtmp("abi", .l, f);
     for (ins, ca) |*i, *c| {
         if (i.op == .argv or (c.class & Cstk) == 0)
             continue;
         if (i.op == .arg) {
-            r1 = newtmp("abi", Kl, f);
-            emit(Opc.storew.offset(i.cls), Kw, R, i.arg[0], r1);
-            if (i.cls == Kw) {
+            r1 = newtmp("abi", .l, f);
+            emit(Opc.storew.offset(i.cls), .w, R, i.arg[0], r1);
+            if (i.cls == .w) {
                 // TODO: we only need this sign
                 // extension for l temps passed
                 // as w arguments
                 // (see rv64/isel.c:fixarg)
                 all.curi[0].op = .storel;
-                all.curi[0].arg[0] = newtmp("abi", Kl, f);
-                emit(.extsw, Kl, all.curi[0].arg[0], i.arg[0], R);
+                all.curi[0].arg[0] = newtmp("abi", .l, f);
+                emit(.extsw, .l, all.curi[0].arg[0], i.arg[0], R);
             }
-            emit(.add, Kl, r1, r, getcon(@bitCast(off), f));
+            emit(.add, .l, r1, r, getcon(@bitCast(off), f));
             off += 8;
         }
         if (i.op == .argc) {
             if ((c.class & Cstk1) != 0) {
-                r1 = newtmp("abi", Kl, f);
-                r2 = newtmp("abi", Kl, f);
+                r1 = newtmp("abi", .l, f);
+                r2 = newtmp("abi", .l, f);
                 emit(.storel, 0, R, r2, r1);
-                emit(.add, Kl, r1, r, getcon(@bitCast(off), f));
-                emit(.load, Kl, r2, i.arg[1], R);
+                emit(.add, .l, r1, r, getcon(@bitCast(off), f));
+                emit(.load, .l, r2, i.arg[1], R);
                 off += 8;
             }
             if ((c.class & Cstk2) != 0) {
-                r1 = newtmp("abi", Kl, f);
-                r2 = newtmp("abi", Kl, f);
+                r1 = newtmp("abi", .l, f);
+                r2 = newtmp("abi", .l, f);
                 emit(.storel, 0, R, r2, r1);
-                emit(.add, Kl, r1, r, getcon(@bitCast(off), f));
-                r1 = newtmp("abi", Kl, f);
-                emit(.load, Kl, r2, r1, R);
-                emit(.add, Kl, r1, i.arg[1], getcon(8, f));
+                emit(.add, .l, r1, r, getcon(@bitCast(off), f));
+                r1 = newtmp("abi", .l, f);
+                emit(.load, .l, r2, r1, R);
+                emit(.add, .l, r1, i.arg[1], getcon(8, f));
                 off += 8;
             }
         }
     }
-    emit(.salloc, Kl, r, getcon(@bitCast(stk), f), R);
+    emit(.salloc, .l, r, getcon(@bitCast(stk), f), R);
 }
 
 fn selpar(f: *Fn, ins: []Ins) Params {
@@ -536,8 +531,8 @@ fn selpar(f: *Fn, ins: []Ins) Params {
     if (f.retty >= 0) {
         typclass(&cr, &all.typ[@intCast(f.retty)], true, &gpreg, &fpreg);
         if ((cr.class & Cptr) != 0) {
-            f.retr = newtmp("abi", Kl, f);
-            emit(.copy, Kl, f.retr, TMP(A0), R);
+            f.retr = newtmp("abi", .l, f);
+            emit(.copy, .l, f.retr, TMP(A0), R);
         }
     }
 
@@ -550,14 +545,14 @@ fn selpar(f: *Fn, ins: []Ins) Params {
         if ((c.class & Cfpint) != 0) {
             const r = i.to;
             const k = c.cls[0];
-            c.cls[0] = if (KWIDE(k) != 0) all.knum(Kl) else all.knum(Kw);
+            c.cls[0] = if (KWIDE(k) != 0) all.knum(.l) else all.knum(.w);
             i.to = newtmp("abi", k, f);
             emit(.cast, k, r, i.to, R);
         }
         if (i.op == .parc and (c.class & Cptr) == 0 and c.nreg != 0) {
             var nt: i32 = c.nreg;
             if ((c.class & Cstk2) != 0) {
-                c.cls[1] = all.knum(Kl);
+                c.cls[1] = all.knum(.l);
                 c.off[1] = 8;
                 assert(nt == 1);
                 nt = 2;
@@ -586,7 +581,7 @@ fn selpar(f: *Fn, ins: []Ins) Params {
                 t += 1;
             }
             if ((c.class & Cstk2) != 0) {
-                emit(.load, Kl, tmp[t], SLOT(-s), R);
+                emit(.load, .l, tmp[t], SLOT(-s), R);
                 t += 1;
                 s += 1;
             }
@@ -606,19 +601,19 @@ fn selpar(f: *Fn, ins: []Ins) Params {
 }
 
 fn selvaarg(f: *Fn, i: *Ins) void {
-    const loc = newtmp("abi", Kl, f);
-    const newloc = newtmp("abi", Kl, f);
-    emit(.storel, Kw, R, newloc, i.arg[0]);
-    emit(.add, Kl, newloc, loc, getcon(8, f));
+    const loc = newtmp("abi", .l, f);
+    const newloc = newtmp("abi", .l, f);
+    emit(.storel, .w, R, newloc, i.arg[0]);
+    emit(.add, .l, newloc, loc, getcon(8, f));
     emit(.load, i.cls, i.to, loc, R);
-    emit(.load, Kl, loc, i.arg[0], R);
+    emit(.load, .l, loc, i.arg[0], R);
 }
 
 fn selvastart(f: *Fn, p: Params, ap: Ref) void {
-    const rsave = newtmp("abi", Kl, f);
-    emit(.storel, Kw, R, rsave, ap);
+    const rsave = newtmp("abi", .l, f);
+    emit(.storel, .w, R, rsave, ap);
     const s: i32 = if (p.stk > 2 + 8 * @as(i32, f.vararg)) p.stk else 2 + p.ngp;
-    emit(.addr, Kl, rsave, SLOT(-s), R);
+    emit(.addr, .l, rsave, SLOT(-s), R);
 }
 
 pub fn rv64_abi(f: *Fn) void {

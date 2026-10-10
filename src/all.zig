@@ -165,6 +165,9 @@ pub const J = enum(i16) {
     jffuo,
     hlt,
 
+    pub const jf_first = J.jfieq;
+    pub const jf_last = J.jffuo;
+
     /// offset into the jump kinds, e.g. `J.jfieq.add(cmp)` (C: Jjf + cmp)
     pub inline fn add(j: J, n: anytype) J {
         return @enumFromInt(@intFromEnum(j) + @as(i16, @intCast(n)));
@@ -173,46 +176,12 @@ pub const J = enum(i16) {
         return @intFromEnum(j);
     }
 };
-pub const Jxxx = J.xxx;
-pub const Jretw = J.retw;
-pub const Jretl = J.retl;
-pub const Jrets = J.rets;
-pub const Jretd = J.retd;
-pub const Jretsb = J.retsb;
-pub const Jretub = J.retub;
-pub const Jretsh = J.retsh;
-pub const Jretuh = J.retuh;
-pub const Jretc = J.retc;
-pub const Jret0 = J.ret0;
-pub const Jjmp = J.jmp;
-pub const Jjnz = J.jnz;
-pub const Jjfieq = J.jfieq;
-pub const Jjfine = J.jfine;
-pub const Jjfisge = J.jfisge;
-pub const Jjfisgt = J.jfisgt;
-pub const Jjfisle = J.jfisle;
-pub const Jjfislt = J.jfislt;
-pub const Jjfiuge = J.jfiuge;
-pub const Jjfiugt = J.jfiugt;
-pub const Jjfiule = J.jfiule;
-pub const Jjfiult = J.jfiult;
-pub const Jjffeq = J.jffeq;
-pub const Jjffge = J.jffge;
-pub const Jjffgt = J.jffgt;
-pub const Jjffle = J.jffle;
-pub const Jjfflt = J.jfflt;
-pub const Jjffne = J.jffne;
-pub const Jjffo = J.jffo;
-pub const Jjffuo = J.jffuo;
-pub const Jhlt = J.hlt;
 pub const NJmp = 32;
 pub const jmp_names = [_][:0]const u8{ "retw", "retl", "rets", "retd", "retsb", "retub", "retsh", "retuh", "retc", "ret0", "jmp", "jnz", "jfieq", "jfine", "jfisge", "jfisgt", "jfisle", "jfislt", "jfiuge", "jfiugt", "jfiule", "jfiult", "jffeq", "jffge", "jffgt", "jffle", "jfflt", "jffne", "jffo", "jffuo", "hlt" };
 
 const O = ops;
 pub const Opc = ops.Opc;
 pub const NPubOp = Opc.nop.int();
-pub const Jjf = Jjfieq;
-pub const Jjf1 = Jjffuo;
 
 /// linear in x
 inline fn ordinal(x: anytype) i32 {
@@ -227,16 +196,16 @@ pub inline fn INRANGE(x: anytype, comptime l: anytype, comptime u: anytype) bool
     return @as(u32, @bitCast(ordinal(x) -% lo)) <= hi - lo;
 }
 pub inline fn isstore(o: anytype) bool {
-    return INRANGE(o, Opc.storeb, Opc.stored);
+    return INRANGE(o, .storeb, .stored);
 }
 pub inline fn isload(o: anytype) bool {
-    return INRANGE(o, Opc.loadsb, Opc.load);
+    return INRANGE(o, .loadsb, .load);
 }
 pub inline fn isalloc(o: anytype) bool {
-    return INRANGE(o, Opc.alloc4, Opc.alloc16);
+    return INRANGE(o, .alloc4, .alloc16);
 }
 pub inline fn isext(o: anytype) bool {
-    return INRANGE(o, Opc.extsb, Opc.extuw);
+    return INRANGE(o, .extsb, .extuw);
 }
 pub inline fn ispar(o: anytype) bool {
     return INRANGE(o, Opc.par, Opc.pare);
@@ -245,16 +214,16 @@ pub inline fn isarg(o: anytype) bool {
     return INRANGE(o, Opc.arg, Opc.argv);
 }
 pub inline fn isret(j: anytype) bool {
-    return INRANGE(j, Jretw, Jret0);
+    return INRANGE(j, .retw, .ret0);
 }
 pub inline fn isparbh(o: anytype) bool {
-    return INRANGE(o, Opc.parsb, Opc.paruh);
+    return INRANGE(o, .parsb, .paruh);
 }
 pub inline fn isargbh(o: anytype) bool {
-    return INRANGE(o, Opc.argsb, Opc.arguh);
+    return INRANGE(o, .argsb, .arguh);
 }
 pub inline fn isretbh(j: anytype) bool {
-    return INRANGE(j, Jretsb, Jretuh);
+    return INRANGE(j, .retsb, .retuh);
 }
 pub inline fn isxsel(o: anytype) bool {
     return INRANGE(o, Opc.xsel_first, Opc.xsel_last);
@@ -281,11 +250,6 @@ pub const Cls = enum(i16) {
         return @enumFromInt(@as(i16, @intFromEnum(k)) + @as(i16, @intCast(n)));
     }
 };
-pub const Kx = Cls.x;
-pub const Kw = Cls.w;
-pub const Kl = Cls.l;
-pub const Ks = Cls.s;
-pub const Kd = Cls.d;
 
 /// Class number of a `Cls` or integer.
 pub inline fn knum(k: anytype) i32 {
@@ -368,9 +332,6 @@ pub const Blk = extern struct {
 
 pub const U = enum(i32) { xxx = 0, phi = 1, ins = 2, jmp = 3 };
 pub const UXXX = U.xxx;
-pub const UPhi = U.phi;
-pub const UIns = U.ins;
-pub const UJmp = U.jmp;
 
 pub const Use = extern struct {
     type: U,

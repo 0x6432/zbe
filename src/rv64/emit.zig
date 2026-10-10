@@ -3,6 +3,8 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("../all.zig");
+const Cls = all.Cls;
+const J = all.J;
 const tgt = @import("all.zig");
 const A0 = tgt.A0;
 const A7 = tgt.A7;
@@ -19,16 +21,8 @@ const FT11 = tgt.FT11;
 const Fn = all.Fn;
 const GP = tgt.GP;
 const Ins = all.Ins;
-const Jhlt = all.Jhlt;
-const Jjmp = all.Jjmp;
-const Jjnz = all.Jjnz;
-const Jret0 = all.Jret0;
 const KBASE = all.KBASE;
 const KWIDE = all.KWIDE;
-const Kd = all.Kd;
-const Kl = all.Kl;
-const Ks = all.Ks;
-const Kw = all.Kw;
 const NOp = all.NOp;
 const R = all.R;
 const RA = tgt.RA;
@@ -225,7 +219,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
                     try f.writeAll("ft11");
             },
             'k' => {
-                if (i.cls != Kl)
+                if (i.cls != .l)
                     try f.writeByte(clschr[i.cls.idx()]);
             },
             '=', '0' => {
@@ -324,7 +318,7 @@ fn fixmem(pr: *Ref, fn_: *Fn, f: *Writer) Writer.Error!void {
     if (rtype(r) == RCon) {
         const c = &fn_.con[r.val];
         if (c.type == CAddr and c.sym.type != SGlo) {
-            try loadcon(c, T6, all.knum(Kl), f);
+            try loadcon(c, T6, all.knum(.l), f);
             pr.* = TMP(T6);
         }
     }
@@ -376,10 +370,10 @@ fn emitins(i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
                         i.arg[1] = i.to;
                         i.to = R;
                         switch (i.cls) {
-                            Kw => i.op = .storew,
-                            Kl => i.op = .storel,
-                            Ks => i.op = .stores,
-                            Kd => i.op = .stored,
+                            .w => i.op = .storew,
+                            .l => i.op = .storel,
+                            .s => i.op = .stores,
+                            .d => i.op = .stored,
                             else => {},
                         }
                         try fixmem(&i.arg[1], fn_, f);
@@ -507,8 +501,8 @@ pub fn rv64_emitfn(fn_: *Fn, f: *Writer) Writer.Error!void {
         lbl = true;
         var jmp = false;
         switch (b.jmp.type) {
-            Jhlt => try f.print("\tebreak\n", .{}),
-            Jret0 => {
+            .hlt => try f.print("\tebreak\n", .{}),
+            .ret0 => {
                 if (fn_.dynalloc != 0) {
                     if (frame - 16 <= 2048)
                         try f.print("\tadd sp, fp, -{d}\n", .{frame - 16})
@@ -525,8 +519,8 @@ pub fn rv64_emitfn(fn_: *Fn, f: *Writer) Writer.Error!void {
                 }
                 try f.print("\tadd sp, fp, {d}\n" ++ "\tld ra, 8(fp)\n" ++ "\tld fp, 0(fp)\n" ++ "\tret\n", .{16 + @as(i32, fn_.vararg) * 64});
             },
-            Jjmp => jmp = true,
-            Jjnz => {
+            .jmp => jmp = true,
+            .jnz => {
                 var neg = false;
                 if (b.link == b.s2) {
                     const s = b.s1;

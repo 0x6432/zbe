@@ -19,7 +19,7 @@ M = [
     ('srem mask wrong', 'getcon(-sv, f)', 'getcon(~sv, f)'),
     ('sdiv accepts divisor 1', 'if (sv < 2 or !ispow2', 'if (sv < 1 or !ispow2'),
     ('udiv magic bound loosened', '<= (@as(u128, 1) << @intCast(sh - 32))', '<= (@as(u128, 1) << @intCast(sh - 30))'),
-    ('udiv sign-extends x', 'emit(.extuw, Kl, t0, x, R);', 'emit(.extsw, Kl, t0, x, R);'),
+    ('udiv sign-extends x', 'emit(.extuw, .l, t0, x, R);', 'emit(.extsw, .l, t0, x, R);'),
     ('rewrites machine registers', 'return virt(i.to) and virt(i.arg[0]) and virt(i.arg[1]);', '_ = i; return true;'),
 ]
 TESTS = [

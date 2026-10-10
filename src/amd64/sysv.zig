@@ -3,6 +3,8 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("../all.zig");
+const Cls = all.Cls;
+const J = all.J;
 const Opc = all.Opc;
 const tgt = @import("all.zig");
 const BIT = all.BIT;
@@ -24,16 +26,7 @@ const Fw = all.Fw;
 const INS = all.INS;
 const INT = all.INT;
 const Ins = all.Ins;
-const Jjmp = all.Jjmp;
-const Jjnz = all.Jjnz;
-const Jret0 = all.Jret0;
-const Jretc = all.Jretc;
-const Jretw = all.Jretw;
 const KBASE = all.KBASE;
-const Kd = all.Kd;
-const Kl = all.Kl;
-const Kw = all.Kw;
-const Kx = all.Kx;
 const NCLR_SYSV = tgt.NCLR_SYSV;
 const NFPS = tgt.NFPS;
 const NGPS_SYSV = tgt.NGPS_SYSV;
@@ -137,12 +130,12 @@ fn classify(a: *AClass, t: *Typ, s_: uint) void {
                     s += f.len;
                 },
                 Fs, Fd => {
-                    if (cls.* == Kx.int())
-                        cls.* = all.knum(Kd);
+                    if (cls.* == Cls.x.int())
+                        cls.* = all.knum(.d);
                     s += f.len;
                 },
                 Fb, Fh, Fw, Fl => {
-                    cls.* = all.knum(Kl);
+                    cls.* = all.knum(.l);
                     s += f.len;
                 },
                 FTyp => {
@@ -179,8 +172,8 @@ fn typclass(a: *AClass, t: *Typ) void {
         return;
     }
 
-    a.cls[0] = all.knum(Kx);
-    a.cls[1] = all.knum(Kx);
+    a.cls[0] = all.knum(.x);
+    a.cls[1] = all.knum(.x);
     a.inmem = 0;
     classify(a, t, 0);
 }
@@ -206,31 +199,31 @@ fn selret(b: *Blk, f: *Fn) void {
 
     const j: i32 = b.jmp.type.int();
 
-    if (!isret(j) or j == Jret0.int())
+    if (!isret(j) or j == J.ret0.int())
         return;
 
     const r0 = b.jmp.arg;
-    b.jmp.type = Jret0;
+    b.jmp.type = .ret0;
 
-    if (j == Jretc.int()) {
+    if (j == J.retc.int()) {
         typclass(&aret, &all.typ[@intCast(f.retty)]);
         if (aret.inmem != 0) {
             assert(rtype(f.retr) == RTmp);
-            emit(.copy, Kl, TMP(RAX), f.retr, R);
+            emit(.copy, .l, TMP(RAX), f.retr, R);
             emit(.blit1, 0, R, INT(aret.type.?.size), R);
             emit(.blit0, 0, R, r0, f.retr);
             ca = 1;
         } else {
             ca = retr(&reg, &aret);
             if (aret.size > 8) {
-                const r = newtmp("abi", Kl, f);
-                emit(.load, Kl, reg[1], r, R);
-                emit(.add, Kl, r, r0, getcon(8, f));
+                const r = newtmp("abi", .l, f);
+                emit(.load, .l, reg[1], r, R);
+                emit(.add, .l, r, r0, getcon(8, f));
             }
-            emit(.load, Kl, reg[0], r0, R);
+            emit(.load, .l, reg[0], r0, R);
         }
     } else {
-        const k = j - Jretw.int();
+        const k = j - J.retw.int();
         if (KBASE(k) == 0) {
             emit(.copy, k, TMP(RAX), r0, R);
             ca = 1;
@@ -405,25 +398,25 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
     stk += stk & 15;
     if (stk != 0) {
         r = getcon(-@as(i64, stk), f);
-        emit(.salloc, Kl, R, r, R);
+        emit(.salloc, .l, R, r, R);
     }
 
     if (!req(i_1.arg[1], R)) {
         if (aret.inmem != 0) {
             // get the return location from eax
             // it saves one callee-save reg
-            r1 = newtmp("abi", Kl, f);
-            emit(.copy, Kl, i_1.to, TMP(RAX), R);
+            r1 = newtmp("abi", .l, f);
+            emit(.copy, .l, i_1.to, TMP(RAX), R);
             ca += 1;
         } else {
             // todo, may read out of bounds.
             // gcc did this up until 5.2, but
             // this should still be fixed.
             if (aret.size > 8) {
-                r = newtmp("abi", Kl, f);
+                r = newtmp("abi", .l, f);
                 aret.ref[1] = newtmp("abi", aret.cls[1], f);
                 emit(.storel, 0, R, aret.ref[1], r);
-                emit(.add, Kl, r, i_1.to, getcon(8, f));
+                emit(.add, .l, r, i_1.to, getcon(8, f));
             }
             aret.ref[0] = newtmp("abi", aret.cls[0], f);
             emit(.storel, 0, R, aret.ref[0], i_1.to);
@@ -437,7 +430,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
         const ra1 = pnew(RAlloc);
         // specific to NAlign == 3
         const al: i32 = if (aret.@"align" >= 2) aret.@"align" - 2 else 0;
-        ra1.i = INS(Opc.alloc_first.offset(al), Kl, r1, getcon(aret.size, f), R);
+        ra1.i = INS(Opc.alloc_first.offset(al), .l, r1, getcon(aret.size, f), R);
         ra1.link = rap.*;
         rap.* = ra1;
         ra = ra1;
@@ -455,14 +448,14 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
     emit(.call, i_1.cls, R, i_1.arg[0], CALL(ca));
 
     if (!req(R, env))
-        emit(.copy, Kl, TMP(RAX), env, R)
+        emit(.copy, .l, TMP(RAX), env, R)
     else if (((ca >> 12) & 1) != 0) // vararg call
-        emit(.copy, Kw, TMP(RAX), getcon((ca >> 8) & 15, f), R);
+        emit(.copy, .w, TMP(RAX), getcon((ca >> 8) & 15, f), R);
 
     var ni: i32 = 0;
     var ns: i32 = 0;
     if (ra != null and aret.inmem != 0)
-        emit(.copy, Kl, rarg(all.knum(Kl), &ni, &ns), ra.?.i.to, R); // pass hidden argument
+        emit(.copy, .l, rarg(all.knum(.l), &ni, &ns), ra.?.i.to, R); // pass hidden argument
 
     for (ins, ac) |*i, *a| {
         if (i.op.int() >= Opc.arge.int() or a.inmem != 0)
@@ -471,9 +464,9 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
         if (i.op == .argc) {
             if (a.size > 8) {
                 const r2 = rarg(a.cls[1], &ni, &ns);
-                r = newtmp("abi", Kl, f);
+                r = newtmp("abi", .l, f);
                 emit(.load, a.cls[1], r2, r, R);
-                emit(.add, Kl, r, i.arg[1], getcon(8, f));
+                emit(.add, .l, r, i.arg[1], getcon(8, f));
             }
             emit(.load, a.cls[0], r1, i.arg[1], R);
         } else emit(.copy, i.cls, r1, i.arg[0], R);
@@ -482,22 +475,22 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
     if (stk == 0)
         return;
 
-    r = newtmp("abi", Kl, f);
+    r = newtmp("abi", .l, f);
     var off: uint = 0;
     for (ins, ac) |*i, *a| {
         if (i.op.int() >= Opc.arge.int() or a.inmem == 0)
             continue;
-        r1 = newtmp("abi", Kl, f);
+        r1 = newtmp("abi", .l, f);
         if (i.op == .argc) {
             if (a.@"align" == 4)
                 off += off & 15;
             emit(.blit1, 0, R, INT(a.type.?.size), R);
             emit(.blit0, 0, R, i.arg[1], r1);
         } else emit(.storel, 0, R, i.arg[0], r1);
-        emit(.add, Kl, r1, r, getcon(off, f));
+        emit(.add, .l, r1, r, getcon(off, f));
         off += a.size;
     }
-    emit(.salloc, Kl, r, getcon(stk, f), R);
+    emit(.salloc, .l, r, getcon(stk, f), R);
 }
 
 fn selpar(f: *Fn, ins: []Ins) i32 {
@@ -521,21 +514,21 @@ fn selpar(f: *Fn, ins: []Ins) i32 {
         if (i.op != .parc or a.inmem != 0)
             continue;
         if (a.size > 8) {
-            r = newtmp("abi", Kl, f);
-            a.ref[1] = newtmp("abi", Kl, f);
+            r = newtmp("abi", .l, f);
+            a.ref[1] = newtmp("abi", .l, f);
             emit(.storel, 0, R, a.ref[1], r);
-            emit(.add, Kl, r, i.to, getcon(8, f));
+            emit(.add, .l, r, i.to, getcon(8, f));
         }
-        a.ref[0] = newtmp("abi", Kl, f);
+        a.ref[0] = newtmp("abi", .l, f);
         emit(.storel, 0, R, a.ref[0], i.to);
         // specific to NAlign == 3
         const al: i32 = if (a.@"align" >= 2) a.@"align" - 2 else 0;
-        emit(Opc.alloc_first.offset(al), Kl, i.to, getcon(a.size, f), R);
+        emit(Opc.alloc_first.offset(al), .l, i.to, getcon(a.size, f), R);
     }
 
     if (f.retty >= 0 and aret.inmem != 0) {
-        r = newtmp("abi", Kl, f);
-        emit(.copy, Kl, r, rarg(all.knum(Kl), &ni, &ns), R);
+        r = newtmp("abi", .l, f);
+        emit(.copy, .l, r, rarg(all.knum(.l), &ni, &ns), R);
         f.retr = r;
     }
 
@@ -571,7 +564,7 @@ fn selpar(f: *Fn, ins: []Ins) i32 {
     }
 
     if (!req(R, env))
-        emit(.copy, Kl, env, TMP(RAX), R);
+        emit(.copy, .l, env, TMP(RAX), R);
 
     return fa | (s * 4) << 12;
 }
@@ -628,7 +621,7 @@ fn selvaarg(f: *Fn, b: *Blk, i: *Ins) void {
     //     %loc =l phi @breg %lreg, @bstk %lstk
     //     i->to =(i->cls) load %loc
 
-    const loc = newtmp("abi", Kl, f);
+    const loc = newtmp("abi", .l, f);
     emit(.load, i.cls, i.to, loc, R);
     const b0 = split(f, b);
     b0.jmp = b.jmp;
@@ -639,36 +632,36 @@ fn selvaarg(f: *Fn, b: *Blk, i: *Ins) void {
     if (b.s2 != null and b.s2 != b.s1)
         chpred(b.s2.?, b, b0);
 
-    const lreg = newtmp("abi", Kl, f);
-    const nr = newtmp("abi", Kl, f);
-    var r0 = newtmp("abi", Kw, f);
-    var r1 = newtmp("abi", Kl, f);
-    emit(.storew, Kw, R, r0, r1);
-    emit(.add, Kl, r1, ap, if (isint) CON_Z else c4);
-    emit(.add, Kw, r0, nr, if (isint) c8 else c16);
-    r0 = newtmp("abi", Kl, f);
-    r1 = newtmp("abi", Kl, f);
-    emit(.add, Kl, lreg, r1, nr);
-    emit(.load, Kl, r1, r0, R);
-    emit(.add, Kl, r0, ap, c16);
+    const lreg = newtmp("abi", .l, f);
+    const nr = newtmp("abi", .l, f);
+    var r0 = newtmp("abi", .w, f);
+    var r1 = newtmp("abi", .l, f);
+    emit(.storew, .w, R, r0, r1);
+    emit(.add, .l, r1, ap, if (isint) CON_Z else c4);
+    emit(.add, .w, r0, nr, if (isint) c8 else c16);
+    r0 = newtmp("abi", .l, f);
+    r1 = newtmp("abi", .l, f);
+    emit(.add, .l, lreg, r1, nr);
+    emit(.load, .l, r1, r0, R);
+    emit(.add, .l, r0, ap, c16);
     const breg = split(f, b);
-    breg.jmp.type = Jjmp;
+    breg.jmp.type = .jmp;
     breg.s1 = b0;
 
-    const lstk = newtmp("abi", Kl, f);
-    r0 = newtmp("abi", Kl, f);
-    r1 = newtmp("abi", Kl, f);
-    emit(.storel, Kw, R, r1, r0);
-    emit(.add, Kl, r1, lstk, c8);
-    emit(.load, Kl, lstk, r0, R);
-    emit(.add, Kl, r0, ap, c8);
+    const lstk = newtmp("abi", .l, f);
+    r0 = newtmp("abi", .l, f);
+    r1 = newtmp("abi", .l, f);
+    emit(.storel, .w, R, r1, r0);
+    emit(.add, .l, r1, lstk, c8);
+    emit(.load, .l, lstk, r0, R);
+    emit(.add, .l, r0, ap, c8);
     const bstk = split(f, b);
-    bstk.jmp.type = Jjmp;
+    bstk.jmp.type = .jmp;
     bstk.s1 = b0;
 
     const p = pnew(Phi);
     p.* = std.mem.zeroes(Phi);
-    p.cls = Kl;
+    p.cls = .l;
     p.to = loc;
     p.narg = 2;
     p.blk = vnewT(*Blk, 2, PFn);
@@ -678,36 +671,36 @@ fn selvaarg(f: *Fn, b: *Blk, i: *Ins) void {
     p.arg[0] = lstk;
     p.arg[1] = lreg;
     b0.phi = p;
-    r0 = newtmp("abi", Kl, f);
-    r1 = newtmp("abi", Kw, f);
-    b.jmp.type = Jjnz;
+    r0 = newtmp("abi", .l, f);
+    r1 = newtmp("abi", .w, f);
+    b.jmp.type = .jnz;
     b.jmp.arg = r1;
     b.s1 = breg;
     b.s2 = bstk;
     const c = getcon(if (isint) 48 else 176, f);
-    emit(Opc.cmpw_first.offset(Ciult), Kw, r1, nr, c);
-    emit(.loadsw, Kl, nr, r0, R);
-    emit(.add, Kl, r0, ap, if (isint) CON_Z else c4);
+    emit(Opc.cmpw_first.offset(Ciult), .w, r1, nr, c);
+    emit(.loadsw, .l, nr, r0, R);
+    emit(.add, .l, r0, ap, if (isint) CON_Z else c4);
 }
 
 fn selvastart(f: *Fn, fa: i32, ap: Ref) void {
     const gp = ((fa >> 4) & 15) * 8;
     const fp = 48 + ((fa >> 8) & 15) * 16;
     const sp = fa >> 12;
-    var r0 = newtmp("abi", Kl, f);
-    var r1 = newtmp("abi", Kl, f);
-    emit(.storel, Kw, R, r1, r0);
-    emit(.add, Kl, r1, TMP(RBP), getcon(-176, f));
-    emit(.add, Kl, r0, ap, getcon(16, f));
-    r0 = newtmp("abi", Kl, f);
-    r1 = newtmp("abi", Kl, f);
-    emit(.storel, Kw, R, r1, r0);
-    emit(.add, Kl, r1, TMP(RBP), getcon(sp, f));
-    emit(.add, Kl, r0, ap, getcon(8, f));
-    r0 = newtmp("abi", Kl, f);
-    emit(.storew, Kw, R, getcon(fp, f), r0);
-    emit(.add, Kl, r0, ap, getcon(4, f));
-    emit(.storew, Kw, R, getcon(gp, f), ap);
+    var r0 = newtmp("abi", .l, f);
+    var r1 = newtmp("abi", .l, f);
+    emit(.storel, .w, R, r1, r0);
+    emit(.add, .l, r1, TMP(RBP), getcon(-176, f));
+    emit(.add, .l, r0, ap, getcon(16, f));
+    r0 = newtmp("abi", .l, f);
+    r1 = newtmp("abi", .l, f);
+    emit(.storel, .w, R, r1, r0);
+    emit(.add, .l, r1, TMP(RBP), getcon(sp, f));
+    emit(.add, .l, r0, ap, getcon(8, f));
+    r0 = newtmp("abi", .l, f);
+    emit(.storew, .w, R, getcon(fp, f), r0);
+    emit(.add, .l, r0, ap, getcon(4, f));
+    emit(.storew, .w, R, getcon(gp, f), ap);
 }
 
 pub fn amd64_sysv_abi(f: *Fn) void {

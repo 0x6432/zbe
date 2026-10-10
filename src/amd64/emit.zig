@@ -3,6 +3,8 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("../all.zig");
+const Cls = all.Cls;
+const J = all.J;
 const Opc = all.Opc;
 const tgt = @import("all.zig");
 const BIT = all.BIT;
@@ -30,16 +32,8 @@ const Con = all.Con;
 const Fn = all.Fn;
 const INS = all.INS;
 const Ins = all.Ins;
-const Jhlt = all.Jhlt;
-const Jjf = all.Jjf;
-const Jjmp = all.Jjmp;
-const Jret0 = all.Jret0;
 const KBASE = all.KBASE;
 const KWIDE = all.KWIDE;
-const Kd = all.Kd;
-const Kl = all.Kl;
-const Ks = all.Ks;
-const Kw = all.Kw;
 const NCLR_SYSV = tgt.NCLR_SYSV;
 const NCLR_WIN = tgt.NCLR_WIN;
 const NCmp = all.NCmp;
@@ -460,8 +454,8 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
 
 const negmask = blk: {
     var t: [4]bits = @splat(0);
-    t[Ks.idx()] = 0x80000000;
-    t[Kd.idx()] = 0x8000000000000000;
+    t[Cls.s.idx()] = 0x80000000;
+    t[Cls.d.idx()] = 0x8000000000000000;
     break :blk t;
 };
 
@@ -563,7 +557,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             if (req(i.to, i.arg[0]))
                 return;
             const t0 = rtype(i.arg[0]);
-            if (i.cls == Kl and
+            if (i.cls == .l and
                 t0 == RCon and
                 e.@"fn".con[i.arg[0].val].type == CBits)
             {
@@ -590,7 +584,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             if (rtype(i.to) == RSlot and
                 (t0 == RSlot or t0 == RMem))
             {
-                i.cls = if (KWIDE(i.cls) != 0) Kd else Ks;
+                i.cls = if (KWIDE(i.cls) != 0) .d else .s;
                 i.arg[1] = TMP(XMM0 + 15);
                 try emitf("mov%k %0, %1", &i, e);
                 try emitf("mov%k %1, %=", &i, e);
@@ -665,7 +659,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             assert(e.fp == RBP);
             try emitf("subq %L0, %%rsp", &i, e);
             if (!req(i.to, R))
-                try emitcopy(i.to, TMP(RSP), all.knum(Kl), e);
+                try emitcopy(i.to, TMP(RSP), all.knum(.l), e);
         },
         .swap => {
             if (KBASE(i.cls) == 0) {
@@ -757,8 +751,8 @@ pub fn amd64_sysv_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
             try emitins(i.*, e);
         lbl = true;
         sw: switch (b.jmp.type) {
-            Jhlt => try fp.print("\tud2\n", .{}),
-            Jret0 => {
+            .hlt => try fp.print("\tud2\n", .{}),
+            .ret0 => {
                 if (f.dynalloc != 0)
                     try fp.print("\tmovq %rbp, %rsp\n" ++ "\tsubq ${d}, %rsp\n", .{e.fsz + @as(u64, @intCast(e.nclob)) * 8});
                 var k = rclob.len;
@@ -776,7 +770,7 @@ pub fn amd64_sysv_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
                     try fp.print("\taddq ${d}, %rsp\n", .{e.fsz});
                 try fp.writeAll("\tret\n");
             },
-            Jjmp => {
+            .jmp => {
                 // Jmp:
                 if (b.s1 != b.link)
                     try fp.print("\tjmp {s}bb{d}\n", .{cs(&all.T.asloc), sysv_id0 + @as(i32, @intCast(b.s1.?.id))})
@@ -784,7 +778,7 @@ pub fn amd64_sysv_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
                     lbl = false;
             },
             else => {
-                const c: i32 = b.jmp.type.int() - Jjf.int();
+                const c: i32 = b.jmp.type.int() - J.jf_first.int();
                 if (0 <= c and c <= NCmp) {
                     var n: usize = undefined;
                     if (b.link == b.s2) {
@@ -794,7 +788,7 @@ pub fn amd64_sysv_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
                         n = 0;
                     } else n = 1;
                     try fp.print("\tj{s} {s}bb{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), sysv_id0 + @as(i32, @intCast(b.s2.?.id))});
-                    continue :sw Jjmp;
+                    continue :sw .jmp;
                 }
                 die("unhandled jump {d}", .{b.jmp.type});
             },
@@ -864,8 +858,8 @@ pub fn amd64_winabi_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
             try emitins(i.*, e);
         lbl = true;
         sw: switch (b.jmp.type) {
-            Jhlt => try fp.print("\tud2\n", .{}),
-            Jret0 => {
+            .hlt => try fp.print("\tud2\n", .{}),
+            .ret0 => {
                 if (f.dynalloc != 0)
                     try fp.print("\tmovq %rbp, %rsp\n" ++ "\tsubq ${d}, %rsp\n", .{e.fsz + @as(u64, @intCast(e.nclob)) * 8});
                 var k = rclob.len;
@@ -883,7 +877,7 @@ pub fn amd64_winabi_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
                     try fp.print("\taddq ${d}, %rsp\n", .{e.fsz});
                 try fp.writeAll("\tret\n");
             },
-            Jjmp => {
+            .jmp => {
                 // Jmp:
                 if (b.s1 != b.link)
                     try fp.print("\tjmp {s}bb{d}\n", .{cs(&all.T.asloc), winabi_id0 + @as(i32, @intCast(b.s1.?.id))})
@@ -891,7 +885,7 @@ pub fn amd64_winabi_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
                     lbl = false;
             },
             else => {
-                const c: i32 = b.jmp.type.int() - Jjf.int();
+                const c: i32 = b.jmp.type.int() - J.jf_first.int();
                 if (0 <= c and c <= NCmp) {
                     var n: usize = undefined;
                     if (b.link == b.s2 or c >= NCmpI) {
@@ -901,7 +895,7 @@ pub fn amd64_winabi_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
                         n = 0;
                     } else n = 1;
                     try fp.print("\tj{s} {s}bb{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), winabi_id0 + @as(i32, @intCast(b.s2.?.id))});
-                    continue :sw Jjmp;
+                    continue :sw .jmp;
                 }
                 die("unhandled jump {d}", .{b.jmp.type});
             },

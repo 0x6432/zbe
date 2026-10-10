@@ -3,6 +3,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("all.zig");
+const Cls = all.Cls;
 const Opc = all.Opc;
 const ACon = all.ACon;
 const AEsc = all.AEsc;
@@ -17,10 +18,6 @@ const Fn = all.Fn;
 const INS = all.INS;
 const Ins = all.Ins;
 const KWIDE = all.KWIDE;
-const Kd = all.Kd;
-const Kl = all.Kl;
-const Ks = all.Ks;
-const Kw = all.Kw;
 const MayAlias = all.MayAlias;
 const MustAlias = all.MustAlias;
 const NoAlias = all.NoAlias;
@@ -141,18 +138,18 @@ fn cast(r: *Ref, cls: i32, l: *Loc) void {
         return;
     assert(rtype(r.*) == RTmp);
     const cls0: i32 = curf.tmp[r.val].cls.int();
-    if (cls0 == cls or (cls == Kw.int() and cls0 == Kl.int()))
+    if (cls0 == cls or (cls == Cls.w.int() and cls0 == Cls.l.int()))
         return;
     if (KWIDE(cls0) < KWIDE(cls)) {
-        if (cls0 == Ks.int())
-            r.* = iins(all.knum(Kw), .cast, r.*, R, l);
-        r.* = iins(all.knum(Kl), .extuw, r.*, R, l);
-        if (cls == Kd.int())
-            r.* = iins(all.knum(Kd), .cast, r.*, R, l);
+        if (cls0 == Cls.s.int())
+            r.* = iins(all.knum(.w), .cast, r.*, R, l);
+        r.* = iins(all.knum(.l), .extuw, r.*, R, l);
+        if (cls == Cls.d.int())
+            r.* = iins(all.knum(.d), .cast, r.*, R, l);
     } else {
-        if (cls0 == Kd.int() and cls != Kl.int())
-            r.* = iins(all.knum(Kl), .cast, r.*, R, l);
-        if (cls0 != Kd.int() or cls != Kw.int())
+        if (cls0 == Cls.d.int() and cls != Cls.l.int())
+            r.* = iins(all.knum(.l), .cast, r.*, R, l);
+        if (cls0 != Cls.d.int() or cls != Cls.w.int())
             r.* = iins(cls, .cast, r.*, R, l);
     }
 }
@@ -178,7 +175,7 @@ fn load(sl: Slice, msk: bits, l: *Loc) Ref {
     if (all_)
         cls = sl.cls
     else
-        cls = if (sl.sz > 4) all.knum(Kl) else all.knum(Kw);
+        cls = if (sl.sz > 4) all.knum(.l) else all.knum(.w);
     r = sl.ref;
     // sl.ref might not be live here,
     // but its alias base ref will be
@@ -190,7 +187,7 @@ fn load(sl: Slice, msk: bits, l: *Loc) Ref {
                 r = TMP(a.base);
                 if (a.offset != 0) {
                     const r1 = getcon(a.offset, curf);
-                    r = iins(all.knum(Kl), .add, r, r1, l);
+                    r = iins(all.knum(.l), .add, r, r1, l);
                 }
             },
             ACon, ASym => {
@@ -275,7 +272,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
     var r1: Ref = undefined;
     var l: Loc = undefined;
     var idx = i_ orelse b.nins;
-    const cls: i32 = if (sl.sz > 4) all.knum(Kl) else all.knum(Kw);
+    const cls: i32 = if (sl.sz > 4) all.knum(.l) else all.knum(.w);
     const msks = MASK(sl.sz);
 
     while (idx > 0) {
@@ -338,7 +335,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
                 if (off != 0) {
                     cls1 = cls;
                     if (op == .shr and off + sl.sz > 4)
-                        cls1 = all.knum(Kl);
+                        cls1 = all.knum(.l);
                     cast(&r, cls1, il);
                     r1 = getcon(8 * off, curf);
                     r = iins(cls1, op, r, r1, il);
@@ -495,7 +492,7 @@ pub fn loadopt(f: *Fn) void {
                     sw: switch (i.op) {
                         .loadsb, .loadub, .loadsh, .loaduh => i.op = ext,
                         .loadsw, .loaduw => {
-                            if (i.cls == Kl) {
+                            if (i.cls == .l) {
                                 i.op = ext;
                             } else continue :sw .load;
                         },

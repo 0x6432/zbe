@@ -1,9 +1,9 @@
 //! One-to-one translation of abi.c
 // -- imports --
 const all = @import("all.zig");
+const J = all.J;
 const Blk = all.Blk;
 const Fn = all.Fn;
-const Jretw = all.Jretw;
 const isargbh = all.isargbh;
 const isparbh = all.isparbh;
 const isretbh = all.isretbh;
@@ -24,6 +24,6 @@ pub fn elimsb(f: *Fn) void {
                 i.op = .par;
         }
         if (isretbh(b.jmp.type))
-            b.jmp.type = Jretw;
+            b.jmp.type = .retw;
     }
 }

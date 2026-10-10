@@ -3,6 +3,8 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("../all.zig");
+const Cls = all.Cls;
+const J = all.J;
 const Opc = all.Opc;
 const tgt = @import("all.zig");
 const Blk = all.Blk;
@@ -16,16 +18,8 @@ const Fn = all.Fn;
 const INRANGE = all.INRANGE;
 const INS0 = all.INS0;
 const Ins = all.Ins;
-const Jhlt = all.Jhlt;
-const Jjf = all.Jjf;
-const Jjfine = all.Jjfine;
-const Jjmp = all.Jjmp;
-const Jjnz = all.Jjnz;
-const Jret0 = all.Jret0;
 const KBASE = all.KBASE;
 const KWIDE = all.KWIDE;
-const Kl = all.Kl;
-const Kw = all.Kw;
 const Phi = all.Phi;
 const R = all.R;
 const R0 = tgt.R0;
@@ -72,7 +66,7 @@ fn imm(c: *Con, k: i32, pn: *i64) i32 {
     if (c.type != CBits)
         return Iother;
     var n = c.bits.i;
-    if (k == Kw.int())
+    if (k == Cls.w.int())
         n = @as(i32, @truncate(n));
     var i: i32 = Iplo12;
     if (n < 0) {
@@ -91,7 +85,7 @@ fn imm(c: *Con, k: i32, pn: *i64) i32 {
 
 pub fn arm64_logimm(x_: u64, k: i32) bool {
     var x = x_;
-    if (k == Kw.int())
+    if (k == Cls.w.int())
         x = (x & 0xffffffff) | x << 32;
     if ((x & 1) != 0)
         x = ~x;
@@ -132,30 +126,30 @@ fn fixarg(pr: *Ref, k: i32, phi: bool, f: *Fn) void {
             if (c.type == CAddr and ((c.sym.type & SExt) != 0 or
                 (all.T.apple != 0 and (c.sym.type & SThr) != 0)))
             {
-                r1 = newtmp("isel", Kl, f);
+                r1 = newtmp("isel", .l, f);
                 pr.* = r1;
                 if (c.bits.i != 0) {
-                    r2 = newtmp("isel", Kl, f);
+                    r2 = newtmp("isel", .l, f);
                     cc = std.mem.zeroes(Con);
                     cc.type = CBits;
                     cc.bits.i = c.bits.i;
                     r3 = newcon(&cc, f);
-                    emit(.add, Kl, r1, r2, r3);
+                    emit(.add, .l, r1, r2, r3);
                     r1 = r2;
                 }
                 if (all.T.apple != 0 and (c.sym.type & SThr) != 0) {
-                    emit(.copy, Kl, r1, TMP(R0), R);
-                    r1 = newtmp("isel", Kl, f);
-                    r2 = newtmp("isel", Kl, f);
+                    emit(.copy, .l, r1, TMP(R0), R);
+                    r1 = newtmp("isel", .l, f);
+                    r2 = newtmp("isel", .l, f);
                     emit(.call, 0, R, r1, CALL(33));
-                    emit(.copy, Kl, TMP(R0), r2, R);
-                    emit(.load, Kl, r1, r2, R);
+                    emit(.copy, .l, TMP(R0), r2, R);
+                    emit(.load, .l, r1, r2, R);
                     r1 = r2;
                 }
                 cc = c.*;
                 cc.bits.i = 0;
                 r3 = newcon(&cc, f);
-                emit(.copy, Kl, r1, r3, R);
+                emit(.copy, .l, r1, r3, R);
                 return;
             }
             if (KBASE(k) == 0 and phi)
@@ -173,9 +167,9 @@ fn fixarg(pr: *Ref, k: i32, phi: bool, f: *Fn) void {
                 c.* = std.mem.zeroes(Con);
                 c.type = CAddr;
                 c.sym.id = intern(@ptrCast(&buf));
-                r2 = newtmp("isel", Kl, f);
+                r2 = newtmp("isel", .l, f);
                 emit(.load, k, r1, r2, R);
-                emit(.copy, Kl, r2, CON(ci), R);
+                emit(.copy, .l, r2, CON(ci), R);
             }
             pr.* = r1;
         },
@@ -183,8 +177,8 @@ fn fixarg(pr: *Ref, k: i32, phi: bool, f: *Fn) void {
             const s = f.tmp[r0.val].slot;
             if (s == -1)
                 return;
-            r1 = newtmp("isel", Kl, f);
-            emit(.addr, Kl, r1, SLOT(s), R);
+            r1 = newtmp("isel", .l, f);
+            emit(.addr, .l, r1, SLOT(s), R);
             pr.* = r1;
         },
         else => {},
@@ -249,7 +243,7 @@ fn sel(i_: Ins, f: *Fn) void {
     if (INRANGE(i.op, Opc.alloc_first, Opc.alloc_last)) {
         const i_0 = &(all.curi - 1)[0];
         salloc(i.to, i.arg[0], f);
-        fixarg(&i_0.arg[0], all.knum(Kl), false, f);
+        fixarg(&i_0.arg[0], all.knum(.l), false, f);
         return;
     }
     if (iscmp(i.op, &ck, &cc)) {
@@ -277,11 +271,11 @@ fn seljmp(b: *Blk, f: *Fn) void {
     var ck: i32 = undefined;
     var cc: i32 = undefined;
 
-    if (b.jmp.type == Jret0 or
-        b.jmp.type == Jjmp or
-        b.jmp.type == Jhlt)
+    if (b.jmp.type == .ret0 or
+        b.jmp.type == .jmp or
+        b.jmp.type == .hlt)
         return;
-    assert(b.jmp.type == Jjnz);
+    assert(b.jmp.type == .jnz);
     const r = b.jmp.arg;
     var use: i32 = -1;
     b.jmp.arg = R;
@@ -299,12 +293,12 @@ fn seljmp(b: *Blk, f: *Fn) void {
         const ir = ir_.?;
         if (selcmp(&ir.arg, ck, f))
             cc = cmpop(cc);
-        b.jmp.type = Jjf.add(cc);
+        b.jmp.type = J.jf_first.add(cc);
         ir.* = INS0(.nop);
     } else {
         var a = [2]Ref{ r, CON_Z };
-        _ = selcmp(&a, all.knum(Kw), f);
-        b.jmp.type = Jjfine;
+        _ = selcmp(&a, all.knum(.w), f);
+        b.jmp.type = .jfine;
     }
 }
 

@@ -3,6 +3,9 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("all.zig");
+const Cls = all.Cls;
+const J = all.J;
+const U = all.U;
 const Opc = all.Opc;
 const ALoc = all.ALoc;
 const Alias = all.Alias;
@@ -13,10 +16,7 @@ const Fn = all.Fn;
 const INS0 = all.INS0;
 const INT = all.INT;
 const Ins = all.Ins;
-const Jret0 = all.Jret0;
-const Jretc = all.Jretc;
 const KBASE = all.KBASE;
-const Kl = all.Kl;
 const NBit = all.NBit;
 const PHeap = all.PHeap;
 const R = all.R;
@@ -26,8 +26,6 @@ const Ref = all.Ref;
 const TMP = all.TMP;
 const Tmp = all.Tmp;
 const Tmp0 = all.Tmp0;
-const UIns = all.UIns;
-const UJmp = all.UJmp;
 const UNDEF = all.UNDEF;
 const bits = all.bits;
 const cint = all.cint;
@@ -72,7 +70,7 @@ pub fn promote(f: *Fn) void {
         var k: i32 = -1;
         var s: i32 = -1;
         for (t.use.?[0..t.nuse]) |*u| {
-            if (u.type != UIns)
+            if (u.type != .ins)
                 continue :outer;
             const l = u.u.ins;
             if (isload(l.op))
@@ -109,7 +107,7 @@ pub fn promote(f: *Fn) void {
                 // can eliminate them later
                 sw: switch (l.op) {
                     .loadsw, .loaduw => {
-                        if (k == Kl.int())
+                        if (k == Cls.l.int())
                             continue :sw .xxx; // goto Extend
                         continue :sw .load;
                     },
@@ -291,7 +289,7 @@ pub fn coalesce(f: *Fn) void {
                 }
             }
         }
-        if (b.jmp.type == Jretc) {
+        if (b.jmp.type == .retc) {
             ip -= 1;
             load(b.jmp.arg, ones, ip, f, sl);
         }
@@ -389,14 +387,14 @@ pub fn coalesce(f: *Fn) void {
         }
         i.* = INS0(.nop);
         for (t.use.?[0..t.nuse]) |*u| {
-            if (u.type == UJmp) {
+            if (u.type == .jmp) {
                 const b = f.rpo[u.bid];
                 assert(isret(b.jmp.type));
-                b.jmp.type = Jret0;
+                b.jmp.type = .ret0;
                 b.jmp.arg = R;
                 continue;
             }
-            assert(u.type == UIns);
+            assert(u.type == .ins);
             const ui = u.u.ins;
             if (!req(ui.to, R)) {
                 assert(rtype(ui.to) == RTmp);
@@ -462,11 +460,11 @@ pub fn coalesce(f: *Fn) void {
             ts.def = t.def;
         }
         for (t.use.?[0..t.nuse]) |*u| {
-            if (u.type == UJmp) {
+            if (u.type == .jmp) {
                 f.rpo[u.bid].jmp.arg = TMP(ss.t);
                 continue;
             }
-            assert(u.type == UIns);
+            assert(u.type == .ins);
             for (&u.u.ins.arg) |*arg| {
                 if (req(arg.*, TMP(s.t)))
                     arg.* = TMP(ss.t);

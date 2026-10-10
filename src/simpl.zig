@@ -3,14 +3,13 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("all.zig");
+const Cls = all.Cls;
 const Opc = all.Opc;
 const Blk = all.Blk;
 const CBits = all.CBits;
 const Fn = all.Fn;
 const Ins = all.Ins;
 const KBASE = all.KBASE;
-const Kl = all.Kl;
-const Kw = all.Kw;
 const O = all.ops;
 const R = all.R;
 const RCon = all.RCon;
@@ -31,10 +30,10 @@ const uint = all.uint;
 fn blit(sd: *[2]Ref, sz_: i32, f: *Fn) void {
     const E = struct { st: all.Opc, ld: all.Opc, cls: all.Cls, size: i32 };
     const tbl = [_]E{
-        .{ .st = .storel, .ld = .load, .cls = Kl, .size = 8 },
-        .{ .st = .storew, .ld = .load, .cls = Kw, .size = 4 },
-        .{ .st = .storeh, .ld = .loaduh, .cls = Kw, .size = 2 },
-        .{ .st = .storeb, .ld = .loadub, .cls = Kw, .size = 1 },
+        .{ .st = .storel, .ld = .load, .cls = .l, .size = 8 },
+        .{ .st = .storew, .ld = .load, .cls = .w, .size = 4 },
+        .{ .st = .storeh, .ld = .loaduh, .cls = .w, .size = 2 },
+        .{ .st = .storeb, .ld = .loadub, .cls = .w, .size = 1 },
     };
 
     const fwd = sz_ >= 0;
@@ -46,14 +45,14 @@ fn blit(sd: *[2]Ref, sz_: i32, f: *Fn) void {
         const n = p.size;
         while (sz >= n) : (sz -= n) {
             off -= if (fwd) n else 0;
-            const r = newtmp("blt", Kl, f);
-            var r1 = newtmp("blt", Kl, f);
+            const r = newtmp("blt", .l, f);
+            var r1 = newtmp("blt", .l, f);
             const ro = getcon(off, f);
             emit(p.st, 0, R, r, r1);
-            emit(.add, Kl, r1, sd[1], ro);
-            r1 = newtmp("blt", Kl, f);
+            emit(.add, .l, r1, sd[1], ro);
+            r1 = newtmp("blt", .l, f);
             emit(p.ld, p.cls, r, r1, R);
-            emit(.add, Kl, r1, sd[0], ro);
+            emit(.add, .l, r1, sd[0], ro);
             off += if (fwd) 0 else n;
         }
     }
@@ -117,7 +116,7 @@ fn algebra(i: *Ins, f: *Fn) void {
     const c = &f.con[i.arg[1].val];
     if (c.type != CBits)
         return;
-    const wide = i.cls == Kl;
+    const wide = i.cls == .l;
     const mask: u64 = if (wide) ~@as(u64, 0) else 0xffffffff;
     const v: u64 = @as(u64, @bitCast(c.bits.i)) & mask;
     const shift = i.op == .shl or i.op == .shr or i.op == .sar;
@@ -171,7 +170,7 @@ fn sdivpow2(i: *Ins, b: *Blk, k: uint, new: *bool, f: *Fn) bool {
     const c = &f.con[i.arg[1].val];
     if (c.type != CBits)
         return false;
-    const wide = i.cls == Kl;
+    const wide = i.cls == .l;
     const sv: i64 = if (wide) c.bits.i else @as(i32, @truncate(c.bits.i));
     if (sv < 2 or !ispow2(@bitCast(sv)))
         return false;
@@ -234,7 +233,7 @@ fn udivmagicw(d: u32, mbits: u32, m: *u64, s: *u32) bool {
 
 /// Unsigned 32-bit x / d and x % d by a constant: one 64-bit multiply.
 fn udivconst(i: *Ins, b: *Blk, k: uint, new: *bool, f: *Fn) bool {
-    if (i.cls != Kw or rtype(i.arg[0]) != RTmp or !allvirt(i))
+    if (i.cls != .w or rtype(i.arg[0]) != RTmp or !allvirt(i))
         return false;
     const d: u32 = @truncate(@as(u64, @bitCast(f.con[i.arg[1].val].bits.i)));
     var m: u64 = 0;
@@ -246,31 +245,31 @@ fn udivconst(i: *Ins, b: *Blk, k: uint, new: *bool, f: *Fn) bool {
     const to = i.to;
     const isdiv = i.op == .udiv;
     startnew(new, b, k);
-    const t0 = newtmp("udv", Kl, f);
-    const t1 = newtmp("udv", Kl, f);
-    const t2 = newtmp("udv", Kl, f);
+    const t0 = newtmp("udv", .l, f);
+    const t1 = newtmp("udv", .l, f);
+    const t2 = newtmp("udv", .l, f);
     if (isdiv) {
-        emit(.copy, Kw, to, t2, R);
+        emit(.copy, .w, to, t2, R);
     } else {
-        const q = newtmp("udv", Kw, f);
-        const t3 = newtmp("udv", Kw, f);
-        emit(.sub, Kw, to, x, t3);
-        emit(.mul, Kw, t3, q, getcon(d, f));
-        emit(.copy, Kw, q, t2, R);
+        const q = newtmp("udv", .w, f);
+        const t3 = newtmp("udv", .w, f);
+        emit(.sub, .w, to, x, t3);
+        emit(.mul, .w, t3, q, getcon(d, f));
+        emit(.copy, .w, q, t2, R);
     }
     if (wide) {
         // q = ((x * m' >> 32) + x) >> (s - 32), m' = m - 2^32
-        const t3 = newtmp("udv", Kl, f);
-        const t4 = newtmp("udv", Kl, f);
-        emit(.shr, Kl, t2, t4, getcon(s - 32, f));
-        emit(.add, Kl, t4, t3, t0);
-        emit(.shr, Kl, t3, t1, getcon(32, f));
-        emit(.mul, Kl, t1, t0, getcon(@bitCast(m - (@as(u64, 1) << 32)), f));
+        const t3 = newtmp("udv", .l, f);
+        const t4 = newtmp("udv", .l, f);
+        emit(.shr, .l, t2, t4, getcon(s - 32, f));
+        emit(.add, .l, t4, t3, t0);
+        emit(.shr, .l, t3, t1, getcon(32, f));
+        emit(.mul, .l, t1, t0, getcon(@bitCast(m - (@as(u64, 1) << 32)), f));
     } else {
-        emit(.shr, Kl, t2, t1, getcon(s, f));
-        emit(.mul, Kl, t1, t0, getcon(@bitCast(m), f));
+        emit(.shr, .l, t2, t1, getcon(s, f));
+        emit(.mul, .l, t1, t0, getcon(@bitCast(m), f));
     }
-    emit(.extuw, Kl, t0, x, R);
+    emit(.extuw, .l, t0, x, R);
     return true;
 }
 

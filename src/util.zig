@@ -3,6 +3,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("all.zig");
+const Cls = all.Cls;
 const Opc = all.Opc;
 const BIT = all.BIT;
 const BSet = all.BSet;
@@ -33,11 +34,6 @@ const Con = all.Con;
 const Fn = all.Fn;
 const INRANGE = all.INRANGE;
 const Ins = all.Ins;
-const Kd = all.Kd;
-const Kl = all.Kl;
-const Ks = all.Ks;
-const Kw = all.Kw;
-const Kx = all.Kx;
 const NBit = all.NBit;
 const NCmp = all.NCmp;
 const NCmpI = all.NCmpI;
@@ -420,16 +416,16 @@ pub fn iscmp(op: anytype, pk: *i32, pc: *i32) bool {
     const o: i32 = all.ops.num(op);
     if (all.ops.num(Opc.cmpw_first) <= o and o <= all.ops.num(Opc.cmpw_last)) {
         pc.* = o - all.ops.num(Opc.cmpw_first);
-        pk.* = all.knum(Kw);
+        pk.* = all.knum(.w);
     } else if (all.ops.num(Opc.cmpl_first) <= o and o <= all.ops.num(Opc.cmpl_last)) {
         pc.* = o - all.ops.num(Opc.cmpl_first);
-        pk.* = all.knum(Kl);
+        pk.* = all.knum(.l);
     } else if (all.ops.num(Opc.cmps_first) <= o and o <= all.ops.num(Opc.cmps_last)) {
         pc.* = NCmpI + o - all.ops.num(Opc.cmps_first);
-        pk.* = all.knum(Ks);
+        pk.* = all.knum(.s);
     } else if (all.ops.num(Opc.cmpd_first) <= o and o <= all.ops.num(Opc.cmpd_last)) {
         pc.* = NCmpI + o - all.ops.num(Opc.cmpd_first);
-        pk.* = all.knum(Kd);
+        pk.* = all.knum(.d);
     } else return false;
     return true;
 }
@@ -559,12 +555,12 @@ pub fn cmpwlneg(op: anytype) i32 {
 
 pub fn clsmerge(pk: *all.Cls, k: all.Cls) bool {
     const k1 = pk.*;
-    if (k1 == Kx) {
+    if (k1 == .x) {
         pk.* = k;
         return false;
     }
-    if ((k1 == Kw and k == Kl) or (k1 == Kl and k == Kw)) {
-        pk.* = Kw;
+    if ((k1 == .w and k == .l) or (k1 == .l and k == .w)) {
+        pk.* = .w;
         return false;
     }
     return k1 != k;
@@ -686,14 +682,14 @@ pub fn salloc(rt: Ref, rs: Ref, f: *Fn) void {
         if (sz < 0 or sz >= std.math.maxInt(c_int) - 15)
             err("invalid alloc size {d}", .{sz});
         sz = (sz + 15) & -16;
-        emit(.salloc, Kl, rt, getcon(sz, f), R);
+        emit(.salloc, .l, rt, getcon(sz, f), R);
     } else {
         // r0 = (r + 15) & -16
-        const r0 = newtmp("isel", Kl, f);
-        const r1 = newtmp("isel", Kl, f);
-        emit(.salloc, Kl, rt, r0, R);
-        emit(.@"and", Kl, r0, r1, getcon(-16, f));
-        emit(.add, Kl, r1, rs, getcon(15, f));
+        const r0 = newtmp("isel", .l, f);
+        const r1 = newtmp("isel", .l, f);
+        emit(.salloc, .l, rt, r0, R);
+        emit(.@"and", .l, r0, r1, getcon(-16, f));
+        emit(.add, .l, r1, rs, getcon(15, f));
         if (f.tmp[rs.val].slot != -1)
             err("unlikely alloc argument %{s} for %{s}", .{cs(f.tmp[rs.val].name), cs(f.tmp[rt.val].name)});
     }

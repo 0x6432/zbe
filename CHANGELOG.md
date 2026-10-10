@@ -31,6 +31,10 @@
   are `Opc.cmpw_first`/`Opc.cmpw_last` etc. `INS`, `INS0`, `emit` and the
   parser's `mkins` take a typed `Opc`, and op locals/tables in the ABI, isel
   and load code are `Opc` instead of `i32`.
+- Class, jump and use-kind aliases (`Kw`, `Jjmp`, `UPhi`, ...; 191
+  declarations) are gone too. Enum values are bare literals (`.w`, `.jmp`,
+  `.phi`, `.add`) wherever the type is inferred, and qualified (`Cls.w`,
+  `Opc.storew.offset(k)`) only where it is not.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit

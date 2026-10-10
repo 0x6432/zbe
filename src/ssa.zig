@@ -3,11 +3,11 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("all.zig");
+const Cls = all.Cls;
+const U = all.U;
 const BSet = all.BSet;
 const Blk = all.Blk;
 const Fn = all.Fn;
-const Kw = all.Kw;
-const Kx = all.Kx;
 const PFn = all.PFn;
 const Phi = all.Phi;
 const R = all.R;
@@ -16,10 +16,7 @@ const Ref = all.Ref;
 const TMP = all.TMP;
 const Tmp = all.Tmp;
 const Tmp0 = all.Tmp0;
-const UIns = all.UIns;
-const UJmp = all.UJmp;
 const UNDEF = all.UNDEF;
-const UPhi = all.UPhi;
 const Use = all.Use;
 const WFull = all.WFull;
 const Wsb = all.Wsb;
@@ -75,9 +72,9 @@ pub fn adduse(tmp: *Tmp, ty: all.U, b: *Blk, x: ?*anyopaque) void {
     u.type = ty;
     u.bid = b.id;
     switch (ty) {
-        UPhi => u.u.phi = @ptrCast(@alignCast(x)),
-        UIns => u.u.ins = @ptrCast(@alignCast(x)),
-        UJmp => {},
+        .phi => u.u.phi = @ptrCast(@alignCast(x)),
+        .ins => u.u.ins = @ptrCast(@alignCast(x)),
+        .jmp => {},
         else => die("unreachable", .{}),
     }
 }
@@ -118,7 +115,7 @@ pub fn filluse(f: *Fn) void {
             while (a < p.narg) : (a += 1)
                 if (rtype(p.arg[a]) == RTmp) {
                     t = (p.arg[a].val);
-                    adduse(&tmp[@intCast(t)], UPhi, b, @ptrCast(p));
+                    adduse(&tmp[@intCast(t)], .phi, b, @ptrCast(p));
                     t = phicls(t, f.tmp);
                     if (t != tp)
                         tmp[@intCast(t)].phi = tp;
@@ -137,7 +134,7 @@ pub fn filluse(f: *Fn) void {
                 if (iscmp(i.op, &x, &x))
                     w = Wub;
                 if (w == Wsw or w == Wuw)
-                    if (i.cls == Kw) {
+                    if (i.cls == .w) {
                         w = WFull;
                     };
                 t = i.to.val;
@@ -151,11 +148,11 @@ pub fn filluse(f: *Fn) void {
             while (m < 2) : (m += 1)
                 if (rtype(i.arg[m]) == RTmp) {
                     t = (i.arg[m].val);
-                    adduse(&tmp[@intCast(t)], UIns, b, @ptrCast(i));
+                    adduse(&tmp[@intCast(t)], .ins, b, @ptrCast(i));
                 };
         }
         if (rtype(b.jmp.arg) == RTmp)
-            adduse(&tmp[b.jmp.arg.val], UJmp, b, null);
+            adduse(&tmp[b.jmp.arg.val], .jmp, b, null);
     }
 }
 
@@ -189,7 +186,7 @@ fn phiins(f: *Fn) void {
                 continue;
         }
         bszero(&u);
-        k = Kx;
+        k = .x;
         var b_it = f.start;
         while (b_it) |b| : (b_it = b.link) {
             b.visit = 0;
@@ -401,7 +398,7 @@ pub fn ssacheck(f: *Fn) void {
                 t = &f.tmp[r.val];
                 for (t.use.?[0..t.nuse]) |*u| {
                     bu = f.rpo[u.bid];
-                    if (u.type == UPhi) {
+                    if (u.type == .phi) {
                         if (phicheck(u.u.phi, b, r))
                             break :errblk;
                     } else if (bu != b and !sdom(b, bu.?))
@@ -415,12 +412,12 @@ pub fn ssacheck(f: *Fn) void {
                 t = &f.tmp[r.val];
                 for (t.use.?[0..t.nuse]) |*u| {
                     bu = f.rpo[u.bid];
-                    if (u.type == UPhi) {
+                    if (u.type == .phi) {
                         if (phicheck(u.u.phi, b, r))
                             break :errblk;
                     } else {
                         if (bu == b) {
-                            if (u.type == UIns)
+                            if (u.type == .ins)
                                 if (@intFromPtr(u.u.ins) <= @intFromPtr(i))
                                     break :errblk;
                         } else if (!sdom(b, bu.?))

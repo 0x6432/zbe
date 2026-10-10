@@ -6,9 +6,6 @@ const all = @import("all.zig");
 const Blk = all.Blk;
 const Fn = all.Fn;
 const Ins = all.Ins;
-const Jjmp = all.Jjmp;
-const Jjnz = all.Jjnz;
-const Jret0 = all.Jret0;
 const PFn = all.PFn;
 const Phi = all.Phi;
 const Ref = all.Ref;
@@ -298,17 +295,17 @@ pub fn simpljmp(f: *Fn) void {
     const ret = newblk();
     ret.id = f.nblk;
     f.nblk += 1;
-    ret.jmp.type = Jret0;
+    ret.jmp.type = .ret0;
     const uf = ealloc(?*Blk, f.nblk)[0..f.nblk]; // union-find
     var b_it = f.start;
     while (b_it) |b| : (b_it = b.link) {
         assert(b.phi == null);
-        if (b.jmp.type == Jret0) {
-            b.jmp.type = Jjmp;
+        if (b.jmp.type == .ret0) {
+            b.jmp.type = .jmp;
             b.s1 = ret;
         }
         if (b.nins == 0)
-            if (b.jmp.type == Jjmp) {
+            if (b.jmp.type == .jmp) {
                 uffind(@ptrCast(&b.s1), uf);
                 if (b.s1 != b)
                     uf[b.id] = b.s1;
@@ -321,7 +318,7 @@ pub fn simpljmp(f: *Fn) void {
         if (b.s2 != null)
             uffind(@ptrCast(&b.s2), uf);
         if (b.s1 != null and b.s1 == b.s2) {
-            b.jmp.type = Jjmp;
+            b.jmp.type = .jmp;
             b.s2 = null;
         }
     }
@@ -364,7 +361,7 @@ pub fn reachesnotvia(f: *Fn, b: *Blk, to: *Blk, excl: *Blk) bool {
 pub fn ifgraph(ifb: *Blk, pthenb_: **Blk, pelseb_: **Blk, pjoinb: **Blk) bool {
     var pthenb = pthenb_;
     var pelseb = pelseb_;
-    if (ifb.jmp.type != Jjnz)
+    if (ifb.jmp.type != .jnz)
         return false;
 
     var s1 = ifb.s1.?;
@@ -376,7 +373,7 @@ pub fn ifgraph(ifb: *Blk, pthenb_: **Blk, pelseb_: **Blk, pjoinb: **Blk) bool {
     if (s1 == s2)
         return false;
 
-    if (s1.jmp.type != Jjmp or s1.npred != 1)
+    if (s1.jmp.type != .jmp or s1.npred != 1)
         return false;
 
     if (s1.s1 == s2) {
@@ -389,7 +386,7 @@ pub fn ifgraph(ifb: *Blk, pthenb_: **Blk, pelseb_: **Blk, pjoinb: **Blk) bool {
         return true;
     }
 
-    if (s2.jmp.type != Jjmp or s2.npred != 1)
+    if (s2.jmp.type != .jmp or s2.npred != 1)
         return false;
     if (s1.s1 != s2.s1 or s1.s1.?.npred != 2)
         return false;
@@ -463,7 +460,7 @@ pub fn simplcfg(f: *Fn) void {
             if (b.id == NOID)
                 continue;
             const j = &jmp[b.id];
-            if (j.type == Jjmp and j.s1.?.npred == 1) {
+            if (j.type == .jmp and j.s1.?.npred == 1) {
                 const s = j.s1.?;
                 assert(s.phi == null);
                 addbins(&b.ins, &b.nins, s);
@@ -478,7 +475,7 @@ pub fn simplcfg(f: *Fn) void {
                 s.id = NOID;
                 j.* = jj.*;
                 done = false;
-            } else if (j.type == Jjnz and empty[j.s1.?.id] and empty[j.s2.?.id] and
+            } else if (j.type == .jnz and empty[j.s1.?.id] and empty[j.s2.?.id] and
                 jmpeq(&jmp[j.s1.?.id], &jmp[j.s2.?.id]) and
                 jmpnophi(&jmp[j.s1.?.id]))
             {

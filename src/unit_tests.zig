@@ -4,6 +4,7 @@
 const std = @import("std");
 const t = std.testing;
 const all = @import("all.zig");
+const Opc = all.Opc;
 const u = @import("util.zig");
 
 const PHeap = all.PHeap;
@@ -247,9 +248,8 @@ fn mkblk(ops: []const all.Opc, buf: []all.Ins) all.Blk {
 }
 
 test "igroup: sel1 run resolves to its sel0" {
-    const O = all.ops;
     var buf: [6]all.Ins = undefined;
-    var b = mkblk(&.{ O.Ocopy, O.Osel0, O.Osel1, O.Osel1, O.Osel1, O.Ocopy }, &buf);
+    var b = mkblk(&.{ Opc.copy, Opc.sel0, Opc.sel1, Opc.sel1, Opc.sel1, Opc.copy }, &buf);
     for ([_]u32{ 1, 2, 3, 4 }) |n| {
         const g = u.igroup(&b, n);
         try t.expectEqual(@as(all.uint, 1), g[0]);
@@ -262,9 +262,8 @@ test "igroup: sel1 run resolves to its sel0" {
 }
 
 test "igroup: lone sel0 and blit pairs" {
-    const O = all.ops;
     var buf: [4]all.Ins = undefined;
-    var b = mkblk(&.{ O.Osel0, O.Oblit0, O.Oblit1, O.Ocopy }, &buf);
+    var b = mkblk(&.{ Opc.sel0, Opc.blit0, Opc.blit1, Opc.copy }, &buf);
     var g = u.igroup(&b, 0);
     try t.expectEqual(@as(all.uint, 0), g[0]);
     try t.expectEqual(@as(all.uint, 1), g[1]);

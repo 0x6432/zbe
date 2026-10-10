@@ -128,7 +128,6 @@ pub const NCmpF = 8;
 pub const NCmp = NCmpI + NCmpF;
 
 // enum O (generated from ops.h)
-pub const Oxxx = ops.Oxxx;
 pub const NOp = ops.NOp;
 
 // enum J
@@ -210,22 +209,8 @@ pub const NJmp = 32;
 pub const jmp_names = [_][:0]const u8{ "retw", "retl", "rets", "retd", "retsb", "retub", "retsh", "retuh", "retc", "ret0", "jmp", "jnz", "jfieq", "jfine", "jfisge", "jfisgt", "jfisle", "jfislt", "jfiuge", "jfiugt", "jfiule", "jfiult", "jffeq", "jffge", "jffgt", "jffle", "jfflt", "jffne", "jffo", "jffuo", "hlt" };
 
 const O = ops;
-pub const Ocmpw = O.Oceqw;
-pub const Ocmpw1 = O.Ocultw;
-pub const Ocmpl = O.Oceql;
-pub const Ocmpl1 = O.Ocultl;
-pub const Ocmps = O.Oceqs;
-pub const Ocmps1 = O.Ocuos;
-pub const Ocmpd = O.Oceqd;
-pub const Ocmpd1 = O.Ocuod;
-pub const Oalloc = O.Oalloc4;
-pub const Oalloc1 = O.Oalloc16;
-pub const Oflag = O.Oflagieq;
-pub const Oflag1 = O.Oflagfuo;
-pub const Oxsel = O.Oxselieq;
-pub const Oxsel1 = O.Oxselfuo;
 pub const Opc = ops.Opc;
-pub const NPubOp = O.Onop.int();
+pub const NPubOp = Opc.nop.int();
 pub const Jjf = Jjfieq;
 pub const Jjf1 = Jjffuo;
 
@@ -242,37 +227,37 @@ pub inline fn INRANGE(x: anytype, comptime l: anytype, comptime u: anytype) bool
     return @as(u32, @bitCast(ordinal(x) -% lo)) <= hi - lo;
 }
 pub inline fn isstore(o: anytype) bool {
-    return INRANGE(o, O.Ostoreb, O.Ostored);
+    return INRANGE(o, Opc.storeb, Opc.stored);
 }
 pub inline fn isload(o: anytype) bool {
-    return INRANGE(o, O.Oloadsb, O.Oload);
+    return INRANGE(o, Opc.loadsb, Opc.load);
 }
 pub inline fn isalloc(o: anytype) bool {
-    return INRANGE(o, O.Oalloc4, O.Oalloc16);
+    return INRANGE(o, Opc.alloc4, Opc.alloc16);
 }
 pub inline fn isext(o: anytype) bool {
-    return INRANGE(o, O.Oextsb, O.Oextuw);
+    return INRANGE(o, Opc.extsb, Opc.extuw);
 }
 pub inline fn ispar(o: anytype) bool {
-    return INRANGE(o, O.Opar, O.Opare);
+    return INRANGE(o, Opc.par, Opc.pare);
 }
 pub inline fn isarg(o: anytype) bool {
-    return INRANGE(o, O.Oarg, O.Oargv);
+    return INRANGE(o, Opc.arg, Opc.argv);
 }
 pub inline fn isret(j: anytype) bool {
     return INRANGE(j, Jretw, Jret0);
 }
 pub inline fn isparbh(o: anytype) bool {
-    return INRANGE(o, O.Oparsb, O.Oparuh);
+    return INRANGE(o, Opc.parsb, Opc.paruh);
 }
 pub inline fn isargbh(o: anytype) bool {
-    return INRANGE(o, O.Oargsb, O.Oarguh);
+    return INRANGE(o, Opc.argsb, Opc.arguh);
 }
 pub inline fn isretbh(j: anytype) bool {
     return INRANGE(j, Jretsb, Jretuh);
 }
 pub inline fn isxsel(o: anytype) bool {
-    return INRANGE(o, Oxsel, Oxsel1);
+    return INRANGE(o, Opc.xsel_first, Opc.xsel_last);
 }
 
 /// Value class of a temporary or instruction result (C: Kw/Kl/Ks/Kd).
@@ -795,12 +780,12 @@ pub const macho_emitfin = emit_.macho_emitfin;
 pub const pe_emitfin = emit_.pe_emitfin;
 
 // helpers for C compound literals of Ins
-pub inline fn INS(op: anytype, k: anytype, to: Ref, a0: Ref, a1: Ref) Ins {
-    return .{ .op = ops.of(op), .cls = kof(k), .to = to, .arg = .{ a0, a1 } };
+pub inline fn INS(op: Opc, k: anytype, to: Ref, a0: Ref, a1: Ref) Ins {
+    return .{ .op = op, .cls = kof(k), .to = to, .arg = .{ a0, a1 } };
 }
 /// (Ins){.op = op}
-pub inline fn INS0(op: anytype) Ins {
-    return .{ .op = (op), .cls = .w, .to = R, .arg = .{ R, R } };
+pub inline fn INS0(op: Opc) Ins {
+    return .{ .op = op, .cls = .w, .to = R, .arg = .{ R, R } };
 }
 /// C-like `x << n` on 64-bit words (count taken mod 64, as on amd64)
 pub inline fn shl64(x: bits, n: anytype) bits {

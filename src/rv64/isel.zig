@@ -3,6 +3,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("../all.zig");
+const Opc = all.Opc;
 const tgt = @import("all.zig");
 const Blk = all.Blk;
 const CAddr = all.CAddr;
@@ -37,22 +38,6 @@ const KWIDE = all.KWIDE;
 const Kl = all.Kl;
 const Kw = all.Kw;
 const NCmpI = all.NCmpI;
-const Oaddr = all.ops.Oaddr;
-const Oalloc = all.Oalloc;
-const Oalloc1 = all.Oalloc1;
-const Oand = all.ops.Oand;
-const Ocall = all.ops.Ocall;
-const Oceqd = all.ops.Oceqd;
-const Oceqs = all.ops.Oceqs;
-const Ocopy = all.ops.Ocopy;
-const Ocsltl = all.ops.Ocsltl;
-const Ocultl = all.ops.Ocultl;
-const Oextsw = all.ops.Oextsw;
-const Oload = all.ops.Oload;
-const Onop = all.ops.Onop;
-const Oreqz = all.ops.Oreqz;
-const Ornez = all.ops.Ornez;
-const Oxor = all.ops.Oxor;
 const Phi = all.Phi;
 const R = all.R;
 const RCon = all.RCon;
@@ -85,18 +70,18 @@ const uint = all.uint;
 const vgrow = all.vgrow;
 // -- end imports --
 
-fn memarg(r: *Ref, op: i32, i: ?*Ins) bool {
+fn memarg(r: *Ref, op: Opc, i: ?*Ins) bool {
     const ii = i orelse return false;
-    if (isload(op) or op == Ocall.int())
+    if (isload(op) or op == .call)
         return r == &ii.arg[0];
     if (isstore(op))
         return r == &ii.arg[1];
     return false;
 }
 
-fn immarg(r: *Ref, op: i32, i: ?*Ins) bool {
+fn immarg(r: *Ref, op: Opc, i: ?*Ins) bool {
     const ii = i orelse return false;
-    return rv64_op[@intCast(op)].imm != 0 and r == &ii.arg[1];
+    return rv64_op[op.int()].imm != 0 and r == &ii.arg[1];
 }
 
 fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
@@ -104,7 +89,7 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
 
     const r0 = r.*;
     var r1 = r0;
-    const op: i32 = if (i) |ii| all.ops.num(ii.op) else all.ops.num(Ocopy);
+    const op: Opc = if (i) |ii| ii.op else .copy;
     switch (rtype(r0)) {
         RCon => blk: {
             var c: *Con = &f.con[r0.val];
@@ -128,10 +113,10 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
                 c.* = std.mem.zeroes(Con);
                 c.type = CAddr;
                 c.sym.id = intern(@ptrCast(&buf));
-                emit(Oload, k, r1, CON(ci), R);
+                emit(.load, k, r1, CON(ci), R);
                 break :blk;
             }
-            emit(Ocopy, k, r1, r0, R);
+            emit(.copy, k, r1, r0, R);
         },
         RTmp => blk: {
             if (isreg(r0))
@@ -146,14 +131,14 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
                     break :blk;
                 }
                 r1 = newtmp("isel", k, f);
-                emit(Oaddr, k, r1, SLOT(s), R);
+                emit(.addr, k, r1, SLOT(s), R);
                 break :blk;
             }
             if (k == Kw.int() and f.tmp[r0.val].cls == Kl) {
                 // TODO: this sign extension isn't needed
                 // for 32-bit arithmetic instructions
                 r1 = newtmp("isel", k, f);
-                emit(Oextsw, Kl, r1, r0, R);
+                emit(.extsw, Kl, r1, r0, R);
             } else {
                 assert(k == f.tmp[r0.val].cls.int());
             }
@@ -165,7 +150,7 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
 
 fn negate(pr: *Ref, f: *Fn) void {
     const r = newtmp("isel", Kw, f);
-    emit(Oxor, Kw, pr.*, r, getcon(1, f));
+    emit(.xor, Kw, pr.*, r, getcon(1, f));
     pr.* = r;
 }
 
@@ -177,7 +162,7 @@ fn fixcmp(k: i32, f: *Fn) void {
 
 fn selcmp(i_: Ins, k: i32, op_: i32, f: *Fn) void {
     var i = i_;
-    var op = op_;
+    const op = op_;
     var sign = false;
     var swap = false;
     var neg = false;
@@ -185,15 +170,15 @@ fn selcmp(i_: Ins, k: i32, op_: i32, f: *Fn) void {
     switch (op) {
         Cieq => {
             const r = newtmp("isel", k, f);
-            emit(Oreqz, i.cls, i.to, r, R);
-            emit(Oxor, k, r, i.arg[0], i.arg[1]);
+            emit(.reqz, i.cls, i.to, r, R);
+            emit(.xor, k, r, i.arg[0], i.arg[1]);
             fixcmp(k, f);
             return;
         },
         Cine => {
             const r = newtmp("isel", k, f);
-            emit(Ornez, i.cls, i.to, r, R);
-            emit(Oxor, k, r, i.arg[0], i.arg[1]);
+            emit(.rnez, i.cls, i.to, r, R);
+            emit(.xor, k, r, i.arg[0], i.arg[1]);
             fixcmp(k, f);
             return;
         },
@@ -214,23 +199,23 @@ fn selcmp(i_: Ins, k: i32, op_: i32, f: *Fn) void {
                 negate(&i.to, f);
             const r0 = newtmp("isel", i.cls, f);
             const r1 = newtmp("isel", i.cls, f);
-            emit(Oand, i.cls, i.to, r0, r1);
-            op = if (KWIDE(k) != 0) all.ops.num(Oceqd) else all.ops.num(Oceqs);
-            emit(op, i.cls, r0, i.arg[0], i.arg[0]);
+            emit(.@"and", i.cls, i.to, r0, r1);
+            const cop: Opc = if (KWIDE(k) != 0) .ceqd else .ceqs;
+            emit(cop, i.cls, r0, i.arg[0], i.arg[0]);
             fixcmp(k, f);
-            emit(op, i.cls, r1, i.arg[1], i.arg[1]);
+            emit(cop, i.cls, r1, i.arg[1], i.arg[1]);
             fixcmp(k, f);
             return;
         },
         NCmpI + Cfne => {
             swap = false;
             neg = true;
-            i.op = if (KWIDE(k) != 0) Oceqd else Oceqs;
+            i.op = if (KWIDE(k) != 0) .ceqd else .ceqs;
         },
         else => unreachable, // unknown comparison
     }
     if (op < NCmpI)
-        i.op = if (sign) Ocsltl else Ocultl;
+        i.op = if (sign) .csltl else .cultl;
     if (swap) {
         const r = i.arg[0];
         i.arg[0] = i.arg[1];
@@ -247,7 +232,7 @@ fn sel(i_: Ins, f: *Fn) void {
     var ck: i32 = undefined;
     var cc: i32 = undefined;
 
-    if (INRANGE(i.op, Oalloc, Oalloc1)) {
+    if (INRANGE(i.op, Opc.alloc_first, Opc.alloc_last)) {
         const i_0 = &(all.curi - 1)[0];
         salloc(i.to, i.arg[0], f);
         fixarg(&i_0.arg[0], all.knum(Kl), i_0, f);
@@ -257,7 +242,7 @@ fn sel(i_: Ins, f: *Fn) void {
         selcmp(i, ck, cc, f);
         return;
     }
-    if ((i.op == all.ops.Osar or i.op == all.ops.Oshr or i.op == all.ops.Oshl) and rtype(i.arg[1]) == RCon) {
+    if ((i.op == Opc.sar or i.op == Opc.shr or i.op == Opc.shl) and rtype(i.arg[1]) == RCon) {
         // rv64 masks register shift counts to 5 (w) / 6 (l) bits, but an
         // immediate shamt >= width does not assemble: mask it the same way
         const c = &f.con[i.arg[1].val];
@@ -267,7 +252,7 @@ fn sel(i_: Ins, f: *Fn) void {
                 i.arg[1] = getcon(c.bits.i & m, f);
         }
     }
-    if (i.op != Onop) {
+    if (i.op != .nop) {
         emiti(i);
         const i_0 = &all.curi[0]; // fixarg() can change curi
         fixarg(&i_0.arg[0], argcls(&i, 0), i_0, f);
@@ -286,9 +271,9 @@ pub fn rv64_isel(f: *Fn) void {
     const start = f.start.?;
     // specific to NAlign == 3
     // or change n=4 and sz /= 4 below
-    var al: i32 = all.ops.num(Oalloc);
+    var al: i32 = all.ops.num(Opc.alloc_first);
     var n: i32 = 4;
-    while (al <= Oalloc1.int()) : ({
+    while (al <= Opc.alloc_last.int()) : ({
         al += 1;
         n *= 2;
     }) {
@@ -305,7 +290,7 @@ pub fn rv64_isel(f: *Fn) void {
                     die("alloc too large", .{});
                 f.tmp[i.to.val].slot = f.slot;
                 f.slot += @intCast(sz);
-                i.* = INS0(Onop);
+                i.* = INS0(.nop);
             }
         }
     }

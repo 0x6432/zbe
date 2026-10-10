@@ -26,6 +26,11 @@
 - Value classes are a Zig enum (`Cls`: `x`, `w`, `l`, `s`, `d`); `Kw` etc.
   remain as aliases. The emitters' `Ki`/`Ka` wildcards use a separate
   pattern enum. Output is byte-identical to before.
+- The 552 `O*` op aliases are gone: ops are written as enum literals
+  (`i.op == .add`, `emit(.copy, ...)`) or `Opc.storew.offset(k)`; op ranges
+  are `Opc.cmpw_first`/`Opc.cmpw_last` etc. `INS`, `INS0`, `emit` and the
+  parser's `mkins` take a typed `Opc`, and op locals/tables in the ABI, isel
+  and load code are `Opc` instead of `i32`.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit

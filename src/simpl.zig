@@ -3,6 +3,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("all.zig");
+const Opc = all.Opc;
 const Blk = all.Blk;
 const CBits = all.CBits;
 const Fn = all.Fn;
@@ -10,21 +11,7 @@ const Ins = all.Ins;
 const KBASE = all.KBASE;
 const Kl = all.Kl;
 const Kw = all.Kw;
-const Oadd = all.ops.Oadd;
-const Oand = all.ops.Oand;
-const Oblit0 = all.ops.Oblit0;
-const Oblit1 = all.ops.Oblit1;
-const Oload = all.ops.Oload;
-const Oloadub = all.ops.Oloadub;
-const Oloaduh = all.ops.Oloaduh;
-const Oshr = all.ops.Oshr;
-const Ostoreb = all.ops.Ostoreb;
-const Ostoreh = all.ops.Ostoreh;
-const Ostorel = all.ops.Ostorel;
-const Ostorew = all.ops.Ostorew;
-const Oudiv = all.ops.Oudiv;
 const O = all.ops;
-const Ourem = all.ops.Ourem;
 const R = all.R;
 const RCon = all.RCon;
 const RTmp = all.RTmp;
@@ -44,10 +31,10 @@ const uint = all.uint;
 fn blit(sd: *[2]Ref, sz_: i32, f: *Fn) void {
     const E = struct { st: all.Opc, ld: all.Opc, cls: all.Cls, size: i32 };
     const tbl = [_]E{
-        .{ .st = Ostorel, .ld = Oload, .cls = Kl, .size = 8 },
-        .{ .st = Ostorew, .ld = Oload, .cls = Kw, .size = 4 },
-        .{ .st = Ostoreh, .ld = Oloaduh, .cls = Kw, .size = 2 },
-        .{ .st = Ostoreb, .ld = Oloadub, .cls = Kw, .size = 1 },
+        .{ .st = .storel, .ld = .load, .cls = Kl, .size = 8 },
+        .{ .st = .storew, .ld = .load, .cls = Kw, .size = 4 },
+        .{ .st = .storeh, .ld = .loaduh, .cls = Kw, .size = 2 },
+        .{ .st = .storeb, .ld = .loadub, .cls = Kw, .size = 1 },
     };
 
     const fwd = sz_ >= 0;
@@ -63,10 +50,10 @@ fn blit(sd: *[2]Ref, sz_: i32, f: *Fn) void {
             var r1 = newtmp("blt", Kl, f);
             const ro = getcon(off, f);
             emit(p.st, 0, R, r, r1);
-            emit(Oadd, Kl, r1, sd[1], ro);
+            emit(.add, Kl, r1, sd[1], ro);
             r1 = newtmp("blt", Kl, f);
             emit(p.ld, p.cls, r, r1, R);
-            emit(Oadd, Kl, r1, sd[0], ro);
+            emit(.add, Kl, r1, sd[0], ro);
             off += if (fwd) 0 else n;
         }
     }
@@ -111,14 +98,14 @@ fn algebra(i: *Ins, f: *Fn) void {
     if (all.req(i.arg[0], i.arg[1]) and rtype(i.arg[0]) == RTmp) {
         switch (i.op) {
             // x-x, x^x -> 0
-            O.Osub, O.Oxor => {
-                i.op = O.Ocopy;
+            Opc.sub, Opc.xor => {
+                i.op = Opc.copy;
                 i.arg[0] = getcon(0, f);
                 i.arg[1] = R;
             },
             // x&x, x|x -> x
-            O.Oand, O.Oor => {
-                i.op = O.Ocopy;
+            Opc.@"and", Opc.@"or" => {
+                i.op = Opc.copy;
                 i.arg[1] = R;
             },
             else => {},
@@ -133,32 +120,32 @@ fn algebra(i: *Ins, f: *Fn) void {
     const wide = i.cls == Kl;
     const mask: u64 = if (wide) ~@as(u64, 0) else 0xffffffff;
     const v: u64 = @as(u64, @bitCast(c.bits.i)) & mask;
-    const shift = i.op == O.Oshl or i.op == O.Oshr or i.op == O.Osar;
+    const shift = i.op == Opc.shl or i.op == Opc.shr or i.op == Opc.sar;
     // shift counts are taken modulo the width
     const sv: u64 = if (shift) v & @as(u64, if (wide) 63 else 31) else v;
     const ident = switch (i.op) {
-        O.Omul, O.Odiv => sv == 1,
-        O.Oand => sv == mask,
+        Opc.mul, Opc.div => sv == 1,
+        Opc.@"and" => sv == mask,
         else => sv == 0,
     };
     if (ident) {
-        i.op = O.Ocopy;
+        i.op = Opc.copy;
         i.arg[1] = R;
         return;
     }
-    if ((i.op == O.Omul or i.op == O.Oand) and sv == 0) {
-        i.op = O.Ocopy;
+    if ((i.op == Opc.mul or i.op == Opc.@"and") and sv == 0) {
+        i.op = Opc.copy;
         i.arg[0] = getcon(0, f);
         i.arg[1] = R;
         return;
     }
-    if (i.op == O.Omul and sv == mask) { // x * -1 -> neg x
-        i.op = O.Oneg;
+    if (i.op == Opc.mul and sv == mask) { // x * -1 -> neg x
+        i.op = Opc.neg;
         i.arg[1] = R;
         return;
     }
-    if (i.op == O.Omul and ispow2(sv)) {
-        i.op = O.Oshl;
+    if (i.op == Opc.mul and ispow2(sv)) {
+        i.op = Opc.shl;
         i.arg[1] = getcon(ulog2(sv), f);
     }
 }
@@ -193,21 +180,21 @@ fn sdivpow2(i: *Ins, b: *Blk, k: uint, new: *bool, f: *Fn) bool {
     const cls: i32 = all.knum(i.cls);
     const x = i.arg[0];
     const to = i.to;
-    const isdiv = i.op == O.Odiv;
+    const isdiv = i.op == Opc.div;
     startnew(new, b, k);
     const t1 = newtmp("sdv", cls, f);
     const t2 = newtmp("sdv", cls, f);
     const t3 = newtmp("sdv", cls, f);
     if (isdiv) {
-        emit(O.Osar, cls, to, t3, getcon(n, f));
+        emit(Opc.sar, cls, to, t3, getcon(n, f));
     } else {
         const t4 = newtmp("sdv", cls, f);
-        emit(O.Osub, cls, to, x, t4);
-        emit(O.Oand, cls, t4, t3, getcon(-sv, f));
+        emit(Opc.sub, cls, to, x, t4);
+        emit(Opc.@"and", cls, t4, t3, getcon(-sv, f));
     }
-    emit(O.Oadd, cls, t3, x, t2);
-    emit(O.Oshr, cls, t2, t1, getcon(w - n, f));
-    emit(O.Osar, cls, t1, x, getcon(w - 1, f));
+    emit(Opc.add, cls, t3, x, t2);
+    emit(Opc.shr, cls, t2, t1, getcon(w - n, f));
+    emit(Opc.sar, cls, t1, x, getcon(w - 1, f));
     return true;
 }
 
@@ -257,33 +244,33 @@ fn udivconst(i: *Ins, b: *Blk, k: uint, new: *bool, f: *Fn) bool {
         return false;
     const x = i.arg[0];
     const to = i.to;
-    const isdiv = i.op == Oudiv;
+    const isdiv = i.op == .udiv;
     startnew(new, b, k);
     const t0 = newtmp("udv", Kl, f);
     const t1 = newtmp("udv", Kl, f);
     const t2 = newtmp("udv", Kl, f);
     if (isdiv) {
-        emit(O.Ocopy, Kw, to, t2, R);
+        emit(Opc.copy, Kw, to, t2, R);
     } else {
         const q = newtmp("udv", Kw, f);
         const t3 = newtmp("udv", Kw, f);
-        emit(O.Osub, Kw, to, x, t3);
-        emit(O.Omul, Kw, t3, q, getcon(d, f));
-        emit(O.Ocopy, Kw, q, t2, R);
+        emit(Opc.sub, Kw, to, x, t3);
+        emit(Opc.mul, Kw, t3, q, getcon(d, f));
+        emit(Opc.copy, Kw, q, t2, R);
     }
     if (wide) {
         // q = ((x * m' >> 32) + x) >> (s - 32), m' = m - 2^32
         const t3 = newtmp("udv", Kl, f);
         const t4 = newtmp("udv", Kl, f);
-        emit(O.Oshr, Kl, t2, t4, getcon(s - 32, f));
-        emit(O.Oadd, Kl, t4, t3, t0);
-        emit(O.Oshr, Kl, t3, t1, getcon(32, f));
-        emit(O.Omul, Kl, t1, t0, getcon(@bitCast(m - (@as(u64, 1) << 32)), f));
+        emit(Opc.shr, Kl, t2, t4, getcon(s - 32, f));
+        emit(Opc.add, Kl, t4, t3, t0);
+        emit(Opc.shr, Kl, t3, t1, getcon(32, f));
+        emit(Opc.mul, Kl, t1, t0, getcon(@bitCast(m - (@as(u64, 1) << 32)), f));
     } else {
-        emit(O.Oshr, Kl, t2, t1, getcon(s, f));
-        emit(O.Omul, Kl, t1, t0, getcon(@bitCast(m), f));
+        emit(Opc.shr, Kl, t2, t1, getcon(s, f));
+        emit(Opc.mul, Kl, t1, t0, getcon(@bitCast(m), f));
     }
-    emit(O.Oextuw, Kl, t0, x, R);
+    emit(Opc.extuw, Kl, t0, x, R);
     return true;
 }
 
@@ -294,9 +281,9 @@ fn ins(pk: *uint, new: *bool, b: *Blk, f: *Fn) void {
     // copy 0 into xor, bit rotations,
     // etc.
     switch (i.op) {
-        Oblit1 => {
+        .blit1 => {
             assert(k > 0);
-            assert(b.ins[k - 1].op == Oblit0);
+            assert(b.ins[k - 1].op == .blit0);
             if (!new.*) {
                 all.curi = all.insbEnd();
                 const ni: ulong = b.nins - (k + 1);
@@ -308,14 +295,14 @@ fn ins(pk: *uint, new: *bool, b: *Blk, f: *Fn) void {
             pk.* = k - 1;
             return;
         },
-        O.Omul, O.Odiv, O.Orem, O.Oadd, O.Osub, O.Oor, O.Oxor, O.Oand, O.Oshl, O.Oshr, O.Osar => {
+        Opc.mul, Opc.div, Opc.rem, Opc.add, Opc.sub, Opc.@"or", Opc.xor, Opc.@"and", Opc.shl, Opc.shr, Opc.sar => {
             if (all.optlevel >= 1) algebra(i, f);
-            if (all.optlevel >= 2 and (i.op == O.Odiv or i.op == O.Orem))
+            if (all.optlevel >= 2 and (i.op == Opc.div or i.op == Opc.rem))
                 if (sdivpow2(i, b, k, new, f)) {
                     return;
                 };
         },
-        Oudiv, Ourem => {
+        .udiv, .urem => {
             const r = i.arg[1];
             if (KBASE(i.cls) == 0)
                 if (rtype(r) == RCon) {
@@ -323,11 +310,11 @@ fn ins(pk: *uint, new: *bool, b: *Blk, f: *Fn) void {
                     if (c.type == CBits)
                         if (ispow2(@bitCast(c.bits.i))) {
                             const n = ulog2(@bitCast(c.bits.i));
-                            if (i.op == Ourem) {
-                                i.op = Oand;
+                            if (i.op == .urem) {
+                                i.op = .@"and";
                                 i.arg[1] = getcon(@bitCast((@as(u64, 1) << @intCast(n)) - 1), f);
                             } else {
-                                i.op = Oshr;
+                                i.op = .shr;
                                 i.arg[1] = getcon(n, f);
                             }
                         } else if (all.optlevel >= 2 and udivconst(i, b, k, new, f)) {

@@ -8,21 +8,6 @@ const Fn = all.Fn;
 const INS0 = all.INS0;
 const Ins = all.Ins;
 const KBASE = all.KBASE;
-const Oadd = all.ops.Oadd;
-const Oand = all.ops.Oand;
-const Odiv = all.ops.Odiv;
-const Omul = all.ops.Omul;
-const Oneg = all.ops.Oneg;
-const Onop = all.ops.Onop;
-const Oor = all.ops.Oor;
-const Orem = all.ops.Orem;
-const Osar = all.ops.Osar;
-const Oshl = all.ops.Oshl;
-const Oshr = all.ops.Oshr;
-const Osub = all.ops.Osub;
-const Oudiv = all.ops.Oudiv;
-const Ourem = all.ops.Ourem;
-const Oxor = all.ops.Oxor;
 const PFn = all.PFn;
 const PHeap = all.PHeap;
 const Phi = all.Phi;
@@ -62,7 +47,7 @@ const NOBID: uint = std.math.maxInt(uint);
 
 fn isdivwl(i: *Ins) bool {
     return switch (i.op) {
-        Odiv, Orem, Oudiv, Ourem => KBASE(i.cls) == 0,
+        .div, .rem, .udiv, .urem => KBASE(i.cls) == 0,
         else => false,
     };
 }
@@ -284,7 +269,7 @@ fn gcmmove(f: *Fn) void {
         assert(t == &f.tmp[i.to.val]);
         if (t.gcmbid != NOBID)
             addins(&vins, &nins, i);
-        i.* = INS0(Onop);
+        i.* = INS0(.nop);
     }
     addgcmins(f, vins[0..nins]);
 }
@@ -305,7 +290,7 @@ fn schedins(f: *Fn, b: *Blk, n: uint, pvins: *[*]Ins, pnins: *uint) uint {
     }
     for (b.ins[lo..hi]) |*i| {
         addins(pvins, pnins, i);
-        i.* = INS0(Onop);
+        i.* = INS0(.nop);
     }
     return hi;
 }
@@ -330,7 +315,7 @@ fn cheap(i: *Ins) bool {
     if (KBASE(i.cls) != 0)
         return false;
     return switch (i.op) {
-        Oneg, Oadd, Osub, Omul, Oand, Oor, Oxor, Osar, Oshr, Oshl => true,
+        .neg, .add, .sub, .mul, .@"and", .@"or", .xor, .sar, .shr, .shl => true,
         else => iscmp(i.op, &x, &x),
     };
 }

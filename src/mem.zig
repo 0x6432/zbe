@@ -3,6 +3,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("all.zig");
+const Opc = all.Opc;
 const ALoc = all.ALoc;
 const Alias = all.Alias;
 const BIT = all.BIT;
@@ -17,19 +18,6 @@ const Jretc = all.Jretc;
 const KBASE = all.KBASE;
 const Kl = all.Kl;
 const NBit = all.NBit;
-const Oalloc = all.Oalloc;
-const Oalloc1 = all.Oalloc1;
-const Oargc = all.ops.Oargc;
-const Oblit0 = all.ops.Oblit0;
-const Oblit1 = all.ops.Oblit1;
-const Ocast = all.ops.Ocast;
-const Ocopy = all.ops.Ocopy;
-const Oextsb = all.ops.Oextsb;
-const Oload = all.ops.Oload;
-const Oloadsb = all.ops.Oloadsb;
-const Oloadsw = all.ops.Oloadsw;
-const Oloaduw = all.ops.Oloaduw;
-const Onop = all.ops.Onop;
 const PHeap = all.PHeap;
 const R = all.R;
 const RInt = all.RInt;
@@ -74,7 +62,7 @@ pub fn promote(f: *Fn) void {
     // promote uniform stack slots to temporaries
     const b = f.start.?;
     outer: for (b.ins[0..b.nins]) |*i| {
-        if (Oalloc.int() > i.op.int() or i.op.int() > Oalloc1.int())
+        if (Opc.alloc_first.int() > i.op.int() or i.op.int() > Opc.alloc_last.int())
             continue;
         // specific to NAlign == 3
         assert(rtype(i.to) == RTmp);
@@ -103,13 +91,13 @@ pub fn promote(f: *Fn) void {
             continue :outer;
         }
         // get rid of the alloc and replace uses
-        i.* = INS0(Onop);
+        i.* = INS0(.nop);
         t.ndef -= 1;
         for (t.use.?[0..t.nuse]) |*u| {
             const l = u.u.ins;
             if (isstore(l.op)) {
                 l.cls = all.kof(k);
-                l.op = Ocopy;
+                l.op = .copy;
                 l.to = l.arg[1];
                 l.arg[1] = R;
                 t.nuse -= 1;
@@ -120,19 +108,19 @@ pub fn promote(f: *Fn) void {
                 // try to turn loads into copies so we
                 // can eliminate them later
                 sw: switch (l.op) {
-                    Oloadsw, Oloaduw => {
+                    .loadsw, .loaduw => {
                         if (k == Kl.int())
                             continue :sw .xxx; // goto Extend
-                        continue :sw Oload;
+                        continue :sw .load;
                     },
-                    Oload => {
+                    .load => {
                         if (KBASE(k) != KBASE(l.cls))
-                            l.op = Ocast
+                            l.op = .cast
                         else
-                            l.op = Ocopy;
+                            l.op = .copy;
                     },
                     else => { // Extend:
-                        l.op = Oextsb.offset(l.op.diff(Oloadsb));
+                        l.op = Opc.extsb.offset(l.op.diff(.loadsb));
                     },
                 }
             }
@@ -238,9 +226,9 @@ fn maxrpo(hd: *Blk, b: *Blk) void {
 
 /// kills an instruction; blits are killed as a pair
 fn killins(i: [*]Ins) void {
-    if (i[0].op == Oblit0)
-        i[1] = INS0(Onop);
-    i[0] = INS0(Onop);
+    if (i[0].op == .blit0)
+        i[1] = INS0(.nop);
+    i[0] = INS0(.nop);
 }
 
 pub fn coalesce(f: *Fn) void {
@@ -313,7 +301,7 @@ pub fn coalesce(f: *Fn) void {
             const ii = b.ins + idx;
             const i = &ii[0];
             const arg = &i.arg;
-            if (i.op == Oargc) {
+            if (i.op == .argc) {
                 ip -= 1;
                 load(arg[1], ones, ip, f, sl);
             }
@@ -327,8 +315,8 @@ pub fn coalesce(f: *Fn) void {
                 store(arg[1], x, ip, ii, f, sl);
                 ip -= 1;
             }
-            if (i.op == Oblit0) {
-                assert(ii[1].op == Oblit1);
+            if (i.op == .blit0) {
+                assert(ii[1].op == .blit1);
                 assert(rtype(ii[1].arg[0]) == RInt);
                 const sz: i32 = @intCast(@abs(rsval(ii[1].arg[0])));
                 const x = if (sz >= NBit) ones else BIT(sz) -% 1;
@@ -395,11 +383,11 @@ pub fn coalesce(f: *Fn) void {
         assert(t.ndef == 1);
         const i = t.def.?;
         if (isload(i.op)) {
-            i.op = Ocopy;
+            i.op = .copy;
             i.arg[0] = UNDEF;
             continue;
         }
-        i.* = INS0(Onop);
+        i.* = INS0(.nop);
         for (t.use.?[0..t.nuse]) |*u| {
             if (u.type == UJmp) {
                 const b = f.rpo[u.bid];
@@ -416,7 +404,7 @@ pub fn coalesce(f: *Fn) void {
                 vgrow(&stk, nstk);
                 stk[nstk - 1] = ui.to.val;
             } else if (isarg(ui.op)) {
-                assert(ui.op == Oargc);
+                assert(ui.op == .argc);
                 ui.arg[1] = CON_Z; // crash
             } else {
                 killins(@ptrCast(ui));
@@ -462,7 +450,7 @@ pub fn coalesce(f: *Fn) void {
         const ss = s.s.?;
         if (ss == s)
             continue;
-        t.def.?.* = INS0(Onop);
+        t.def.?.* = INS0(.nop);
         const ts = &f.tmp[@intCast(ss.t)];
         assert(t.bid == ts.bid);
         if (@intFromPtr(t.def) < @intFromPtr(ts.def)) {
@@ -470,7 +458,7 @@ pub fn coalesce(f: *Fn) void {
             // selected has a def that
             // dominates its new uses
             t.def.?.* = ts.def.?.*;
-            ts.def.?.* = INS0(Onop);
+            ts.def.?.* = INS0(.nop);
             ts.def = t.def;
         }
         for (t.use.?[0..t.nuse]) |*u| {
@@ -490,7 +478,7 @@ pub fn coalesce(f: *Fn) void {
     for (bl[0..nbl]) |i| {
         var off0: i64 = undefined;
         var off1: i64 = undefined;
-        if (i[0].op == Oblit0)
+        if (i[0].op == .blit0)
             if (slot(&off0, i[0].arg[0], f, sl)) |s|
                 if (slot(&off1, i[0].arg[1], f, sl)) |s0|
                     if (s.s == s0.s) {
@@ -499,8 +487,8 @@ pub fn coalesce(f: *Fn) void {
                             assert(sz >= 0);
                             i[1].arg[0] = INT(-sz);
                         } else if (off0 == off1) {
-                            i[0] = INS0(Onop);
-                            i[1] = INS0(Onop);
+                            i[0] = INS0(.nop);
+                            i[1] = INS0(.nop);
                         }
                     };
     }

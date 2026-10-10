@@ -9,9 +9,6 @@ const Ins = all.Ins;
 const Jjmp = all.Jjmp;
 const Jjnz = all.Jjnz;
 const Jret0 = all.Jret0;
-const Ocopy = all.ops.Ocopy;
-const Odbgloc = all.ops.Odbgloc;
-const Onop = all.ops.Onop;
 const PFn = all.PFn;
 const Phi = all.Phi;
 const Ref = all.Ref;
@@ -431,7 +428,7 @@ pub fn simplcfg(f: *Fn) void {
     }
 
     var cpy = std.mem.zeroes(Ins);
-    cpy.op = Ocopy;
+    cpy.op = .copy;
     var b_it = f.start;
     while (b_it) |b| : (b_it = b.link)
         if (b.npred == 1) {
@@ -453,7 +450,7 @@ pub fn simplcfg(f: *Fn) void {
         jmp[b.id] = .{ .type = b.jmp.type, .arg = b.jmp.arg, .s1 = b.s1, .s2 = b.s2 };
         empty[b.id] = b.phi == null;
         for (b.ins[0..b.nins]) |*i|
-            if (i.op != Onop and i.op != Odbgloc) {
+            if (i.op != .nop and i.op != .dbgloc) {
                 empty[b.id] = false;
                 break;
             };

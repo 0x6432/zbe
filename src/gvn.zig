@@ -3,6 +3,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("all.zig");
+const Opc = all.Opc;
 const Blk = all.Blk;
 const CBits = all.CBits;
 const CON_Z = all.CON_Z;
@@ -17,10 +18,6 @@ const KWIDE = all.KWIDE;
 const Kl = all.Kl;
 const Kw = all.Kw;
 const Kx = all.Kx;
-const Oadd = all.ops.Oadd;
-const Onop = all.ops.Onop;
-const Osel0 = all.ops.Osel0;
-const Osub = all.ops.Osub;
 const Phi = all.Phi;
 const R = all.R;
 const RCon = all.RCon;
@@ -185,15 +182,15 @@ fn negcon(cls: anytype, c: *Con) bool {
     var z = std.mem.zeroes(Con);
     z.type = CBits;
     z.bits.i = 0;
-    return foldint(c, all.ops.num(Osub), cls != .w, &z, c);
+    return foldint(c, all.ops.num(.sub), cls != .w, &z, c);
 }
 
 fn assoccon(f: *Fn, b: *Blk, i_1: *Ins) void {
     var c: Con = undefined;
 
     var op: i32 = @intCast(i_1.op.int());
-    if (op == Osub.int())
-        op = all.ops.num(Oadd);
+    if (op == Opc.sub.int())
+        op = all.ops.num(.add);
 
     if (all.optab[@intCast(op)].assoc == 0 or KBASE(i_1.cls) != 0 or rtype(i_1.arg[0]) != RTmp or rtype(i_1.arg[1]) != RCon)
         return;
@@ -202,25 +199,25 @@ fn assoccon(f: *Fn, b: *Blk, i_1: *Ins) void {
     const t2 = &f.tmp[i_1.arg[0].val];
     const i_2 = t2.def orelse return;
 
-    if (op != all.ops.num(if (i_2.op == Osub) Oadd else i_2.op) or rtype(i_2.arg[1]) != RCon)
+    if (op != all.ops.num(if (i_2.op == .sub) .add else i_2.op) or rtype(i_2.arg[1]) != RCon)
         return;
     var c2 = f.con[i_2.arg[1].val];
 
     assert(KBASE(i_2.cls) == 0);
     assert(KWIDE(i_2.cls) >= KWIDE(i_1.cls));
 
-    if (i_1.op == Osub and negcon(i_1.cls, &c1))
+    if (i_1.op == .sub and negcon(i_1.cls, &c1))
         return;
-    if (i_2.op == Osub and negcon(i_2.cls, &c2))
+    if (i_2.op == .sub and negcon(i_2.cls, &c2))
         return;
     if (foldint(&c, op, i_1.cls != .w, &c1, &c2))
         return;
 
-    if (op == Oadd.int() and c.type == CBits)
+    if (op == Opc.add.int() and c.type == CBits)
         if ((i_1.cls == Kl and c.bits.i < 0) or (i_1.cls == Kw and @as(i32, @truncate(c.bits.i)) < 0)) {
             const fail = negcon(i_1.cls, &c);
             assert(!fail);
-            op = all.ops.num(Osub);
+            op = all.ops.num(.sub);
         };
 
     i_1.op = all.ops.of(op);
@@ -231,18 +228,18 @@ fn assoccon(f: *Fn, b: *Blk, i_1: *Ins) void {
 
 fn killins(f: *Fn, i: *Ins, r: Ref) void {
     replaceuses(f, i.to, r);
-    i.* = INS0(Onop);
+    i.* = INS0(.nop);
 }
 
 fn dedupins(f: *Fn, b: *Blk, i: *Ins) void {
     normins(f, i);
-    if (i.op == Onop or pinned(i))
+    if (i.op == .nop or pinned(i))
         return;
 
     // when sel instructions are inserted
     // before gvn, we may want to optimize
     // them here
-    assert(i.op != Osel0);
+    assert(i.op != .sel0);
     assert(!req(i.to, R));
     assoccon(f, b, i);
 

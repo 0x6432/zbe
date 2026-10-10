@@ -14,18 +14,6 @@ const Jjnz = all.Jjnz;
 const KBASE = all.KBASE;
 const KWIDE = all.KWIDE;
 const Kw = all.Kw;
-const Oand = all.ops.Oand;
-const Ocopy = all.ops.Ocopy;
-const Oextsb = all.ops.Oextsb;
-const Oextsw = all.ops.Oextsw;
-const Oextub = all.ops.Oextub;
-const Oextuh = all.ops.Oextuh;
-const Oextuw = all.ops.Oextuw;
-const Onop = all.ops.Onop;
-const Oor = all.ops.Oor;
-const Osar = all.ops.Osar;
-const Oshr = all.ops.Oshr;
-const Oxor = all.ops.Oxor;
 const PFn = all.PFn;
 const Phi = all.Phi;
 const R = all.R;
@@ -74,7 +62,7 @@ const ext_tbl = [_]Ext{
 fn ext(i: *Ins, e: *Ext) bool {
     if (!isext(i.op))
         return false;
-    e.* = ext_tbl[@intCast(i.op.diff(Oextsb))];
+    e.* = ext_tbl[@intCast(i.op.diff(.extsb))];
     return true;
 }
 
@@ -119,7 +107,7 @@ fn uwl(f: *Fn, r: Ref, w: i32) bool {
             },
             UIns => {
                 const i = u.u.ins;
-                if (i.op == Ocopy)
+                if (i.op == .copy)
                     if (uwl(f, i.to, w))
                         continue;
                 if (ext(i, &e)) {
@@ -128,7 +116,7 @@ fn uwl(f: *Fn, r: Ref, w: i32) bool {
                     if (uwl(f, i.to, w))
                         continue;
                 }
-                if (i.op == Oand) {
+                if (i.op == .@"and") {
                     if (req(r, i.arg[0]))
                         rc = i.arg[1]
                     else {
@@ -187,15 +175,15 @@ fn dwl(f: *Fn, r: Ref, w_: i32) bool {
     }
 
     const i = t.def.?;
-    if (i.op == Ocopy)
+    if (i.op == .copy)
         return dwl(f, i.arg[0], w);
-    if (i.op == Oshr or i.op == Osar) {
+    if (i.op == .shr or i.op == .sar) {
         if (isconbits(f, i.arg[1], &v))
             if (0 < v and v <= 32) {
-                if (i.op == Oshr and w + v >= 32)
+                if (i.op == .shr and w + v >= 32)
                     return true;
                 if (w < 32) {
-                    if (i.op == Osar)
+                    if (i.op == .sar)
                         w = min(31, w + v)
                     else
                         w = min(32, w + v);
@@ -205,12 +193,12 @@ fn dwl(f: *Fn, r: Ref, w_: i32) bool {
     }
     if (iscmp(i.op, &x, &x))
         return w >= 1;
-    if (i.op == Oand) {
+    if (i.op == .@"and") {
         if (dwl(f, i.arg[0], w) or dwl(f, i.arg[1], w))
             return true;
         return false;
     }
-    if (i.op == Oor or i.op == Oxor) {
+    if (i.op == .@"or" or i.op == .xor) {
         if (dwl(f, i.arg[0], w) and dwl(f, i.arg[1], w))
             return true;
         return false;
@@ -274,12 +262,12 @@ pub fn narrowpars(f: *Fn) void {
     b.nins = nins;
 
     for (b.ins[0..npar], b.ins[npar .. 2 * npar]) |*i, *ext_slot| {
-        e = INS0(Onop);
+        e = INS0(.nop);
         if (i.cls == Kw)
             if (usewidthle(f, i.to, 16)) {
-                e.op = Oextuh;
+                e.op = .extuh;
                 if (usewidthle(f, i.to, 8))
-                    e.op = Oextub;
+                    e.op = .extub;
                 const r = newtmp("vw", i.cls, f);
                 e.cls = i.cls;
                 e.to = i.to;
@@ -310,7 +298,7 @@ pub fn copyref(f: *Fn, b: *Blk, i: *Ins) Ref {
     var z: i32 = undefined;
     const op = &all.optab[i.op.int()];
 
-    if (i.op == Ocopy)
+    if (i.op == .copy)
         return i.arg[0];
 
     // op identity value
@@ -331,10 +319,10 @@ pub fn copyref(f: *Fn, b: *Blk, i: *Ins) Ref {
         return all.con01[@intCast(op.eqval ^ z ^ 1)];
 
     // redundant and mask
-    if (i.op == Oand and isconbits(f, i.arg[1], &v) and (v > 0 and ((v +% 1) & v) == 0) and defwidthle(f, i.arg[0], bitwidth(@bitCast(v))))
+    if (i.op == .@"and" and isconbits(f, i.arg[1], &v) and (v > 0 and ((v +% 1) & v) == 0) and defwidthle(f, i.arg[0], bitwidth(@bitCast(v))))
         return i.arg[0];
 
-    if (i.cls == Kw and (i.op == Oextsw or i.op == Oextuw))
+    if (i.cls == Kw and (i.op == .extsw or i.op == .extuw))
         return i.arg[0];
 
     if (ext(i, &e) and rtype(i.arg[0]) == RTmp) {
@@ -346,7 +334,7 @@ pub fn copyref(f: *Fn, b: *Blk, i: *Ins) Ref {
         if (KWIDE(i.cls) > KWIDE(t.cls))
             return R;
 
-        const w = Wsb + i.op.diff(Oextsb);
+        const w = Wsb + i.op.diff(.extsb);
         if ((BIT(w) & extcpy[@intCast(t.width)]) != 0)
             return i.arg[0];
 

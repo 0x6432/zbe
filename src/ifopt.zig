@@ -11,10 +11,6 @@ const Ins = all.Ins;
 const Jjmp = all.Jjmp;
 const KBASE = all.KBASE;
 const Kw = all.Kw;
-const Odbgloc = all.ops.Odbgloc;
-const Onop = all.ops.Onop;
-const Osel0 = all.ops.Osel0;
-const Osel1 = all.ops.Osel1;
 const PHeap = all.PHeap;
 const Phi = all.Phi;
 const R = all.R;
@@ -38,10 +34,10 @@ const MaxPhis = 2;
 fn okbranch(b: *Blk) bool {
     var n: i32 = 0;
     for (b.ins[0..b.nins]) |*i| {
-        if (i.op != Odbgloc) {
+        if (i.op != .dbgloc) {
             if (pinned(i))
                 return false;
-            if (i.op != Onop)
+            if (i.op != .nop)
                 n += 1;
         }
     }
@@ -81,10 +77,10 @@ fn convert(ifb: *Blk, thenb: *Blk, elseb: *Blk, joinb: *Blk) void {
     assert(joinb.npred == 2);
     var sel: Ins = undefined;
     if (joinb.phi != null) {
-        sel = INS(Osel0, Kw, R, ifb.jmp.arg, R);
+        sel = INS(.sel0, Kw, R, ifb.jmp.arg, R);
         addins(&ins, &nins, &sel);
     }
-    sel = INS0(Osel1);
+    sel = INS0(.sel1);
     var p_it: ?*Phi = joinb.phi;
     while (p_it) |p| : (p_it = p.link) {
         sel.to = p.to;

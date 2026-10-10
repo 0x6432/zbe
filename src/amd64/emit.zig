@@ -3,6 +3,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("../all.zig");
+const Opc = all.Opc;
 const tgt = @import("all.zig");
 const BIT = all.BIT;
 const Blk = all.Blk;
@@ -44,59 +45,6 @@ const NCLR_WIN = tgt.NCLR_WIN;
 const NCmp = all.NCmp;
 const NCmpI = all.NCmpI;
 const NOp = all.NOp;
-const Oadd = all.ops.Oadd;
-const Oaddr = all.ops.Oaddr;
-const Oand = all.ops.Oand;
-const Ocall = all.ops.Ocall;
-const Ocast = all.ops.Ocast;
-const Ocopy = all.ops.Ocopy;
-const Odbgloc = all.ops.Odbgloc;
-const Odiv = all.ops.Odiv;
-const Odtosi = all.ops.Odtosi;
-const Oexts = all.ops.Oexts;
-const Oextsb = all.ops.Oextsb;
-const Oextsh = all.ops.Oextsh;
-const Oextsw = all.ops.Oextsw;
-const Oextub = all.ops.Oextub;
-const Oextuh = all.ops.Oextuh;
-const Oextuw = all.ops.Oextuw;
-const Oflag = all.Oflag;
-const Oflagfeq = all.ops.Oflagfeq;
-const Oflagfne = all.ops.Oflagfne;
-const Oload = all.ops.Oload;
-const Oloadsb = all.ops.Oloadsb;
-const Oloadsh = all.ops.Oloadsh;
-const Oloadsw = all.ops.Oloadsw;
-const Oloadub = all.ops.Oloadub;
-const Oloaduh = all.ops.Oloaduh;
-const Oloaduw = all.ops.Oloaduw;
-const Omul = all.ops.Omul;
-const Oneg = all.ops.Oneg;
-const Onop = all.ops.Onop;
-const Oor = all.ops.Oor;
-const Osalloc = all.ops.Osalloc;
-const Osar = all.ops.Osar;
-const Oshl = all.ops.Oshl;
-const Oshr = all.ops.Oshr;
-const Osign = all.ops.Osign;
-const Osltof = all.ops.Osltof;
-const Ostoreb = all.ops.Ostoreb;
-const Ostored = all.ops.Ostored;
-const Ostoreh = all.ops.Ostoreh;
-const Ostorel = all.ops.Ostorel;
-const Ostores = all.ops.Ostores;
-const Ostorew = all.ops.Ostorew;
-const Ostosi = all.ops.Ostosi;
-const Osub = all.ops.Osub;
-const Oswap = all.ops.Oswap;
-const Oswtof = all.ops.Oswtof;
-const Otruncd = all.ops.Otruncd;
-const Oxcmp = all.ops.Oxcmp;
-const Oxdiv = all.ops.Oxdiv;
-const Oxidiv = all.ops.Oxidiv;
-const Oxor = all.ops.Oxor;
-const Oxsel = all.Oxsel;
-const Oxtest = all.ops.Oxtest;
 const R = all.R;
 const R10 = tgt.R10;
 const R11 = tgt.R11;
@@ -213,65 +161,65 @@ const OMap = struct {
 };
 const omap = blk: {
     const base = [_]OMap{
-        .{ .op = Oadd, .cls = .a, .fmt = "+add%k %1, %=" },
-        .{ .op = Osub, .cls = .a, .fmt = "-sub%k %1, %=" },
-        .{ .op = Oand, .cls = .i, .fmt = "+and%k %1, %=" },
-        .{ .op = Oor, .cls = .i, .fmt = "+or%k %1, %=" },
-        .{ .op = Oxor, .cls = .i, .fmt = "+xor%k %1, %=" },
-        .{ .op = Osar, .cls = .i, .fmt = "-sar%k %B1, %=" },
-        .{ .op = Oshr, .cls = .i, .fmt = "-shr%k %B1, %=" },
-        .{ .op = Oshl, .cls = .i, .fmt = "-shl%k %B1, %=" },
-        .{ .op = Omul, .cls = .i, .fmt = "+imul%k %1, %=" },
-        .{ .op = Omul, .cls = .s, .fmt = "+mulss %1, %=" },
-        .{ .op = Omul, .cls = .d, .fmt = "+mulsd %1, %=" },
-        .{ .op = Odiv, .cls = .a, .fmt = "-div%k %1, %=" },
-        .{ .op = Ostorel, .cls = .a, .fmt = "movq %L0, %M1" },
-        .{ .op = Ostorew, .cls = .a, .fmt = "movl %W0, %M1" },
-        .{ .op = Ostoreh, .cls = .a, .fmt = "movw %H0, %M1" },
-        .{ .op = Ostoreb, .cls = .a, .fmt = "movb %B0, %M1" },
-        .{ .op = Ostores, .cls = .a, .fmt = "movss %S0, %M1" },
-        .{ .op = Ostored, .cls = .a, .fmt = "movsd %D0, %M1" },
-        .{ .op = Oload, .cls = .a, .fmt = "mov%k %M0, %=" },
-        .{ .op = Oloadsw, .cls = .l, .fmt = "movslq %M0, %L=" },
-        .{ .op = Oloadsw, .cls = .w, .fmt = "movl %M0, %W=" },
-        .{ .op = Oloaduw, .cls = .i, .fmt = "movl %M0, %W=" },
-        .{ .op = Oloadsh, .cls = .i, .fmt = "movsw%k %M0, %=" },
-        .{ .op = Oloaduh, .cls = .i, .fmt = "movzw%k %M0, %=" },
-        .{ .op = Oloadsb, .cls = .i, .fmt = "movsb%k %M0, %=" },
-        .{ .op = Oloadub, .cls = .i, .fmt = "movzb%k %M0, %=" },
-        .{ .op = Oextsw, .cls = .l, .fmt = "movslq %W0, %L=" },
-        .{ .op = Oextuw, .cls = .l, .fmt = "movl %W0, %W=" },
-        .{ .op = Oextsh, .cls = .i, .fmt = "movsw%k %H0, %=" },
-        .{ .op = Oextuh, .cls = .i, .fmt = "movzw%k %H0, %=" },
-        .{ .op = Oextsb, .cls = .i, .fmt = "movsb%k %B0, %=" },
-        .{ .op = Oextub, .cls = .i, .fmt = "movzb%k %B0, %=" },
+        .{ .op = .add, .cls = .a, .fmt = "+add%k %1, %=" },
+        .{ .op = .sub, .cls = .a, .fmt = "-sub%k %1, %=" },
+        .{ .op = .@"and", .cls = .i, .fmt = "+and%k %1, %=" },
+        .{ .op = .@"or", .cls = .i, .fmt = "+or%k %1, %=" },
+        .{ .op = .xor, .cls = .i, .fmt = "+xor%k %1, %=" },
+        .{ .op = .sar, .cls = .i, .fmt = "-sar%k %B1, %=" },
+        .{ .op = .shr, .cls = .i, .fmt = "-shr%k %B1, %=" },
+        .{ .op = .shl, .cls = .i, .fmt = "-shl%k %B1, %=" },
+        .{ .op = .mul, .cls = .i, .fmt = "+imul%k %1, %=" },
+        .{ .op = .mul, .cls = .s, .fmt = "+mulss %1, %=" },
+        .{ .op = .mul, .cls = .d, .fmt = "+mulsd %1, %=" },
+        .{ .op = .div, .cls = .a, .fmt = "-div%k %1, %=" },
+        .{ .op = .storel, .cls = .a, .fmt = "movq %L0, %M1" },
+        .{ .op = .storew, .cls = .a, .fmt = "movl %W0, %M1" },
+        .{ .op = .storeh, .cls = .a, .fmt = "movw %H0, %M1" },
+        .{ .op = .storeb, .cls = .a, .fmt = "movb %B0, %M1" },
+        .{ .op = .stores, .cls = .a, .fmt = "movss %S0, %M1" },
+        .{ .op = .stored, .cls = .a, .fmt = "movsd %D0, %M1" },
+        .{ .op = .load, .cls = .a, .fmt = "mov%k %M0, %=" },
+        .{ .op = .loadsw, .cls = .l, .fmt = "movslq %M0, %L=" },
+        .{ .op = .loadsw, .cls = .w, .fmt = "movl %M0, %W=" },
+        .{ .op = .loaduw, .cls = .i, .fmt = "movl %M0, %W=" },
+        .{ .op = .loadsh, .cls = .i, .fmt = "movsw%k %M0, %=" },
+        .{ .op = .loaduh, .cls = .i, .fmt = "movzw%k %M0, %=" },
+        .{ .op = .loadsb, .cls = .i, .fmt = "movsb%k %M0, %=" },
+        .{ .op = .loadub, .cls = .i, .fmt = "movzb%k %M0, %=" },
+        .{ .op = .extsw, .cls = .l, .fmt = "movslq %W0, %L=" },
+        .{ .op = .extuw, .cls = .l, .fmt = "movl %W0, %W=" },
+        .{ .op = .extsh, .cls = .i, .fmt = "movsw%k %H0, %=" },
+        .{ .op = .extuh, .cls = .i, .fmt = "movzw%k %H0, %=" },
+        .{ .op = .extsb, .cls = .i, .fmt = "movsb%k %B0, %=" },
+        .{ .op = .extub, .cls = .i, .fmt = "movzb%k %B0, %=" },
 
-        .{ .op = Oexts, .cls = .d, .fmt = "cvtss2sd %0, %=" },
-        .{ .op = Otruncd, .cls = .s, .fmt = "cvtsd2ss %0, %=" },
-        .{ .op = Ostosi, .cls = .i, .fmt = "cvttss2si%k %0, %=" },
-        .{ .op = Odtosi, .cls = .i, .fmt = "cvttsd2si%k %0, %=" },
-        .{ .op = Oswtof, .cls = .a, .fmt = "cvtsi2%k %W0, %=" },
-        .{ .op = Osltof, .cls = .a, .fmt = "cvtsi2%k %L0, %=" },
-        .{ .op = Ocast, .cls = .i, .fmt = "movq %D0, %L=" },
-        .{ .op = Ocast, .cls = .a, .fmt = "movq %L0, %D=" },
+        .{ .op = .exts, .cls = .d, .fmt = "cvtss2sd %0, %=" },
+        .{ .op = .truncd, .cls = .s, .fmt = "cvtsd2ss %0, %=" },
+        .{ .op = .stosi, .cls = .i, .fmt = "cvttss2si%k %0, %=" },
+        .{ .op = .dtosi, .cls = .i, .fmt = "cvttsd2si%k %0, %=" },
+        .{ .op = .swtof, .cls = .a, .fmt = "cvtsi2%k %W0, %=" },
+        .{ .op = .sltof, .cls = .a, .fmt = "cvtsi2%k %L0, %=" },
+        .{ .op = .cast, .cls = .i, .fmt = "movq %D0, %L=" },
+        .{ .op = .cast, .cls = .a, .fmt = "movq %L0, %D=" },
 
-        .{ .op = Oaddr, .cls = .i, .fmt = "lea%k %M0, %=" },
-        .{ .op = Oswap, .cls = .i, .fmt = "xchg%k %0, %1" },
-        .{ .op = Osign, .cls = .l, .fmt = "cqto" },
-        .{ .op = Osign, .cls = .w, .fmt = "cltd" },
-        .{ .op = Oxdiv, .cls = .i, .fmt = "div%k %0" },
-        .{ .op = Oxidiv, .cls = .i, .fmt = "idiv%k %0" },
-        .{ .op = Oxcmp, .cls = .s, .fmt = "ucomiss %S0, %S1" },
-        .{ .op = Oxcmp, .cls = .d, .fmt = "ucomisd %D0, %D1" },
-        .{ .op = Oxcmp, .cls = .i, .fmt = "cmp%k %0, %1" },
-        .{ .op = Oxtest, .cls = .i, .fmt = "test%k %0, %1" },
+        .{ .op = .addr, .cls = .i, .fmt = "lea%k %M0, %=" },
+        .{ .op = .swap, .cls = .i, .fmt = "xchg%k %0, %1" },
+        .{ .op = .sign, .cls = .l, .fmt = "cqto" },
+        .{ .op = .sign, .cls = .w, .fmt = "cltd" },
+        .{ .op = .xdiv, .cls = .i, .fmt = "div%k %0" },
+        .{ .op = .xidiv, .cls = .i, .fmt = "idiv%k %0" },
+        .{ .op = .xcmp, .cls = .s, .fmt = "ucomiss %S0, %S1" },
+        .{ .op = .xcmp, .cls = .d, .fmt = "ucomisd %D0, %D1" },
+        .{ .op = .xcmp, .cls = .i, .fmt = "cmp%k %0, %1" },
+        .{ .op = .xtest, .cls = .i, .fmt = "test%k %0, %1" },
     };
     var flags: [CMP.len]OMap = undefined;
     for (CMP, 0..) |x, n|
-        flags[n] = .{ .op = Oflag.offset(x.c), .cls = .i, .fmt = "set" ++ x.s0 ++ " %B=\n\tmovzb%k %B=, %=" };
+        flags[n] = .{ .op = Opc.flag_first.offset(x.c), .cls = .i, .fmt = "set" ++ x.s0 ++ " %B=\n\tmovzb%k %B=, %=" };
     const tail = [_]OMap{
-        .{ .op = Oflagfeq, .cls = .i, .fmt = "setz %B=\n\tmovzb%k %B=, %=" },
-        .{ .op = Oflagfne, .cls = .i, .fmt = "setnz %B=\n\tmovzb%k %B=, %=" },
+        .{ .op = .flagfeq, .cls = .i, .fmt = "setz %B=\n\tmovzb%k %B=, %=" },
+        .{ .op = .flagfne, .cls = .i, .fmt = "setnz %B=\n\tmovzb%k %B=, %=" },
         .{ .op = .xxx, .cls = .w, .fmt = null }, // sentinel
     };
     break :blk base ++ flags ++ tail;
@@ -373,7 +321,7 @@ fn getarg(c: u8, i: *Ins) Ref {
 fn emitcopy(r1: Ref, r2: Ref, k: i32, e: *E) Writer.Error!void {
     var icp: Ins = undefined;
 
-    icp.op = Ocopy;
+    icp.op = .copy;
     icp.arg[0] = r2;
     icp.to = r1;
     icp.cls = all.kof(k);
@@ -544,21 +492,21 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             if (isxsel(i.op)) {
                 // case_Oxsel:
                 if (req(i.to, i.arg[1])) {
-                    try emitf(cmov[@intCast(i.op.diff(Oxsel))][0], &i, e);
+                    try emitf(cmov[@intCast(i.op.diff(Opc.xsel_first))][0], &i, e);
                 } else {
                     if (!req(i.to, i.arg[0]))
                         try emitf("mov %0, %=", &i, e);
-                    try emitf(cmov[@intCast(i.op.diff(Oxsel))][1], &i, e);
+                    try emitf(cmov[@intCast(i.op.diff(Opc.xsel_first))][1], &i, e);
                 }
                 return;
             }
             try emittable(&i, e);
         },
-        Onop => {
+        .nop => {
             // just do nothing for nops, they are inserted
             // by some passes
         },
-        Omul => {
+        .mul => {
             // here, we try to use the 3-addresss form
             // of multiplication when possible
             if (rtype(i.arg[1]) == RCon) {
@@ -575,18 +523,18 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             }
             try emittable(&i, e);
         },
-        Osub => {
+        .sub => {
             // we have to use the negation trick to handle
             // some 3-address subtractions
             if (req(i.to, i.arg[1]) and !req(i.arg[0], i.to)) {
-                const ineg = INS(Oneg, i.cls, i.to, i.to, R);
+                const ineg = INS(.neg, i.cls, i.to, i.to, R);
                 try emitins(ineg, e);
                 try emitf("add%k %0, %=", &i, e);
                 return;
             }
             try emittable(&i, e);
         },
-        Oneg => {
+        .neg => {
             if (!req(i.to, i.arg[0]))
                 try emitf("mov%k %0, %=", &i, e);
             if (KBASE(i.cls) == 0)
@@ -594,7 +542,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             else
                 try e.f.print("\txorp{c} {s}fp{d}(%rip), %{s}\n", .{"xxsd"[i.cls.idx()], cs(&all.T.asloc), stashbits(negmask[i.cls.idx()], 16), cs(regtoa((i.to.val), SLong))});
         },
-        Odiv => {
+        .div => {
             // use xmm15 to adjust the instruction when the
             // conversion to 2-address in emitf() would fail
             if (req(i.to, i.arg[1])) {
@@ -605,7 +553,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             }
             try emittable(&i, e);
         },
-        Ocopy => {
+        .copy => {
             // copies are used for many things; see my note
             // to understand how to load big constants:
             // https://c9x.me/notes/2015-09-19.html
@@ -652,7 +600,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             // should use movabsq when reading movq
             try emitf("mov%k %0, %=", &i, e);
         },
-        Oaddr => {
+        .addr => {
             if (rtype(i.arg[0]) != RCon) {
                 try emittable(&i, e);
                 return;
@@ -692,7 +640,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
                 else => try emittable(&i, e),
             }
         },
-        Ocall => {
+        .call => {
             // calls simply have a weird syntax in AT&T
             // assembly...
             switch (rtype(i.arg[0])) {
@@ -710,7 +658,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
                 else => die("invalid call argument", .{}),
             }
         },
-        Osalloc => {
+        .salloc => {
             // there is no good reason why this is here
             // maybe we should split Osalloc in 2 different
             // instructions depending on the result
@@ -719,7 +667,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             if (!req(i.to, R))
                 try emitcopy(i.to, TMP(RSP), all.knum(Kl), e);
         },
-        Oswap => {
+        .swap => {
             if (KBASE(i.cls) == 0) {
                 try emittable(&i, e);
                 return;
@@ -730,7 +678,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             try emitcopy(i.arg[0], i.arg[1], all.knum(i.cls), e);
             try emitcopy(i.arg[1], TMP(XMM0 + 15), all.knum(i.cls), e);
         },
-        Odbgloc => try emitdbgloc(i.arg[0].val, i.arg[1].val, e.f),
+        .dbgloc => try emitdbgloc(i.arg[0].val, i.arg[1].val, e.f),
     }
 }
 

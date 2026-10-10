@@ -3,6 +3,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("all.zig");
+const Opc = all.Opc;
 const CAddr = all.CAddr;
 const CBits = all.CBits;
 const CON_Z = all.CON_Z;
@@ -32,45 +33,6 @@ const Kd = all.Kd;
 const Kl = all.Kl;
 const Ks = all.Ks;
 const Kw = all.Kw;
-const Oadd = all.ops.Oadd;
-const Oand = all.ops.Oand;
-const Ocast = all.ops.Ocast;
-const Ocmpd = all.Ocmpd;
-const Ocmpd1 = all.Ocmpd1;
-const Ocmpl = all.Ocmpl;
-const Ocmpl1 = all.Ocmpl1;
-const Ocmps = all.Ocmps;
-const Ocmps1 = all.Ocmps1;
-const Ocmpw = all.Ocmpw;
-const Ocmpw1 = all.Ocmpw1;
-const Odiv = all.ops.Odiv;
-const Odtosi = all.ops.Odtosi;
-const Odtoui = all.ops.Odtoui;
-const Oexts = all.ops.Oexts;
-const Oextsb = all.ops.Oextsb;
-const Oextsh = all.ops.Oextsh;
-const Oextsw = all.ops.Oextsw;
-const Oextub = all.ops.Oextub;
-const Oextuh = all.ops.Oextuh;
-const Oextuw = all.ops.Oextuw;
-const Omul = all.ops.Omul;
-const Oneg = all.ops.Oneg;
-const Oor = all.ops.Oor;
-const Orem = all.ops.Orem;
-const Osar = all.ops.Osar;
-const Oshl = all.ops.Oshl;
-const Oshr = all.ops.Oshr;
-const Osltof = all.ops.Osltof;
-const Ostosi = all.ops.Ostosi;
-const Ostoui = all.ops.Ostoui;
-const Osub = all.ops.Osub;
-const Oswtof = all.ops.Oswtof;
-const Otruncd = all.ops.Otruncd;
-const Oudiv = all.ops.Oudiv;
-const Oultof = all.ops.Oultof;
-const Ourem = all.ops.Ourem;
-const Ouwtof = all.ops.Ouwtof;
-const Oxor = all.ops.Oxor;
 const R = all.R;
 const RCon = all.RCon;
 const RTmp = all.RTmp;
@@ -134,7 +96,7 @@ pub fn foldint(res: *Con, op_: i32, w_: bool, cl: *Con, cr: *Con) bool {
 
     l.s = cl.bits.i;
     r.s = cr.bits.i;
-    if (op == Oadd.int()) {
+    if (op == Opc.add.int()) {
         if (cl.type == CAddr) {
             if (cr.type == CAddr)
                 return true;
@@ -144,7 +106,7 @@ pub fn foldint(res: *Con, op_: i32, w_: bool, cl: *Con, cr: *Con) bool {
             typ = CAddr;
             sym = cr.sym;
         }
-    } else if (op == Osub.int()) {
+    } else if (op == Opc.sub.int()) {
         if (cl.type == CAddr) {
             if (cr.type != CAddr) {
                 typ = CAddr;
@@ -155,10 +117,10 @@ pub fn foldint(res: *Con, op_: i32, w_: bool, cl: *Con, cr: *Con) bool {
             return true;
     } else if (cl.type == CAddr or cr.type == CAddr)
         return true;
-    if (op == Odiv.int() or op == Orem.int() or op == Oudiv.int() or op == Ourem.int()) {
+    if (op == Opc.div.int() or op == Opc.rem.int() or op == Opc.udiv.int() or op == Opc.urem.int()) {
         if (iscon(cr, w, 0))
             return true;
-        if (op == Odiv.int() or op == Orem.int()) {
+        if (op == Opc.div.int() or op == Opc.rem.int()) {
             x = if (w) @bitCast(@as(i64, std.math.minInt(i64))) else @bitCast(@as(i64, std.math.minInt(i32)));
             if (iscon(cr, w, @bitCast(@as(i64, -1))))
                 if (iscon(cl, w, x))
@@ -167,31 +129,31 @@ pub fn foldint(res: *Con, op_: i32, w_: bool, cl: *Con, cr: *Con) bool {
     }
     const sh: u6 = @intCast(r.u & (31 | (@as(u64, @intFromBool(w)) << 5)));
     switch (op) {
-        all.ops.num(Oadd) => x = l.u +% r.u,
-        all.ops.num(Osub) => x = l.u -% r.u,
-        all.ops.num(Oneg) => x = 0 -% l.u,
-        all.ops.num(Odiv) => x = if (w) @bitCast(@divTrunc(l.s, r.s)) else sx32(@bitCast(@as(i64, @divTrunc(@as(i32, @truncate(l.s)), @as(i32, @truncate(r.s)))))),
-        all.ops.num(Orem) => x = if (w) @bitCast(@rem(l.s, r.s)) else sx32(@bitCast(@as(i64, @rem(@as(i32, @truncate(l.s)), @as(i32, @truncate(r.s)))))),
-        all.ops.num(Oudiv) => x = if (w) l.u / r.u else @as(u32, @truncate(l.u)) / @as(u32, @truncate(r.u)),
-        all.ops.num(Ourem) => x = if (w) l.u % r.u else @as(u32, @truncate(l.u)) % @as(u32, @truncate(r.u)),
-        all.ops.num(Omul) => x = l.u *% r.u,
-        all.ops.num(Oand) => x = l.u & r.u,
-        all.ops.num(Oor) => x = l.u | r.u,
-        all.ops.num(Oxor) => x = l.u ^ r.u,
-        all.ops.num(Osar) => x = @bitCast((if (w) l.s else @as(i64, @as(i32, @truncate(l.s)))) >> sh),
-        all.ops.num(Oshr) => x = (if (w) l.u else @as(u64, @as(u32, @truncate(l.u)))) >> sh,
-        all.ops.num(Oshl) => x = l.u << sh,
-        all.ops.num(Oextsb) => x = @bitCast(@as(i64, @as(i8, @bitCast(@as(u8, @truncate(l.u)))))),
-        all.ops.num(Oextub) => x = @as(u8, @truncate(l.u)),
-        all.ops.num(Oextsh) => x = @bitCast(@as(i64, @as(i16, @bitCast(@as(u16, @truncate(l.u)))))),
-        all.ops.num(Oextuh) => x = @as(u16, @truncate(l.u)),
-        all.ops.num(Oextsw) => x = sx32(l.u),
-        all.ops.num(Oextuw) => x = @as(u32, @truncate(l.u)),
-        all.ops.num(Ostosi) => x = if (w) @bitCast(f2i(i64, cl.bits.s)) else @bitCast(@as(i64, f2i(i32, cl.bits.s))),
-        all.ops.num(Ostoui) => x = if (w) f2i(u64, cl.bits.s) else f2i(u32, cl.bits.s),
-        all.ops.num(Odtosi) => x = if (w) @bitCast(f2i(i64, cl.bits.d)) else @bitCast(@as(i64, f2i(i32, cl.bits.d))),
-        all.ops.num(Odtoui) => x = if (w) f2i(u64, cl.bits.d) else f2i(u32, cl.bits.d),
-        all.ops.num(Ocast) => {
+        all.ops.num(.add) => x = l.u +% r.u,
+        all.ops.num(.sub) => x = l.u -% r.u,
+        all.ops.num(.neg) => x = 0 -% l.u,
+        all.ops.num(.div) => x = if (w) @bitCast(@divTrunc(l.s, r.s)) else sx32(@bitCast(@as(i64, @divTrunc(@as(i32, @truncate(l.s)), @as(i32, @truncate(r.s)))))),
+        all.ops.num(.rem) => x = if (w) @bitCast(@rem(l.s, r.s)) else sx32(@bitCast(@as(i64, @rem(@as(i32, @truncate(l.s)), @as(i32, @truncate(r.s)))))),
+        all.ops.num(.udiv) => x = if (w) l.u / r.u else @as(u32, @truncate(l.u)) / @as(u32, @truncate(r.u)),
+        all.ops.num(.urem) => x = if (w) l.u % r.u else @as(u32, @truncate(l.u)) % @as(u32, @truncate(r.u)),
+        all.ops.num(.mul) => x = l.u *% r.u,
+        all.ops.num(.@"and") => x = l.u & r.u,
+        all.ops.num(.@"or") => x = l.u | r.u,
+        all.ops.num(.xor) => x = l.u ^ r.u,
+        all.ops.num(.sar) => x = @bitCast((if (w) l.s else @as(i64, @as(i32, @truncate(l.s)))) >> sh),
+        all.ops.num(.shr) => x = (if (w) l.u else @as(u64, @as(u32, @truncate(l.u)))) >> sh,
+        all.ops.num(.shl) => x = l.u << sh,
+        all.ops.num(.extsb) => x = @bitCast(@as(i64, @as(i8, @bitCast(@as(u8, @truncate(l.u)))))),
+        all.ops.num(.extub) => x = @as(u8, @truncate(l.u)),
+        all.ops.num(.extsh) => x = @bitCast(@as(i64, @as(i16, @bitCast(@as(u16, @truncate(l.u)))))),
+        all.ops.num(.extuh) => x = @as(u16, @truncate(l.u)),
+        all.ops.num(.extsw) => x = sx32(l.u),
+        all.ops.num(.extuw) => x = @as(u32, @truncate(l.u)),
+        all.ops.num(.stosi) => x = if (w) @bitCast(f2i(i64, cl.bits.s)) else @bitCast(@as(i64, f2i(i32, cl.bits.s))),
+        all.ops.num(.stoui) => x = if (w) f2i(u64, cl.bits.s) else f2i(u32, cl.bits.s),
+        all.ops.num(.dtosi) => x = if (w) @bitCast(f2i(i64, cl.bits.d)) else @bitCast(@as(i64, f2i(i32, cl.bits.d))),
+        all.ops.num(.dtoui) => x = if (w) f2i(u64, cl.bits.d) else f2i(u32, cl.bits.d),
+        all.ops.num(.cast) => {
             x = l.u;
             if (cl.type == CAddr) {
                 typ = CAddr;
@@ -199,12 +161,12 @@ pub fn foldint(res: *Con, op_: i32, w_: bool, cl: *Con, cr: *Con) bool {
             }
         },
         else => {
-            if (all.ops.num(Ocmpw) <= op and op <= all.ops.num(Ocmpl1)) {
-                if (op <= all.ops.num(Ocmpw1)) {
+            if (all.ops.num(Opc.cmpw_first) <= op and op <= all.ops.num(Opc.cmpl_last)) {
+                if (op <= all.ops.num(Opc.cmpw_last)) {
                     l.u = sx32(l.u);
                     r.u = sx32(r.u);
-                } else op -= Ocmpl.diff(Ocmpw);
-                x = @intFromBool(switch (op - all.ops.num(Ocmpw)) {
+                } else op -= Opc.cmpl_first.diff(Opc.cmpw_first);
+                x = @intFromBool(switch (op - all.ops.num(Opc.cmpw_first)) {
                     Ciule => l.u <= r.u,
                     Ciult => l.u < r.u,
                     Cisle => l.s <= r.s,
@@ -217,8 +179,8 @@ pub fn foldint(res: *Con, op_: i32, w_: bool, cl: *Con, cr: *Con) bool {
                     Cine => l.u != r.u,
                     else => die("unreachable", .{}),
                 });
-            } else if (all.ops.num(Ocmps) <= op and op <= all.ops.num(Ocmps1)) {
-                x = @intFromBool(switch (op - all.ops.num(Ocmps)) {
+            } else if (all.ops.num(Opc.cmps_first) <= op and op <= all.ops.num(Opc.cmps_last)) {
+                x = @intFromBool(switch (op - all.ops.num(Opc.cmps_first)) {
                     Cfle => l.fs <= r.fs,
                     Cflt => l.fs < r.fs,
                     Cfgt => l.fs > r.fs,
@@ -229,8 +191,8 @@ pub fn foldint(res: *Con, op_: i32, w_: bool, cl: *Con, cr: *Con) bool {
                     Cfuo => !(l.fs < r.fs or l.fs >= r.fs),
                     else => die("unreachable", .{}),
                 });
-            } else if (all.ops.num(Ocmpd) <= op and op <= all.ops.num(Ocmpd1)) {
-                x = @intFromBool(switch (op - all.ops.num(Ocmpd)) {
+            } else if (all.ops.num(Opc.cmpd_first) <= op and op <= all.ops.num(Opc.cmpd_last)) {
+                x = @intFromBool(switch (op - all.ops.num(Opc.cmpd_first)) {
                     Cfle => l.fd <= r.fd,
                     Cflt => l.fd < r.fd,
                     Cfgt => l.fd > r.fd,
@@ -260,17 +222,17 @@ fn foldflt(res: *Con, op: i32, w: bool, cl: *Con, cr: *Con) void {
         const ld = cl.bits.d;
         const rd = cr.bits.d;
         const xd: f64 = switch (op) {
-            all.ops.num(Oadd) => ld + rd,
-            all.ops.num(Osub) => ld - rd,
-            all.ops.num(Oneg) => -ld,
-            all.ops.num(Odiv) => ld / rd,
-            all.ops.num(Omul) => ld * rd,
-            all.ops.num(Oswtof) => @floatFromInt(@as(i32, @truncate(cl.bits.i))),
-            all.ops.num(Ouwtof) => @floatFromInt(@as(u32, @truncate(@as(u64, @bitCast(cl.bits.i))))),
-            all.ops.num(Osltof) => @floatFromInt(cl.bits.i),
-            all.ops.num(Oultof) => @floatFromInt(@as(u64, @bitCast(cl.bits.i))),
-            all.ops.num(Oexts) => cl.bits.s,
-            all.ops.num(Ocast) => ld,
+            all.ops.num(.add) => ld + rd,
+            all.ops.num(.sub) => ld - rd,
+            all.ops.num(.neg) => -ld,
+            all.ops.num(.div) => ld / rd,
+            all.ops.num(.mul) => ld * rd,
+            all.ops.num(.swtof) => @floatFromInt(@as(i32, @truncate(cl.bits.i))),
+            all.ops.num(.uwtof) => @floatFromInt(@as(u32, @truncate(@as(u64, @bitCast(cl.bits.i))))),
+            all.ops.num(.sltof) => @floatFromInt(cl.bits.i),
+            all.ops.num(.ultof) => @floatFromInt(@as(u64, @bitCast(cl.bits.i))),
+            all.ops.num(.exts) => cl.bits.s,
+            all.ops.num(.cast) => ld,
             else => die("unreachable", .{}),
         };
         res.bits.d = xd;
@@ -279,17 +241,17 @@ fn foldflt(res: *Con, op: i32, w: bool, cl: *Con, cr: *Con) void {
         const ls = cl.bits.s;
         const rs = cr.bits.s;
         const xs: f32 = switch (op) {
-            all.ops.num(Oadd) => ls + rs,
-            all.ops.num(Osub) => ls - rs,
-            all.ops.num(Oneg) => -ls,
-            all.ops.num(Odiv) => ls / rs,
-            all.ops.num(Omul) => ls * rs,
-            all.ops.num(Oswtof) => @floatFromInt(@as(i32, @truncate(cl.bits.i))),
-            all.ops.num(Ouwtof) => @floatFromInt(@as(u32, @truncate(@as(u64, @bitCast(cl.bits.i))))),
-            all.ops.num(Osltof) => @floatFromInt(cl.bits.i),
-            all.ops.num(Oultof) => @floatFromInt(@as(u64, @bitCast(cl.bits.i))),
-            all.ops.num(Otruncd) => @floatCast(cl.bits.d),
-            all.ops.num(Ocast) => ls,
+            all.ops.num(.add) => ls + rs,
+            all.ops.num(.sub) => ls - rs,
+            all.ops.num(.neg) => -ls,
+            all.ops.num(.div) => ls / rs,
+            all.ops.num(.mul) => ls * rs,
+            all.ops.num(.swtof) => @floatFromInt(@as(i32, @truncate(cl.bits.i))),
+            all.ops.num(.uwtof) => @floatFromInt(@as(u32, @truncate(@as(u64, @bitCast(cl.bits.i))))),
+            all.ops.num(.sltof) => @floatFromInt(cl.bits.i),
+            all.ops.num(.ultof) => @floatFromInt(@as(u64, @bitCast(cl.bits.i))),
+            all.ops.num(.truncd) => @floatCast(cl.bits.d),
+            all.ops.num(.cast) => ls,
             else => die("unreachable", .{}),
         };
         res.bits.s = xs;

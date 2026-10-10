@@ -7,7 +7,6 @@ const BSet = all.BSet;
 const Blk = all.Blk;
 const Fn = all.Fn;
 const KBASE = all.KBASE;
-const Ocall = all.ops.Ocall;
 const R = all.R;
 const RCall = all.RCall;
 const RMem = all.RMem;
@@ -105,7 +104,7 @@ pub fn filllive(f: *Fn) void {
             while (i_n > 0) {
                 i_n -= 1;
                 const i = &b.ins[i_n];
-                if (i.op == Ocall and rtype(i.arg[1]) == RCall) {
+                if (i.op == .call and rtype(i.arg[1]) == RCall) {
                     b.in.t[0] &= ~all.T.retregs(i.arg[1], &m);
                     for (0..2) |k| {
                         nlv[k] -= m[k];

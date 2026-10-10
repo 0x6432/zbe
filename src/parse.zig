@@ -3,6 +3,8 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("all.zig");
+const Opc = all.Opc;
+const Op = all.Op;
 const BSet = all.BSet;
 const Blk = all.Blk;
 const CAddr = all.CAddr;
@@ -55,32 +57,6 @@ const NField = all.NField;
 const NIns = all.NIns;
 const NOp = all.NOp;
 const NPubOp = all.NPubOp;
-const Oacmn = all.ops.Oacmn;
-const Oacmp = all.ops.Oacmp;
-const Oafcmp = all.ops.Oafcmp;
-const Oalloc = all.Oalloc;
-const Oarg = all.ops.Oarg;
-const Oargc = all.ops.Oargc;
-const Oarge = all.ops.Oarge;
-const Oargsb = all.ops.Oargsb;
-const Oargv = all.ops.Oargv;
-const Oblit0 = all.ops.Oblit0;
-const Oblit1 = all.ops.Oblit1;
-const Ocall = all.ops.Ocall;
-const Odbgloc = all.ops.Odbgloc;
-const Oload = all.ops.Oload;
-const Oloadsw = all.ops.Oloadsw;
-const Op = all.Op;
-const Opar = all.ops.Opar;
-const Oparc = all.ops.Oparc;
-const Opare = all.ops.Opare;
-const Oparsb = all.ops.Oparsb;
-const Oswap = all.ops.Oswap;
-const Ovastart = all.ops.Ovastart;
-const Oxcmp = all.ops.Oxcmp;
-const Oxdiv = all.ops.Oxdiv;
-const Oxidiv = all.ops.Oxidiv;
-const Oxtest = all.ops.Oxtest;
 const PFn = all.PFn;
 const PHeap = all.PHeap;
 const Phi = all.Phi;
@@ -729,7 +705,7 @@ fn parsecls(tyn: *i32) i32 {
     }
 }
 
-inline fn mkins(op: anytype, k: anytype, to: Ref, a0: Ref, a1: Ref) Ins {
+inline fn mkins(op: Opc, k: anytype, to: Ref, a0: Ref, a1: Ref) Ins {
     return .{ .op = op, .cls = all.kof(k), .to = to, .arg = .{ a0, a1 } };
 }
 
@@ -755,7 +731,7 @@ fn parserefl(arg: bool) bool {
                 vararg = true;
                 if (arg) {
                     all.curi[0] = std.mem.zeroes(Ins);
-                    all.curi[0].op = Oargv;
+                    all.curi[0].op = .argv;
                     all.curi += 1;
                 }
                 _ = next();
@@ -782,24 +758,24 @@ fn parserefl(arg: bool) bool {
                 err("invalid function parameter", .{});
             if (env) {
                 if (arg)
-                    all.curi[0] = mkins(Oarge, k, R, r, R)
+                    all.curi[0] = mkins(.arge, k, R, r, R)
                 else
-                    all.curi[0] = mkins(Opare, k, r, R, R);
+                    all.curi[0] = mkins(.pare, k, r, R, R);
             } else if (k == Kc) {
                 if (arg)
-                    all.curi[0] = mkins(Oargc, Kl, R, TYPE(ty), r)
+                    all.curi[0] = mkins(.argc, Kl, R, TYPE(ty), r)
                 else
-                    all.curi[0] = mkins(Oparc, Kl, r, TYPE(ty), R);
+                    all.curi[0] = mkins(.parc, Kl, r, TYPE(ty), R);
             } else if (k >= Ksb) {
                 if (arg)
-                    all.curi[0] = mkins(Oargsb.offset(k - Ksb), Kw, R, r, R)
+                    all.curi[0] = mkins(Opc.argsb.offset(k - Ksb), Kw, R, r, R)
                 else
-                    all.curi[0] = mkins(Oparsb.offset(k - Ksb), Kw, r, R, R);
+                    all.curi[0] = mkins(Opc.parsb.offset(k - Ksb), Kw, r, R, R);
             } else {
                 if (arg)
-                    all.curi[0] = mkins(Oarg, k, R, r, R)
+                    all.curi[0] = mkins(.arg, k, R, r, R)
                 else
-                    all.curi[0] = mkins(Opar, k, r, R, R);
+                    all.curi[0] = mkins(.par, k, r, R, R);
             }
             all.curi += 1;
         }
@@ -854,7 +830,7 @@ fn parseline(ps: PState) PState {
             k = parsecls(&ty);
             op = next();
         },
-        Tblit, Tcall, all.ops.num(Ovastart) => {
+        Tblit, Tcall, all.ops.num(.vastart) => {
             // operations without result
             r = R;
             k = all.knum(Kw);
@@ -905,7 +881,7 @@ fn parseline(ps: PState) PState {
             curb.?.jmp.type = Jhlt;
             flow = .close;
         },
-        all.ops.num(Odbgloc) => {
+        all.ops.num(.dbgloc) => {
             op = t;
             k = all.knum(Kw);
             r = R;
@@ -951,7 +927,7 @@ fn parseline(ps: PState) PState {
         curf.leaf = 0;
         arg[0] = parseref();
         _ = parserefl(true);
-        op = all.ops.num(Ocall);
+        op = all.ops.num(.call);
         expect(Tnl);
         if (k == Kc) {
             k = all.knum(Kl);
@@ -963,12 +939,12 @@ fn parseline(ps: PState) PState {
     }
     if (flow == .normal) {
         if (op == Tloadw)
-            op = all.ops.num(Oloadsw);
+            op = all.ops.num(.loadsw);
         if (op >= Tloadl and op <= Tloadd)
-            op = all.ops.num(Oload);
+            op = all.ops.num(.load);
         if (op == Talloc1 or op == Talloc2)
-            op = all.ops.num(Oalloc);
-        if (op == Ovastart.int() and curf.vararg == 0)
+            op = all.ops.num(Opc.alloc_first);
+        if (op == Opc.vastart.int() and curf.vararg == 0)
             err("cannot use vastart in non-variadic function", .{});
         if (k >= Ksb)
             err("size class must be w, l, s, or d", .{});
@@ -1013,7 +989,7 @@ fn parseline(ps: PState) PState {
                 if (all.insbHead() >= NIns - 1)
                     err("too many instructions", .{});
                 @memset(all.curi[0..2], std.mem.zeroes(Ins));
-                all.curi[0].op = Oblit0;
+                all.curi[0].op = .blit0;
                 all.curi[0].arg[0] = arg[0];
                 all.curi[0].arg[1] = arg[1];
                 all.curi += 1;
@@ -1023,7 +999,7 @@ fn parseline(ps: PState) PState {
                 r = INT(c.bits.i);
                 if (c.type != CBits or rsval(r) < 0 or rsval(r) != c.bits.i)
                     err("invalid blit size", .{});
-                all.curi[0].op = Oblit1;
+                all.curi[0].op = .blit1;
                 all.curi[0].arg[0] = r;
                 all.curi += 1;
                 return PIns;
@@ -1605,7 +1581,7 @@ pub fn printfn(f: *Fn, fp: *Writer) Writer.Error!void {
             try fp.print("{s}", .{cs(all.optab[i.op.int()].name)});
             if (req(i.to, R))
                 switch (i.op) {
-                    Oarg, Oswap, Oxcmp, Oacmp, Oacmn, Oafcmp, Oxtest, Oxdiv, Oxidiv => try fp.writeByte(ktoc[i.cls.idx()]),
+                    .arg, .swap, .xcmp, .acmp, .acmn, .afcmp, .xtest, .xdiv, .xidiv => try fp.writeByte(ktoc[i.cls.idx()]),
                     else => {},
                 };
             if (!req(i.arg[0], R)) {

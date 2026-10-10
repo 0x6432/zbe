@@ -4,8 +4,6 @@ const all = @import("all.zig");
 const Blk = all.Blk;
 const Fn = all.Fn;
 const Jretw = all.Jretw;
-const Oarg = all.ops.Oarg;
-const Opar = all.ops.Opar;
 const isargbh = all.isargbh;
 const isparbh = all.isparbh;
 const isretbh = all.isretbh;
@@ -21,9 +19,9 @@ pub fn elimsb(f: *Fn) void {
     while (b_it) |b| : (b_it = b.link) {
         for (b.ins[0..b.nins]) |*i| {
             if (isargbh(i.op))
-                i.op = Oarg;
+                i.op = .arg;
             if (isparbh(i.op))
-                i.op = Opar;
+                i.op = .par;
         }
         if (isretbh(b.jmp.type))
             b.jmp.type = Jretw;

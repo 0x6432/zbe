@@ -3,6 +3,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("all.zig");
+const Opc = all.Opc;
 const ACon = all.ACon;
 const AEsc = all.AEsc;
 const ALoc = all.ALoc;
@@ -23,31 +24,6 @@ const Kw = all.Kw;
 const MayAlias = all.MayAlias;
 const MustAlias = all.MustAlias;
 const NoAlias = all.NoAlias;
-const Oadd = all.ops.Oadd;
-const Oand = all.ops.Oand;
-const Oblit0 = all.ops.Oblit0;
-const Oblit1 = all.ops.Oblit1;
-const Ocall = all.ops.Ocall;
-const Ocast = all.ops.Ocast;
-const Ocopy = all.ops.Ocopy;
-const Oextsb = all.ops.Oextsb;
-const Oextuw = all.ops.Oextuw;
-const Oload = all.ops.Oload;
-const Oloadsb = all.ops.Oloadsb;
-const Oloadsh = all.ops.Oloadsh;
-const Oloadsw = all.ops.Oloadsw;
-const Oloadub = all.ops.Oloadub;
-const Oloaduh = all.ops.Oloaduh;
-const Oloaduw = all.ops.Oloaduw;
-const Oor = all.ops.Oor;
-const Oshl = all.ops.Oshl;
-const Oshr = all.ops.Oshr;
-const Ostoreb = all.ops.Ostoreb;
-const Ostored = all.ops.Ostored;
-const Ostoreh = all.ops.Ostoreh;
-const Ostorel = all.ops.Ostorel;
-const Ostores = all.ops.Ostores;
-const Ostorew = all.ops.Ostorew;
 const PFn = all.PFn;
 const PHeap = all.PHeap;
 const Phi = all.Phi;
@@ -126,10 +102,10 @@ var nlog: uint = 0; // number of entries in the log
 
 pub fn loadsz(l: *Ins) i32 {
     switch (l.op) {
-        Oloadsb, Oloadub => return 1,
-        Oloadsh, Oloaduh => return 2,
-        Oloadsw, Oloaduw => return 4,
-        Oload => return if (KWIDE(l.cls) != 0) 8 else 4,
+        .loadsb, .loadub => return 1,
+        .loadsh, .loaduh => return 2,
+        .loadsw, .loaduw => return 4,
+        .load => return if (KWIDE(l.cls) != 0) 8 else 4,
         else => {},
     }
     die("unreachable", .{});
@@ -137,16 +113,16 @@ pub fn loadsz(l: *Ins) i32 {
 
 pub fn storesz(s: *Ins) i32 {
     switch (s.op) {
-        Ostoreb => return 1,
-        Ostoreh => return 2,
-        Ostorew, Ostores => return 4,
-        Ostorel, Ostored => return 8,
+        .storeb => return 1,
+        .storeh => return 2,
+        .storew, .stores => return 4,
+        .storel, .stored => return 8,
         else => {},
     }
     die("unreachable", .{});
 }
 
-fn iins(cls: i32, op: i32, a0: Ref, a1: Ref, l: *Loc) Ref {
+fn iins(cls: i32, op: Opc, a0: Ref, a1: Ref, l: *Loc) Ref {
     nlog += 1;
     vgrow(&ilog, nlog);
     const ist = &ilog[nlog - 1];
@@ -169,21 +145,21 @@ fn cast(r: *Ref, cls: i32, l: *Loc) void {
         return;
     if (KWIDE(cls0) < KWIDE(cls)) {
         if (cls0 == Ks.int())
-            r.* = iins(all.knum(Kw), all.ops.num(Ocast), r.*, R, l);
-        r.* = iins(all.knum(Kl), all.ops.num(Oextuw), r.*, R, l);
+            r.* = iins(all.knum(Kw), .cast, r.*, R, l);
+        r.* = iins(all.knum(Kl), .extuw, r.*, R, l);
         if (cls == Kd.int())
-            r.* = iins(all.knum(Kd), all.ops.num(Ocast), r.*, R, l);
+            r.* = iins(all.knum(Kd), .cast, r.*, R, l);
     } else {
         if (cls0 == Kd.int() and cls != Kl.int())
-            r.* = iins(all.knum(Kl), all.ops.num(Ocast), r.*, R, l);
+            r.* = iins(all.knum(Kl), .cast, r.*, R, l);
         if (cls0 != Kd.int() or cls != Kw.int())
-            r.* = iins(cls, all.ops.num(Ocast), r.*, R, l);
+            r.* = iins(cls, .cast, r.*, R, l);
     }
 }
 
 inline fn mask(cls: i32, r: *Ref, msk: bits, l: *Loc) void {
     cast(r, cls, l);
-    r.* = iins(cls, all.ops.num(Oand), r.*, getcon(@bitCast(msk), curf), l);
+    r.* = iins(cls, .@"and", r.*, getcon(@bitCast(msk), curf), l);
 }
 
 fn load(sl: Slice, msk: bits, l: *Loc) Ref {
@@ -191,12 +167,12 @@ fn load(sl: Slice, msk: bits, l: *Loc) Ref {
     var cls: i32 = undefined;
     var c: Con = undefined;
 
-    const ld: i32 = switch (sl.sz) {
-        1 => all.ops.num(Oloadub),
-        2 => all.ops.num(Oloaduh),
-        4 => all.ops.num(Oloaduw),
-        8 => all.ops.num(Oload),
-        else => 0,
+    const ld: Opc = switch (sl.sz) {
+        1 => .loadub,
+        2 => .loaduh,
+        4 => .loaduw,
+        8 => .load,
+        else => .xxx,
     };
     const all_ = msk == MASK(sl.sz);
     if (all_)
@@ -214,7 +190,7 @@ fn load(sl: Slice, msk: bits, l: *Loc) Ref {
                 r = TMP(a.base);
                 if (a.offset != 0) {
                     const r1 = getcon(a.offset, curf);
-                    r = iins(all.knum(Kl), all.ops.num(Oadd), r, r1, l);
+                    r = iins(all.knum(Kl), .add, r, r1, l);
                 }
             },
             ACon, ASym => {
@@ -293,7 +269,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
     var msk1: bits = undefined;
     var off: i32 = undefined;
     var cls1: i32 = undefined;
-    var op: i32 = undefined;
+    var op: Opc = undefined;
     var sz: i32 = undefined;
     var r: Ref = undefined;
     var r1: Ref = undefined;
@@ -305,7 +281,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
     while (idx > 0) {
         idx -= 1;
         var i = &b.ins[idx];
-        if (killsl(i.to, sl) or (i.op == Ocall and escapes(sl.ref, curf)))
+        if (killsl(i.to, sl) or (i.op == .call and escapes(sl.ref, curf)))
             return null;
         const ld = isload(i.op);
         if (ld) {
@@ -316,18 +292,18 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
             sz = storesz(i);
             r1 = i.arg[1];
             r = i.arg[0];
-        } else if (i.op == Oblit1) {
+        } else if (i.op == .blit1) {
             assert(rtype(i.arg[0]) == RInt);
             sz = @intCast(@abs(rsval(i.arg[0])));
             assert(idx > 0);
             idx -= 1;
             i = &b.ins[idx];
-            assert(i.op == Oblit0);
+            assert(i.op == .blit0);
             r1 = i.arg[1];
         } else continue;
         switch (alias(sl.ref, sl.off, sl.sz, r1, sz, &off, curf)) {
             MustAlias => {
-                if (i.op == Oblit0) {
+                if (i.op == .blit0) {
                     sl1 = sl;
                     sl1.ref = i.arg[0];
                     if (off >= 0) {
@@ -347,21 +323,21 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
                 if (off < 0) {
                     off = -off;
                     msk1 = shl64(MASK(sz), 8 * off) & msks;
-                    op = all.ops.num(Oshl);
+                    op = .shl;
                 } else {
                     msk1 = (MASK(sz) >> @intCast(8 * off)) & msks;
-                    op = all.ops.num(Oshr);
+                    op = .shr;
                 }
                 if ((msk1 & msk) == 0)
                     continue;
-                if (i.op == Oblit0) {
+                if (i.op == .blit0) {
                     r = def(sl1, MASK(sz), b, idx, il);
                     if (req(r, R))
                         return null;
                 }
                 if (off != 0) {
                     cls1 = cls;
-                    if (op == Oshr.int() and off + sl.sz > 4)
+                    if (op == .shr and off + sl.sz > 4)
                         cls1 = all.knum(Kl);
                     cast(&r, cls1, il);
                     r1 = getcon(8 * off, curf);
@@ -373,7 +349,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
                     r1 = def(sl, msk & ~msk1, b, idx, il);
                     if (req(r1, R))
                         return null;
-                    r = iins(cls, all.ops.num(Oor), r, r1, il);
+                    r = iins(cls, .@"or", r, r1, il);
                 }
                 if (msk == msks)
                     cast(&r, sl.cls, il);
@@ -515,15 +491,15 @@ pub fn loadopt(f: *Fn) void {
                 i = &b.ins[ni];
                 ni += 1;
                 if (isload(i.op) and !req(i.arg[1], R)) {
-                    const ext = Oextsb.offset(i.op.diff(Oloadsb));
+                    const ext = Opc.extsb.offset(i.op.diff(.loadsb));
                     sw: switch (i.op) {
-                        Oloadsb, Oloadub, Oloadsh, Oloaduh => i.op = ext,
-                        Oloadsw, Oloaduw => {
+                        .loadsb, .loadub, .loadsh, .loaduh => i.op = ext,
+                        .loadsw, .loaduw => {
                             if (i.cls == Kl) {
                                 i.op = ext;
-                            } else continue :sw Oload;
+                            } else continue :sw .load;
                         },
-                        Oload => i.op = Ocopy,
+                        .load => i.op = .copy,
                         else => die("unreachable", .{}),
                     }
                     i.arg[0] = i.arg[1];

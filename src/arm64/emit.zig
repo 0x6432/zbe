@@ -3,6 +3,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("../all.zig");
+const Opc = all.Opc;
 const tgt = @import("all.zig");
 const BIT = all.BIT;
 const Blk = all.Blk;
@@ -46,61 +47,6 @@ const LR = tgt.LR;
 const NCmp = all.NCmp;
 const NCmpI = all.NCmpI;
 const NOp = all.NOp;
-const Oacmn = all.ops.Oacmn;
-const Oacmp = all.ops.Oacmp;
-const Oadd = all.ops.Oadd;
-const Oaddr = all.ops.Oaddr;
-const Oafcmp = all.ops.Oafcmp;
-const Oand = all.ops.Oand;
-const Ocall = all.ops.Ocall;
-const Ocast = all.ops.Ocast;
-const Ocopy = all.ops.Ocopy;
-const Odbgloc = all.ops.Odbgloc;
-const Odiv = all.ops.Odiv;
-const Odtosi = all.ops.Odtosi;
-const Odtoui = all.ops.Odtoui;
-const Oexts = all.ops.Oexts;
-const Oextsb = all.ops.Oextsb;
-const Oextsh = all.ops.Oextsh;
-const Oextsw = all.ops.Oextsw;
-const Oextub = all.ops.Oextub;
-const Oextuh = all.ops.Oextuh;
-const Oextuw = all.ops.Oextuw;
-const Oflag = all.Oflag;
-const Oload = all.ops.Oload;
-const Oloadsb = all.ops.Oloadsb;
-const Oloadsh = all.ops.Oloadsh;
-const Oloadsw = all.ops.Oloadsw;
-const Oloadub = all.ops.Oloadub;
-const Oloaduh = all.ops.Oloaduh;
-const Oloaduw = all.ops.Oloaduw;
-const Omul = all.ops.Omul;
-const Oneg = all.ops.Oneg;
-const Onop = all.ops.Onop;
-const Oor = all.ops.Oor;
-const Orem = all.ops.Orem;
-const Osalloc = all.ops.Osalloc;
-const Osar = all.ops.Osar;
-const Oshl = all.ops.Oshl;
-const Oshr = all.ops.Oshr;
-const Osltof = all.ops.Osltof;
-const Ostoreb = all.ops.Ostoreb;
-const Ostored = all.ops.Ostored;
-const Ostoreh = all.ops.Ostoreh;
-const Ostorel = all.ops.Ostorel;
-const Ostores = all.ops.Ostores;
-const Ostorew = all.ops.Ostorew;
-const Ostosi = all.ops.Ostosi;
-const Ostoui = all.ops.Ostoui;
-const Osub = all.ops.Osub;
-const Oswap = all.ops.Oswap;
-const Oswtof = all.ops.Oswtof;
-const Otruncd = all.ops.Otruncd;
-const Oudiv = all.ops.Oudiv;
-const Oultof = all.ops.Oultof;
-const Ourem = all.ops.Ourem;
-const Ouwtof = all.ops.Ouwtof;
-const Oxor = all.ops.Oxor;
 const R = all.R;
 const R0 = tgt.R0;
 const R18 = tgt.R18;
@@ -177,72 +123,72 @@ const OMap = struct {
 };
 const omap = blk: {
     const base = [_]OMap{
-        .{ .op = Oadd, .cls = .i, .fmt = "add %=, %0, %1" },
-        .{ .op = Oadd, .cls = .a, .fmt = "fadd %=, %0, %1" },
-        .{ .op = Osub, .cls = .i, .fmt = "sub %=, %0, %1" },
-        .{ .op = Osub, .cls = .a, .fmt = "fsub %=, %0, %1" },
-        .{ .op = Oneg, .cls = .i, .fmt = "neg %=, %0" },
-        .{ .op = Oneg, .cls = .a, .fmt = "fneg %=, %0" },
-        .{ .op = Oand, .cls = .i, .fmt = "and %=, %0, %1" },
-        .{ .op = Oor, .cls = .i, .fmt = "orr %=, %0, %1" },
-        .{ .op = Oxor, .cls = .i, .fmt = "eor %=, %0, %1" },
-        .{ .op = Osar, .cls = .i, .fmt = "asr %=, %0, %1" },
-        .{ .op = Oshr, .cls = .i, .fmt = "lsr %=, %0, %1" },
-        .{ .op = Oshl, .cls = .i, .fmt = "lsl %=, %0, %1" },
-        .{ .op = Omul, .cls = .i, .fmt = "mul %=, %0, %1" },
-        .{ .op = Omul, .cls = .a, .fmt = "fmul %=, %0, %1" },
-        .{ .op = Odiv, .cls = .i, .fmt = "sdiv %=, %0, %1" },
-        .{ .op = Odiv, .cls = .a, .fmt = "fdiv %=, %0, %1" },
-        .{ .op = Oudiv, .cls = .i, .fmt = "udiv %=, %0, %1" },
-        .{ .op = Orem, .cls = .i, .fmt = "sdiv %?, %0, %1\n\tmsub\t%=, %?, %1, %0" },
-        .{ .op = Ourem, .cls = .i, .fmt = "udiv %?, %0, %1\n\tmsub\t%=, %?, %1, %0" },
-        .{ .op = Ocopy, .cls = .i, .fmt = "mov %=, %0" },
-        .{ .op = Ocopy, .cls = .a, .fmt = "fmov %=, %0" },
-        .{ .op = Oswap, .cls = .i, .fmt = "mov %?, %0\n\tmov\t%0, %1\n\tmov\t%1, %?" },
-        .{ .op = Oswap, .cls = .a, .fmt = "fmov %?, %0\n\tfmov\t%0, %1\n\tfmov\t%1, %?" },
-        .{ .op = Ostoreb, .cls = .w, .fmt = "strb %W0, %M1" },
-        .{ .op = Ostoreh, .cls = .w, .fmt = "strh %W0, %M1" },
-        .{ .op = Ostorew, .cls = .w, .fmt = "str %W0, %M1" },
-        .{ .op = Ostorel, .cls = .w, .fmt = "str %L0, %M1" },
-        .{ .op = Ostores, .cls = .w, .fmt = "str %S0, %M1" },
-        .{ .op = Ostored, .cls = .w, .fmt = "str %D0, %M1" },
-        .{ .op = Oloadsb, .cls = .i, .fmt = "ldrsb %=, %M0" },
-        .{ .op = Oloadub, .cls = .i, .fmt = "ldrb %W=, %M0" },
-        .{ .op = Oloadsh, .cls = .i, .fmt = "ldrsh %=, %M0" },
-        .{ .op = Oloaduh, .cls = .i, .fmt = "ldrh %W=, %M0" },
-        .{ .op = Oloadsw, .cls = .w, .fmt = "ldr %=, %M0" },
-        .{ .op = Oloadsw, .cls = .l, .fmt = "ldrsw %=, %M0" },
-        .{ .op = Oloaduw, .cls = .i, .fmt = "ldr %W=, %M0" },
-        .{ .op = Oload, .cls = .a, .fmt = "ldr %=, %M0" },
-        .{ .op = Oextsb, .cls = .i, .fmt = "sxtb %=, %W0" },
-        .{ .op = Oextub, .cls = .i, .fmt = "uxtb %W=, %W0" },
-        .{ .op = Oextsh, .cls = .i, .fmt = "sxth %=, %W0" },
-        .{ .op = Oextuh, .cls = .i, .fmt = "uxth %W=, %W0" },
-        .{ .op = Oextsw, .cls = .i, .fmt = "sxtw %L=, %W0" },
-        .{ .op = Oextuw, .cls = .i, .fmt = "mov %W=, %W0" },
-        .{ .op = Oexts, .cls = .d, .fmt = "fcvt %=, %S0" },
-        .{ .op = Otruncd, .cls = .s, .fmt = "fcvt %=, %D0" },
-        .{ .op = Ocast, .cls = .w, .fmt = "fmov %=, %S0" },
-        .{ .op = Ocast, .cls = .l, .fmt = "fmov %=, %D0" },
-        .{ .op = Ocast, .cls = .s, .fmt = "fmov %=, %W0" },
-        .{ .op = Ocast, .cls = .d, .fmt = "fmov %=, %L0" },
-        .{ .op = Ostosi, .cls = .a, .fmt = "fcvtzs %=, %S0" },
-        .{ .op = Ostoui, .cls = .a, .fmt = "fcvtzu %=, %S0" },
-        .{ .op = Odtosi, .cls = .a, .fmt = "fcvtzs %=, %D0" },
-        .{ .op = Odtoui, .cls = .a, .fmt = "fcvtzu %=, %D0" },
-        .{ .op = Oswtof, .cls = .a, .fmt = "scvtf %=, %W0" },
-        .{ .op = Ouwtof, .cls = .a, .fmt = "ucvtf %=, %W0" },
-        .{ .op = Osltof, .cls = .a, .fmt = "scvtf %=, %L0" },
-        .{ .op = Oultof, .cls = .a, .fmt = "ucvtf %=, %L0" },
-        .{ .op = Ocall, .cls = .w, .fmt = "blr %L0" },
+        .{ .op = .add, .cls = .i, .fmt = "add %=, %0, %1" },
+        .{ .op = .add, .cls = .a, .fmt = "fadd %=, %0, %1" },
+        .{ .op = .sub, .cls = .i, .fmt = "sub %=, %0, %1" },
+        .{ .op = .sub, .cls = .a, .fmt = "fsub %=, %0, %1" },
+        .{ .op = .neg, .cls = .i, .fmt = "neg %=, %0" },
+        .{ .op = .neg, .cls = .a, .fmt = "fneg %=, %0" },
+        .{ .op = .@"and", .cls = .i, .fmt = "and %=, %0, %1" },
+        .{ .op = .@"or", .cls = .i, .fmt = "orr %=, %0, %1" },
+        .{ .op = .xor, .cls = .i, .fmt = "eor %=, %0, %1" },
+        .{ .op = .sar, .cls = .i, .fmt = "asr %=, %0, %1" },
+        .{ .op = .shr, .cls = .i, .fmt = "lsr %=, %0, %1" },
+        .{ .op = .shl, .cls = .i, .fmt = "lsl %=, %0, %1" },
+        .{ .op = .mul, .cls = .i, .fmt = "mul %=, %0, %1" },
+        .{ .op = .mul, .cls = .a, .fmt = "fmul %=, %0, %1" },
+        .{ .op = .div, .cls = .i, .fmt = "sdiv %=, %0, %1" },
+        .{ .op = .div, .cls = .a, .fmt = "fdiv %=, %0, %1" },
+        .{ .op = .udiv, .cls = .i, .fmt = "udiv %=, %0, %1" },
+        .{ .op = .rem, .cls = .i, .fmt = "sdiv %?, %0, %1\n\tmsub\t%=, %?, %1, %0" },
+        .{ .op = .urem, .cls = .i, .fmt = "udiv %?, %0, %1\n\tmsub\t%=, %?, %1, %0" },
+        .{ .op = .copy, .cls = .i, .fmt = "mov %=, %0" },
+        .{ .op = .copy, .cls = .a, .fmt = "fmov %=, %0" },
+        .{ .op = .swap, .cls = .i, .fmt = "mov %?, %0\n\tmov\t%0, %1\n\tmov\t%1, %?" },
+        .{ .op = .swap, .cls = .a, .fmt = "fmov %?, %0\n\tfmov\t%0, %1\n\tfmov\t%1, %?" },
+        .{ .op = .storeb, .cls = .w, .fmt = "strb %W0, %M1" },
+        .{ .op = .storeh, .cls = .w, .fmt = "strh %W0, %M1" },
+        .{ .op = .storew, .cls = .w, .fmt = "str %W0, %M1" },
+        .{ .op = .storel, .cls = .w, .fmt = "str %L0, %M1" },
+        .{ .op = .stores, .cls = .w, .fmt = "str %S0, %M1" },
+        .{ .op = .stored, .cls = .w, .fmt = "str %D0, %M1" },
+        .{ .op = .loadsb, .cls = .i, .fmt = "ldrsb %=, %M0" },
+        .{ .op = .loadub, .cls = .i, .fmt = "ldrb %W=, %M0" },
+        .{ .op = .loadsh, .cls = .i, .fmt = "ldrsh %=, %M0" },
+        .{ .op = .loaduh, .cls = .i, .fmt = "ldrh %W=, %M0" },
+        .{ .op = .loadsw, .cls = .w, .fmt = "ldr %=, %M0" },
+        .{ .op = .loadsw, .cls = .l, .fmt = "ldrsw %=, %M0" },
+        .{ .op = .loaduw, .cls = .i, .fmt = "ldr %W=, %M0" },
+        .{ .op = .load, .cls = .a, .fmt = "ldr %=, %M0" },
+        .{ .op = .extsb, .cls = .i, .fmt = "sxtb %=, %W0" },
+        .{ .op = .extub, .cls = .i, .fmt = "uxtb %W=, %W0" },
+        .{ .op = .extsh, .cls = .i, .fmt = "sxth %=, %W0" },
+        .{ .op = .extuh, .cls = .i, .fmt = "uxth %W=, %W0" },
+        .{ .op = .extsw, .cls = .i, .fmt = "sxtw %L=, %W0" },
+        .{ .op = .extuw, .cls = .i, .fmt = "mov %W=, %W0" },
+        .{ .op = .exts, .cls = .d, .fmt = "fcvt %=, %S0" },
+        .{ .op = .truncd, .cls = .s, .fmt = "fcvt %=, %D0" },
+        .{ .op = .cast, .cls = .w, .fmt = "fmov %=, %S0" },
+        .{ .op = .cast, .cls = .l, .fmt = "fmov %=, %D0" },
+        .{ .op = .cast, .cls = .s, .fmt = "fmov %=, %W0" },
+        .{ .op = .cast, .cls = .d, .fmt = "fmov %=, %L0" },
+        .{ .op = .stosi, .cls = .a, .fmt = "fcvtzs %=, %S0" },
+        .{ .op = .stoui, .cls = .a, .fmt = "fcvtzu %=, %S0" },
+        .{ .op = .dtosi, .cls = .a, .fmt = "fcvtzs %=, %D0" },
+        .{ .op = .dtoui, .cls = .a, .fmt = "fcvtzu %=, %D0" },
+        .{ .op = .swtof, .cls = .a, .fmt = "scvtf %=, %W0" },
+        .{ .op = .uwtof, .cls = .a, .fmt = "ucvtf %=, %W0" },
+        .{ .op = .sltof, .cls = .a, .fmt = "scvtf %=, %L0" },
+        .{ .op = .ultof, .cls = .a, .fmt = "ucvtf %=, %L0" },
+        .{ .op = .call, .cls = .w, .fmt = "blr %L0" },
 
-        .{ .op = Oacmp, .cls = .i, .fmt = "cmp %0, %1" },
-        .{ .op = Oacmn, .cls = .i, .fmt = "cmn %0, %1" },
-        .{ .op = Oafcmp, .cls = .a, .fmt = "fcmpe %0, %1" },
+        .{ .op = .acmp, .cls = .i, .fmt = "cmp %0, %1" },
+        .{ .op = .acmn, .cls = .i, .fmt = "cmn %0, %1" },
+        .{ .op = .afcmp, .cls = .a, .fmt = "fcmpe %0, %1" },
     };
     var flags: [CMP.len]OMap = undefined;
     for (CMP, 0..) |x, n|
-        flags[n] = .{ .op = Oflag.offset(x.c), .cls = .i, .fmt = "cset %=, " ++ x.s0 };
+        flags[n] = .{ .op = Opc.flag_first.offset(x.c), .cls = .i, .fmt = "cset %=, " ++ x.s0 };
     const tail = [_]OMap{
         .{ .op = .xxx, .cls = .w, .fmt = null }, // sentinel
     };
@@ -480,7 +426,7 @@ fn fixarg(pr: *Ref, sz: i32, t: i32, e: *E) Writer.Error!bool {
         if (s > @as(u32, @bitCast(sz)) *% 4095) {
             if (t < 0)
                 return true;
-            var i = INS(Oaddr, Kl, TMP(t), r, R);
+            var i = INS(.addr, Kl, TMP(t), r, R);
             try emitins(&i, e);
             pr.* = TMP(t);
         }
@@ -499,15 +445,15 @@ fn emitins(i: *Ins, e: *E) Writer.Error!void {
                     if (req(i.arg[0], TMP(IP1))) {
                         try e.f.print("\tfmov\t{c}31, {c}17\n", .{"ds"[@intFromBool(i.cls == Kw)], "xw"[@intFromBool(i.cls == Kw)]});
                         i.arg[0] = TMP(V31);
-                        i.op = Ostores.offset(i.cls.int() - Kw.int());
+                        i.op = Opc.stores.offset(i.cls.int() - Kw.int());
                     }
                     _ = try fixarg(&i.arg[1], storesz(i), IP1, e);
                 }
             }
             try table(i, e);
         },
-        Onop => {},
-        Ocopy => {
+        .nop => {},
+        .copy => {
             if (req(i.to, i.arg[0]))
                 return;
             if (rtype(i.to) == RSlot) {
@@ -517,7 +463,7 @@ fn emitins(i: *Ins, e: *E) Writer.Error!void {
                     try emitins(i, e);
                     i.arg[0] = i.to;
                 }
-                i.op = Ostorew.offset(i.cls);
+                i.op = Opc.storew.offset(i.cls);
                 i.cls = Kw;
                 i.arg[1] = r;
                 try emitins(i, e);
@@ -530,7 +476,7 @@ fn emitins(i: *Ins, e: *E) Writer.Error!void {
                     try loadcon(c, @intCast(i.to.val), all.knum(i.cls), e);
                 },
                 RSlot => {
-                    i.op = Oload;
+                    i.op = .load;
                     try emitins(i, e);
                 },
                 else => {
@@ -539,7 +485,7 @@ fn emitins(i: *Ins, e: *E) Writer.Error!void {
                 },
             }
         },
-        Oaddr => {
+        .addr => {
             assert(rtype(i.arg[0]) == RSlot);
             const rn = rname((i.to.val), all.knum(Kl));
             const s = slot(i.arg[0], e);
@@ -550,7 +496,7 @@ fn emitins(i: *Ins, e: *E) Writer.Error!void {
             else
                 try e.f.print("\tmov\t{s}, #{d}\n" ++ "\tmovk\t{s}, #{d}, lsl #16\n" ++ "\tadd\t{s}, x29, {s}\n", .{cs(rn), s & 0xFFFF, cs(rn), s >> 16, cs(rn), cs(rn)});
         },
-        Ocall => {
+        .call => {
             if (rtype(i.arg[0]) != RCon) {
                 try table(i, e);
                 return;
@@ -564,12 +510,12 @@ fn emitins(i: *Ins, e: *E) Writer.Error!void {
             const p: [*:0]const u8 = if (l[0] == '"') "" else @ptrCast(&all.T.assym);
             try e.f.print("\tbl\t{s}{s}\n", .{cs(p), cs(l)});
         },
-        Osalloc => {
+        .salloc => {
             try emitf("sub sp, sp, %0", i, e);
             if (!req(i.to, R))
                 try emitf("mov %=, sp", i, e);
         },
-        Odbgloc => try emitdbgloc(i.arg[0].val, i.arg[1].val, e.f),
+        .dbgloc => try emitdbgloc(i.arg[0].val, i.arg[1].val, e.f),
     }
 }
 
@@ -668,7 +614,7 @@ pub fn arm64_emitfn(f: *Fn, out: *Writer) Writer.Error!void {
         if (r < 0) break;
         if ((e.@"fn".reg & BIT(r)) != 0) {
             s -= 2;
-            var i = INS(if (r >= V0) Ostored else Ostorel, 0, R, TMP(r), SLOT(s));
+            var i = INS(if (r >= V0) .stored else .storel, 0, R, TMP(r), SLOT(s));
             try emitins(&i, e);
         }
     }
@@ -690,7 +636,7 @@ pub fn arm64_emitfn(f: *Fn, out: *Writer) Writer.Error!void {
                     if (r < 0) break;
                     if ((e.@"fn".reg & BIT(r)) != 0) {
                         s -= 2;
-                        var in = INS(Oload, @as(i32, if (r >= V0) all.knum(Kd) else all.knum(Kl)), TMP(r), SLOT(s), R);
+                        var in = INS(.load, @as(i32, if (r >= V0) all.knum(Kd) else all.knum(Kl)), TMP(r), SLOT(s), R);
                         try emitins(&in, e);
                     }
                 }

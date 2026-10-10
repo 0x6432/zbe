@@ -3,6 +3,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("all.zig");
+const Opc = all.Opc;
 const BIT = all.BIT;
 const BSet = all.BSet;
 const Blk = all.Blk;
@@ -41,25 +42,6 @@ const NBit = all.NBit;
 const NCmp = all.NCmp;
 const NCmpI = all.NCmpI;
 const Num = all.Num;
-const Oadd = all.ops.Oadd;
-const Oand = all.ops.Oand;
-const Oarg = all.ops.Oarg;
-const Oblit0 = all.ops.Oblit0;
-const Oblit1 = all.ops.Oblit1;
-const Ocall = all.ops.Ocall;
-const Ocmpd = all.Ocmpd;
-const Ocmpd1 = all.Ocmpd1;
-const Ocmpl = all.Ocmpl;
-const Ocmpl1 = all.Ocmpl1;
-const Ocmps = all.Ocmps;
-const Ocmps1 = all.Ocmps1;
-const Ocmpw = all.Ocmpw;
-const Ocmpw1 = all.Ocmpw1;
-const Onop = all.ops.Onop;
-const Opar = all.ops.Opar;
-const Osalloc = all.ops.Osalloc;
-const Osel0 = all.ops.Osel0;
-const Osel1 = all.ops.Osel1;
 const PFn = all.PFn;
 const PHeap = all.PHeap;
 const Phi = all.Phi;
@@ -378,7 +360,7 @@ pub fn vgrow(vp: anytype, len: anytype) void {
 }
 
 pub fn addins(pvins: *[*]Ins, pnins: *uint, i: *Ins) void {
-    if (i.op == Onop)
+    if (i.op == .nop)
         return;
     pnins.* += 1;
     vgrow(pvins, pnins.*);
@@ -436,17 +418,17 @@ pub fn isreg(r: Ref) bool {
 
 pub fn iscmp(op: anytype, pk: *i32, pc: *i32) bool {
     const o: i32 = all.ops.num(op);
-    if (all.ops.num(Ocmpw) <= o and o <= all.ops.num(Ocmpw1)) {
-        pc.* = o - all.ops.num(Ocmpw);
+    if (all.ops.num(Opc.cmpw_first) <= o and o <= all.ops.num(Opc.cmpw_last)) {
+        pc.* = o - all.ops.num(Opc.cmpw_first);
         pk.* = all.knum(Kw);
-    } else if (all.ops.num(Ocmpl) <= o and o <= all.ops.num(Ocmpl1)) {
-        pc.* = o - all.ops.num(Ocmpl);
+    } else if (all.ops.num(Opc.cmpl_first) <= o and o <= all.ops.num(Opc.cmpl_last)) {
+        pc.* = o - all.ops.num(Opc.cmpl_first);
         pk.* = all.knum(Kl);
-    } else if (all.ops.num(Ocmps) <= o and o <= all.ops.num(Ocmps1)) {
-        pc.* = NCmpI + o - all.ops.num(Ocmps);
+    } else if (all.ops.num(Opc.cmps_first) <= o and o <= all.ops.num(Opc.cmps_last)) {
+        pc.* = NCmpI + o - all.ops.num(Opc.cmps_first);
         pk.* = all.knum(Ks);
-    } else if (all.ops.num(Ocmpd) <= o and o <= all.ops.num(Ocmpd1)) {
-        pc.* = NCmpI + o - all.ops.num(Ocmpd);
+    } else if (all.ops.num(Opc.cmpd_first) <= o and o <= all.ops.num(Opc.cmpd_last)) {
+        pc.* = NCmpI + o - all.ops.num(Opc.cmpd_first);
         pk.* = all.knum(Kd);
     } else return false;
     return true;
@@ -465,38 +447,38 @@ pub fn igroup(b: *Blk, n0: uint) struct { uint, uint } {
     const ins = b.ins[0..b.nins];
     var n = n0;
     sw: switch (ins[n].op) {
-        Oblit0 => return .{ n, n + 2 },
-        Oblit1 => return .{ n - 1, n + 1 },
-        Opar => {
+        .blit0 => return .{ n, n + 2 },
+        .blit1 => return .{ n - 1, n + 1 },
+        .par => {
             while (n > 0 and ispar(ins[n - 1].op)) n -= 1;
             const lo = n;
             while (n < ins.len and ispar(ins[n].op)) n += 1;
             return .{ lo, n };
         },
-        Ocall, Oarg => {
+        .call, .arg => {
             while (n > 0 and isarg(ins[n - 1].op)) n -= 1;
             const lo = n;
-            while (n < ins.len and ins[n].op != Ocall) n += 1;
+            while (n < ins.len and ins[n].op != .call) n += 1;
             assert(n < ins.len);
             return .{ lo, n + 1 };
         },
-        Osel1 => {
-            while (n > 0 and ins[n - 1].op == Osel1) n -= 1;
-            assert(n > 0 and ins[n - 1].op == Osel0);
+        .sel1 => {
+            while (n > 0 and ins[n - 1].op == .sel1) n -= 1;
+            assert(n > 0 and ins[n - 1].op == .sel0);
             n -= 1;
-            continue :sw Osel0;
+            continue :sw .sel0;
         },
-        Osel0 => {
+        .sel0 => {
             const lo = n;
             n += 1;
-            while (n < ins.len and ins[n].op == Osel1) n += 1;
+            while (n < ins.len and ins[n].op == .sel1) n += 1;
             return .{ lo, n };
         },
         else => {
             if (ispar(ins[n].op))
-                continue :sw Opar;
+                continue :sw .par;
             if (isarg(ins[n].op))
-                continue :sw Oarg;
+                continue :sw .arg;
             return .{ n, n + 1 };
         },
     }
@@ -506,12 +488,12 @@ pub fn argcls(i: *Ins, n: anytype) i32 {
     return all.optab[i.op.int()].argcls[n][i.cls.idx()];
 }
 
-pub fn emit(op: anytype, k: anytype, to: Ref, arg0: Ref, arg1: Ref) void {
+pub fn emit(op: Opc, k: anytype, to: Ref, arg0: Ref, arg1: Ref) void {
     if (all.curi == @as([*]Ins, &all.insb))
         die("emit, too many instructions", .{});
     all.curi -= 1;
     all.curi[0] = Ins{
-        .op = all.ops.of(op),
+        .op = op,
         .cls = all.kof(k),
         .to = to,
         .arg = .{ arg0, arg1 },
@@ -568,10 +550,10 @@ pub fn cmpop(cc: anytype) i32 {
 
 pub fn cmpwlneg(op: anytype) i32 {
     const o: i32 = op;
-    if (INRANGE(o, Ocmpw, Ocmpw1))
-        return cmptab[(o - all.ops.num(Ocmpw))][0] + Ocmpw;
-    if (INRANGE(o, Ocmpl, Ocmpl1))
-        return cmptab[(o - all.ops.num(Ocmpl))][0] + Ocmpl;
+    if (INRANGE(o, Opc.cmpw_first, Opc.cmpw_last))
+        return cmptab[(o - all.ops.num(Opc.cmpw_first))][0] + Opc.cmpw_first;
+    if (INRANGE(o, Opc.cmpl_first, Opc.cmpl_last))
+        return cmptab[(o - all.ops.num(Opc.cmpl_first))][0] + Opc.cmpl_first;
     die("not a wl comparison", .{});
 }
 
@@ -704,14 +686,14 @@ pub fn salloc(rt: Ref, rs: Ref, f: *Fn) void {
         if (sz < 0 or sz >= std.math.maxInt(c_int) - 15)
             err("invalid alloc size {d}", .{sz});
         sz = (sz + 15) & -16;
-        emit(Osalloc, Kl, rt, getcon(sz, f), R);
+        emit(.salloc, Kl, rt, getcon(sz, f), R);
     } else {
         // r0 = (r + 15) & -16
         const r0 = newtmp("isel", Kl, f);
         const r1 = newtmp("isel", Kl, f);
-        emit(Osalloc, Kl, rt, r0, R);
-        emit(Oand, Kl, r0, r1, getcon(-16, f));
-        emit(Oadd, Kl, r1, rs, getcon(15, f));
+        emit(.salloc, Kl, rt, r0, R);
+        emit(.@"and", Kl, r0, r1, getcon(-16, f));
+        emit(.add, Kl, r1, rs, getcon(15, f));
         if (f.tmp[rs.val].slot != -1)
             err("unlikely alloc argument %{s} for %{s}", .{cs(f.tmp[rs.val].name), cs(f.tmp[rt.val].name)});
     }

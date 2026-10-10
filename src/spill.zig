@@ -3,6 +3,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("all.zig");
+const Opc = all.Opc;
 const BIT = all.BIT;
 const BSet = all.BSet;
 const Blk = all.Blk;
@@ -10,10 +11,6 @@ const Fn = all.Fn;
 const Ins = all.Ins;
 const KBASE = all.KBASE;
 const KWIDE = all.KWIDE;
-const Ocall = all.ops.Ocall;
-const Ocopy = all.ops.Ocopy;
-const Oload = all.ops.Oload;
-const Ostorew = all.ops.Ostorew;
 const Phi = all.Phi;
 const R = all.R;
 const RCall = all.RCall;
@@ -256,17 +253,17 @@ fn reloads(u: *BSet, v: *BSet) void {
     var t: i32 = Tmp0;
     while (bsiter(u, &t)) : (t += 1) {
         if (!bshas(v, t))
-            emit(Oload, tmp[@intCast(t)].cls, TMP(t), slot(t), R);
+            emit(.load, tmp[@intCast(t)].cls, TMP(t), slot(t), R);
     }
 }
 
 fn store(r: Ref, s: i32) void {
     if (s != -1)
-        emit(Ostorew.offset(tmp[r.val].cls), 0, R, r, SLOT(s));
+        emit(Opc.storew.offset(tmp[r.val].cls), 0, R, r, SLOT(s));
 }
 
 fn regcpy(i: *Ins) bool {
-    return i.op == Ocopy and isreg(i.arg[0]);
+    return i.op == .copy and isreg(i.arg[0]);
 }
 
 /// handles the run of register copies ending at b.ins[last];
@@ -299,7 +296,7 @@ fn dopm(b: *Blk, last: uint, v: *BSet) uint {
         if (!(n != 0 and regcpy(&b.ins[n - 1]))) break;
     }
     bscopy(&u, v);
-    if (n != 0 and b.ins[n - 1].op == Ocall) {
+    if (n != 0 and b.ins[n - 1].op == .call) {
         const call = &b.ins[n - 1];
         v.t[0] &= ~all.T.retregs(call.arg[1], null);
         limit2(v, all.T.nrsave[0], all.T.nrsave[1], null);

@@ -30,71 +30,6 @@ const Kl = all.Kl;
 const Ks = all.Ks;
 const Kw = all.Kw;
 const NOp = all.NOp;
-const Oadd = all.ops.Oadd;
-const Oaddr = all.ops.Oaddr;
-const Oand = all.ops.Oand;
-const Ocall = all.ops.Ocall;
-const Ocast = all.ops.Ocast;
-const Oceqd = all.ops.Oceqd;
-const Oceqs = all.ops.Oceqs;
-const Ocged = all.ops.Ocged;
-const Ocges = all.ops.Ocges;
-const Ocgtd = all.ops.Ocgtd;
-const Ocgts = all.ops.Ocgts;
-const Ocled = all.ops.Ocled;
-const Ocles = all.ops.Ocles;
-const Ocltd = all.ops.Ocltd;
-const Oclts = all.ops.Oclts;
-const Ocopy = all.ops.Ocopy;
-const Ocsltl = all.ops.Ocsltl;
-const Ocultl = all.ops.Ocultl;
-const Odbgloc = all.ops.Odbgloc;
-const Odiv = all.ops.Odiv;
-const Odtosi = all.ops.Odtosi;
-const Odtoui = all.ops.Odtoui;
-const Oexts = all.ops.Oexts;
-const Oextsb = all.ops.Oextsb;
-const Oextsh = all.ops.Oextsh;
-const Oextsw = all.ops.Oextsw;
-const Oextub = all.ops.Oextub;
-const Oextuh = all.ops.Oextuh;
-const Oextuw = all.ops.Oextuw;
-const Oload = all.ops.Oload;
-const Oloadsb = all.ops.Oloadsb;
-const Oloadsh = all.ops.Oloadsh;
-const Oloadsw = all.ops.Oloadsw;
-const Oloadub = all.ops.Oloadub;
-const Oloaduh = all.ops.Oloaduh;
-const Oloaduw = all.ops.Oloaduw;
-const Omul = all.ops.Omul;
-const Oneg = all.ops.Oneg;
-const Onop = all.ops.Onop;
-const Oor = all.ops.Oor;
-const Orem = all.ops.Orem;
-const Oreqz = all.ops.Oreqz;
-const Ornez = all.ops.Ornez;
-const Osalloc = all.ops.Osalloc;
-const Osar = all.ops.Osar;
-const Oshl = all.ops.Oshl;
-const Oshr = all.ops.Oshr;
-const Osltof = all.ops.Osltof;
-const Ostoreb = all.ops.Ostoreb;
-const Ostored = all.ops.Ostored;
-const Ostoreh = all.ops.Ostoreh;
-const Ostorel = all.ops.Ostorel;
-const Ostores = all.ops.Ostores;
-const Ostorew = all.ops.Ostorew;
-const Ostosi = all.ops.Ostosi;
-const Ostoui = all.ops.Ostoui;
-const Osub = all.ops.Osub;
-const Oswap = all.ops.Oswap;
-const Oswtof = all.ops.Oswtof;
-const Otruncd = all.ops.Otruncd;
-const Oudiv = all.ops.Oudiv;
-const Oultof = all.ops.Oultof;
-const Ourem = all.ops.Ourem;
-const Ouwtof = all.ops.Ouwtof;
-const Oxor = all.ops.Oxor;
 const R = all.R;
 const RA = tgt.RA;
 const RCon = all.RCon;
@@ -137,88 +72,88 @@ const OMap = struct {
     fmt: ?[*:0]const u8,
 };
 const omap = [_]OMap{
-    .{ .op = Oadd, .cls = .i, .fmt = "add%k %=, %0, %1" },
-    .{ .op = Oadd, .cls = .a, .fmt = "fadd.%k %=, %0, %1" },
-    .{ .op = Osub, .cls = .i, .fmt = "sub%k %=, %0, %1" },
-    .{ .op = Osub, .cls = .a, .fmt = "fsub.%k %=, %0, %1" },
-    .{ .op = Oneg, .cls = .i, .fmt = "neg%k %=, %0" },
-    .{ .op = Oneg, .cls = .a, .fmt = "fneg.%k %=, %0" },
-    .{ .op = Odiv, .cls = .i, .fmt = "div%k %=, %0, %1" },
-    .{ .op = Odiv, .cls = .a, .fmt = "fdiv.%k %=, %0, %1" },
-    .{ .op = Orem, .cls = .i, .fmt = "rem%k %=, %0, %1" },
-    .{ .op = Orem, .cls = .l, .fmt = "rem %=, %0, %1" },
-    .{ .op = Oudiv, .cls = .i, .fmt = "divu%k %=, %0, %1" },
-    .{ .op = Ourem, .cls = .i, .fmt = "remu%k %=, %0, %1" },
-    .{ .op = Omul, .cls = .i, .fmt = "mul%k %=, %0, %1" },
-    .{ .op = Omul, .cls = .a, .fmt = "fmul.%k %=, %0, %1" },
-    .{ .op = Oand, .cls = .i, .fmt = "and %=, %0, %1" },
-    .{ .op = Oor, .cls = .i, .fmt = "or %=, %0, %1" },
-    .{ .op = Oxor, .cls = .i, .fmt = "xor %=, %0, %1" },
-    .{ .op = Osar, .cls = .i, .fmt = "sra%k %=, %0, %1" },
-    .{ .op = Oshr, .cls = .i, .fmt = "srl%k %=, %0, %1" },
-    .{ .op = Oshl, .cls = .i, .fmt = "sll%k %=, %0, %1" },
-    .{ .op = Ocsltl, .cls = .i, .fmt = "slt %=, %0, %1" },
-    .{ .op = Ocultl, .cls = .i, .fmt = "sltu %=, %0, %1" },
-    .{ .op = Oceqs, .cls = .i, .fmt = "feq.s %=, %0, %1" },
-    .{ .op = Ocges, .cls = .i, .fmt = "fge.s %=, %0, %1" },
-    .{ .op = Ocgts, .cls = .i, .fmt = "fgt.s %=, %0, %1" },
-    .{ .op = Ocles, .cls = .i, .fmt = "fle.s %=, %0, %1" },
-    .{ .op = Oclts, .cls = .i, .fmt = "flt.s %=, %0, %1" },
-    .{ .op = Oceqd, .cls = .i, .fmt = "feq.d %=, %0, %1" },
-    .{ .op = Ocged, .cls = .i, .fmt = "fge.d %=, %0, %1" },
-    .{ .op = Ocgtd, .cls = .i, .fmt = "fgt.d %=, %0, %1" },
-    .{ .op = Ocled, .cls = .i, .fmt = "fle.d %=, %0, %1" },
-    .{ .op = Ocltd, .cls = .i, .fmt = "flt.d %=, %0, %1" },
-    .{ .op = Ostoreb, .cls = .w, .fmt = "sb %0, %M1" },
-    .{ .op = Ostoreh, .cls = .w, .fmt = "sh %0, %M1" },
-    .{ .op = Ostorew, .cls = .w, .fmt = "sw %0, %M1" },
-    .{ .op = Ostorel, .cls = .i, .fmt = "sd %0, %M1" },
-    .{ .op = Ostores, .cls = .w, .fmt = "fsw %0, %M1" },
-    .{ .op = Ostored, .cls = .w, .fmt = "fsd %0, %M1" },
-    .{ .op = Oloadsb, .cls = .i, .fmt = "lb %=, %M0" },
-    .{ .op = Oloadub, .cls = .i, .fmt = "lbu %=, %M0" },
-    .{ .op = Oloadsh, .cls = .i, .fmt = "lh %=, %M0" },
-    .{ .op = Oloaduh, .cls = .i, .fmt = "lhu %=, %M0" },
-    .{ .op = Oloadsw, .cls = .i, .fmt = "lw %=, %M0" },
+    .{ .op = .add, .cls = .i, .fmt = "add%k %=, %0, %1" },
+    .{ .op = .add, .cls = .a, .fmt = "fadd.%k %=, %0, %1" },
+    .{ .op = .sub, .cls = .i, .fmt = "sub%k %=, %0, %1" },
+    .{ .op = .sub, .cls = .a, .fmt = "fsub.%k %=, %0, %1" },
+    .{ .op = .neg, .cls = .i, .fmt = "neg%k %=, %0" },
+    .{ .op = .neg, .cls = .a, .fmt = "fneg.%k %=, %0" },
+    .{ .op = .div, .cls = .i, .fmt = "div%k %=, %0, %1" },
+    .{ .op = .div, .cls = .a, .fmt = "fdiv.%k %=, %0, %1" },
+    .{ .op = .rem, .cls = .i, .fmt = "rem%k %=, %0, %1" },
+    .{ .op = .rem, .cls = .l, .fmt = "rem %=, %0, %1" },
+    .{ .op = .udiv, .cls = .i, .fmt = "divu%k %=, %0, %1" },
+    .{ .op = .urem, .cls = .i, .fmt = "remu%k %=, %0, %1" },
+    .{ .op = .mul, .cls = .i, .fmt = "mul%k %=, %0, %1" },
+    .{ .op = .mul, .cls = .a, .fmt = "fmul.%k %=, %0, %1" },
+    .{ .op = .@"and", .cls = .i, .fmt = "and %=, %0, %1" },
+    .{ .op = .@"or", .cls = .i, .fmt = "or %=, %0, %1" },
+    .{ .op = .xor, .cls = .i, .fmt = "xor %=, %0, %1" },
+    .{ .op = .sar, .cls = .i, .fmt = "sra%k %=, %0, %1" },
+    .{ .op = .shr, .cls = .i, .fmt = "srl%k %=, %0, %1" },
+    .{ .op = .shl, .cls = .i, .fmt = "sll%k %=, %0, %1" },
+    .{ .op = .csltl, .cls = .i, .fmt = "slt %=, %0, %1" },
+    .{ .op = .cultl, .cls = .i, .fmt = "sltu %=, %0, %1" },
+    .{ .op = .ceqs, .cls = .i, .fmt = "feq.s %=, %0, %1" },
+    .{ .op = .cges, .cls = .i, .fmt = "fge.s %=, %0, %1" },
+    .{ .op = .cgts, .cls = .i, .fmt = "fgt.s %=, %0, %1" },
+    .{ .op = .cles, .cls = .i, .fmt = "fle.s %=, %0, %1" },
+    .{ .op = .clts, .cls = .i, .fmt = "flt.s %=, %0, %1" },
+    .{ .op = .ceqd, .cls = .i, .fmt = "feq.d %=, %0, %1" },
+    .{ .op = .cged, .cls = .i, .fmt = "fge.d %=, %0, %1" },
+    .{ .op = .cgtd, .cls = .i, .fmt = "fgt.d %=, %0, %1" },
+    .{ .op = .cled, .cls = .i, .fmt = "fle.d %=, %0, %1" },
+    .{ .op = .cltd, .cls = .i, .fmt = "flt.d %=, %0, %1" },
+    .{ .op = .storeb, .cls = .w, .fmt = "sb %0, %M1" },
+    .{ .op = .storeh, .cls = .w, .fmt = "sh %0, %M1" },
+    .{ .op = .storew, .cls = .w, .fmt = "sw %0, %M1" },
+    .{ .op = .storel, .cls = .i, .fmt = "sd %0, %M1" },
+    .{ .op = .stores, .cls = .w, .fmt = "fsw %0, %M1" },
+    .{ .op = .stored, .cls = .w, .fmt = "fsd %0, %M1" },
+    .{ .op = .loadsb, .cls = .i, .fmt = "lb %=, %M0" },
+    .{ .op = .loadub, .cls = .i, .fmt = "lbu %=, %M0" },
+    .{ .op = .loadsh, .cls = .i, .fmt = "lh %=, %M0" },
+    .{ .op = .loaduh, .cls = .i, .fmt = "lhu %=, %M0" },
+    .{ .op = .loadsw, .cls = .i, .fmt = "lw %=, %M0" },
     // riscv64 always sign-extends 32-bit
     // values stored in 64-bit registers
-    .{ .op = Oloaduw, .cls = .w, .fmt = "lw %=, %M0" },
-    .{ .op = Oloaduw, .cls = .l, .fmt = "lwu %=, %M0" },
-    .{ .op = Oload, .cls = .w, .fmt = "lw %=, %M0" },
-    .{ .op = Oload, .cls = .l, .fmt = "ld %=, %M0" },
-    .{ .op = Oload, .cls = .s, .fmt = "flw %=, %M0" },
-    .{ .op = Oload, .cls = .d, .fmt = "fld %=, %M0" },
-    .{ .op = Oextsb, .cls = .i, .fmt = "sext.b %=, %0" },
-    .{ .op = Oextub, .cls = .i, .fmt = "zext.b %=, %0" },
-    .{ .op = Oextsh, .cls = .i, .fmt = "sext.h %=, %0" },
-    .{ .op = Oextuh, .cls = .i, .fmt = "zext.h %=, %0" },
-    .{ .op = Oextsw, .cls = .l, .fmt = "sext.w %=, %0" },
-    .{ .op = Oextuw, .cls = .l, .fmt = "zext.w %=, %0" },
-    .{ .op = Otruncd, .cls = .s, .fmt = "fcvt.s.d %=, %0" },
-    .{ .op = Oexts, .cls = .d, .fmt = "fcvt.d.s %=, %0" },
-    .{ .op = Ostosi, .cls = .w, .fmt = "fcvt.w.s %=, %0, rtz" },
-    .{ .op = Ostosi, .cls = .l, .fmt = "fcvt.l.s %=, %0, rtz" },
-    .{ .op = Ostoui, .cls = .w, .fmt = "fcvt.wu.s %=, %0, rtz" },
-    .{ .op = Ostoui, .cls = .l, .fmt = "fcvt.lu.s %=, %0, rtz" },
-    .{ .op = Odtosi, .cls = .w, .fmt = "fcvt.w.d %=, %0, rtz" },
-    .{ .op = Odtosi, .cls = .l, .fmt = "fcvt.l.d %=, %0, rtz" },
-    .{ .op = Odtoui, .cls = .w, .fmt = "fcvt.wu.d %=, %0, rtz" },
-    .{ .op = Odtoui, .cls = .l, .fmt = "fcvt.lu.d %=, %0, rtz" },
-    .{ .op = Oswtof, .cls = .a, .fmt = "fcvt.%k.w %=, %0" },
-    .{ .op = Ouwtof, .cls = .a, .fmt = "fcvt.%k.wu %=, %0" },
-    .{ .op = Osltof, .cls = .a, .fmt = "fcvt.%k.l %=, %0" },
-    .{ .op = Oultof, .cls = .a, .fmt = "fcvt.%k.lu %=, %0" },
-    .{ .op = Ocast, .cls = .w, .fmt = "fmv.x.w %=, %0" },
-    .{ .op = Ocast, .cls = .l, .fmt = "fmv.x.d %=, %0" },
-    .{ .op = Ocast, .cls = .s, .fmt = "fmv.w.x %=, %0" },
-    .{ .op = Ocast, .cls = .d, .fmt = "fmv.d.x %=, %0" },
-    .{ .op = Ocopy, .cls = .i, .fmt = "mv %=, %0" },
-    .{ .op = Ocopy, .cls = .a, .fmt = "fmv.%k %=, %0" },
-    .{ .op = Oswap, .cls = .i, .fmt = "mv %?, %0\n\tmv %0, %1\n\tmv %1, %?" },
-    .{ .op = Oswap, .cls = .a, .fmt = "fmv.%k %?, %0\n\tfmv.%k %0, %1\n\tfmv.%k %1, %?" },
-    .{ .op = Oreqz, .cls = .i, .fmt = "seqz %=, %0" },
-    .{ .op = Ornez, .cls = .i, .fmt = "snez %=, %0" },
-    .{ .op = Ocall, .cls = .w, .fmt = "jalr %0" },
+    .{ .op = .loaduw, .cls = .w, .fmt = "lw %=, %M0" },
+    .{ .op = .loaduw, .cls = .l, .fmt = "lwu %=, %M0" },
+    .{ .op = .load, .cls = .w, .fmt = "lw %=, %M0" },
+    .{ .op = .load, .cls = .l, .fmt = "ld %=, %M0" },
+    .{ .op = .load, .cls = .s, .fmt = "flw %=, %M0" },
+    .{ .op = .load, .cls = .d, .fmt = "fld %=, %M0" },
+    .{ .op = .extsb, .cls = .i, .fmt = "sext.b %=, %0" },
+    .{ .op = .extub, .cls = .i, .fmt = "zext.b %=, %0" },
+    .{ .op = .extsh, .cls = .i, .fmt = "sext.h %=, %0" },
+    .{ .op = .extuh, .cls = .i, .fmt = "zext.h %=, %0" },
+    .{ .op = .extsw, .cls = .l, .fmt = "sext.w %=, %0" },
+    .{ .op = .extuw, .cls = .l, .fmt = "zext.w %=, %0" },
+    .{ .op = .truncd, .cls = .s, .fmt = "fcvt.s.d %=, %0" },
+    .{ .op = .exts, .cls = .d, .fmt = "fcvt.d.s %=, %0" },
+    .{ .op = .stosi, .cls = .w, .fmt = "fcvt.w.s %=, %0, rtz" },
+    .{ .op = .stosi, .cls = .l, .fmt = "fcvt.l.s %=, %0, rtz" },
+    .{ .op = .stoui, .cls = .w, .fmt = "fcvt.wu.s %=, %0, rtz" },
+    .{ .op = .stoui, .cls = .l, .fmt = "fcvt.lu.s %=, %0, rtz" },
+    .{ .op = .dtosi, .cls = .w, .fmt = "fcvt.w.d %=, %0, rtz" },
+    .{ .op = .dtosi, .cls = .l, .fmt = "fcvt.l.d %=, %0, rtz" },
+    .{ .op = .dtoui, .cls = .w, .fmt = "fcvt.wu.d %=, %0, rtz" },
+    .{ .op = .dtoui, .cls = .l, .fmt = "fcvt.lu.d %=, %0, rtz" },
+    .{ .op = .swtof, .cls = .a, .fmt = "fcvt.%k.w %=, %0" },
+    .{ .op = .uwtof, .cls = .a, .fmt = "fcvt.%k.wu %=, %0" },
+    .{ .op = .sltof, .cls = .a, .fmt = "fcvt.%k.l %=, %0" },
+    .{ .op = .ultof, .cls = .a, .fmt = "fcvt.%k.lu %=, %0" },
+    .{ .op = .cast, .cls = .w, .fmt = "fmv.x.w %=, %0" },
+    .{ .op = .cast, .cls = .l, .fmt = "fmv.x.d %=, %0" },
+    .{ .op = .cast, .cls = .s, .fmt = "fmv.w.x %=, %0" },
+    .{ .op = .cast, .cls = .d, .fmt = "fmv.d.x %=, %0" },
+    .{ .op = .copy, .cls = .i, .fmt = "mv %=, %0" },
+    .{ .op = .copy, .cls = .a, .fmt = "fmv.%k %=, %0" },
+    .{ .op = .swap, .cls = .i, .fmt = "mv %?, %0\n\tmv %0, %1\n\tmv %1, %?" },
+    .{ .op = .swap, .cls = .a, .fmt = "fmv.%k %?, %0\n\tfmv.%k %0, %1\n\tfmv.%k %1, %?" },
+    .{ .op = .reqz, .cls = .i, .fmt = "seqz %=, %0" },
+    .{ .op = .rnez, .cls = .i, .fmt = "snez %=, %0" },
+    .{ .op = .call, .cls = .w, .fmt = "jalr %0" },
     .{ .op = .xxx, .cls = .w, .fmt = null }, // sentinel
 };
 
@@ -430,7 +365,7 @@ fn emitins(i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
                 try fixmem(&i.arg[1], fn_, f);
             try table(i, fn_, f);
         },
-        Ocopy => {
+        .copy => {
             if (req(i.to, i.arg[0]))
                 return;
             if (rtype(i.to) == RSlot) {
@@ -441,10 +376,10 @@ fn emitins(i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
                         i.arg[1] = i.to;
                         i.to = R;
                         switch (i.cls) {
-                            Kw => i.op = Ostorew,
-                            Kl => i.op = Ostorel,
-                            Ks => i.op = Ostores,
-                            Kd => i.op = Ostored,
+                            Kw => i.op = .storew,
+                            Kl => i.op = .storel,
+                            Ks => i.op = .stores,
+                            Kd => i.op = .stored,
                             else => {},
                         }
                         try fixmem(&i.arg[1], fn_, f);
@@ -457,7 +392,7 @@ fn emitins(i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
             switch (rtype(i.arg[0])) {
                 RCon => try loadcon(&fn_.con[i.arg[0].val], @intCast(i.to.val), all.knum(i.cls), f),
                 RSlot => {
-                    i.op = Oload;
+                    i.op = .load;
                     try fixmem(&i.arg[0], fn_, f);
                     try table(i, fn_, f);
                 },
@@ -467,8 +402,8 @@ fn emitins(i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
                 },
             }
         },
-        Onop => {},
-        Oaddr => {
+        .nop => {},
+        .addr => {
             assert(rtype(i.arg[0]) == RSlot);
             const rn = rname[i.to.val];
             const s = slot(i.arg[0], fn_);
@@ -478,7 +413,7 @@ fn emitins(i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
                 try f.print("\tli {s}, {d}\n" ++ "\tadd {s}, fp, {s}\n", .{cs(rn), s, cs(rn), cs(rn)});
             }
         },
-        Ocall => {
+        .call => {
             switch (rtype(i.arg[0])) {
                 RCon => {
                     const con = &fn_.con[i.arg[0].val];
@@ -492,12 +427,12 @@ fn emitins(i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
                 else => die("invalid call argument", .{}),
             }
         },
-        Osalloc => {
+        .salloc => {
             try emitf("sub sp, sp, %0", i, fn_, f);
             if (!req(i.to, R))
                 try emitf("mv %=, sp", i, fn_, f);
         },
-        Odbgloc => try emitdbgloc(i.arg[0].val, i.arg[1].val, f),
+        .dbgloc => try emitdbgloc(i.arg[0].val, i.arg[1].val, f),
     }
 }
 

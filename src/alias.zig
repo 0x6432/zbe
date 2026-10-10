@@ -3,6 +3,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 // -- imports --
 const all = @import("all.zig");
+const Opc = all.Opc;
 const ABot = all.ABot;
 const ACon = all.ACon;
 const AEsc = all.AEsc;
@@ -21,13 +22,6 @@ const MayAlias = all.MayAlias;
 const MustAlias = all.MustAlias;
 const NBit = all.NBit;
 const NoAlias = all.NoAlias;
-const Oadd = all.ops.Oadd;
-const Oalloc = all.Oalloc;
-const Oalloc1 = all.Oalloc1;
-const Oargc = all.ops.Oargc;
-const Oblit0 = all.ops.Oblit0;
-const Oblit1 = all.ops.Oblit1;
-const Ocopy = all.ops.Ocopy;
 const Phi = all.Phi;
 const R = all.R;
 const RCon = all.RCon;
@@ -181,7 +175,7 @@ pub fn fillalias(f: *Fn) void {
                 const ta = &f.tmp[i.to.val].alias;
                 a = ta;
                 assert(ta.type == ABot);
-                if (Oalloc.int() <= i.op.int() and i.op.int() <= Oalloc1.int()) {
+                if (Opc.alloc_first.int() <= i.op.int() and i.op.int() <= Opc.alloc_last.int()) {
                     ta.type = ALoc;
                     ta.slot = ta;
                     ta.u.loc.sz = -1;
@@ -198,9 +192,9 @@ pub fn fillalias(f: *Fn) void {
                 ta.base = i.to.val;
                 ta.offset = 0;
             }
-            if (i.op == Ocopy)
+            if (i.op == .copy)
                 getalias(a.?, i.arg[0], f);
-            if (i.op == Oadd) {
+            if (i.op == .add) {
                 getalias(&a0, i.arg[0], f);
                 getalias(&a1, i.arg[1], f);
                 if (a0.type == ACon) {
@@ -211,17 +205,17 @@ pub fn fillalias(f: *Fn) void {
                     a.?.offset +%= a1.offset;
                 }
             }
-            if ((req(i.to, R) or a.?.type == AUnk) and i.op != Oblit0) {
+            if ((req(i.to, R) or a.?.type == AUnk) and i.op != .blit0) {
                 if (!isload(i.op))
                     esc(i.arg[0], f);
-                if (!isstore(i.op) and i.op != Oargc)
+                if (!isstore(i.op) and i.op != .argc)
                     esc(i.arg[1], f);
             }
-            if (i.op == Oblit0) {
+            if (i.op == .blit0) {
                 const blit0 = i;
                 k += 1;
                 i = &b.ins[k];
-                assert(i.op == Oblit1);
+                assert(i.op == .blit1);
                 assert(rtype(i.arg[0]) == RInt);
                 const sz: i32 = @intCast(@abs(rsval(i.arg[0])));
                 store(blit0.arg[1], sz, f);

@@ -15,9 +15,6 @@ const Kl = all.Kl;
 const Ks = all.Ks;
 const Kw = all.Kw;
 const Mem = all.Mem;
-const Ocall = all.ops.Ocall;
-const Ocopy = all.ops.Ocopy;
-const Oswap = all.ops.Oswap;
 const PFn = all.PFn;
 const Phi = all.Phi;
 const R = all.R;
@@ -248,7 +245,7 @@ fn pmrec(status: []PMStat, i: usize, k: *i32) i32 {
     sw: switch (if (j == npm) PMStat.Moved else status[j]) {
         .Moving => {
             c = @intCast(j); // start of cycle
-            emit(Oswap, k.*, R, pm[i].src, pm[i].dst);
+            emit(.swap, k.*, R, pm[i].src, pm[i].dst);
         },
         .ToMove => {
             status[i] = .Moving;
@@ -258,14 +255,14 @@ fn pmrec(status: []PMStat, i: usize, k: *i32) i32 {
                 break :sw;
             }
             if (c != -1) {
-                emit(Oswap, k.*, R, pm[i].src, pm[i].dst);
+                emit(.swap, k.*, R, pm[i].src, pm[i].dst);
                 break :sw;
             }
             continue :sw .Moved;
         },
         .Moved => {
             c = -1;
-            emit(Ocopy, pm[i].cls, pm[i].dst, pm[i].src, R);
+            emit(.copy, pm[i].cls, pm[i].dst, pm[i].src, R);
         },
     }
     status[i] = .Moved;
@@ -302,7 +299,7 @@ fn move(r: i32, to: Ref, m: *RMap) void {
 }
 
 fn regcpy(i: *Ins) bool {
-    return i.op == Ocopy and isreg(i.arg[0]);
+    return i.op == .copy and isreg(i.arg[0]);
 }
 
 /// handles the group of register copies ending at
@@ -317,7 +314,7 @@ fn dopm(b: *Blk, last: uint, m: *RMap) uint {
         if (!(i != 0 and regcpy(&b.ins[i - 1]))) break;
     }
     assert(m0.n <= m.n);
-    if (i != 0 and b.ins[i - 1].op == Ocall) {
+    if (i != 0 and b.ins[i - 1].op == .call) {
         const def = all.T.retregs(b.ins[i - 1].arg[1], null) | all.T.rglob;
         var r: usize = 0;
         while (all.T.rsave[r] >= 0) : (r += 1) {
@@ -380,7 +377,7 @@ fn doblk(b: *Blk, cur: *RMap) void {
         const i = &all.curi[0];
         var rf: i32 = -1;
         sw: switch (i.op) {
-            Ocall => {
+            .call => {
                 const rs = all.T.argregs(i.arg[1], null) | all.T.rglob;
                 var r: usize = 0;
                 while (all.T.rsave[r] >= 0) : (r += 1) {
@@ -389,7 +386,7 @@ fn doblk(b: *Blk, cur: *RMap) void {
                 }
             },
             else => {
-                if (i.op == Ocopy) {
+                if (i.op == .copy) {
                     if (regcpy(i)) {
                         all.curi += 1;
                         const mark = all.curi;
@@ -442,7 +439,7 @@ fn doblk(b: *Blk, cur: *RMap) void {
         var r: usize = 0;
         while (r < nr) : (r += 1)
             ra[r].* = ralloc(cur, (ra[r].val));
-        if (i.op == Ocopy and req(i.to, i.arg[0]))
+        if (i.op == .copy and req(i.to, i.arg[0]))
             all.curi += 1;
 
         // try to change the register of a hinted
@@ -456,7 +453,7 @@ fn doblk(b: *Blk, cur: *RMap) void {
                         tmp[@intCast(t)].visit = -1;
                         _ = ralloc(cur, t);
                         assert(bshas(&cur.b, rf));
-                        emit(Ocopy, tmp[@intCast(t)].cls, TMP(rt), TMP(rf), R);
+                        emit(.copy, tmp[@intCast(t)].cls, TMP(rt), TMP(rf), R);
                         stmov += 1;
                         cur.w[@intCast(rf)] = 0;
                         r = 0;
@@ -540,7 +537,7 @@ pub fn rega(f: *Fn) void {
     std.sort.block(*Blk, blk, {}, carveLess);
     const start = f.start.?;
     for (start.ins[0..start.nins]) |*i| {
-        if (i.op != Ocopy or !isreg(i.arg[0]))
+        if (i.op != .copy or !isreg(i.arg[0]))
             break;
         assert(rtype(i.to) == RTmp);
         sethint((i.to.val), (i.arg[0].val));

@@ -183,173 +183,37 @@ pub const Opc = enum(u32) {
     pub inline fn int(o: Opc) u32 {
         return @intFromEnum(o);
     }
+
+    // op ranges (inclusive), for range checks and offsets
+    pub const cmpw_first = Opc.ceqw;
+    pub const cmpw_last = Opc.cultw;
+    pub const cmpl_first = Opc.ceql;
+    pub const cmpl_last = Opc.cultl;
+    pub const cmps_first = Opc.ceqs;
+    pub const cmps_last = Opc.cuos;
+    pub const cmpd_first = Opc.ceqd;
+    pub const cmpd_last = Opc.cuod;
+    pub const alloc_first = Opc.alloc4;
+    pub const alloc_last = Opc.alloc16;
+    pub const flag_first = Opc.flagieq;
+    pub const flag_last = Opc.flagfuo;
+    pub const xsel_first = Opc.xselieq;
+    pub const xsel_last = Opc.xselfuo;
 };
-pub const Oxxx = Opc.xxx;
-pub const Oadd = Opc.add;
-pub const Osub = Opc.sub;
-pub const Oneg = Opc.neg;
-pub const Odiv = Opc.div;
-pub const Orem = Opc.rem;
-pub const Oudiv = Opc.udiv;
-pub const Ourem = Opc.urem;
-pub const Omul = Opc.mul;
-pub const Oand = Opc.@"and";
-pub const Oor = Opc.@"or";
-pub const Oxor = Opc.xor;
-pub const Osar = Opc.sar;
-pub const Oshr = Opc.shr;
-pub const Oshl = Opc.shl;
-pub const Oceqw = Opc.ceqw;
-pub const Ocnew = Opc.cnew;
-pub const Ocsgew = Opc.csgew;
-pub const Ocsgtw = Opc.csgtw;
-pub const Ocslew = Opc.cslew;
-pub const Ocsltw = Opc.csltw;
-pub const Ocugew = Opc.cugew;
-pub const Ocugtw = Opc.cugtw;
-pub const Oculew = Opc.culew;
-pub const Ocultw = Opc.cultw;
-pub const Oceql = Opc.ceql;
-pub const Ocnel = Opc.cnel;
-pub const Ocsgel = Opc.csgel;
-pub const Ocsgtl = Opc.csgtl;
-pub const Ocslel = Opc.cslel;
-pub const Ocsltl = Opc.csltl;
-pub const Ocugel = Opc.cugel;
-pub const Ocugtl = Opc.cugtl;
-pub const Oculel = Opc.culel;
-pub const Ocultl = Opc.cultl;
-pub const Oceqs = Opc.ceqs;
-pub const Ocges = Opc.cges;
-pub const Ocgts = Opc.cgts;
-pub const Ocles = Opc.cles;
-pub const Oclts = Opc.clts;
-pub const Ocnes = Opc.cnes;
-pub const Ocos = Opc.cos;
-pub const Ocuos = Opc.cuos;
-pub const Oceqd = Opc.ceqd;
-pub const Ocged = Opc.cged;
-pub const Ocgtd = Opc.cgtd;
-pub const Ocled = Opc.cled;
-pub const Ocltd = Opc.cltd;
-pub const Ocned = Opc.cned;
-pub const Ocod = Opc.cod;
-pub const Ocuod = Opc.cuod;
-pub const Ostoreb = Opc.storeb;
-pub const Ostoreh = Opc.storeh;
-pub const Ostorew = Opc.storew;
-pub const Ostorel = Opc.storel;
-pub const Ostores = Opc.stores;
-pub const Ostored = Opc.stored;
-pub const Oloadsb = Opc.loadsb;
-pub const Oloadub = Opc.loadub;
-pub const Oloadsh = Opc.loadsh;
-pub const Oloaduh = Opc.loaduh;
-pub const Oloadsw = Opc.loadsw;
-pub const Oloaduw = Opc.loaduw;
-pub const Oload = Opc.load;
-pub const Oextsb = Opc.extsb;
-pub const Oextub = Opc.extub;
-pub const Oextsh = Opc.extsh;
-pub const Oextuh = Opc.extuh;
-pub const Oextsw = Opc.extsw;
-pub const Oextuw = Opc.extuw;
-pub const Oexts = Opc.exts;
-pub const Otruncd = Opc.truncd;
-pub const Ostosi = Opc.stosi;
-pub const Ostoui = Opc.stoui;
-pub const Odtosi = Opc.dtosi;
-pub const Odtoui = Opc.dtoui;
-pub const Oswtof = Opc.swtof;
-pub const Ouwtof = Opc.uwtof;
-pub const Osltof = Opc.sltof;
-pub const Oultof = Opc.ultof;
-pub const Ocast = Opc.cast;
-pub const Oalloc4 = Opc.alloc4;
-pub const Oalloc8 = Opc.alloc8;
-pub const Oalloc16 = Opc.alloc16;
-pub const Ovaarg = Opc.vaarg;
-pub const Ovastart = Opc.vastart;
-pub const Ocopy = Opc.copy;
-pub const Odbgloc = Opc.dbgloc;
-pub const Onop = Opc.nop;
-pub const Oaddr = Opc.addr;
-pub const Oblit0 = Opc.blit0;
-pub const Oblit1 = Opc.blit1;
-pub const Osel0 = Opc.sel0;
-pub const Osel1 = Opc.sel1;
-pub const Oswap = Opc.swap;
-pub const Osign = Opc.sign;
-pub const Osalloc = Opc.salloc;
-pub const Oxidiv = Opc.xidiv;
-pub const Oxdiv = Opc.xdiv;
-pub const Oxcmp = Opc.xcmp;
-pub const Oxtest = Opc.xtest;
-pub const Oacmp = Opc.acmp;
-pub const Oacmn = Opc.acmn;
-pub const Oafcmp = Opc.afcmp;
-pub const Oreqz = Opc.reqz;
-pub const Ornez = Opc.rnez;
-pub const Opar = Opc.par;
-pub const Oparsb = Opc.parsb;
-pub const Oparub = Opc.parub;
-pub const Oparsh = Opc.parsh;
-pub const Oparuh = Opc.paruh;
-pub const Oparc = Opc.parc;
-pub const Opare = Opc.pare;
-pub const Oarg = Opc.arg;
-pub const Oargsb = Opc.argsb;
-pub const Oargub = Opc.argub;
-pub const Oargsh = Opc.argsh;
-pub const Oarguh = Opc.arguh;
-pub const Oargc = Opc.argc;
-pub const Oarge = Opc.arge;
-pub const Oargv = Opc.argv;
-pub const Ocall = Opc.call;
-pub const Oflagieq = Opc.flagieq;
-pub const Oflagine = Opc.flagine;
-pub const Oflagisge = Opc.flagisge;
-pub const Oflagisgt = Opc.flagisgt;
-pub const Oflagisle = Opc.flagisle;
-pub const Oflagislt = Opc.flagislt;
-pub const Oflagiuge = Opc.flagiuge;
-pub const Oflagiugt = Opc.flagiugt;
-pub const Oflagiule = Opc.flagiule;
-pub const Oflagiult = Opc.flagiult;
-pub const Oflagfeq = Opc.flagfeq;
-pub const Oflagfge = Opc.flagfge;
-pub const Oflagfgt = Opc.flagfgt;
-pub const Oflagfle = Opc.flagfle;
-pub const Oflagflt = Opc.flagflt;
-pub const Oflagfne = Opc.flagfne;
-pub const Oflagfo = Opc.flagfo;
-pub const Oflagfuo = Opc.flagfuo;
-pub const Oxselieq = Opc.xselieq;
-pub const Oxseline = Opc.xseline;
-pub const Oxselisge = Opc.xselisge;
-pub const Oxselisgt = Opc.xselisgt;
-pub const Oxselisle = Opc.xselisle;
-pub const Oxselislt = Opc.xselislt;
-pub const Oxseliuge = Opc.xseliuge;
-pub const Oxseliugt = Opc.xseliugt;
-pub const Oxseliule = Opc.xseliule;
-pub const Oxseliult = Opc.xseliult;
-pub const Oxselfeq = Opc.xselfeq;
-pub const Oxselfge = Opc.xselfge;
-pub const Oxselfgt = Opc.xselfgt;
-pub const Oxselfle = Opc.xselfle;
-pub const Oxselflt = Opc.xselflt;
-pub const Oxselfne = Opc.xselfne;
-pub const Oxselfo = Opc.xselfo;
-pub const Oxselfuo = Opc.xselfuo;
 
 /// Accept an op given as `Opc` or as an integer (ported C code mixes both).
 pub inline fn of(x: anytype) Opc {
-    return if (@TypeOf(x) == Opc) x else @enumFromInt(@as(u32, @intCast(x)));
+    return switch (@typeInfo(@TypeOf(x))) {
+        .@"enum", .enum_literal => x,
+        else => @enumFromInt(@as(u32, @intCast(x))),
+    };
 }
-/// Op number of an `Opc` or integer.
+/// Op number of an `Opc`, enum literal or integer.
 pub inline fn num(x: anytype) i32 {
-    return if (@TypeOf(x) == Opc) @intCast(@intFromEnum(x)) else @intCast(x);
+    return switch (@typeInfo(@TypeOf(x))) {
+        .@"enum", .enum_literal => @intCast(@intFromEnum(@as(Opc, x))),
+        else => @intCast(x),
+    };
 }
 pub const NOp = 158;
 

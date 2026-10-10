@@ -8,10 +8,6 @@ const Blk = all.Blk;
 const Fn = all.Fn;
 const Kw = all.Kw;
 const Kx = all.Kx;
-const Oextsb = all.ops.Oextsb;
-const Oload = all.ops.Oload;
-const Oloadsb = all.ops.Oloadsb;
-const Oparsb = all.ops.Oparsb;
 const PFn = all.PFn;
 const Phi = all.Phi;
 const R = all.R;
@@ -133,11 +129,11 @@ pub fn filluse(f: *Fn) void {
                 assert(rtype(i.to) == RTmp);
                 w = WFull;
                 if (isparbh(i.op))
-                    w = @intCast(Wsb + i.op.diff(Oparsb));
-                if (isload(i.op) and i.op != Oload)
-                    w = @intCast(Wsb + i.op.diff(Oloadsb));
+                    w = @intCast(Wsb + i.op.diff(.parsb));
+                if (isload(i.op) and i.op != .load)
+                    w = @intCast(Wsb + i.op.diff(.loadsb));
                 if (isext(i.op))
-                    w = @intCast(Wsb + i.op.diff(Oextsb));
+                    w = @intCast(Wsb + i.op.diff(.extsb));
                 if (iscmp(i.op, &x, &x))
                     w = Wub;
                 if (w == Wsw or w == Wuw)

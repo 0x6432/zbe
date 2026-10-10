@@ -98,14 +98,14 @@ fn algebra(i: *Ins, f: *Fn) void {
     if (all.req(i.arg[0], i.arg[1]) and rtype(i.arg[0]) == RTmp) {
         switch (i.op) {
             // x-x, x^x -> 0
-            Opc.sub, Opc.xor => {
-                i.op = Opc.copy;
+            .sub, .xor => {
+                i.op = .copy;
                 i.arg[0] = getcon(0, f);
                 i.arg[1] = R;
             },
             // x&x, x|x -> x
             Opc.@"and", Opc.@"or" => {
-                i.op = Opc.copy;
+                i.op = .copy;
                 i.arg[1] = R;
             },
             else => {},
@@ -120,32 +120,32 @@ fn algebra(i: *Ins, f: *Fn) void {
     const wide = i.cls == Kl;
     const mask: u64 = if (wide) ~@as(u64, 0) else 0xffffffff;
     const v: u64 = @as(u64, @bitCast(c.bits.i)) & mask;
-    const shift = i.op == Opc.shl or i.op == Opc.shr or i.op == Opc.sar;
+    const shift = i.op == .shl or i.op == .shr or i.op == .sar;
     // shift counts are taken modulo the width
     const sv: u64 = if (shift) v & @as(u64, if (wide) 63 else 31) else v;
     const ident = switch (i.op) {
-        Opc.mul, Opc.div => sv == 1,
+        .mul, .div => sv == 1,
         Opc.@"and" => sv == mask,
         else => sv == 0,
     };
     if (ident) {
-        i.op = Opc.copy;
+        i.op = .copy;
         i.arg[1] = R;
         return;
     }
-    if ((i.op == Opc.mul or i.op == Opc.@"and") and sv == 0) {
-        i.op = Opc.copy;
+    if ((i.op == .mul or i.op == Opc.@"and") and sv == 0) {
+        i.op = .copy;
         i.arg[0] = getcon(0, f);
         i.arg[1] = R;
         return;
     }
-    if (i.op == Opc.mul and sv == mask) { // x * -1 -> neg x
-        i.op = Opc.neg;
+    if (i.op == .mul and sv == mask) { // x * -1 -> neg x
+        i.op = .neg;
         i.arg[1] = R;
         return;
     }
-    if (i.op == Opc.mul and ispow2(sv)) {
-        i.op = Opc.shl;
+    if (i.op == .mul and ispow2(sv)) {
+        i.op = .shl;
         i.arg[1] = getcon(ulog2(sv), f);
     }
 }
@@ -180,21 +180,21 @@ fn sdivpow2(i: *Ins, b: *Blk, k: uint, new: *bool, f: *Fn) bool {
     const cls: i32 = all.knum(i.cls);
     const x = i.arg[0];
     const to = i.to;
-    const isdiv = i.op == Opc.div;
+    const isdiv = i.op == .div;
     startnew(new, b, k);
     const t1 = newtmp("sdv", cls, f);
     const t2 = newtmp("sdv", cls, f);
     const t3 = newtmp("sdv", cls, f);
     if (isdiv) {
-        emit(Opc.sar, cls, to, t3, getcon(n, f));
+        emit(.sar, cls, to, t3, getcon(n, f));
     } else {
         const t4 = newtmp("sdv", cls, f);
-        emit(Opc.sub, cls, to, x, t4);
+        emit(.sub, cls, to, x, t4);
         emit(Opc.@"and", cls, t4, t3, getcon(-sv, f));
     }
-    emit(Opc.add, cls, t3, x, t2);
-    emit(Opc.shr, cls, t2, t1, getcon(w - n, f));
-    emit(Opc.sar, cls, t1, x, getcon(w - 1, f));
+    emit(.add, cls, t3, x, t2);
+    emit(.shr, cls, t2, t1, getcon(w - n, f));
+    emit(.sar, cls, t1, x, getcon(w - 1, f));
     return true;
 }
 
@@ -250,27 +250,27 @@ fn udivconst(i: *Ins, b: *Blk, k: uint, new: *bool, f: *Fn) bool {
     const t1 = newtmp("udv", Kl, f);
     const t2 = newtmp("udv", Kl, f);
     if (isdiv) {
-        emit(Opc.copy, Kw, to, t2, R);
+        emit(.copy, Kw, to, t2, R);
     } else {
         const q = newtmp("udv", Kw, f);
         const t3 = newtmp("udv", Kw, f);
-        emit(Opc.sub, Kw, to, x, t3);
-        emit(Opc.mul, Kw, t3, q, getcon(d, f));
-        emit(Opc.copy, Kw, q, t2, R);
+        emit(.sub, Kw, to, x, t3);
+        emit(.mul, Kw, t3, q, getcon(d, f));
+        emit(.copy, Kw, q, t2, R);
     }
     if (wide) {
         // q = ((x * m' >> 32) + x) >> (s - 32), m' = m - 2^32
         const t3 = newtmp("udv", Kl, f);
         const t4 = newtmp("udv", Kl, f);
-        emit(Opc.shr, Kl, t2, t4, getcon(s - 32, f));
-        emit(Opc.add, Kl, t4, t3, t0);
-        emit(Opc.shr, Kl, t3, t1, getcon(32, f));
-        emit(Opc.mul, Kl, t1, t0, getcon(@bitCast(m - (@as(u64, 1) << 32)), f));
+        emit(.shr, Kl, t2, t4, getcon(s - 32, f));
+        emit(.add, Kl, t4, t3, t0);
+        emit(.shr, Kl, t3, t1, getcon(32, f));
+        emit(.mul, Kl, t1, t0, getcon(@bitCast(m - (@as(u64, 1) << 32)), f));
     } else {
-        emit(Opc.shr, Kl, t2, t1, getcon(s, f));
-        emit(Opc.mul, Kl, t1, t0, getcon(@bitCast(m), f));
+        emit(.shr, Kl, t2, t1, getcon(s, f));
+        emit(.mul, Kl, t1, t0, getcon(@bitCast(m), f));
     }
-    emit(Opc.extuw, Kl, t0, x, R);
+    emit(.extuw, Kl, t0, x, R);
     return true;
 }
 
@@ -295,9 +295,9 @@ fn ins(pk: *uint, new: *bool, b: *Blk, f: *Fn) void {
             pk.* = k - 1;
             return;
         },
-        Opc.mul, Opc.div, Opc.rem, Opc.add, Opc.sub, Opc.@"or", Opc.xor, Opc.@"and", Opc.shl, Opc.shr, Opc.sar => {
+        .mul, .div, .rem, .add, .sub, Opc.@"or", .xor, Opc.@"and", .shl, .shr, .sar => {
             if (all.optlevel >= 1) algebra(i, f);
-            if (all.optlevel >= 2 and (i.op == Opc.div or i.op == Opc.rem))
+            if (all.optlevel >= 2 and (i.op == .div or i.op == .rem))
                 if (sdivpow2(i, b, k, new, f)) {
                     return;
                 };

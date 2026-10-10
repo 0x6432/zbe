@@ -10,16 +10,16 @@ import os, subprocess, sys
 D = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = 'src/simpl.zig'
 M = [
-    ('x%1 treated as identity', 'O.Omul, O.Odiv => sv == 1,', 'O.Omul, O.Odiv, O.Orem => sv == 1,'),
+    ('x%1 treated as identity', '.mul, .div => sv == 1,', '.mul, .div, .rem => sv == 1,'),
     ('x+1 treated as identity', 'else => sv == 0,', 'else => sv <= 1,'),
-    ('and-mask identity too wide', 'O.Oand => sv == mask,', 'O.Oand => sv == mask or sv == 0x7fffffff,'),
-    ('x*-1 -> x instead of neg', 'i.op = O.Oneg;', 'i.op = O.Ocopy;'),
+    ('and-mask identity too wide', '.@"and" => sv == mask,', '.@"and" => sv == mask or sv == 0x7fffffff,'),
+    ('x*-1 -> x instead of neg', 'i.op = .neg;', 'i.op = .copy;'),
     ('mul pow2 shift off by one', 'i.arg[1] = getcon(ulog2(sv), f);', 'i.arg[1] = getcon(ulog2(sv) + 1, f);'),
     ('sdiv bias shift off by one', 'getcon(w - n, f)', 'getcon(w - n + 1, f)'),
     ('srem mask wrong', 'getcon(-sv, f)', 'getcon(~sv, f)'),
     ('sdiv accepts divisor 1', 'if (sv < 2 or !ispow2', 'if (sv < 1 or !ispow2'),
     ('udiv magic bound loosened', '<= (@as(u128, 1) << @intCast(sh - 32))', '<= (@as(u128, 1) << @intCast(sh - 30))'),
-    ('udiv sign-extends x', 'emit(O.Oextuw, Kl, t0, x, R);', 'emit(O.Oextsw, Kl, t0, x, R);'),
+    ('udiv sign-extends x', 'emit(.extuw, Kl, t0, x, R);', 'emit(.extsw, Kl, t0, x, R);'),
     ('rewrites machine registers', 'return virt(i.to) and virt(i.arg[0]) and virt(i.arg[1]);', '_ = i; return true;'),
 ]
 TESTS = [

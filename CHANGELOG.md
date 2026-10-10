@@ -20,6 +20,12 @@
   aliases); switches over them are now checked for missing cases.
 - Instruction, temp and phi classes share one type (`i16`); 22 redundant
   casts removed.
+- Instruction opcodes are a Zig enum (`Opc`); `Oadd` etc. remain as
+  aliases and `tools/gen_ops.py` generates the enum. Op arithmetic goes through
+  `offset`/`diff`/`int` helpers.
+- Value classes are a Zig enum (`Cls`: `x`, `w`, `l`, `s`, `d`); `Kw` etc.
+  remain as aliases. The emitters' `Ki`/`Ka` wildcards use a separate
+  pattern enum. Output is byte-identical to before.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit

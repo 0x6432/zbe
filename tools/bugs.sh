@@ -64,6 +64,23 @@ EOF
   then ko "shiftfold $t: huge immediate"; else ok; fi
 done
 
+# 2b. wide constant shift counts must not leak as huge immediates on any target
+for t in arm64 arm64_apple rv64; do
+  for spec in 'l shr 1048576 0' 'l shl 64 0' 'l sar 65 1' 'w shr 32 0' 'w shl 33 1' 'l shr 63 63' 'w shl 31 31'; do
+    set -- $spec
+    cat > $W/w.ssa <<EOF2
+export function $1 \$f($1 %a) {
+@start
+	%x =$1 $2 %a, $3
+	ret %x
+}
+EOF2
+    $Z -t $t $W/w.ssa > $W/w.s 2>$W/e || { ko "wideshift $t $spec: qbe failed"; continue; }
+    if grep -E '^\t(lsl|lsr|asr|sll|srl|sra)' $W/w.s | grep -Eq '#?[0-9]{3,}'
+    then ko "wideshift $t $spec: huge immediate"; cat $W/w.s; else ok; fi
+  done
+done
+
 # 3. igroup() sel fix is covered by the unit test "igroup: sel1 run"
 
 # if an assembler is around, make sure the outputs actually assemble

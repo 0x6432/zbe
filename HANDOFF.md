@@ -382,3 +382,9 @@ Updated line, commits "wip: periodic backup N", and pushes HEAD to
 github.com/0x6432/zbe (main). The token lives in /data/.gh_token (chmod 600,
 never committed). A copy of backup.sh is kept in tools/backup.sh.
 Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
+
+## Decision: NUL-terminated strings (item 9)
+- Names, symbol and section strings, and emitted text use `[*:0]const u8` (or `[*:0]u8` buffers), not slices. Reason: the emitter hands these straight to assembler/format output and the C reference is string-based, so byte-identical output is easiest to verify with NUL terminators.
+- Optional fields (`?[*:0]u8`) stay nullable because IR structs are zero-initialised; call sites use `.?` where the C code assumed non-null.
+- Stack buffers that must be passed as strings use `bufPrintZ` and `@ptrCast`.
+- Revisit only if output is no longer compared byte-for-byte against the C reference.

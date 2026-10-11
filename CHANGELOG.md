@@ -46,6 +46,8 @@
   `BIT` is `bitAt`, `INRANGE` is `inRange`, `MASK` is `lowMask`, and
   `ALIGN_UP`/`ALIGN_DOWN` are `alignUp`/`alignDown`.
 - `eallocSlice(T, n)` returns a `[]T`; it replaces `ealloc(T, n)[0..n]`.
+- The constant folder switches on the `Opc` enum, so its 47 case labels are
+  bare literals (`.add =>`) instead of `ops.num(.add) =>`.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit

@@ -125,32 +125,32 @@ pub fn foldint(res: *Con, op_: i32, w_: bool, cl: *Con, cr: *Con) bool {
         }
     }
     const sh: u6 = @intCast(r.u & (31 | (@as(u64, @intFromBool(w)) << 5)));
-    switch (op) {
-        all.ops.num(.add) => x = l.u +% r.u,
-        all.ops.num(.sub) => x = l.u -% r.u,
-        all.ops.num(.neg) => x = 0 -% l.u,
-        all.ops.num(.div) => x = if (w) @bitCast(@divTrunc(l.s, r.s)) else sx32(@bitCast(@as(i64, @divTrunc(@as(i32, @truncate(l.s)), @as(i32, @truncate(r.s)))))),
-        all.ops.num(.rem) => x = if (w) @bitCast(@rem(l.s, r.s)) else sx32(@bitCast(@as(i64, @rem(@as(i32, @truncate(l.s)), @as(i32, @truncate(r.s)))))),
-        all.ops.num(.udiv) => x = if (w) l.u / r.u else @as(u32, @truncate(l.u)) / @as(u32, @truncate(r.u)),
-        all.ops.num(.urem) => x = if (w) l.u % r.u else @as(u32, @truncate(l.u)) % @as(u32, @truncate(r.u)),
-        all.ops.num(.mul) => x = l.u *% r.u,
-        all.ops.num(.@"and") => x = l.u & r.u,
-        all.ops.num(.@"or") => x = l.u | r.u,
-        all.ops.num(.xor) => x = l.u ^ r.u,
-        all.ops.num(.sar) => x = @bitCast((if (w) l.s else @as(i64, @as(i32, @truncate(l.s)))) >> sh),
-        all.ops.num(.shr) => x = (if (w) l.u else @as(u64, @as(u32, @truncate(l.u)))) >> sh,
-        all.ops.num(.shl) => x = l.u << sh,
-        all.ops.num(.extsb) => x = @bitCast(@as(i64, @as(i8, @bitCast(@as(u8, @truncate(l.u)))))),
-        all.ops.num(.extub) => x = @as(u8, @truncate(l.u)),
-        all.ops.num(.extsh) => x = @bitCast(@as(i64, @as(i16, @bitCast(@as(u16, @truncate(l.u)))))),
-        all.ops.num(.extuh) => x = @as(u16, @truncate(l.u)),
-        all.ops.num(.extsw) => x = sx32(l.u),
-        all.ops.num(.extuw) => x = @as(u32, @truncate(l.u)),
-        all.ops.num(.stosi) => x = if (w) @bitCast(f2i(i64, cl.bits.s)) else @bitCast(@as(i64, f2i(i32, cl.bits.s))),
-        all.ops.num(.stoui) => x = if (w) f2i(u64, cl.bits.s) else f2i(u32, cl.bits.s),
-        all.ops.num(.dtosi) => x = if (w) @bitCast(f2i(i64, cl.bits.d)) else @bitCast(@as(i64, f2i(i32, cl.bits.d))),
-        all.ops.num(.dtoui) => x = if (w) f2i(u64, cl.bits.d) else f2i(u32, cl.bits.d),
-        all.ops.num(.cast) => {
+    switch (all.ops.of(op)) {
+        .add => x = l.u +% r.u,
+        .sub => x = l.u -% r.u,
+        .neg => x = 0 -% l.u,
+        .div => x = if (w) @bitCast(@divTrunc(l.s, r.s)) else sx32(@bitCast(@as(i64, @divTrunc(@as(i32, @truncate(l.s)), @as(i32, @truncate(r.s)))))),
+        .rem => x = if (w) @bitCast(@rem(l.s, r.s)) else sx32(@bitCast(@as(i64, @rem(@as(i32, @truncate(l.s)), @as(i32, @truncate(r.s)))))),
+        .udiv => x = if (w) l.u / r.u else @as(u32, @truncate(l.u)) / @as(u32, @truncate(r.u)),
+        .urem => x = if (w) l.u % r.u else @as(u32, @truncate(l.u)) % @as(u32, @truncate(r.u)),
+        .mul => x = l.u *% r.u,
+        .@"and" => x = l.u & r.u,
+        .@"or" => x = l.u | r.u,
+        .xor => x = l.u ^ r.u,
+        .sar => x = @bitCast((if (w) l.s else @as(i64, @as(i32, @truncate(l.s)))) >> sh),
+        .shr => x = (if (w) l.u else @as(u64, @as(u32, @truncate(l.u)))) >> sh,
+        .shl => x = l.u << sh,
+        .extsb => x = @bitCast(@as(i64, @as(i8, @bitCast(@as(u8, @truncate(l.u)))))),
+        .extub => x = @as(u8, @truncate(l.u)),
+        .extsh => x = @bitCast(@as(i64, @as(i16, @bitCast(@as(u16, @truncate(l.u)))))),
+        .extuh => x = @as(u16, @truncate(l.u)),
+        .extsw => x = sx32(l.u),
+        .extuw => x = @as(u32, @truncate(l.u)),
+        .stosi => x = if (w) @bitCast(f2i(i64, cl.bits.s)) else @bitCast(@as(i64, f2i(i32, cl.bits.s))),
+        .stoui => x = if (w) f2i(u64, cl.bits.s) else f2i(u32, cl.bits.s),
+        .dtosi => x = if (w) @bitCast(f2i(i64, cl.bits.d)) else @bitCast(@as(i64, f2i(i32, cl.bits.d))),
+        .dtoui => x = if (w) f2i(u64, cl.bits.d) else f2i(u32, cl.bits.d),
+        .cast => {
             x = l.u;
             if (cl.type == CAddr) {
                 typ = CAddr;
@@ -218,18 +218,18 @@ fn foldflt(res: *Con, op: i32, w: bool, cl: *Con, cr: *Con) void {
     if (w) {
         const ld = cl.bits.d;
         const rd = cr.bits.d;
-        const xd: f64 = switch (op) {
-            all.ops.num(.add) => ld + rd,
-            all.ops.num(.sub) => ld - rd,
-            all.ops.num(.neg) => -ld,
-            all.ops.num(.div) => ld / rd,
-            all.ops.num(.mul) => ld * rd,
-            all.ops.num(.swtof) => @floatFromInt(@as(i32, @truncate(cl.bits.i))),
-            all.ops.num(.uwtof) => @floatFromInt(@as(u32, @truncate(@as(u64, @bitCast(cl.bits.i))))),
-            all.ops.num(.sltof) => @floatFromInt(cl.bits.i),
-            all.ops.num(.ultof) => @floatFromInt(@as(u64, @bitCast(cl.bits.i))),
-            all.ops.num(.exts) => cl.bits.s,
-            all.ops.num(.cast) => ld,
+        const xd: f64 = switch (all.ops.of(op)) {
+            .add => ld + rd,
+            .sub => ld - rd,
+            .neg => -ld,
+            .div => ld / rd,
+            .mul => ld * rd,
+            .swtof => @floatFromInt(@as(i32, @truncate(cl.bits.i))),
+            .uwtof => @floatFromInt(@as(u32, @truncate(@as(u64, @bitCast(cl.bits.i))))),
+            .sltof => @floatFromInt(cl.bits.i),
+            .ultof => @floatFromInt(@as(u64, @bitCast(cl.bits.i))),
+            .exts => cl.bits.s,
+            .cast => ld,
             else => die("unreachable", .{}),
         };
         res.bits.d = xd;
@@ -237,18 +237,18 @@ fn foldflt(res: *Con, op: i32, w: bool, cl: *Con, cr: *Con) void {
     } else {
         const ls = cl.bits.s;
         const rs = cr.bits.s;
-        const xs: f32 = switch (op) {
-            all.ops.num(.add) => ls + rs,
-            all.ops.num(.sub) => ls - rs,
-            all.ops.num(.neg) => -ls,
-            all.ops.num(.div) => ls / rs,
-            all.ops.num(.mul) => ls * rs,
-            all.ops.num(.swtof) => @floatFromInt(@as(i32, @truncate(cl.bits.i))),
-            all.ops.num(.uwtof) => @floatFromInt(@as(u32, @truncate(@as(u64, @bitCast(cl.bits.i))))),
-            all.ops.num(.sltof) => @floatFromInt(cl.bits.i),
-            all.ops.num(.ultof) => @floatFromInt(@as(u64, @bitCast(cl.bits.i))),
-            all.ops.num(.truncd) => @floatCast(cl.bits.d),
-            all.ops.num(.cast) => ls,
+        const xs: f32 = switch (all.ops.of(op)) {
+            .add => ls + rs,
+            .sub => ls - rs,
+            .neg => -ls,
+            .div => ls / rs,
+            .mul => ls * rs,
+            .swtof => @floatFromInt(@as(i32, @truncate(cl.bits.i))),
+            .uwtof => @floatFromInt(@as(u32, @truncate(@as(u64, @bitCast(cl.bits.i))))),
+            .sltof => @floatFromInt(cl.bits.i),
+            .ultof => @floatFromInt(@as(u64, @bitCast(cl.bits.i))),
+            .truncd => @floatCast(cl.bits.d),
+            .cast => ls,
             else => die("unreachable", .{}),
         };
         res.bits.s = xs;

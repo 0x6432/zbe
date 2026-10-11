@@ -234,7 +234,7 @@ fn sel(i_: Ins, f: *Fn) void {
     if (inRange(i.op, Opc.alloc_first, Opc.alloc_last)) {
         const i_0 = &(all.curi - 1)[0];
         salloc(i.to, i.arg[0], f);
-        fixarg(&i_0.arg[0], all.knum(.l), i_0, f);
+        fixarg(&i_0.arg[0], Cls.l.int(), i_0, f);
         return;
     }
     if (iscmp(i.op, &ck, &cc)) {
@@ -262,7 +262,7 @@ fn sel(i_: Ins, f: *Fn) void {
 fn seljmp(b: *Blk, f: *Fn) void {
     // TODO: replace cmp+jnz with beq/bne/blt[u]/bge[u]
     if (b.jmp.type == .jnz)
-        fixarg(&b.jmp.arg, all.knum(.w), null, f);
+        fixarg(&b.jmp.arg, Cls.w.int(), null, f);
 }
 
 pub fn rv64_isel(f: *Fn) void {

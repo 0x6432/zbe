@@ -171,19 +171,19 @@ fn fpstruct(t: *Typ, off_: i32, c: *Class) i32 {
             switch (f.type) {
                 else => die("unreachable", .{}),
                 Fb, Fh, Fw => {
-                    c.cls[n] = all.knum(.w);
+                    c.cls[n] = Cls.w.int();
                     c.ngp += 1;
                 },
                 Fl => {
-                    c.cls[n] = all.knum(.l);
+                    c.cls[n] = Cls.l.int();
                     c.ngp += 1;
                 },
                 Fs => {
-                    c.cls[n] = all.knum(.s);
+                    c.cls[n] = Cls.s.int();
                     c.nfp += 1;
                 },
                 Fd => {
-                    c.cls[n] = all.knum(.d);
+                    c.cls[n] = Cls.d.int();
                     c.nfp += 1;
                 },
             }
@@ -209,13 +209,13 @@ fn typclass(c: *Class, t: *Typ, fpabi: bool, gp: []const i32, fp: []const i32) v
         // pointer to some caller-allocated
         // memory
         c.class |= Cptr;
-        c.cls[0] = all.knum(.l);
+        c.cls[0] = Cls.l.int();
         c.off[0] = 0;
         c.ngp = 1;
     } else if (!fpabi or fpstruct(t, 0, c) <= 0) {
         var n: uint = 0;
         while (8 * @as(u64, n) < t.size) : (n += 1) {
-            c.cls[n] = all.knum(.l);
+            c.cls[n] = Cls.l.int();
             c.off[n] = @intCast(8 * n);
         }
         c.nfp = 0;
@@ -359,7 +359,7 @@ fn argsclass(ins: []const Ins, carg: []Class, retptr: bool) i32 {
             },
             .pare, .arge => {
                 c.reg[0] = T5;
-                c.cls[0] = all.knum(.l);
+                c.cls[0] = Cls.l.int();
                 envc = 1;
             },
             else => {},
@@ -452,7 +452,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
         if (i.op == .argc) {
             ldregs(c, i.arg[1], f);
         } else if ((c.class & Cfpint) != 0) {
-            k = if (clsWide(c.cls[0]) != 0) all.knum(.l) else all.knum(.w);
+            k = if (clsWide(c.cls[0]) != 0) Cls.l.int() else Cls.w.int();
             r = newtmp("abi", k, f);
             emit(.copy, k, tmpRef(c.reg[0]), r, R);
             c.reg[0] = r.val;
@@ -463,7 +463,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
 
     for (ins, ca) |*i, *c| {
         if ((c.class & Cfpint) != 0) {
-            k = if (clsWide(c.cls[0]) != 0) all.knum(.l) else all.knum(.w);
+            k = if (clsWide(c.cls[0]) != 0) Cls.l.int() else Cls.w.int();
             emit(.cast, k, tmpRef(c.reg[0]), i.arg[0], R);
         }
         if ((c.class & Cptr) != 0) {
@@ -545,14 +545,14 @@ fn selpar(f: *Fn, ins: []Ins) Params {
         if ((c.class & Cfpint) != 0) {
             const r = i.to;
             const k = c.cls[0];
-            c.cls[0] = if (clsWide(k) != 0) all.knum(.l) else all.knum(.w);
+            c.cls[0] = if (clsWide(k) != 0) Cls.l.int() else Cls.w.int();
             i.to = newtmp("abi", k, f);
             emit(.cast, k, r, i.to, R);
         }
         if (i.op == .parc and (c.class & Cptr) == 0 and c.nreg != 0) {
             var nt: i32 = c.nreg;
             if ((c.class & Cstk2) != 0) {
-                c.cls[1] = all.knum(.l);
+                c.cls[1] = Cls.l.int();
                 c.off[1] = 8;
                 assert(nt == 1);
                 nt = 2;

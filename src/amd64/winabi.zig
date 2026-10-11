@@ -276,9 +276,9 @@ fn classify_arguments(reg_usage: *RegisterUsage, instrs: []const Ins, arg_classe
                 const @"type" = &all.typ[typ_index];
                 const by_copy = type_is_by_copy(@"type");
                 assign_register_or_stack(reg_usage, arg, false, by_copy);
-                arg.cls = all.knum(.l);
+                arg.cls = Cls.l.int();
                 if (!by_copy and @"type".size <= 4) {
-                    arg.cls = all.knum(.w);
+                    arg.cls = Cls.w.int();
                 }
                 arg.@"align" = 3;
                 arg.size = @intCast(@"type".size);
@@ -447,7 +447,7 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
 
     var reg_counter: i32 = 0;
     if (is_struct_return) {
-        const first_reg = register_for_arg(all.knum(.l), reg_counter);
+        const first_reg = register_for_arg(Cls.l.int(), reg_counter);
         reg_counter += 1;
         emit(.copy, .l, first_reg, return_pad.?.instr.to, R);
     }
@@ -721,7 +721,7 @@ fn lower_func_parameters(func: *Fn) RegisterUsage {
             .APS_CopyAndPointerInRegister => {
                 // Because this has to be a copy (that we own), it is sufficient to just
                 // copy the register to the target.
-                const from = register_for_arg(all.knum(.l), reg_counter);
+                const from = register_for_arg(Cls.l.int(), reg_counter);
                 reg_counter += 1;
                 emit(.copy, .l, instr.to, from, R);
             },

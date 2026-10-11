@@ -198,7 +198,7 @@ fn typclass(c: *Class, t: *Typ, gp: []const i32, fp: []const i32) void {
         c.size = 8;
         c.ngp = 1;
         c.reg[0] = gp[0];
-        c.cls[0] = all.knum(.l);
+        c.cls[0] = Cls.l.int();
     } else {
         var n: uint = 0;
         while (n < sz / 8) : ({
@@ -206,7 +206,7 @@ fn typclass(c: *Class, t: *Typ, gp: []const i32, fp: []const i32) void {
             c.ngp += 1;
         }) {
             c.reg[n] = gp[n];
-            c.cls[n] = all.knum(.l);
+            c.cls[n] = Cls.l.int();
         }
         c.nreg = @intCast(n);
     }
@@ -317,7 +317,7 @@ fn argsclass(ins: []const Ins, carg: []Class) i32 {
             },
             .pare, .arge => {
                 c.reg[0] = R9;
-                c.cls[0] = all.knum(.l);
+                c.cls[0] = Cls.l.int();
                 envc = 1;
             },
             .argv => {

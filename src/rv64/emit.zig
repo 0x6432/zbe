@@ -318,7 +318,7 @@ fn fixmem(pr: *Ref, fn_: *Fn, f: *Writer) Writer.Error!void {
     if (rtype(r) == RCon) {
         const c = &fn_.con[r.val];
         if (c.type == CAddr and c.sym.type != SGlo) {
-            try loadcon(c, T6, all.knum(.l), f);
+            try loadcon(c, T6, Cls.l.int(), f);
             pr.* = tmpRef(T6);
         }
     }

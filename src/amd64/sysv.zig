@@ -131,11 +131,11 @@ fn classify(a: *AClass, t: *Typ, s_: uint) void {
                 },
                 Fs, Fd => {
                     if (cls.* == Cls.x.int())
-                        cls.* = all.knum(.d);
+                        cls.* = Cls.d.int();
                     s += f.len;
                 },
                 Fb, Fh, Fw, Fl => {
-                    cls.* = all.knum(.l);
+                    cls.* = Cls.l.int();
                     s += f.len;
                 },
                 FTyp => {
@@ -172,8 +172,8 @@ fn typclass(a: *AClass, t: *Typ) void {
         return;
     }
 
-    a.cls[0] = all.knum(.x);
-    a.cls[1] = all.knum(.x);
+    a.cls[0] = Cls.x.int();
+    a.cls[1] = Cls.x.int();
     a.inmem = 0;
     classify(a, t, 0);
 }
@@ -455,7 +455,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
     var ni: i32 = 0;
     var ns: i32 = 0;
     if (ra != null and aret.inmem != 0)
-        emit(.copy, .l, rarg(all.knum(.l), &ni, &ns), ra.?.i.to, R); // pass hidden argument
+        emit(.copy, .l, rarg(Cls.l.int(), &ni, &ns), ra.?.i.to, R); // pass hidden argument
 
     for (ins, ac) |*i, *a| {
         if (i.op.int() >= Opc.arge.int() or a.inmem != 0)
@@ -528,7 +528,7 @@ fn selpar(f: *Fn, ins: []Ins) i32 {
 
     if (f.retty >= 0 and aret.inmem != 0) {
         r = newtmp("abi", .l, f);
-        emit(.copy, .l, r, rarg(all.knum(.l), &ni, &ns), R);
+        emit(.copy, .l, r, rarg(Cls.l.int(), &ni, &ns), R);
         f.retr = r;
     }
 

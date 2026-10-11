@@ -392,10 +392,10 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
             r0 = newtmp("utof", k, f);
             var sh: i32 = undefined;
             if (k == Cls.s.int()) {
-                kc = all.knum(.w);
+                kc = Cls.w.int();
                 sh = 23;
             } else {
-                kc = all.knum(.l);
+                kc = Cls.l.int();
                 sh = 52;
             }
             var j: usize = 0;
@@ -414,18 +414,18 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
             all.curi += 1;
             sel(ci.*, null, f);
             emit(.shr, .l, tmp[1], i.arg[0], getcon(63, f));
-            fixarg(&all.curi[0].arg[0], all.knum(.l), &all.curi[0], f);
+            fixarg(&all.curi[0].arg[0], Cls.l.int(), &all.curi[0], f);
             emit(.@"and", .l, tmp[0], i.arg[0], getcon(1, f));
-            fixarg(&all.curi[0].arg[0], all.knum(.l), &all.curi[0], f);
+            fixarg(&all.curi[0].arg[0], Cls.l.int(), &all.curi[0], f);
         },
         .stoui, .dtoui => {
             if (i.op == .stoui) {
                 i.op = .stosi;
-                kc = all.knum(.s);
+                kc = Cls.s.int();
                 tmp[4] = getcon(0xdf000000, f);
             } else {
                 i.op = .dtosi;
-                kc = all.knum(.d);
+                kc = Cls.d.int();
                 tmp[4] = getcon(@bitCast(@as(u64, 0xc3e0000000000000)), f);
             }
             // Oftoui:
@@ -460,7 +460,7 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
             fixarg(&i_1.arg[1], kc, i_1, f);
             emit(.sar, .l, tmp[1], tmp[0], getcon(63, f));
             emit(i.op, .l, tmp[0], i.arg[0], R);
-            fixarg(&all.curi[0].arg[0], all.knum(.l), &all.curi[0], f);
+            fixarg(&all.curi[0].arg[0], Cls.l.int(), &all.curi[0], f);
         },
         .nop => {},
         .stored, .stores, .storel, .storew, .storeh, .storeb => {
@@ -568,7 +568,7 @@ fn selsel(f: *Fn, b: *Blk, n1: uint, tn: [*]Num) uint {
     var gencmp = false;
     var gencpy = false;
     var swap = false;
-    var k: i32 = all.knum(.w);
+    var k: i32 = Cls.w.int();
     var c: i32 = Cine;
     var other = false;
     if (fi_ == null or !req(fi_.?.to, r)) {
@@ -657,7 +657,7 @@ fn seljmp(b: *Blk, f: *Fn) void {
     const fi_ = flagi(b.insns());
     if (fi_ == null or !req(fi_.?.to, r)) {
         var cr = [2]Ref{ r, CON_Z };
-        selcmp(&cr, all.knum(.w), false, f);
+        selcmp(&cr, Cls.w.int(), false, f);
         b.jmp.type = J.jf_first.add(Cine);
         return;
     }

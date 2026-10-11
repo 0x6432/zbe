@@ -659,7 +659,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             assert(e.fp == RBP);
             try emitf("subq %L0, %%rsp", &i, e);
             if (!req(i.to, R))
-                try emitcopy(i.to, tmpRef(RSP), all.knum(.l), e);
+                try emitcopy(i.to, tmpRef(RSP), Cls.l.int(), e);
         },
         .swap => {
             if (clsBase(i.cls) == 0) {

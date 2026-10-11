@@ -680,10 +680,10 @@ fn parsecls(tyn: *i32) i32 {
         Tub => return Kub,
         Tsh => return Ksh,
         Tuh => return Kuh,
-        Tw => return all.knum(.w),
-        Tl => return all.knum(.l),
-        Ts => return all.knum(.s),
-        Td => return all.knum(.d),
+        Tw => return Cls.w.int(),
+        Tl => return Cls.l.int(),
+        Ts => return Cls.s.int(),
+        Td => return Cls.d.int(),
         else => err("invalid class specifier", .{}),
     }
 }
@@ -726,7 +726,7 @@ fn parserefl(arg: bool) bool {
                 hasenv = true;
                 env = true;
                 _ = next();
-                k = all.knum(.l);
+                k = Cls.l.int();
             },
             else => {
                 env = false;
@@ -816,7 +816,7 @@ fn parseline(ps: PState) PState {
         Tblit, Tcall, all.ops.num(.vastart) => {
             // operations without result
             r = R;
-            k = all.knum(.w);
+            k = Cls.w.int();
             op = t;
         },
         Trbrace => return PEnd,
@@ -866,7 +866,7 @@ fn parseline(ps: PState) PState {
         },
         all.ops.num(.dbgloc) => {
             op = t;
-            k = all.knum(.w);
+            k = Cls.w.int();
             r = R;
             expect(Tint);
             arg[0] = intRef(tokval.num);
@@ -884,7 +884,7 @@ fn parseline(ps: PState) PState {
         else => {
             if (all.inRange(t, Opc.storeb, Opc.stored)) {
                 r = R;
-                k = all.knum(.w);
+                k = Cls.w.int();
                 op = t;
             } else err("label, instruction or jump expected", .{});
         },
@@ -913,11 +913,11 @@ fn parseline(ps: PState) PState {
         op = all.ops.num(.call);
         expect(Tnl);
         if (k == Kc) {
-            k = all.knum(.l);
+            k = Cls.l.int();
             arg[1] = typeRef(ty);
         }
         if (k >= Ksb)
-            k = all.knum(.w);
+            k = Cls.w.int();
         flow = .ins;
     }
     if (flow == .normal) {
@@ -1076,15 +1076,15 @@ fn typecheck(f: *Fn) void {
         var jerr = false;
         if (isret(b.jmp.type)) {
             if (b.jmp.type == .retc)
-                k = all.knum(.l)
+                k = Cls.l.int()
             else if (b.jmp.type.int() >= J.retsb.int())
-                k = all.knum(.w)
+                k = Cls.w.int()
             else
                 k = b.jmp.type.int() - J.retw.int();
             if (!usecheck(r, k, f))
                 jerr = true;
         }
-        if (jerr or (b.jmp.type == .jnz and !usecheck(r, all.knum(.w), f)))
+        if (jerr or (b.jmp.type == .jnz and !usecheck(r, Cls.w.int(), f)))
             err("invalid type for jump argument %{s} in block @{s}", .{cs(f.tmp[r.val].name), cs(b.name)});
         if (b.s1 != null and b.s1.?.jmp.type == .xxx)
             err("block @{s} is used undefined", .{cs(b.s1.?.name)});
@@ -1117,7 +1117,7 @@ fn parsefn(lnk: *Lnk) *Fn {
     curf.lnk = lnk.*;
     curf.leaf = 1;
     blink = &curf.start;
-    curf.retty = all.knum(.x);
+    curf.retty = Cls.x.int();
     if (peek() != Tglo)
         rcls = parsecls(&curf.retty)
     else

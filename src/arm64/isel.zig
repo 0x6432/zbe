@@ -243,7 +243,7 @@ fn sel(i_: Ins, f: *Fn) void {
     if (inRange(i.op, Opc.alloc_first, Opc.alloc_last)) {
         const i_0 = &(all.curi - 1)[0];
         salloc(i.to, i.arg[0], f);
-        fixarg(&i_0.arg[0], all.knum(.l), false, f);
+        fixarg(&i_0.arg[0], Cls.l.int(), false, f);
         return;
     }
     if (iscmp(i.op, &ck, &cc)) {
@@ -297,7 +297,7 @@ fn seljmp(b: *Blk, f: *Fn) void {
         ir.* = insOp(.nop);
     } else {
         var a = [2]Ref{ r, CON_Z };
-        _ = selcmp(&a, all.knum(.w), f);
+        _ = selcmp(&a, Cls.w.int(), f);
         b.jmp.type = .jfine;
     }
 }

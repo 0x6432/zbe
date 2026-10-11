@@ -420,16 +420,16 @@ pub fn isreg(r: Ref) bool {
 pub fn iscmp(op: Opc, pk: *i32, pc: *i32) bool {
     if (op.within(Opc.cmpw_first, Opc.cmpw_last)) {
         pc.* = op.diff(Opc.cmpw_first);
-        pk.* = all.knum(.w);
+        pk.* = Cls.w.int();
     } else if (op.within(Opc.cmpl_first, Opc.cmpl_last)) {
         pc.* = op.diff(Opc.cmpl_first);
-        pk.* = all.knum(.l);
+        pk.* = Cls.l.int();
     } else if (op.within(Opc.cmps_first, Opc.cmps_last)) {
         pc.* = NCmpI + op.diff(Opc.cmps_first);
-        pk.* = all.knum(.s);
+        pk.* = Cls.s.int();
     } else if (op.within(Opc.cmpd_first, Opc.cmpd_last)) {
         pc.* = NCmpI + op.diff(Opc.cmpd_first);
-        pk.* = all.knum(.d);
+        pk.* = Cls.d.int();
     } else return false;
     return true;
 }

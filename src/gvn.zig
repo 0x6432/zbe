@@ -302,7 +302,7 @@ pub fn zeroval(f: *Fn, b: *Blk, r: Ref, cls: i32, z: *i32) bool {
 fn usecls(u: *Use, r: Ref, cls: i32) i32 {
     switch (u.type) {
         .ins => {
-            var k: i32 = all.knum(.x); // widest use
+            var k: i32 = Cls.x.int(); // widest use
             if (req(u.u.ins.arg[0], r))
                 k = argcls(u.u.ins, 0);
             if (req(u.u.ins.arg[1], r))
@@ -316,7 +316,7 @@ fn usecls(u: *Use, r: Ref, cls: i32) i32 {
                 return cls; // eliminated
             return u.u.phi.cls.int();
         },
-        .jmp => return all.knum(.w),
+        .jmp => return Cls.w.int(),
         else => {},
     }
     die("unreachable", .{});
@@ -348,7 +348,7 @@ fn dedupjmp(f: *Fn, b: *Blk) void {
         return;
 
     // propagate jmp arg as 0 through s2
-    propjnz0(f, b, b.s2.?, b.s1.?, b.jmp.arg, all.knum(.w));
+    propjnz0(f, b, b.s2.?, b.s1.?, b.jmp.arg, Cls.w.int());
     // propagate cmp eq/ne 0 def of jmp arg as 0
     if (cmpeqz(f, b.jmp.arg, &arg, &cls, &eqval)) {
         const ps = [2]*Blk{ b.s1.?, b.s2.? };
@@ -358,7 +358,7 @@ fn dedupjmp(f: *Fn, b: *Blk) void {
     // collapse trivial/constant jnz to jmp
     v = 1;
     z = 0;
-    if (b.s1 == b.s2 or isconbits(f, b.jmp.arg, &v) or zeroval(f, b, b.jmp.arg, all.knum(.w), &z)) {
+    if (b.s1 == b.s2 or isconbits(f, b.jmp.arg, &v) or zeroval(f, b, b.jmp.arg, Cls.w.int(), &z)) {
         if (v == 0 or z != 0)
             b.s1 = b.s2;
         // we later move active ins out of dead blks

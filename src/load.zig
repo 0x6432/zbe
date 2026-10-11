@@ -142,13 +142,13 @@ fn cast(r: *Ref, cls: i32, l: *Loc) void {
         return;
     if (clsWide(cls0) < clsWide(cls)) {
         if (cls0 == Cls.s.int())
-            r.* = iins(all.knum(.w), .cast, r.*, R, l);
-        r.* = iins(all.knum(.l), .extuw, r.*, R, l);
+            r.* = iins(Cls.w.int(), .cast, r.*, R, l);
+        r.* = iins(Cls.l.int(), .extuw, r.*, R, l);
         if (cls == Cls.d.int())
-            r.* = iins(all.knum(.d), .cast, r.*, R, l);
+            r.* = iins(Cls.d.int(), .cast, r.*, R, l);
     } else {
         if (cls0 == Cls.d.int() and cls != Cls.l.int())
-            r.* = iins(all.knum(.l), .cast, r.*, R, l);
+            r.* = iins(Cls.l.int(), .cast, r.*, R, l);
         if (cls0 != Cls.d.int() or cls != Cls.w.int())
             r.* = iins(cls, .cast, r.*, R, l);
     }
@@ -175,7 +175,7 @@ fn load(sl: Slice, msk: bits, l: *Loc) Ref {
     if (all_)
         cls = sl.cls
     else
-        cls = if (sl.sz > 4) all.knum(.l) else all.knum(.w);
+        cls = if (sl.sz > 4) Cls.l.int() else Cls.w.int();
     r = sl.ref;
     // sl.ref might not be live here,
     // but its alias base ref will be
@@ -187,7 +187,7 @@ fn load(sl: Slice, msk: bits, l: *Loc) Ref {
                 r = tmpRef(a.base);
                 if (a.offset != 0) {
                     const r1 = getcon(a.offset, curf);
-                    r = iins(all.knum(.l), .add, r, r1, l);
+                    r = iins(Cls.l.int(), .add, r, r1, l);
                 }
             },
             ACon, ASym => {
@@ -272,7 +272,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
     var r1: Ref = undefined;
     var l: Loc = undefined;
     var idx = i_ orelse b.nins;
-    const cls: i32 = if (sl.sz > 4) all.knum(.l) else all.knum(.w);
+    const cls: i32 = if (sl.sz > 4) Cls.l.int() else Cls.w.int();
     const msks = lowMask(sl.sz);
 
     while (idx > 0) {
@@ -335,7 +335,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
                 if (off != 0) {
                     cls1 = cls;
                     if (op == .shr and off + sl.sz > 4)
-                        cls1 = all.knum(.l);
+                        cls1 = Cls.l.int();
                     cast(&r, cls1, il);
                     r1 = getcon(8 * off, curf);
                     r = iins(cls1, op, r, r1, il);

@@ -200,20 +200,20 @@ fn rname(r: i32, k: i32) [*:0]u8 {
     } else if (R0 <= r and r <= LR) {
         switch (k) {
             else => die("invalid class", .{}),
-            all.knum(.w) => bufPrintZ(&rname_buf, "w{d}", .{r - R0}),
-            all.knum(.x), all.knum(.l) => bufPrintZ(&rname_buf, "x{d}", .{r - R0}),
+            Cls.w.int() => bufPrintZ(&rname_buf, "w{d}", .{r - R0}),
+            Cls.x.int(), Cls.l.int() => bufPrintZ(&rname_buf, "x{d}", .{r - R0}),
         }
     } else if (V0 <= r and r <= V30) {
         switch (k) {
             else => die("invalid class", .{}),
-            all.knum(.s) => bufPrintZ(&rname_buf, "s{d}", .{r - V0}),
-            all.knum(.x), all.knum(.d) => bufPrintZ(&rname_buf, "d{d}", .{r - V0}),
+            Cls.s.int() => bufPrintZ(&rname_buf, "s{d}", .{r - V0}),
+            Cls.x.int(), Cls.d.int() => bufPrintZ(&rname_buf, "d{d}", .{r - V0}),
         }
     } else if (r == V31) {
         switch (k) {
             else => die("invalid class", .{}),
-            all.knum(.s) => bufPrintZ(&rname_buf, "s31", .{}),
-            all.knum(.d) => bufPrintZ(&rname_buf, "d31", .{}),
+            Cls.s.int() => bufPrintZ(&rname_buf, "s31", .{}),
+            Cls.d.int() => bufPrintZ(&rname_buf, "d31", .{}),
         }
     } else die("invalid register", .{});
     return @ptrCast(buf);
@@ -260,19 +260,19 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
             switch (c) {
                 else => die("invalid escape", .{}),
                 'W' => {
-                    k = all.knum(.w);
+                    k = Cls.w.int();
                     continue :sw;
                 },
                 'L' => {
-                    k = all.knum(.l);
+                    k = Cls.l.int();
                     continue :sw;
                 },
                 'S' => {
-                    k = all.knum(.s);
+                    k = Cls.s.int();
                     continue :sw;
                 },
                 'D' => {
-                    k = all.knum(.d);
+                    k = Cls.d.int();
                     continue :sw;
                 },
                 '?' => {
@@ -320,7 +320,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
                         else => die("todo (arm emit): unhandled ref", .{}),
                         RTmp => {
                             assert(isreg(r));
-                            try e.f.print("[{s}]", .{cs(rname((r.val), all.knum(.l)))});
+                            try e.f.print("[{s}]", .{cs(rname((r.val), Cls.l.int()))});
                         },
                         RSlot => try e.f.print("[x29, {d}]", .{slot(r, e)}),
                     }
@@ -390,7 +390,7 @@ fn loadcon(c: *Con, r: i32, k: i32, e: *E) Writer.Error!void {
     var rn = rname(r, k);
     var n = c.bits.i;
     if (c.type == CAddr) {
-        rn = rname(r, all.knum(.l));
+        rn = rname(r, Cls.l.int());
         try loadaddr(c, rn, e);
         return;
     }
@@ -480,7 +480,7 @@ fn emitins(i: *Ins, e: *E) Writer.Error!void {
         },
         .addr => {
             assert(rtype(i.arg[0]) == RSlot);
-            const rn = rname((i.to.val), all.knum(.l));
+            const rn = rname((i.to.val), Cls.l.int());
             const s = slot(i.arg[0], e);
             if (s <= 4095)
                 try e.f.print("\tadd\t{s}, x29, #{d}\n", .{cs(rn), s})
@@ -629,7 +629,7 @@ pub fn arm64_emitfn(f: *Fn, out: *Writer) Writer.Error!void {
                     if (r < 0) break;
                     if ((e.@"fn".reg & bitAt(r)) != 0) {
                         s -= 2;
-                        var in = mkIns(.load, @as(i32, if (r >= V0) all.knum(.d) else all.knum(.l)), tmpRef(r), slotRef(s), R);
+                        var in = mkIns(.load, @as(i32, if (r >= V0) Cls.d.int() else Cls.l.int()), tmpRef(r), slotRef(s), R);
                         try emitins(&in, e);
                     }
                 }

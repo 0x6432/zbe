@@ -148,7 +148,7 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
     var r0 = r.*;
     var r1 = r0;
     const s = rslot(r0, f);
-    const op: i32 = if (i) |ii| all.ops.num(ii.op) else all.ops.num(.copy);
+    const op: Opc = if (i) |ii| ii.op else .copy;
     if (clsBase(k) == 1 and rtype(r0) == RCon) {
         // load floating points from memory
         // slots, they can't be used as
@@ -165,14 +165,14 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
         bufPrintZ(&buf, "\"{s}fp{d}\"", .{cs(&all.T.asloc), n});
         a.offset.sym.id = intern(@ptrCast(&buf));
         f.mem[@intCast(f.nmem - 1)] = a;
-    } else if (op == Opc.call.int() and r == &i.?.arg[0] and
+    } else if (op == .call and r == &i.?.arg[0] and
         rtype(r0) == RCon and f.con[r0.val].type != CAddr)
     {
         // use a temporary register so that we
         // produce an indirect call
         r1 = newtmp("isel", .l, f);
         emit(.copy, .l, r1, r0, R);
-    } else if (op != Opc.copy.int() and k == Cls.l.int() and noimm(r0, f)) {
+    } else if (op != .copy and k == Cls.l.int() and noimm(r0, f)) {
         // load constants that do not fit in
         // a 32bit signed integer into a
         // long temporary
@@ -184,7 +184,7 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
         // instruction
         r1 = newtmp("isel", .l, f);
         emit(.addr, .l, r1, slotRef(s), R);
-    } else if (op != Opc.call.int() and hascon(r0, &c, f) and
+    } else if (op != .call and hascon(r0, &c, f) and
         c.type == CAddr and ((c.sym.type & SExt) != 0 or
         (all.T.apple != 0 and c.sym.type == SThr)))
     {
@@ -218,7 +218,7 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
             r1 = r0;
         }
     } else if (!(isstore(op) and r == &i.?.arg[1]) and
-        !isload(op) and op != Opc.call.int() and rtype(r0) == RCon and
+        !isload(op) and op != .call and rtype(r0) == RCon and
         f.con[r0.val].type == CAddr)
     {
         // turn address operands into

@@ -536,7 +536,7 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
 fn lower_block_return(func: *Fn, block: *Blk) void {
     const jmp_type: i32 = block.jmp.type.int();
 
-    if (!isret(jmp_type) or jmp_type == J.ret0.int()) {
+    if (!isret(block.jmp.type) or jmp_type == J.ret0.int()) {
         return;
     }
 

@@ -242,7 +242,7 @@ fn selret(b: *Blk, f: *Fn) void {
 
     const j: i32 = b.jmp.type.int();
 
-    if (!isret(j) or j == J.ret0.int())
+    if (!isret(b.jmp.type) or j == J.ret0.int())
         return;
 
     const r = b.jmp.arg;
@@ -820,7 +820,7 @@ pub fn apple_extsb(f: *Fn) void {
     while (b_it) |b| : (b_it = b.link) {
         all.curi = all.insbEnd();
         const j: i32 = b.jmp.type.int();
-        if (isretbh(j)) {
+        if (isretbh(b.jmp.type)) {
             const r = newtmp("abi", .w, f);
             const op = Opc.extsb.offset(j - J.retsb.int());
             emit(op, .w, r, b.jmp.arg, R);

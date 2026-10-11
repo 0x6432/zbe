@@ -195,37 +195,37 @@ pub inline fn inRange(x: anytype, comptime l: anytype, comptime u: anytype) bool
     const hi = comptime ordinal(u);
     return @as(u32, @bitCast(ordinal(x) -% lo)) <= hi - lo;
 }
-pub inline fn isstore(o: anytype) bool {
+pub inline fn isstore(o: Opc) bool {
     return inRange(o, Opc.storeb, Opc.stored);
 }
-pub inline fn isload(o: anytype) bool {
+pub inline fn isload(o: Opc) bool {
     return inRange(o, Opc.loadsb, Opc.load);
 }
-pub inline fn isalloc(o: anytype) bool {
+pub inline fn isalloc(o: Opc) bool {
     return inRange(o, Opc.alloc4, Opc.alloc16);
 }
-pub inline fn isext(o: anytype) bool {
+pub inline fn isext(o: Opc) bool {
     return inRange(o, Opc.extsb, Opc.extuw);
 }
-pub inline fn ispar(o: anytype) bool {
+pub inline fn ispar(o: Opc) bool {
     return inRange(o, Opc.par, Opc.pare);
 }
-pub inline fn isarg(o: anytype) bool {
+pub inline fn isarg(o: Opc) bool {
     return inRange(o, Opc.arg, Opc.argv);
 }
-pub inline fn isret(j: anytype) bool {
+pub inline fn isret(j: J) bool {
     return inRange(j, J.retw, J.ret0);
 }
-pub inline fn isparbh(o: anytype) bool {
+pub inline fn isparbh(o: Opc) bool {
     return inRange(o, Opc.parsb, Opc.paruh);
 }
-pub inline fn isargbh(o: anytype) bool {
+pub inline fn isargbh(o: Opc) bool {
     return inRange(o, Opc.argsb, Opc.arguh);
 }
-pub inline fn isretbh(j: anytype) bool {
+pub inline fn isretbh(j: J) bool {
     return inRange(j, J.retsb, J.retuh);
 }
-pub inline fn isxsel(o: anytype) bool {
+pub inline fn isxsel(o: Opc) bool {
     return inRange(o, Opc.xsel_first, Opc.xsel_last);
 }
 

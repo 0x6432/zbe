@@ -882,7 +882,7 @@ fn parseline(ps: PState) PState {
             flow = .ins;
         },
         else => {
-            if (isstore(t)) {
+            if (all.inRange(t, Opc.storeb, Opc.stored)) {
                 r = R;
                 k = all.knum(.w);
                 op = t;

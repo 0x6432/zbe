@@ -273,7 +273,7 @@ fn selret(b: *Blk, f: *Fn) void {
 
     const j: i32 = b.jmp.type.int();
 
-    if (!isret(j) or j == J.ret0.int())
+    if (!isret(b.jmp.type) or j == J.ret0.int())
         return;
 
     const r = b.jmp.arg;

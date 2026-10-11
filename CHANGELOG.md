@@ -52,6 +52,9 @@
   alloc-slot loops in the instruction selectors count with `Opc.diff`.
 - `Oaddtbl` is `add_table`; the `UXXX` alias is gone (use `.xxx`). `assoccon`
   keeps its op as an `Opc`.
+- The op predicates (`isstore`, `isload`, `isalloc`, `isext`, `ispar`, `isarg`,
+  `isparbh`, `isargbh`, `isxsel`) take an `Opc`, and `isret`/`isretbh` take a `J`,
+  instead of `anytype`. amd64 `fixarg` keeps its op as an `Opc`.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit

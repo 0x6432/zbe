@@ -1024,7 +1024,7 @@ fn typecheck(f: *Fn) void {
         var p_it: ?*Phi = b.phi;
         while (p_it) |p| : (p_it = p.link)
             f.tmp[p.to.val].cls = p.cls;
-        for (b.ins[0..b.nins]) |*i|
+        for (b.insns()) |*i|
             if (rtype(i.to) == RTmp) {
                 t = &f.tmp[i.to.val];
                 if (clsmerge(&t.?.cls, i.cls))
@@ -1053,7 +1053,7 @@ fn typecheck(f: *Fn) void {
             if (!bsequal(&pb, &ppb))
                 err("predecessors not matched in phi %{s}", .{cs(t.?.name)});
         }
-        for (b.ins[0..b.nins]) |*i| {
+        for (b.insns()) |*i| {
             n = 0;
             while (n < 2) : (n += 1) {
                 k = all.optab[i.op.int()].argcls[n][i.cls.idx()];
@@ -1447,8 +1447,7 @@ pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*:0]const 
             Tdata => parsedat(data, &lnk),
             Ttype => parsetyp(),
             Teof => {
-                var n: uint = 0;
-                while (n < ntyp) : (n += 1) {
+                for (0..ntyp) |n| {
                     efree((all.typ[n].name));
                     if (all.typ[n].nunion != 0)
                         vfree(all.typ[n].fields);
@@ -1554,7 +1553,7 @@ pub fn printfn(f: *Fn, fp: *Writer) Writer.Error!void {
                 } else try fp.print(", ", .{});
             }
         }
-        for (b.ins[0..b.nins]) |*i| {
+        for (b.insns()) |*i| {
             try fp.print("\t", .{});
             if (!req(i.to, R)) {
                 try printref(i.to, f, fp);

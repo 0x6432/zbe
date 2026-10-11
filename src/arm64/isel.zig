@@ -313,7 +313,7 @@ pub fn arm64_isel(f: *Fn) void {
         al += 1;
         n *= 2;
     }) {
-        for (start.ins[0..start.nins]) |*i| {
+        for (start.insns()) |*i| {
             if (all.ops.num(i.op) == al) {
                 if (rtype(i.arg[0]) != RCon)
                     break;

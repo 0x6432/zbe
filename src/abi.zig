@@ -17,7 +17,7 @@ const isretbh = all.isretbh;
 pub fn elimsb(f: *Fn) void {
     var b_it: ?*Blk = f.start;
     while (b_it) |b| : (b_it = b.link) {
-        for (b.ins[0..b.nins]) |*i| {
+        for (b.insns()) |*i| {
             if (isargbh(i.op))
                 i.op = .arg;
             if (isparbh(i.op))

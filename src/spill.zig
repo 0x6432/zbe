@@ -57,8 +57,7 @@ fn aggreg(hd: *Blk, b: *Blk) void {
     // aggregate looping information at
     // loop headers
     bsunion(&hd.gen, &b.gen);
-    var k: usize = 0;
-    while (k < 2) : (k += 1) {
+    for (0..2) |k| {
         if (b.nlive[k] > hd.nlive[k])
             hd.nlive[k] = b.nlive[k];
     }
@@ -86,12 +85,10 @@ pub fn fillcost(f: *Fn) void {
         dprint("\n> Loop information:\n", .{});
         var b_it: ?*Blk = f.start;
         while (b_it) |b| : (b_it = b.link) {
-            var a: uint = 0;
-            while (a < b.npred) : (a += 1) {
-                if (b.id <= b.pred[a].id)
-                    break;
-            }
-            if (a != b.npred) {
+            const has_back_edge = for (b.preds()) |p| {
+                if (b.id <= p.id) break true;
+            } else false;
+            if (has_back_edge) {
                 dprint("\t{s:<10}", .{cs(b.name)});
                 dprint(" ({f} ", .{cint(b.nlive[0], 3)});
                 dprint("{f}) ", .{cint(b.nlive[1], 3)});
@@ -99,9 +96,7 @@ pub fn fillcost(f: *Fn) void {
             }
         }
     }
-    var ti: i32 = 0;
-    while (ti < f.ntmp) : (ti += 1) {
-        const t = &f.tmp[@intCast(ti)];
+    for (f.tmps(), 0..) |*t, ti| {
         t.cost = if (ti < Tmp0) std.math.maxInt(uint) else 0;
         t.nuse = 0;
         t.ndef = 0;
@@ -112,15 +107,14 @@ pub fn fillcost(f: *Fn) void {
         while (p_it) |p| : (p_it = p.link) {
             const t = &f.tmp[p.to.val];
             tmpuse(p.to, false, 0, f);
-            var a: uint = 0;
-            while (a < p.narg) : (a += 1) {
+            for (0..p.narg) |a| {
                 const n = p.blk[a].loop;
                 t.cost +%= @bitCast(n);
                 tmpuse(p.arg[a], true, n, f);
             }
         }
         const n = b.loop;
-        for (b.ins[0..b.nins]) |*i| {
+        for (b.insns()) |*i| {
             tmpuse(i.to, false, n, f);
             tmpuse(i.arg[0], true, n, f);
             tmpuse(i.arg[1], true, n, f);
@@ -129,9 +123,8 @@ pub fn fillcost(f: *Fn) void {
     }
     if (all.debug['S'] != 0) {
         dprint("\n> Spill costs:\n", .{});
-        var n: i32 = Tmp0;
-        while (n < f.ntmp) : (n += 1)
-            dprint("\t{s:<10} {d}\n", .{cs(f.tmp[@intCast(n)].name), @as(i32, @bitCast(f.tmp[@intCast(n)].cost))});
+        for (f.tmps()[Tmp0..]) |t|
+            dprint("\t{s:<10} {d}\n", .{ cs(t.name), @as(i32, @bitCast(t.cost)) });
         dprint("\n", .{});
     }
 }
@@ -390,8 +383,7 @@ pub fn spill(f: *Fn) void {
             // back-edge
             bszero(&v);
             hd.gen.t[0] |= all.T.rglob; // don't spill registers
-            var k: usize = 0;
-            while (k < 2) : (k += 1) {
+            for (0..2) |k| {
                 const n: i32 = if (k == 0) all.T.ngpr else all.T.nfpr;
                 bscopy(&u, &b.out);
                 bsinter(&u, &mask[k]);

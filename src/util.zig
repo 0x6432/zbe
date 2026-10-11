@@ -364,7 +364,7 @@ pub fn addins(pvins: *[*]Ins, pnins: *uint, i: *Ins) void {
 }
 
 pub fn addbins(pvins: *[*]Ins, pnins: *uint, b: *Blk) void {
-    for (b.ins[0..b.nins]) |*i|
+    for (b.insns()) |*i|
         addins(pvins, pnins, i);
 }
 
@@ -440,7 +440,7 @@ pub fn insidx(b: *const Blk, i: *const Ins) uint {
 /// index range [lo, hi) of the instruction
 /// group that contains b.ins[n0]
 pub fn igroup(b: *Blk, n0: uint) struct { uint, uint } {
-    const ins = b.ins[0..b.nins];
+    const ins = b.insns();
     var n = n0;
     sw: switch (ins[n].op) {
         .blit0 => return .{ n, n + 2 },

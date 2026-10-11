@@ -738,16 +738,14 @@ pub fn amd64_sysv_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
     var b_it: ?*Blk = f.start;
     while (b_it) |b| : (b_it = b.link) {
         if (lbl or b.npred > 1) {
-            var p: uint = 0;
-            while (p < b.npred) : (p += 1) {
-                if (b.pred[p].id >= b.id)
-                    break;
-            }
-            if (p != b.npred)
+            const has_back_edge = for (b.preds()) |p| {
+                if (p.id >= b.id) break true;
+            } else false;
+            if (has_back_edge)
                 try fp.print(".p2align 4\n", .{});
             try fp.print("{s}bb{d}:\n", .{cs(&all.T.asloc), sysv_id0 + @as(i32, @intCast(b.id))});
         }
-        for (b.ins[0..b.nins]) |*i|
+        for (b.insns()) |*i|
             try emitins(i.*, e);
         lbl = true;
         sw: switch (b.jmp.type) {
@@ -854,7 +852,7 @@ pub fn amd64_winabi_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
     while (b_it) |b| : (b_it = b.link) {
         if (lbl or b.npred > 1)
             try fp.print("{s}bb{d}:\n", .{cs(&all.T.asloc), winabi_id0 + @as(i32, @intCast(b.id))});
-        for (b.ins[0..b.nins]) |*i|
+        for (b.insns()) |*i|
             try emitins(i.*, e);
         lbl = true;
         sw: switch (b.jmp.type) {

@@ -96,7 +96,7 @@ fn replaceuse(f: *Fn, u: *Use, r1: Ref, r2: Ref) void {
     switch (u.type) {
         .phi => {
             const p = u.u.phi;
-            for (p.arg[0..p.narg]) |*pr|
+            for (p.args()) |*pr|
                 if (req(pr.*, r1)) {
                     pr.* = r2;
                 };
@@ -154,8 +154,7 @@ fn normins(f: *Fn, i: *Ins) void {
 
     // truncate constant bits to
     // 32 bits for s/w uses
-    var n: usize = 0;
-    while (n < 2) : (n += 1) {
+    for (0..2) |n| {
         if (KWIDE(argcls(i, n)) == 0)
             if (isconbits(f, i.arg[n], &v))
                 if ((v & 0xffffffff) != v) {
@@ -373,7 +372,7 @@ fn dedupjmp(f: *Fn, b: *Blk) void {
 
 fn rebuildcfg(f: *Fn) void {
     const rpo = ealloc(*Blk, f.nblk)[0..f.nblk];
-    @memcpy(rpo, f.rpo[0..f.nblk]);
+    @memcpy(rpo, f.blks());
 
     fillcfg(f);
 
@@ -387,7 +386,7 @@ fn rebuildcfg(f: *Fn) void {
             continue;
         // blk unreachable after GVN
         assert(b != s);
-        for (b.ins[0..b.nins]) |*i|
+        for (b.insns()) |*i|
             if (all.optab[i.op.int()].pinned == 0)
                 if (gvndup(i, false) == i)
                     addins(&s.ins, &s.nins, i);
@@ -425,9 +424,9 @@ pub fn gvn(f: *Fn) void {
     const n = nins + nins / 2;
     gvntbl = ealloc(?*Ins, n)[0..n];
     @memset(gvntbl, null);
-    for (f.rpo[0..f.nblk]) |b| {
+    for (f.blks()) |b| {
         dedupphi(f, b);
-        for (b.ins[0..b.nins]) |*i|
+        for (b.insns()) |*i|
             dedupins(f, b, i);
         dedupjmp(f, b);
     }

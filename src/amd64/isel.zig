@@ -654,7 +654,7 @@ fn seljmp(b: *Blk, f: *Fn) void {
         b.s2 = null;
         return;
     }
-    const fi_ = flagi(b.ins[0..b.nins]);
+    const fi_ = flagi(b.insns());
     if (fi_ == null or !req(fi_.?.to, r)) {
         var cr = [2]Ref{ r, CON_Z };
         selcmp(&cr, all.knum(.w), false, f);
@@ -817,7 +817,7 @@ const matcher = blk: {
 // end of generated code
 
 fn anumber(tn: [*]Num, b: *Blk, con: [*]Con) void {
-    for (b.ins[0..b.nins]) |*i| {
+    for (b.insns()) |*i| {
         if (rtype(i.to) != RTmp)
             continue;
         const n = &tn[i.to.val];
@@ -922,7 +922,7 @@ pub fn amd64_isel(f: *Fn) void {
         al += 1;
         n *= 2;
     }) {
-        for (start.ins[0..start.nins]) |*i| {
+        for (start.insns()) |*i| {
             if (all.ops.num(i.op) == al) {
                 if (rtype(i.arg[0]) != RCon)
                     break;

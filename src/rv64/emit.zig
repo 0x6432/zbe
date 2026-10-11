@@ -496,7 +496,7 @@ pub fn rv64_emitfn(fn_: *Fn, f: *Writer) Writer.Error!void {
     while (b_it) |b| : (b_it = b.link) {
         if (lbl or b.npred > 1)
             try f.print(".L{d}:\n", .{id0 + @as(i32, @intCast(b.id))});
-        for (b.ins[0..b.nins]) |*i|
+        for (b.insns()) |*i|
             try emitins(i, fn_, f);
         lbl = true;
         var jmp = false;

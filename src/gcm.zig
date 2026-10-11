@@ -96,11 +96,10 @@ fn earlyblk(f: *Fn, bid: uint) void {
     const b = f.rpo[bid];
     var p_it: ?*Phi = b.phi;
     while (p_it) |p| : (p_it = p.link) {
-        var n: uint = 0;
-        while (n < p.narg) : (n += 1)
-            _ = schedearly(f, p.arg[n]);
+        for (p.args()) |a|
+            _ = schedearly(f, a);
     }
-    for (b.ins[0..b.nins]) |*i| {
+    for (b.insns()) |*i| {
         if (pinned(i)) {
             _ = schedearly(f, i.arg[0]);
             _ = schedearly(f, i.arg[1]);
@@ -203,8 +202,7 @@ fn latephi(f: *Fn, p: *Phi, r: Ref) uint {
         return NOBID; // marked as unused
 
     var latebid: uint = NOBID;
-    var n: uint = 0;
-    while (n < p.narg) : (n += 1) {
+    for (0..p.narg) |n| {
         if (req(p.arg[n], r))
             latebid = lcabid(f, latebid, p.blk[n].id);
     }
@@ -232,7 +230,7 @@ fn lateblk(f: *Fn, bid: uint) void {
         } else pp = &p.link;
     }
 
-    for (b.ins[0..b.nins]) |*i| {
+    for (b.insns()) |*i| {
         if (pinned(i))
             _ = schedlate(f, i.to);
     }
@@ -255,7 +253,7 @@ fn gcmmove(f: *Fn) void {
     var nins: uint = 0;
     var vins: [*]Ins = vnewT(Ins, nins, PFn);
 
-    for (f.tmp[0..@intCast(f.ntmp)]) |*t| {
+    for (f.tmps()) |*t| {
         if (t.def == null)
             continue;
         if (t.bid == t.gcmbid)
@@ -346,7 +344,7 @@ fn sinkref(f: *Fn, b: *Blk, pr: *Ref) void {
 fn sink(f: *Fn) void {
     var b_it: ?*Blk = f.start;
     while (b_it) |b| : (b_it = b.link) {
-        for (b.ins[0..b.nins]) |*i| {
+        for (b.insns()) |*i| {
             if (isload(i.op))
                 sinkref(f, b, &i.arg[0])
             else if (isstore(i.op))

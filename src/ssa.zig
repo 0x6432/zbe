@@ -111,17 +111,16 @@ pub fn filluse(f: *Fn) void {
             tmp[@intCast(tp)].ndef += 1;
             tmp[@intCast(tp)].cls = p.cls;
             tp = phicls(tp, f.tmp);
-            var a: uint = 0;
-            while (a < p.narg) : (a += 1)
-                if (rtype(p.arg[a]) == RTmp) {
-                    t = (p.arg[a].val);
+            for (p.args()) |a|
+                if (rtype(a) == RTmp) {
+                    t = a.val;
                     adduse(&tmp[@intCast(t)], .phi, b, @ptrCast(p));
                     t = phicls(t, f.tmp);
                     if (t != tp)
                         tmp[@intCast(t)].phi = tp;
                 };
         }
-        for (b.ins[0..b.nins]) |*i| {
+        for (b.insns()) |*i| {
             if (!req(i.to, R)) {
                 assert(rtype(i.to) == RTmp);
                 w = WFull;
@@ -191,7 +190,7 @@ fn phiins(f: *Fn) void {
         while (b_it) |b| : (b_it = b.link) {
             b.visit = 0;
             var r = R;
-            for (b.ins[0..b.nins]) |*i| {
+            for (b.insns()) |*i| {
                 if (!req(r, R)) {
                     if (req(i.arg[0], TMP(t)))
                         i.arg[0] = r;
@@ -222,7 +221,7 @@ fn phiins(f: *Fn) void {
             nb -= 1;
             const b = blist[nb];
             bsclr(&u, b.id);
-            for (b.fron[0..b.nfron]) |a| {
+            for (b.frons()) |a| {
                 const v = a.visit;
                 a.visit += 1;
                 if (v == 0 and bshas(&a.in, t)) {
@@ -298,7 +297,7 @@ fn renblk(b: *Blk, stk: []?*Name, f: *Fn) void {
     var p_it = b.phi;
     while (p_it) |p| : (p_it = p.link)
         rendef(&p.to, b, stk, f);
-    for (b.ins[0..b.nins]) |*i| {
+    for (b.insns()) |*i| {
         for (&i.arg) |*a| {
             if (rtype(a.*) == RTmp and f.tmp[a.val].visit != 0)
                 a.* = getstk(a.val, b, stk);
@@ -368,7 +367,7 @@ pub fn ssa(f: *Fn) void {
 }
 
 fn phicheck(p: *Phi, b: *Blk, t: Ref) bool {
-    for (p.arg[0..p.narg], p.blk[0..p.narg]) |a, b1|
+    for (p.args(), p.blks()) |a, b1|
         if (req(a, t) and b1 != b and !sdom(b, b1))
             return true;
     return false;
@@ -405,7 +404,7 @@ pub fn ssacheck(f: *Fn) void {
                         break :errblk;
                 }
             }
-            for (b.ins[0..b.nins]) |*i| {
+            for (b.insns()) |*i| {
                 if (rtype(i.to) != RTmp)
                     continue;
                 r = i.to;

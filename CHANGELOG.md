@@ -35,6 +35,11 @@
   declarations) are gone too. Enum values are bare literals (`.w`, `.jmp`,
   `.phi`, `.add`) wherever the type is inferred, and qualified (`Cls.w`,
   `Opc.storew.offset(k)`) only where it is not.
+- `Blk`, `Phi` and `Fn` have slice accessors (`b.insns()`, `b.preds()`,
+  `b.frons()`, `p.args()`, `p.blks()`, `f.tmps()`, `f.cons()`, `f.mems()`,
+  `f.blks()`); loops use them instead of `x.ins[0..x.nins]` or index
+  counters. Simple counted `while` loops are `for (a..b) |i|`, and
+  predecessor searches are `for ... else` expressions.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit

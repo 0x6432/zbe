@@ -33,7 +33,7 @@ const MaxPhis = 2;
 
 fn okbranch(b: *Blk) bool {
     var n: i32 = 0;
-    for (b.ins[0..b.nins]) |*i| {
+    for (b.insns()) |*i| {
         if (i.op != .dbgloc) {
             if (pinned(i))
                 return false;

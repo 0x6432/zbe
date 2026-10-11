@@ -136,8 +136,7 @@ const store = blk: {
 //        ` env pointer passed in x9            (0..1)
 
 fn isfloatv(t: *Typ, cls: *i8) bool {
-    var n: uint = 0;
-    while (n < t.nunion) : (n += 1) {
+    for (0..t.nunion) |n| {
         for (&t.fields[n]) |*f| {
             if (f.type == FEnd) break;
             switch (f.type) {
@@ -216,8 +215,7 @@ fn typclass(c: *Class, t: *Typ, gp: []const i32, fp: []const i32) void {
 fn sttmps(tmp: []Ref, cls: []const i32, nreg: uint, mem: Ref, f: *Fn) void {
     assert(nreg <= 4);
     var off: u64 = 0;
-    var n: uint = 0;
-    while (n < nreg) : (n += 1) {
+    for (0..nreg) |n| {
         tmp[n] = newtmp("abi", cls[n], f);
         const r = newtmp("abi", .l, f);
         emit(store[@intCast(cls[n])], 0, R, tmp[n], r);
@@ -450,8 +448,7 @@ fn selcall(f: *Fn, args: []Ins, i_1: *Ins, ilp: *?*Insl) void {
             emit(.copy, .w, R, TMP(R0), R);
         } else {
             sttmps(&tmp, &cr.cls, cr.nreg, i_1.to, f);
-            var n: uint = 0;
-            while (n < cr.nreg) : (n += 1) {
+            for (0..cr.nreg) |n| {
                 const r = TMP(cr.reg[n]);
                 emit(.copy, cr.cls[n], tmp[n], r, R);
             }
@@ -556,8 +553,7 @@ fn selpar(f: *Fn, pars: []Ins) Params {
                 f.tmp[i.to.val].slot = -@as(i32, @intCast(off + 2));
                 off += c.size;
             } else {
-                var n: usize = 0;
-                while (n < c.nreg) : (n += 1) {
+                for (0..c.nreg) |n| {
                     const r = TMP(c.reg[n]);
                     emit(.copy, c.cls[n], tmp[t], r, R);
                     t += 1;

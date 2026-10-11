@@ -153,9 +153,9 @@ pub fn fillalias(f: *Fn) void {
     var a0: Alias = undefined;
     var a1: Alias = undefined;
 
-    for (f.tmp[0..@intCast(f.ntmp)]) |*t|
+    for (f.tmps()) |*t|
         t.alias.type = ABot;
-    for (f.rpo[0..f.nblk]) |b| {
+    for (f.blks()) |b| {
         var p_it = b.phi;
         while (p_it) |p| : (p_it = p.link) {
             assert(rtype(p.to) == RTmp);
@@ -230,7 +230,7 @@ pub fn fillalias(f: *Fn) void {
     while (b_it) |b| : (b_it = b.link) {
         var p_it = b.phi;
         while (p_it) |p| : (p_it = p.link) {
-            for (p.arg[0..p.narg]) |a|
+            for (p.args()) |a|
                 esc(a, f);
         }
     }

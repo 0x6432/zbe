@@ -166,7 +166,7 @@ fn dwl(f: *Fn, r: Ref, w_: i32) bool {
         if (p.visit != 0 and p.visit <= w)
             return true;
         p.visit = w;
-        for (p.arg[0..p.narg]) |a|
+        for (p.args()) |a|
             if (!dwl(f, a, w))
                 return false;
         return true;
@@ -243,7 +243,7 @@ pub fn narrowpars(f: *Fn) void {
     const b = f.start.?;
 
     var npar: uint = 0;
-    for (b.ins[0..b.nins]) |*i| {
+    for (b.insns()) |*i| {
         if (!ispar(i.op))
             break;
         npar += 1;
@@ -352,8 +352,7 @@ pub fn copyref(f: *Fn, b: *Blk, i: *Ins) Ref {
 
 fn phieq(pa: *Phi, pb: *Phi) bool {
     assert(pa.narg == pb.narg);
-    var n: uint = 0;
-    while (n < pa.narg) : (n += 1) {
+    for (0..pa.narg) |n| {
         const r = phiarg(pb, pa.blk[n]);
         if (!req(pa.arg[n], r))
             return false;
@@ -364,7 +363,7 @@ fn phieq(pa: *Phi, pb: *Phi) bool {
 pub fn phicopyref(f: *Fn, b: *Blk, p: *Phi) Ref {
     // identical args
     var r = R;
-    for (p.arg[0..p.narg]) |a| {
+    for (p.args()) |a| {
         if (!req(a, p.to)) {
             if (req(r, R))
                 r = a

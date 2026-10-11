@@ -410,8 +410,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
     p.narg = b.npred;
     p.arg = vnewT(Ref, p.narg, PFn);
     p.blk = vnewT(*Blk, p.narg, PFn);
-    var np: uint = 0;
-    while (np < b.npred) : (np += 1) {
+    for (0..b.npred) |np| {
         const bp = b.pred[np];
         if (bp.s2 == null and il.type != LNoLoad and bp.loop < il.blk.loop)
             l.type = LLoad
@@ -455,7 +454,7 @@ pub fn loadopt(f: *Fn) void {
     inum = 0;
     var b_it = f.start;
     while (b_it) |b| : (b_it = b.link) {
-        for (b.ins[0..b.nins], 0..) |*i, n| {
+        for (b.insns(), 0..) |*i, n| {
             if (!isload(i.op))
                 continue;
             const sz = loadsz(i);
@@ -470,7 +469,7 @@ pub fn loadopt(f: *Fn) void {
     ilog[nlog].bid = f.nblk; // add a sentinel
     var ib = vnewT(Ins, 0, PHeap);
     var ist: [*]Insert = ilog;
-    for (f.rpo[0..f.nblk], 0..) |b, n| {
+    for (f.blks(), 0..) |b, n| {
         while (ist[0].bid == n and ist[0].isphi != 0) : (ist += 1) {
             ist[0].new.phi.p.link = b.phi;
             b.phi = ist[0].new.phi.p;

@@ -144,11 +144,10 @@ pub fn filldom(f: *Fn) void {
     }
     while (true) {
         var changed = false;
-        var n: uint = 1;
-        while (n < f.nblk) : (n += 1) {
+        for (1..f.nblk) |n| {
             const b = f.rpo[n];
             var d: ?*Blk = null;
-            for (b.pred[0..b.npred]) |p|
+            for (b.preds()) |p|
                 if (p.idom != null or p == f.start) {
                     d = inter(d, p);
                 };
@@ -183,7 +182,7 @@ pub fn dom(b1: *Blk, b2: *Blk) bool {
 }
 
 fn addfron(a: *Blk, b: *Blk) void {
-    for (a.fron[0..a.nfron]) |x|
+    for (a.frons()) |x|
         if (x == b)
             return;
     a.nfron += 1;
@@ -215,7 +214,7 @@ fn loopmark(hd: *Blk, b: *Blk, f: *const fn (*Blk, *Blk) void) void {
         return;
     b.visit = hd.id;
     f(hd, b);
-    for (b.pred[0..b.npred]) |p|
+    for (b.preds()) |p|
         loopmark(hd, p, f);
 }
 
@@ -223,8 +222,8 @@ pub fn loopiter(f: *Fn, func: *const fn (*Blk, *Blk) void) void {
     var b_it = f.start;
     while (b_it) |b| : (b_it = b.link)
         b.visit = NOID;
-    for (f.rpo[0..f.nblk], 0..) |b, n| {
-        for (b.pred[0..b.npred]) |p|
+    for (f.blks(), 0..) |b, n| {
+        for (b.preds()) |p|
             if (p.id >= n)
                 loopmark(b, p, func);
     }
@@ -446,7 +445,7 @@ pub fn simplcfg(f: *Fn) void {
     while (b_it) |b| : (b_it = b.link) {
         jmp[b.id] = .{ .type = b.jmp.type, .arg = b.jmp.arg, .s1 = b.s1, .s2 = b.s2 };
         empty[b.id] = b.phi == null;
-        for (b.ins[0..b.nins]) |*i|
+        for (b.insns()) |*i|
             if (i.op != .nop and i.op != .dbgloc) {
                 empty[b.id] = false;
                 break;

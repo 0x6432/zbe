@@ -412,8 +412,7 @@ fn doblk(b: *Blk, cur: *RMap) void {
             },
         }
         var nr: usize = 0;
-        var x: usize = 0;
-        while (x < 2) : (x += 1) {
+        for (0..2) |x| {
             switch (rtype(i.arg[x])) {
                 RMem => {
                     const m = &mem[i.arg[x].val];
@@ -533,7 +532,7 @@ pub fn rega(f: *Fn) void {
     }
     std.sort.block(*Blk, blk, {}, carveLess);
     const start = f.start.?;
-    for (start.ins[0..start.nins]) |*i| {
+    for (start.insns()) |*i| {
         if (i.op != .copy or !isreg(i.arg[0]))
             break;
         assert(rtype(i.to) == RTmp);
@@ -625,7 +624,7 @@ pub fn rega(f: *Fn) void {
             const ru: usize = @intCast(m.r[j]);
             if (rl[ru] != 0 or t < Tmp0) // todo, remove this
                 continue;
-            for (s.pred[0..s.npred]) |pp| {
+            for (s.preds()) |pp| {
                 const x = rfind(&end[pp.id], t);
                 if (x == -1) // spilled
                     continue;
@@ -662,7 +661,7 @@ pub fn rega(f: *Fn) void {
 
     if (all.debug['R'] != 0) {
         dprint("\n> Register mappings:\n", .{});
-        for (f.rpo[0..f.nblk], 0..) |b, k| {
+        for (f.blks(), 0..) |b, k| {
             n = @intCast(k);
             dprint("\t{s:<10} beg", .{cs(b.name)});
             mdump(&beg[n]);

@@ -59,7 +59,7 @@ const vnewT = all.vnewT;
 pub fn promote(f: *Fn) void {
     // promote uniform stack slots to temporaries
     const b = f.start.?;
-    outer: for (b.ins[0..b.nins]) |*i| {
+    outer: for (b.insns()) |*i| {
         if (Opc.alloc_first.int() > i.op.int() or i.op.int() > Opc.alloc_last.int())
             continue;
         // specific to NAlign == 3

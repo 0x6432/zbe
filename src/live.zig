@@ -38,7 +38,7 @@ pub fn liveon(v: *BSet, b: *Blk, s: *Blk) void {
     }
     p_it = s.phi;
     while (p_it) |p| : (p_it = p.link) {
-        for (p.blk[0..p.narg], p.arg[0..p.narg]) |pb, a| {
+        for (p.blks(), p.args()) |pb, a| {
             if (pb == b and rtype(a) == RTmp) {
                 bsset(v, a.val);
                 bsset(&b.gen, a.val);

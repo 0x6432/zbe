@@ -303,6 +303,13 @@ pub const Phi = extern struct {
     arg: [*]Ref,
     blk: [*]*Blk,
     link: ?*Phi,
+
+    pub fn args(p: *const Phi) []Ref {
+        return p.arg[0..p.narg];
+    }
+    pub fn blks(p: *const Phi) []*Blk {
+        return p.blk[0..p.narg];
+    }
 };
 
 pub const Blk = extern struct {
@@ -335,6 +342,16 @@ pub const Blk = extern struct {
     nlive: [2]i32,
     loop: i32,
     name: ?[*:0]u8,
+
+    pub fn insns(b: *const Blk) []Ins {
+        return b.ins[0..b.nins];
+    }
+    pub fn preds(b: *const Blk) []*Blk {
+        return b.pred[0..b.npred];
+    }
+    pub fn frons(b: *const Blk) []*Blk {
+        return b.fron[0..b.nfron];
+    }
 };
 
 pub const U = enum(i32) { xxx = 0, phi = 1, ins = 2, jmp = 3 };
@@ -487,6 +504,19 @@ pub const Fn = extern struct {
     leaf: i8,
     name: ?[*:0]u8,
     lnk: Lnk,
+
+    pub fn tmps(f: *const Fn) []Tmp {
+        return f.tmp[0..@intCast(f.ntmp)];
+    }
+    pub fn cons(f: *const Fn) []Con {
+        return f.con[0..@intCast(f.ncon)];
+    }
+    pub fn mems(f: *const Fn) []Mem {
+        return f.mem[0..@intCast(f.nmem)];
+    }
+    pub fn blks(f: *const Fn) []*Blk {
+        return f.rpo[0..f.nblk];
+    }
 };
 
 pub const FEnd = 0;

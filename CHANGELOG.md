@@ -55,7 +55,8 @@
 - The op predicates (`isstore`, `isload`, `isalloc`, `isext`, `ispar`, `isarg`,
   `isparbh`, `isargbh`, `isxsel`) take an `Opc`, and `isret`/`isretbh` take a `J`,
   instead of `anytype`. amd64 `fixarg` keeps its op as an `Opc`.
-- Literal class numbers use `Cls.w.int()` instead of `knum(.w)` (91 sites).
+- Literal class numbers use `Cls.w.int()` instead of `knum(.w)` (91 sites), and
+  class fields use `i.cls.int()` instead of `knum(i.cls)`.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit

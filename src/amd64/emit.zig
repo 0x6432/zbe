@@ -361,7 +361,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
                 // fall through
             }
             assert(!req(i.arg[1], i.to) or req(i.arg[0], i.to)); // cannot convert to 2-address
-            try emitcopy(i.to, i.arg[0], all.knum(i.cls), e);
+            try emitcopy(i.to, i.arg[0], i.cls.int(), e);
             s += 1;
         },
         else => {},
@@ -668,9 +668,9 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             }
             // for floats, there is no swap instruction
             // so we use xmm15 as a temporary
-            try emitcopy(tmpRef(XMM0 + 15), i.arg[0], all.knum(i.cls), e);
-            try emitcopy(i.arg[0], i.arg[1], all.knum(i.cls), e);
-            try emitcopy(i.arg[1], tmpRef(XMM0 + 15), all.knum(i.cls), e);
+            try emitcopy(tmpRef(XMM0 + 15), i.arg[0], i.cls.int(), e);
+            try emitcopy(i.arg[0], i.arg[1], i.cls.int(), e);
+            try emitcopy(i.arg[1], tmpRef(XMM0 + 15), i.cls.int(), e);
         },
         .dbgloc => try emitdbgloc(i.arg[0].val, i.arg[1].val, e.f),
     }

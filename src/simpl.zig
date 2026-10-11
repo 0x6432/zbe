@@ -176,7 +176,7 @@ fn sdivpow2(i: *Ins, b: *Blk, k: uint, new: *bool, f: *Fn) bool {
         return false;
     const w: i64 = if (wide) 64 else 32;
     const n: i64 = ulog2(@bitCast(sv));
-    const cls: i32 = all.knum(i.cls);
+    const cls: i32 = i.cls.int();
     const x = i.arg[0];
     const to = i.to;
     const isdiv = i.op == .div;

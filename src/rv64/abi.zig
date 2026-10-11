@@ -318,7 +318,7 @@ fn argsclass(ins: []const Ins, carg: []Class, retptr: bool) i32 {
     for (ins, carg) |*i, *c| {
         switch (i.op) {
             .par, .arg => {
-                c.cls[0] = all.knum(i.cls);
+                c.cls[0] = i.cls.int();
                 if (!vararg and clsBase(i.cls) == 1 and nfp > 0) {
                     nfp -= 1;
                     c.reg[0] = fpreg[fp];

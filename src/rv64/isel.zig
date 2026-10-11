@@ -304,7 +304,7 @@ pub fn rv64_isel(f: *Fn) void {
                 var a: uint = 0;
                 while (p.blk[a] != b) : (a += 1)
                     assert(a + 1 < p.narg);
-                fixarg(&p.arg[a], all.knum(p.cls), null, f);
+                fixarg(&p.arg[a], p.cls.int(), null, f);
             }
         }
         seljmp(b, f);

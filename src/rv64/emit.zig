@@ -198,7 +198,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
 
     try f.writeByte('\t');
     while (true) {
-        const k: i32 = all.knum(i.cls);
+        const k: i32 = i.cls.int();
         while (true) {
             c = s[0];
             s += 1;
@@ -384,7 +384,7 @@ fn emitins(i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
             }
             assert(isreg(i.to));
             switch (rtype(i.arg[0])) {
-                RCon => try loadcon(&fn_.con[i.arg[0].val], @intCast(i.to.val), all.knum(i.cls), f),
+                RCon => try loadcon(&fn_.con[i.arg[0].val], @intCast(i.to.val), i.cls.int(), f),
                 RSlot => {
                     i.op = .load;
                     try fixmem(&i.arg[0], fn_, f);

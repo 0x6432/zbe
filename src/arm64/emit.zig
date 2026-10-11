@@ -241,7 +241,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
 
     var sp = false;
     while (true) {
-        var k: i32 = all.knum(i.cls);
+        var k: i32 = i.cls.int();
         while (true) {
             c = s[0];
             s += 1;
@@ -466,7 +466,7 @@ fn emitins(i: *Ins, e: *E) Writer.Error!void {
             switch (rtype(i.arg[0])) {
                 RCon => {
                     const c = &e.@"fn".con[i.arg[0].val];
-                    try loadcon(c, @intCast(i.to.val), all.knum(i.cls), e);
+                    try loadcon(c, @intCast(i.to.val), i.cls.int(), e);
                 },
                 RSlot => {
                     i.op = .load;

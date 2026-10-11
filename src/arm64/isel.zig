@@ -339,7 +339,7 @@ pub fn arm64_isel(f: *Fn) void {
                 var a: uint = 0;
                 while (p.blk[a] != b) : (a += 1)
                     assert(a + 1 < p.narg);
-                fixarg(&p.arg[a], all.knum(p.cls), true, f);
+                fixarg(&p.arg[a], p.cls.int(), true, f);
             }
         }
         seljmp(b, f);

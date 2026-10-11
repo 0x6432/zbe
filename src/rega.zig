@@ -696,7 +696,7 @@ pub fn rega(f: *Fn) void {
                 var src = p.arg[u];
                 if (rtype(src) == RTmp)
                     src = rref(&end[b.id], (src.val));
-                pmadd(src, dst, all.knum(p.cls));
+                pmadd(src, dst, p.cls.int());
             }
             t = Tmp0;
             while (bsiter(&s.in, &t)) : (t += 1) {

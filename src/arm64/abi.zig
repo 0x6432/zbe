@@ -327,7 +327,7 @@ fn argsclass(ins: []const Ins, carg: []Class) i32 {
         }
         if (scalar) {
             c.@"align" = c.size;
-            c.cls[0] = all.knum(i.cls);
+            c.cls[0] = i.cls.int();
             if (va) {
                 c.class |= Cstk;
                 c.size = 8;

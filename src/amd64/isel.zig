@@ -319,7 +319,7 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
                 return;
             };
     const i_0 = all.curi;
-    const k: i32 = all.knum(i.cls);
+    const k: i32 = i.cls.int();
     sw: switch (i.op) {
         .div, .rem, .udiv, .urem => {
             if (clsBase(k) == 1)
@@ -954,7 +954,7 @@ pub fn amd64_isel(f: *Fn) void {
                 var a: uint = 0;
                 while (p.blk[a] != b) : (a += 1)
                     assert(a + 1 < p.narg);
-                fixarg(&p.arg[a], all.knum(p.cls), null, f);
+                fixarg(&p.arg[a], p.cls.int(), null, f);
             }
         }
         if (n != 0) @memset(num[0..@intCast(n)], std.mem.zeroes(Num));

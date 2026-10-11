@@ -7,9 +7,9 @@ const Cls = all.Cls;
 const J = all.J;
 const Opc = all.Opc;
 const tgt = @import("all.zig");
-const BIT = all.BIT;
+const bitAt = all.bitAt;
 const Blk = all.Blk;
-const CALL = all.CALL;
+const callRef = all.callRef;
 const CON_Z = all.CON_Z;
 const Cislt = all.Cislt;
 const FEnd = all.FEnd;
@@ -18,11 +18,11 @@ const Fd = all.Fd;
 const Field = all.Field;
 const Fn = all.Fn;
 const Fs = all.Fs;
-const INS = all.INS;
-const INT = all.INT;
+const mkIns = all.mkIns;
+const intRef = all.intRef;
 const Ins = all.Ins;
-const KBASE = all.KBASE;
-const KWIDE = all.KWIDE;
+const clsBase = all.clsBase;
+const clsWide = all.clsWide;
 const PFn = all.PFn;
 const Phi = all.Phi;
 const R = all.R;
@@ -39,9 +39,9 @@ const R9 = tgt.R9;
 const RCall = all.RCall;
 const RTmp = all.RTmp;
 const Ref = all.Ref;
-const SLOT = all.SLOT;
+const slotRef = all.slotRef;
 const SP = tgt.SP;
-const TMP = all.TMP;
+const tmpRef = all.tmpRef;
 const Typ = all.Typ;
 const V0 = tgt.V0;
 const V1 = tgt.V1;
@@ -175,7 +175,7 @@ fn typclass(c: *Class, t: *Typ, gp: []const i32, fp: []const i32) void {
     c.size = @truncate(sz);
     c.hfa.base = @intCast(Cls.x.int());
     var ishfa = isfloatv(t, &c.hfa.base);
-    const hfasz: u64 = t.size / @as(u64, if (KWIDE(c.hfa.base) != 0) 8 else 4);
+    const hfasz: u64 = t.size / @as(u64, if (clsWide(c.hfa.base) != 0) 8 else 4);
     ishfa = ishfa and t.isdark == 0 and hfasz <= 4;
     c.ishfa = @intFromBool(ishfa);
     c.hfa.size = @truncate(hfasz);
@@ -220,7 +220,7 @@ fn sttmps(tmp: []Ref, cls: []const i32, nreg: uint, mem: Ref, f: *Fn) void {
         const r = newtmp("abi", .l, f);
         emit(store[@intCast(cls[n])], 0, R, tmp[n], r);
         emit(.add, .l, r, mem, getcon(@bitCast(off), f));
-        off += if (KWIDE(cls[n]) != 0) 8 else 4;
+        off += if (clsWide(cls[n]) != 0) 8 else 4;
     }
 }
 
@@ -230,9 +230,9 @@ fn ldregs(reg: []const i32, cls: []const i32, n: i32, mem: Ref, f: *Fn) void {
     var i: usize = 0;
     while (i < @as(usize, @intCast(n))) : (i += 1) {
         const r = newtmp("abi", .l, f);
-        emit(.load, cls[i], TMP(reg[i]), r, R);
+        emit(.load, cls[i], tmpRef(reg[i]), r, R);
         emit(.add, .l, r, mem, getcon(@bitCast(off), f));
-        off += if (KWIDE(cls[i]) != 0) 8 else 4;
+        off += if (clsWide(cls[i]) != 0) 8 else 4;
     }
 }
 
@@ -252,7 +252,7 @@ fn selret(b: *Blk, f: *Fn) void {
         typclass(&cr, &all.typ[@intCast(f.retty)], &gpreg, &fpreg);
         if ((cr.class & Cptr) != 0) {
             assert(rtype(f.retr) == RTmp);
-            emit(.blit1, 0, R, INT(cr.t.?.size), R);
+            emit(.blit1, 0, R, intRef(cr.t.?.size), R);
             emit(.blit0, 0, R, r, f.retr);
             cty = 0;
         } else {
@@ -261,16 +261,16 @@ fn selret(b: *Blk, f: *Fn) void {
         }
     } else {
         const k = j - J.retw.int();
-        if (KBASE(k) == 0) {
-            emit(.copy, k, TMP(R0), r, R);
+        if (clsBase(k) == 0) {
+            emit(.copy, k, tmpRef(R0), r, R);
             cty = 1;
         } else {
-            emit(.copy, k, TMP(V0), r, R);
+            emit(.copy, k, tmpRef(V0), r, R);
             cty = 1 << 2;
         }
     }
 
-    b.jmp.arg = CALL(cty);
+    b.jmp.arg = callRef(cty);
 }
 
 // registers really consumed by named args (an HFA/aggregate that does
@@ -298,7 +298,7 @@ fn argsclass(ins: []const Ins, carg: []Class) i32 {
             },
             .par, .arg => {
                 c.size = 8;
-                if (all.T.apple != 0 and KWIDE(i.cls) == 0)
+                if (all.T.apple != 0 and clsWide(i.cls) == 0)
                     c.size = 4;
                 scalar = true;
             },
@@ -334,13 +334,13 @@ fn argsclass(ins: []const Ins, carg: []Class) i32 {
                 c.@"align" = 8;
                 continue;
             }
-            if (KBASE(i.cls) == 0 and ngp > 0) {
+            if (clsBase(i.cls) == 0 and ngp > 0) {
                 ngp -= 1;
                 c.reg[0] = gpreg[gp];
                 gp += 1;
                 continue;
             }
-            if (KBASE(i.cls) == 1 and nfp > 0) {
+            if (clsBase(i.cls) == 1 and nfp > 0) {
                 nfp -= 1;
                 c.reg[0] = fpreg[fp];
                 fp += 1;
@@ -366,11 +366,11 @@ pub fn arm64_retregs(r: Ref, p: ?*[2]i32) bits {
     var b: bits = 0;
     while (ngp > 0) {
         ngp -= 1;
-        b |= BIT(R0 + ngp);
+        b |= bitAt(R0 + ngp);
     }
     while (nfp > 0) {
         nfp -= 1;
-        b |= BIT(V0 + nfp);
+        b |= bitAt(V0 + nfp);
     }
     return b;
 }
@@ -386,11 +386,11 @@ pub fn arm64_argregs(r: Ref, p: ?*[2]i32) bits {
     var b: bits = 0;
     while (ngp > 0) {
         ngp -= 1;
-        b |= BIT(R0 + ngp);
+        b |= bitAt(R0 + ngp);
     }
     while (nfp > 0) {
         nfp -= 1;
-        b |= BIT(V0 + nfp);
+        b |= bitAt(V0 + nfp);
     }
     return b | (@as(bits, @intCast(x8)) << R8) | (@as(bits, @intCast(x9)) << R9);
 }
@@ -401,7 +401,7 @@ fn stkblob(r: Ref, c: *Class, f: *Fn, ilp: *?*Insl) void {
     if (al < 0)
         al = 0;
     const sz: u64 = if ((c.class & Cptr) != 0) c.t.?.size else c.size;
-    il.i = INS(Opc.alloc_first.offset(al), .l, r, getcon(@bitCast(sz), f), R);
+    il.i = mkIns(Opc.alloc_first.offset(al), .l, r, getcon(@bitCast(sz), f), R);
     il.link = ilp.*;
     ilp.* = il;
 }
@@ -434,7 +434,7 @@ fn selcall(f: *Fn, args: []Ins, i_1: *Ins, ilp: *?*Insl) void {
     stk = alignu(stk, 16);
     const rstk = getcon(stk, f);
     if (stk != 0)
-        emit(.add, .l, TMP(SP), TMP(SP), rstk);
+        emit(.add, .l, tmpRef(SP), tmpRef(SP), rstk);
 
     if (!req(i_1.arg[1], R)) {
         typclass(&cr, &all.typ[i_1.arg[1].val], &gpreg, &fpreg);
@@ -445,35 +445,35 @@ fn selcall(f: *Fn, args: []Ins, i_1: *Ins, ilp: *?*Insl) void {
             // followed by copies from regs,
             // so we emit a dummy
             cty |= 1 << 13 | 1;
-            emit(.copy, .w, R, TMP(R0), R);
+            emit(.copy, .w, R, tmpRef(R0), R);
         } else {
             sttmps(&tmp, &cr.cls, cr.nreg, i_1.to, f);
             for (0..cr.nreg) |n| {
-                const r = TMP(cr.reg[n]);
+                const r = tmpRef(cr.reg[n]);
                 emit(.copy, cr.cls[n], tmp[n], r, R);
             }
         }
     } else {
-        if (KBASE(i_1.cls) == 0) {
-            emit(.copy, i_1.cls, i_1.to, TMP(R0), R);
+        if (clsBase(i_1.cls) == 0) {
+            emit(.copy, i_1.cls, i_1.to, tmpRef(R0), R);
             cty |= 1;
         } else {
-            emit(.copy, i_1.cls, i_1.to, TMP(V0), R);
+            emit(.copy, i_1.cls, i_1.to, tmpRef(V0), R);
             cty |= 1 << 2;
         }
     }
 
-    emit(.call, 0, R, i_1.arg[0], CALL(cty));
+    emit(.call, 0, R, i_1.arg[0], callRef(cty));
 
     if ((cty & (1 << 13)) != 0)
         // struct return argument
-        emit(.copy, .l, TMP(R8), i_1.to, R);
+        emit(.copy, .l, tmpRef(R8), i_1.to, R);
 
     for (args, ca) |*i, *c| {
         if ((c.class & Cstk) != 0)
             continue;
         if (i.op == .arg or i.op == .arge or isargbh(i.op))
-            emit(.copy, c.cls[0], TMP(c.reg[0]), i.arg[0], R);
+            emit(.copy, c.cls[0], tmpRef(c.reg[0]), i.arg[0], R);
         if (i.op == .argc)
             ldregs(&c.reg, &c.cls, c.nreg, i.arg[1], f);
     }
@@ -495,18 +495,18 @@ fn selcall(f: *Fn, args: []Ins, i_1: *Ins, ilp: *?*Insl) void {
             emit(op, 0, R, i.arg[0], r);
         } else {
             assert(i.op == .argc);
-            emit(.blit1, 0, R, INT(c.size), R);
+            emit(.blit1, 0, R, intRef(c.size), R);
             emit(.blit0, 0, R, i.arg[1], r);
         }
-        emit(.add, .l, r, TMP(SP), getcon(off, f));
+        emit(.add, .l, r, tmpRef(SP), getcon(off, f));
         off += c.size;
     }
     if (stk != 0)
-        emit(.sub, .l, TMP(SP), TMP(SP), rstk);
+        emit(.sub, .l, tmpRef(SP), tmpRef(SP), rstk);
 
     for (args, ca) |*i, *c| {
         if ((c.class & Cptr) != 0) {
-            emit(.blit1, 0, R, INT(c.t.?.size), R);
+            emit(.blit1, 0, R, intRef(c.t.?.size), R);
             emit(.blit0, 0, R, i.arg[1], i.arg[0]);
         }
     }
@@ -521,7 +521,7 @@ fn selpar(f: *Fn, pars: []Ins) Params {
     all.curi = all.insbEnd();
 
     const cty = argsclass(pars, ca);
-    f.reg = arm64_argregs(CALL(cty), null);
+    f.reg = arm64_argregs(callRef(cty), null);
 
     var il: ?*Insl = null;
     var t: usize = 0; // next tmp
@@ -539,8 +539,8 @@ fn selpar(f: *Fn, pars: []Ins) Params {
         typclass(&cr, &all.typ[@intCast(f.retty)], &gpreg, &fpreg);
         if ((cr.class & Cptr) != 0) {
             f.retr = newtmp("abi", .l, f);
-            emit(.copy, .l, f.retr, TMP(R8), R);
-            f.reg |= BIT(R8);
+            emit(.copy, .l, f.retr, tmpRef(R8), R);
+            f.reg |= bitAt(R8);
         }
     }
 
@@ -554,7 +554,7 @@ fn selpar(f: *Fn, pars: []Ins) Params {
                 off += c.size;
             } else {
                 for (0..c.nreg) |n| {
-                    const r = TMP(c.reg[n]);
+                    const r = tmpRef(c.reg[n]);
                     emit(.copy, c.cls[n], tmp[t], r, R);
                     t += 1;
                 }
@@ -565,10 +565,10 @@ fn selpar(f: *Fn, pars: []Ins) Params {
                 op = Opc.loadsb.offset(i.op.diff(.parsb))
             else
                 op = .load;
-            emit(op, c.cls[0], i.to, SLOT(-@as(i32, @intCast(off + 2))), R);
+            emit(op, c.cls[0], i.to, slotRef(-@as(i32, @intCast(off + 2))), R);
             off += c.size;
         } else {
-            emit(.copy, c.cls[0], i.to, TMP(c.reg[0]), R);
+            emit(.copy, c.cls[0], i.to, tmpRef(c.reg[0]), R);
         }
     }
 
@@ -622,7 +622,7 @@ fn arm64_selvaarg(f: *Fn, b: *Blk, i: *Ins) void {
     const c24 = getcon(24, f);
     const c28 = getcon(28, f);
     const ap = i.arg[0];
-    const isgp = KBASE(i.cls) == 0;
+    const isgp = clsBase(i.cls) == 0;
 
     // @b [...]
     //     r0 =l add ap, (24 or 28)
@@ -710,7 +710,7 @@ fn apple_selvastart(f: *Fn, p: Params, ap: Ref) void {
 
     emit(.storel, 0, R, arg, ap);
     emit(.add, .l, arg, stk, off);
-    emit(.addr, .l, stk, SLOT(-1), R);
+    emit(.addr, .l, stk, slotRef(-1), R);
 }
 
 fn arm64_selvastart(f: *Fn, p: Params, ap: Ref) void {
@@ -730,7 +730,7 @@ fn arm64_selvastart(f: *Fn, p: Params, ap: Ref) void {
     r1 = newtmp("abi", .l, f);
     emit(.storel, .w, R, r1, r0);
     emit(.add, .l, r1, rsave, getcon(192, f));
-    emit(.addr, .l, rsave, SLOT(-1), R);
+    emit(.addr, .l, rsave, slotRef(-1), R);
     emit(.add, .l, r0, ap, getcon(16, f));
 
     // C: (p.ngp-8)*8 computed in uint, then widened to int64_t

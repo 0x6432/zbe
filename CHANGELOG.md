@@ -40,6 +40,11 @@
   `f.blks()`); loops use them instead of `x.ins[0..x.nins]` or index
   counters. Simple counted `while` loops are `for (a..b) |i|`, and
   predecessor searches are `for ... else` expressions.
+- Macro-style helpers use Zig names: `TMP`/`CON`/`SLOT`/`TYPE`/`CALL`/`MEM`/`INT`
+  are `tmpRef`/`conRef`/`slotRef`/`typeRef`/`callRef`/`memRef`/`intRef`;
+  `INS`/`INS0` are `mkIns`/`insOp`; `KBASE`/`KWIDE` are `clsBase`/`clsWide`;
+  `BIT` is `bitAt`, `INRANGE` is `inRange`, `MASK` is `lowMask`, and
+  `ALIGN_UP`/`ALIGN_DOWN` are `alignUp`/`alignDown`.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit

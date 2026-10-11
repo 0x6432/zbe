@@ -10,7 +10,7 @@ const tgt = @import("all.zig");
 const Blk = all.Blk;
 const CAddr = all.CAddr;
 const CBits = all.CBits;
-const CON = all.CON;
+const conRef = all.conRef;
 const Cfeq = all.Cfeq;
 const Cfge = all.Cfge;
 const Cfgt = all.Cfgt;
@@ -31,18 +31,18 @@ const Ciule = all.Ciule;
 const Ciult = all.Ciult;
 const Con = all.Con;
 const Fn = all.Fn;
-const INRANGE = all.INRANGE;
-const INS0 = all.INS0;
+const inRange = all.inRange;
+const insOp = all.insOp;
 const Ins = all.Ins;
-const KBASE = all.KBASE;
-const KWIDE = all.KWIDE;
+const clsBase = all.clsBase;
+const clsWide = all.clsWide;
 const NCmpI = all.NCmpI;
 const Phi = all.Phi;
 const R = all.R;
 const RCon = all.RCon;
 const RTmp = all.RTmp;
 const Ref = all.Ref;
-const SLOT = all.SLOT;
+const slotRef = all.slotRef;
 const argcls = all.argcls;
 const bufPrintZ = all.bufPrintZ;
 const cs = all.cs;
@@ -94,16 +94,16 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
             var c: *Con = &f.con[r0.val];
             if (c.type == CAddr and memarg(r, op, i))
                 break :blk;
-            if (KBASE(k) == 0 and c.type == CBits and immarg(r, op, i) and
+            if (clsBase(k) == 0 and c.type == CBits and immarg(r, op, i) and
                 -2048 <= c.bits.i and c.bits.i < 2048)
                 break :blk;
             r1 = newtmp("isel", k, f);
-            if (KBASE(k) == 1) {
+            if (clsBase(k) == 1) {
                 // load floating points from memory
                 // slots, they can't be used as
                 // immediates
                 assert(c.type == CBits);
-                const n = stashbits(@bitCast(c.bits.i), if (KWIDE(k) != 0) 8 else 4);
+                const n = stashbits(@bitCast(c.bits.i), if (clsWide(k) != 0) 8 else 4);
                 f.ncon += 1;
                 vgrow(&f.con, f.ncon);
                 const ci: usize = @intCast(f.ncon - 1);
@@ -112,7 +112,7 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
                 c.* = std.mem.zeroes(Con);
                 c.type = CAddr;
                 c.sym.id = intern(@ptrCast(&buf));
-                emit(.load, k, r1, CON(ci), R);
+                emit(.load, k, r1, conRef(ci), R);
                 break :blk;
             }
             emit(.copy, k, r1, r0, R);
@@ -126,11 +126,11 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
                 // stack, or fast local address,
                 // replace with slot if we can
                 if (memarg(r, op, i)) {
-                    r1 = SLOT(s);
+                    r1 = slotRef(s);
                     break :blk;
                 }
                 r1 = newtmp("isel", k, f);
-                emit(.addr, k, r1, SLOT(s), R);
+                emit(.addr, k, r1, slotRef(s), R);
                 break :blk;
             }
             if (k == Cls.w.int() and f.tmp[r0.val].cls == .l) {
@@ -199,7 +199,7 @@ fn selcmp(i_: Ins, k: i32, op_: i32, f: *Fn) void {
             const r0 = newtmp("isel", i.cls, f);
             const r1 = newtmp("isel", i.cls, f);
             emit(.@"and", i.cls, i.to, r0, r1);
-            const cop: Opc = if (KWIDE(k) != 0) .ceqd else .ceqs;
+            const cop: Opc = if (clsWide(k) != 0) .ceqd else .ceqs;
             emit(cop, i.cls, r0, i.arg[0], i.arg[0]);
             fixcmp(k, f);
             emit(cop, i.cls, r1, i.arg[1], i.arg[1]);
@@ -209,7 +209,7 @@ fn selcmp(i_: Ins, k: i32, op_: i32, f: *Fn) void {
         NCmpI + Cfne => {
             swap = false;
             neg = true;
-            i.op = if (KWIDE(k) != 0) .ceqd else .ceqs;
+            i.op = if (clsWide(k) != 0) .ceqd else .ceqs;
         },
         else => unreachable, // unknown comparison
     }
@@ -231,7 +231,7 @@ fn sel(i_: Ins, f: *Fn) void {
     var ck: i32 = undefined;
     var cc: i32 = undefined;
 
-    if (INRANGE(i.op, Opc.alloc_first, Opc.alloc_last)) {
+    if (inRange(i.op, Opc.alloc_first, Opc.alloc_last)) {
         const i_0 = &(all.curi - 1)[0];
         salloc(i.to, i.arg[0], f);
         fixarg(&i_0.arg[0], all.knum(.l), i_0, f);
@@ -289,7 +289,7 @@ pub fn rv64_isel(f: *Fn) void {
                     die("alloc too large", .{});
                 f.tmp[i.to.val].slot = f.slot;
                 f.slot += @intCast(sz);
-                i.* = INS0(.nop);
+                i.* = insOp(.nop);
             }
         }
     }

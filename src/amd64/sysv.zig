@@ -7,9 +7,9 @@ const Cls = all.Cls;
 const J = all.J;
 const Opc = all.Opc;
 const tgt = @import("all.zig");
-const BIT = all.BIT;
+const bitAt = all.bitAt;
 const Blk = all.Blk;
-const CALL = all.CALL;
+const callRef = all.callRef;
 const CON_Z = all.CON_Z;
 const Ciult = all.Ciult;
 const FEnd = all.FEnd;
@@ -23,10 +23,10 @@ const Fl = all.Fl;
 const Fn = all.Fn;
 const Fs = all.Fs;
 const Fw = all.Fw;
-const INS = all.INS;
-const INT = all.INT;
+const mkIns = all.mkIns;
+const intRef = all.intRef;
 const Ins = all.Ins;
-const KBASE = all.KBASE;
+const clsBase = all.clsBase;
 const NCLR_SYSV = tgt.NCLR_SYSV;
 const NFPS = tgt.NFPS;
 const NGPS_SYSV = tgt.NGPS_SYSV;
@@ -52,8 +52,8 @@ const RSI = tgt.RSI;
 const RTmp = all.RTmp;
 const RType = all.RType;
 const Ref = all.Ref;
-const SLOT = all.SLOT;
-const TMP = all.TMP;
+const slotRef = all.slotRef;
+const tmpRef = all.tmpRef;
 const Typ = all.Typ;
 const XMM0 = tgt.XMM0;
 const XMM1 = tgt.XMM1;
@@ -184,8 +184,8 @@ fn retr(reg: *[2]Ref, aret: *AClass) i32 {
     var ca: i32 = 0;
     var n: usize = 0;
     while (n * 8 < aret.size) : (n += 1) {
-        const k: usize = @intCast(KBASE(aret.cls[n]));
-        reg[n] = TMP(retreg[k][nr[k]]);
+        const k: usize = @intCast(clsBase(aret.cls[n]));
+        reg[n] = tmpRef(retreg[k][nr[k]]);
         nr[k] += 1;
         ca += @as(i32, 1) << @intCast(2 * k);
     }
@@ -209,8 +209,8 @@ fn selret(b: *Blk, f: *Fn) void {
         typclass(&aret, &all.typ[@intCast(f.retty)]);
         if (aret.inmem != 0) {
             assert(rtype(f.retr) == RTmp);
-            emit(.copy, .l, TMP(RAX), f.retr, R);
-            emit(.blit1, 0, R, INT(aret.type.?.size), R);
+            emit(.copy, .l, tmpRef(RAX), f.retr, R);
+            emit(.blit1, 0, R, intRef(aret.type.?.size), R);
             emit(.blit0, 0, R, r0, f.retr);
             ca = 1;
         } else {
@@ -224,16 +224,16 @@ fn selret(b: *Blk, f: *Fn) void {
         }
     } else {
         const k = j - J.retw.int();
-        if (KBASE(k) == 0) {
-            emit(.copy, k, TMP(RAX), r0, R);
+        if (clsBase(k) == 0) {
+            emit(.copy, k, tmpRef(RAX), r0, R);
             ca = 1;
         } else {
-            emit(.copy, k, TMP(XMM0), r0, R);
+            emit(.copy, k, tmpRef(XMM0), r0, R);
             ca = 1 << 2;
         }
     }
 
-    b.jmp.arg = CALL(ca);
+    b.jmp.arg = callRef(ca);
 }
 
 fn argsclass(ins: []const Ins, ac: []AClass, op: i32, aret: ?*const AClass, env: *Ref) i32 {
@@ -248,7 +248,7 @@ fn argsclass(ins: []const Ins, ac: []AClass, op: i32, aret: ?*const AClass, env:
     for (ins, ac) |*i, *a| {
         switch (all.ops.num(i.op) - op + all.ops.num(.arg)) {
             all.ops.num(.arg) => {
-                const pn: *i32 = if (KBASE(i.cls) == 0) &nint else &nsse;
+                const pn: *i32 = if (clsBase(i.cls) == 0) &nint else &nsse;
                 if (pn.* > 0) {
                     pn.* -= 1;
                     a.inmem = 0;
@@ -266,7 +266,7 @@ fn argsclass(ins: []const Ins, ac: []AClass, op: i32, aret: ?*const AClass, env:
                 var ns: i32 = 0;
                 var n: usize = 0;
                 while (n * 8 < a.size) : (n += 1) {
-                    if (KBASE(a.cls[n]) == 0)
+                    if (clsBase(a.cls[n]) == 0)
                         ni += 1
                     else
                         ns += 1;
@@ -323,13 +323,13 @@ pub fn amd64_sysv_retregs(r: Ref, p: ?*[2]i32) bits {
     const ni: i32 = (r.val & 3);
     const nf: i32 = ((r.val >> 2) & 3);
     if (ni >= 1)
-        b |= BIT(RAX);
+        b |= bitAt(RAX);
     if (ni >= 2)
-        b |= BIT(RDX);
+        b |= bitAt(RDX);
     if (nf >= 1)
-        b |= BIT(XMM0);
+        b |= bitAt(XMM0);
     if (nf >= 2)
-        b |= BIT(XMM1);
+        b |= bitAt(XMM1);
     if (p) |q|
         q.* = .{ ni, nf };
     return b;
@@ -343,22 +343,22 @@ pub fn amd64_sysv_argregs(r: Ref, p: ?*[2]i32) bits {
     const ra: i32 = ((r.val >> 12) & 1);
     var j: i32 = 0;
     while (j < ni) : (j += 1)
-        b |= BIT(amd64_sysv_rsave[@intCast(j)]);
+        b |= bitAt(amd64_sysv_rsave[@intCast(j)]);
     j = 0;
     while (j < nf) : (j += 1)
-        b |= BIT(XMM0 + j);
+        b |= bitAt(XMM0 + j);
     if (p) |q|
         q.* = .{ ni + ra, nf };
-    return b | (if (ra != 0) BIT(RAX) else 0);
+    return b | (if (ra != 0) bitAt(RAX) else 0);
 }
 
 fn rarg(ty: i32, ni: *i32, ns: *i32) Ref {
-    if (KBASE(ty) == 0) {
-        const r = TMP(amd64_sysv_rsave[@intCast(ni.*)]);
+    if (clsBase(ty) == 0) {
+        const r = tmpRef(amd64_sysv_rsave[@intCast(ni.*)]);
         ni.* += 1;
         return r;
     } else {
-        const r = TMP(XMM0 + ns.*);
+        const r = tmpRef(XMM0 + ns.*);
         ns.* += 1;
         return r;
     }
@@ -406,7 +406,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
             // get the return location from eax
             // it saves one callee-save reg
             r1 = newtmp("abi", .l, f);
-            emit(.copy, .l, i_1.to, TMP(RAX), R);
+            emit(.copy, .l, i_1.to, tmpRef(RAX), R);
             ca += 1;
         } else {
             // todo, may read out of bounds.
@@ -430,27 +430,27 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
         const ra1 = pnew(RAlloc);
         // specific to NAlign == 3
         const al: i32 = if (aret.@"align" >= 2) aret.@"align" - 2 else 0;
-        ra1.i = INS(Opc.alloc_first.offset(al), .l, r1, getcon(aret.size, f), R);
+        ra1.i = mkIns(Opc.alloc_first.offset(al), .l, r1, getcon(aret.size, f), R);
         ra1.link = rap.*;
         rap.* = ra1;
         ra = ra1;
     } else {
         ra = null;
-        if (KBASE(i_1.cls) == 0) {
-            emit(.copy, i_1.cls, i_1.to, TMP(RAX), R);
+        if (clsBase(i_1.cls) == 0) {
+            emit(.copy, i_1.cls, i_1.to, tmpRef(RAX), R);
             ca += 1;
         } else {
-            emit(.copy, i_1.cls, i_1.to, TMP(XMM0), R);
+            emit(.copy, i_1.cls, i_1.to, tmpRef(XMM0), R);
             ca += 1 << 2;
         }
     }
 
-    emit(.call, i_1.cls, R, i_1.arg[0], CALL(ca));
+    emit(.call, i_1.cls, R, i_1.arg[0], callRef(ca));
 
     if (!req(R, env))
-        emit(.copy, .l, TMP(RAX), env, R)
+        emit(.copy, .l, tmpRef(RAX), env, R)
     else if (((ca >> 12) & 1) != 0) // vararg call
-        emit(.copy, .w, TMP(RAX), getcon((ca >> 8) & 15, f), R);
+        emit(.copy, .w, tmpRef(RAX), getcon((ca >> 8) & 15, f), R);
 
     var ni: i32 = 0;
     var ns: i32 = 0;
@@ -484,7 +484,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
         if (i.op == .argc) {
             if (a.@"align" == 4)
                 off += off & 15;
-            emit(.blit1, 0, R, INT(a.type.?.size), R);
+            emit(.blit1, 0, R, intRef(a.type.?.size), R);
             emit(.blit0, 0, R, i.arg[1], r1);
         } else emit(.storel, 0, R, i.arg[0], r1);
         emit(.add, .l, r1, r, getcon(off, f));
@@ -508,7 +508,7 @@ fn selpar(f: *Fn, ins: []Ins) i32 {
         typclass(&aret, &all.typ[@intCast(f.retty)]);
         fa = argsclass(ins, ac, all.ops.num(.par), &aret, &env);
     } else fa = argsclass(ins, ac, all.ops.num(.par), null, &env);
-    f.reg = amd64_sysv_argregs(CALL(fa), null);
+    f.reg = amd64_sysv_argregs(callRef(fa), null);
 
     for (ins, ac) |*i, *a| {
         if (i.op != .parc or a.inmem != 0)
@@ -545,7 +545,7 @@ fn selpar(f: *Fn, ins: []Ins) i32 {
                 continue;
             },
             2 => {
-                emit(.load, i.cls, i.to, SLOT(-s), R);
+                emit(.load, i.cls, i.to, slotRef(-s), R);
                 s += 2;
                 continue;
             },
@@ -564,7 +564,7 @@ fn selpar(f: *Fn, ins: []Ins) i32 {
     }
 
     if (!req(R, env))
-        emit(.copy, .l, env, TMP(RAX), R);
+        emit(.copy, .l, env, tmpRef(RAX), R);
 
     return fa | (s * 4) << 12;
 }
@@ -598,7 +598,7 @@ fn selvaarg(f: *Fn, b: *Blk, i: *Ins) void {
     const c8 = getcon(8, f);
     const c16 = getcon(16, f);
     const ap = i.arg[0];
-    const isint = KBASE(i.cls) == 0;
+    const isint = clsBase(i.cls) == 0;
 
     // @b [...]
     //     r0 =l add ap, (0 or 4)
@@ -690,12 +690,12 @@ fn selvastart(f: *Fn, fa: i32, ap: Ref) void {
     var r0 = newtmp("abi", .l, f);
     var r1 = newtmp("abi", .l, f);
     emit(.storel, .w, R, r1, r0);
-    emit(.add, .l, r1, TMP(RBP), getcon(-176, f));
+    emit(.add, .l, r1, tmpRef(RBP), getcon(-176, f));
     emit(.add, .l, r0, ap, getcon(16, f));
     r0 = newtmp("abi", .l, f);
     r1 = newtmp("abi", .l, f);
     emit(.storel, .w, R, r1, r0);
-    emit(.add, .l, r1, TMP(RBP), getcon(sp, f));
+    emit(.add, .l, r1, tmpRef(RBP), getcon(sp, f));
     emit(.add, .l, r0, ap, getcon(8, f));
     r0 = newtmp("abi", .l, f);
     emit(.storew, .w, R, getcon(fp, f), r0);

@@ -12,7 +12,7 @@ const ALoc = all.ALoc;
 const ASym = all.ASym;
 const AUnk = all.AUnk;
 const Alias = all.Alias;
-const BIT = all.BIT;
+const bitAt = all.bitAt;
 const Blk = all.Blk;
 const CAddr = all.CAddr;
 const CBits = all.CBits;
@@ -143,7 +143,7 @@ fn store(r: Ref, sz: i32, f: *Fn) void {
             if (sz >= NBit or (off < 0 or off >= NBit))
                 m = @bitCast(@as(i64, -1))
             else
-                m = (BIT(sz) -% 1) << @intCast(off);
+                m = (bitAt(sz) -% 1) << @intCast(off);
             a.slot.?.u.loc.m |= m;
         }
     }

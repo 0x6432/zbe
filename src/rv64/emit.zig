@@ -8,7 +8,7 @@ const J = all.J;
 const tgt = @import("all.zig");
 const A0 = tgt.A0;
 const A7 = tgt.A7;
-const BIT = all.BIT;
+const bitAt = all.bitAt;
 const Blk = all.Blk;
 const CAddr = all.CAddr;
 const CBits = all.CBits;
@@ -21,8 +21,8 @@ const FT11 = tgt.FT11;
 const Fn = all.Fn;
 const GP = tgt.GP;
 const Ins = all.Ins;
-const KBASE = all.KBASE;
-const KWIDE = all.KWIDE;
+const clsBase = all.clsBase;
+const clsWide = all.clsWide;
 const NOp = all.NOp;
 const R = all.R;
 const RA = tgt.RA;
@@ -38,7 +38,7 @@ const SP = tgt.SP;
 const SThr = all.SThr;
 const T0 = tgt.T0;
 const T6 = tgt.T6;
-const TMP = all.TMP;
+const tmpRef = all.tmpRef;
 const TP = tgt.TP;
 const Writer = all.Writer;
 const bufPrintZ = all.bufPrintZ;
@@ -213,7 +213,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
         switch (c) {
             else => die("invalid escape", .{}),
             '?' => {
-                if (KBASE(k) == 0)
+                if (clsBase(k) == 0)
                     try f.writeAll("t6")
                 else
                     try f.writeAll("ft11");
@@ -256,7 +256,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
                         assert(pc.type == CAddr);
                         try emitaddr(pc, f);
                         if (isstore(i.op) or
-                            (isload(i.op) and KBASE(i.cls) == 1))
+                            (isload(i.op) and clsBase(i.cls) == 1))
                         {
                             // store (and float load)
                             // pseudo-instructions need a
@@ -305,7 +305,7 @@ fn loadcon(c: *Con, r: i32, k: i32, f: *Writer) Writer.Error!void {
         CAddr => try loadaddr(c, rn, f),
         CBits => {
             var n = c.bits.i;
-            if (KWIDE(k) == 0)
+            if (clsWide(k) == 0)
                 n = @as(i32, @truncate(n));
             try f.print("\tli {s}, {d}\n", .{cs(rn), n});
         },
@@ -319,7 +319,7 @@ fn fixmem(pr: *Ref, fn_: *Fn, f: *Writer) Writer.Error!void {
         const c = &fn_.con[r.val];
         if (c.type == CAddr and c.sym.type != SGlo) {
             try loadcon(c, T6, all.knum(.l), f);
-            pr.* = TMP(T6);
+            pr.* = tmpRef(T6);
         }
     }
     if (rtype(r) == RSlot) {
@@ -327,7 +327,7 @@ fn fixmem(pr: *Ref, fn_: *Fn, f: *Writer) Writer.Error!void {
         if (s < -2048 or s > 2047) {
             try f.print("\tli t6, {d}\n", .{s});
             try f.print("\tadd t6, fp, t6\n", .{});
-            pr.* = TMP(T6);
+            pr.* = tmpRef(T6);
         }
     }
 }
@@ -344,7 +344,7 @@ fn table(i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
             die("no match for {s}({c})", .{cs(all.optab[i.op.int()].name), "wlsd"[i.cls.idx()]});
         if (omap[o].op == i.op and
             (@intFromEnum(omap[o].cls) == @intFromEnum(i.cls) or omap[o].cls == .a or
-            (omap[o].cls == .i and KBASE(i.cls) == 0)))
+            (omap[o].cls == .i and clsBase(i.cls) == 0)))
             break;
     }
     try emitf(omap[o].fmt.?, i, fn_, f);
@@ -473,7 +473,7 @@ pub fn rv64_emitfn(fn_: *Fn, f: *Writer) Writer.Error!void {
     var frame: i32 = (16 + 4 * fn_.slot + 15) & ~@as(i32, 15);
     for (rv64_rclob) |r| {
         if (r < 0) break;
-        if ((fn_.reg & BIT(r)) != 0)
+        if ((fn_.reg & bitAt(r)) != 0)
             frame += 8;
     }
     frame = (frame + 15) & ~@as(i32, 15);
@@ -485,7 +485,7 @@ pub fn rv64_emitfn(fn_: *Fn, f: *Writer) Writer.Error!void {
     var off: i32 = 0;
     for (rv64_rclob) |r| {
         if (r < 0) break;
-        if ((fn_.reg & BIT(r)) != 0) {
+        if ((fn_.reg & bitAt(r)) != 0) {
             try f.print("\t{s} {s}, {d}(sp)\n", .{ if (r < FT0) "sd" else "fsd", cs(rname[@intCast(r)]), off });
             off += 8;
         }
@@ -512,7 +512,7 @@ pub fn rv64_emitfn(fn_: *Fn, f: *Writer) Writer.Error!void {
                 off = 0;
                 for (rv64_rclob) |r| {
                     if (r < 0) break;
-                    if ((fn_.reg & BIT(r)) != 0) {
+                    if ((fn_.reg & bitAt(r)) != 0) {
                         try f.print("\t{s} {s}, {d}(sp)\n", .{ if (r < FT0) "ld" else "fld", cs(rname[@intCast(r)]), off });
                         off += 8;
                     }
@@ -532,7 +532,7 @@ pub fn rv64_emitfn(fn_: *Fn, f: *Writer) Writer.Error!void {
                     var ii = std.mem.zeroes(Ins);
                     ii.arg[0] = b.jmp.arg;
                     try emitf("lw t6, %M0", &ii, fn_, f);
-                    b.jmp.arg = TMP(T6);
+                    b.jmp.arg = tmpRef(T6);
                 }
                 assert(isreg(b.jmp.arg));
                 try f.print("\tb{s}z {s}, .L{d}\n", .{if (neg) "ne" else "eq", cs(rname[b.jmp.arg.val]), id0 + @as(i32, @intCast(b.s2.?.id))});

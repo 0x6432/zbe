@@ -12,10 +12,10 @@ const CBits = all.CBits;
 const CON_Z = all.CON_Z;
 const Con = all.Con;
 const Fn = all.Fn;
-const INS0 = all.INS0;
+const insOp = all.insOp;
 const Ins = all.Ins;
-const KBASE = all.KBASE;
-const KWIDE = all.KWIDE;
+const clsBase = all.clsBase;
+const clsWide = all.clsWide;
 const Phi = all.Phi;
 const R = all.R;
 const RCon = all.RCon;
@@ -155,7 +155,7 @@ fn normins(f: *Fn, i: *Ins) void {
     // truncate constant bits to
     // 32 bits for s/w uses
     for (0..2) |n| {
-        if (KWIDE(argcls(i, n)) == 0)
+        if (clsWide(argcls(i, n)) == 0)
             if (isconbits(f, i.arg[n], &v))
                 if ((v & 0xffffffff) != v) {
                     i.arg[n] = getcon(v & 0xffffffff, f);
@@ -186,7 +186,7 @@ fn assoccon(f: *Fn, b: *Blk, i_1: *Ins) void {
     if (op == Opc.sub.int())
         op = all.ops.num(.add);
 
-    if (all.optab[@intCast(op)].assoc == 0 or KBASE(i_1.cls) != 0 or rtype(i_1.arg[0]) != RTmp or rtype(i_1.arg[1]) != RCon)
+    if (all.optab[@intCast(op)].assoc == 0 or clsBase(i_1.cls) != 0 or rtype(i_1.arg[0]) != RTmp or rtype(i_1.arg[1]) != RCon)
         return;
     var c1 = f.con[i_1.arg[1].val];
 
@@ -197,8 +197,8 @@ fn assoccon(f: *Fn, b: *Blk, i_1: *Ins) void {
         return;
     var c2 = f.con[i_2.arg[1].val];
 
-    assert(KBASE(i_2.cls) == 0);
-    assert(KWIDE(i_2.cls) >= KWIDE(i_1.cls));
+    assert(clsBase(i_2.cls) == 0);
+    assert(clsWide(i_2.cls) >= clsWide(i_1.cls));
 
     if (i_1.op == .sub and negcon(i_1.cls, &c1))
         return;
@@ -222,7 +222,7 @@ fn assoccon(f: *Fn, b: *Blk, i_1: *Ins) void {
 
 fn killins(f: *Fn, i: *Ins, r: Ref) void {
     replaceuses(f, i.to, r);
-    i.* = INS0(.nop);
+    i.* = insOp(.nop);
 }
 
 fn dedupins(f: *Fn, b: *Blk, i: *Ins) void {
@@ -308,7 +308,7 @@ fn usecls(u: *Use, r: Ref, cls: i32) i32 {
             if (req(u.u.ins.arg[0], r))
                 k = argcls(u.u.ins, 0);
             if (req(u.u.ins.arg[1], r))
-                if (k == Cls.x.int() or KWIDE(k) == 0) {
+                if (k == Cls.x.int() or clsWide(k) == 0) {
                     k = argcls(u.u.ins, 1);
                 };
             return if (k == Cls.x.int()) cls else k;

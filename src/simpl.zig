@@ -9,7 +9,7 @@ const Blk = all.Blk;
 const CBits = all.CBits;
 const Fn = all.Fn;
 const Ins = all.Ins;
-const KBASE = all.KBASE;
+const clsBase = all.clsBase;
 const O = all.ops;
 const R = all.R;
 const RCon = all.RCon;
@@ -92,7 +92,7 @@ fn allvirt(i: *Ins) bool {
 }
 
 fn algebra(i: *Ins, f: *Fn) void {
-    if (KBASE(i.cls) != 0 or !allvirt(i))
+    if (clsBase(i.cls) != 0 or !allvirt(i))
         return;
     if (all.req(i.arg[0], i.arg[1]) and rtype(i.arg[0]) == RTmp) {
         switch (i.op) {
@@ -165,7 +165,7 @@ fn startnew(new: *bool, b: *Blk, k: uint) void {
 ///   t1 = x sar (W-1); t2 = t1 shr (W-n); t3 = x + t2
 ///   div: t3 sar n            rem: x - (t3 & -2^n)
 fn sdivpow2(i: *Ins, b: *Blk, k: uint, new: *bool, f: *Fn) bool {
-    if (KBASE(i.cls) != 0 or rtype(i.arg[0]) != RTmp or rtype(i.arg[1]) != RCon or !allvirt(i))
+    if (clsBase(i.cls) != 0 or rtype(i.arg[0]) != RTmp or rtype(i.arg[1]) != RCon or !allvirt(i))
         return false;
     const c = &f.con[i.arg[1].val];
     if (c.type != CBits)
@@ -303,7 +303,7 @@ fn ins(pk: *uint, new: *bool, b: *Blk, f: *Fn) void {
         },
         .udiv, .urem => {
             const r = i.arg[1];
-            if (KBASE(i.cls) == 0)
+            if (clsBase(i.cls) == 0)
                 if (rtype(r) == RCon) {
                     const c = &f.con[r.val];
                     if (c.type == CBits)

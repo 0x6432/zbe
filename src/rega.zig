@@ -5,12 +5,12 @@ const assert = std.debug.assert;
 const all = @import("all.zig");
 const Cls = all.Cls;
 const J = all.J;
-const BIT = all.BIT;
+const bitAt = all.bitAt;
 const BSet = all.BSet;
 const Blk = all.Blk;
 const Fn = all.Fn;
 const Ins = all.Ins;
-const KBASE = all.KBASE;
+const clsBase = all.clsBase;
 const Mem = all.Mem;
 const PFn = all.PFn;
 const Phi = all.Phi;
@@ -19,8 +19,8 @@ const RMem = all.RMem;
 const RSlot = all.RSlot;
 const RTmp = all.RTmp;
 const Ref = all.Ref;
-const SLOT = all.SLOT;
-const TMP = all.TMP;
+const slotRef = all.slotRef;
+const tmpRef = all.tmpRef;
 const Tmp = all.Tmp;
 const Tmp0 = all.Tmp0;
 const bits = all.bits;
@@ -111,8 +111,8 @@ fn rref(m: *RMap, t: i32) Ref {
     if (r == -1) {
         const s = tmp[@intCast(t)].slot;
         assert(s != -1); // should have spilled
-        return SLOT(s);
-    } else return TMP(r);
+        return slotRef(s);
+    } else return tmpRef(r);
 }
 
 fn radd(m: *RMap, t: i32, r: i32) void {
@@ -127,18 +127,18 @@ fn radd(m: *RMap, t: i32, r: i32) void {
     m.t[@intCast(m.n)] = t;
     m.r[@intCast(m.n)] = r;
     m.n += 1;
-    regu |= BIT(r);
+    regu |= bitAt(r);
 }
 
 fn ralloctry(m: *RMap, t: i32, try_: bool) Ref {
     if (t < Tmp0) {
         assert(bshas(&m.b, t));
-        return TMP(t);
+        return tmpRef(t);
     }
     if (bshas(&m.b, t)) {
         const r = rfind(m, t);
         assert(r != -1);
-        return TMP(r);
+        return tmpRef(r);
     }
     var r = tmp[@intCast(t)].visit;
     if (r == -1 or bshas(&m.b, r))
@@ -151,7 +151,7 @@ fn ralloctry(m: *RMap, t: i32, try_: bool) Ref {
             regs |= m.b.t[0];
             var r0: i32 = undefined;
             var r1: i32 = undefined;
-            if (KBASE(tmp[@intCast(t)].cls) == 0) {
+            if (clsBase(tmp[@intCast(t)].cls) == 0) {
                 r0 = all.T.gpr0;
                 r1 = r0 + all.T.ngpr;
             } else {
@@ -160,7 +160,7 @@ fn ralloctry(m: *RMap, t: i32, try_: bool) Ref {
             }
             r = r0;
             while (r < r1) : (r += 1) {
-                if ((regs & BIT(r)) == 0)
+                if ((regs & bitAt(r)) == 0)
                     break :found;
             }
             r = r0;
@@ -177,7 +177,7 @@ fn ralloctry(m: *RMap, t: i32, try_: bool) Ref {
     const h = hint(t);
     if (h != -1 and h != r)
         m.w[@intCast(h)] = t;
-    return TMP(r);
+    return tmpRef(r);
 }
 
 inline fn ralloc(m: *RMap, t: i32) Ref {
@@ -185,7 +185,7 @@ inline fn ralloc(m: *RMap, t: i32) Ref {
 }
 
 fn rfree(m: *RMap, t: i32) i32 {
-    assert(t >= Tmp0 or (BIT(t) & all.T.rglob) == 0);
+    assert(t >= Tmp0 or (bitAt(t) & all.T.rglob) == 0);
     if (!bshas(&m.b, t))
         return -1;
     var i: usize = 0;
@@ -231,7 +231,7 @@ fn pmrec(status: []PMStat, i: usize, k: *i32) i32 {
         status[i] = .Moved;
         return -1;
     }
-    assert(KBASE(pm[i].cls) == KBASE(k.*));
+    assert(clsBase(pm[i].cls) == clsBase(k.*));
     assert((Cls.w.int() | Cls.l.int()) == Cls.l.int() and (Cls.s.int() | Cls.d.int()) == Cls.d.int());
     k.* |= pm[i].cls;
     var j: usize = 0;
@@ -315,7 +315,7 @@ fn dopm(b: *Blk, last: uint, m: *RMap) uint {
         const def = all.T.retregs(b.ins[i - 1].arg[1], null) | all.T.rglob;
         var r: usize = 0;
         while (all.T.rsave[r] >= 0) : (r += 1) {
-            if ((BIT(all.T.rsave[r]) & def) == 0)
+            if ((bitAt(all.T.rsave[r]) & def) == 0)
                 move(all.T.rsave[r], R, m);
         }
     }
@@ -327,9 +327,9 @@ fn dopm(b: *Blk, last: uint, m: *RMap) uint {
         const r1 = m.r[n];
         const r = rfind(&m0, t);
         if (r != -1)
-            pmadd(TMP(r1), TMP(r), tmp[@intCast(t)].cls.int())
+            pmadd(tmpRef(r1), tmpRef(r), tmp[@intCast(t)].cls.int())
         else if (s != -1)
-            pmadd(TMP(r1), SLOT(s), tmp[@intCast(t)].cls.int());
+            pmadd(tmpRef(r1), slotRef(s), tmp[@intCast(t)].cls.int());
     }
     for (b.ins[i .. last + 1]) |*ip| {
         if (!req(ip.to, R))
@@ -378,7 +378,7 @@ fn doblk(b: *Blk, cur: *RMap) void {
                 const rs = all.T.argregs(i.arg[1], null) | all.T.rglob;
                 var r: usize = 0;
                 while (all.T.rsave[r] >= 0) : (r += 1) {
-                    if ((BIT(all.T.rsave[r]) & rs) == 0)
+                    if ((bitAt(all.T.rsave[r]) & rs) == 0)
                         _ = rfree(cur, all.T.rsave[r]);
                 }
             },
@@ -399,7 +399,7 @@ fn doblk(b: *Blk, cur: *RMap) void {
                 if (!req(i.to, R)) {
                     assert(rtype(i.to) == RTmp);
                     const r: i32 = i.to.val;
-                    if (r < Tmp0 and (BIT(r) & all.T.rglob) != 0)
+                    if (r < Tmp0 and (bitAt(r) & all.T.rglob) != 0)
                         break :sw;
                     rf = rfree(cur, r);
                     if (rf == -1) {
@@ -407,7 +407,7 @@ fn doblk(b: *Blk, cur: *RMap) void {
                         all.curi += 1;
                         continue;
                     }
-                    i.to = TMP(rf);
+                    i.to = tmpRef(rf);
                 }
             },
         }
@@ -449,13 +449,13 @@ fn doblk(b: *Blk, cur: *RMap) void {
                         tmp[@intCast(t)].visit = -1;
                         _ = ralloc(cur, t);
                         assert(bshas(&cur.b, rf));
-                        emit(.copy, tmp[@intCast(t)].cls, TMP(rt), TMP(rf), R);
+                        emit(.copy, tmp[@intCast(t)].cls, tmpRef(rt), tmpRef(rf), R);
                         stmov += 1;
                         cur.w[@intCast(rf)] = 0;
                         r = 0;
                         while (r < nr) : (r += 1) {
-                            if (req(ra[r].*, TMP(rt)))
-                                ra[r].* = TMP(rf);
+                            if (req(ra[r].*, tmpRef(rt)))
+                                ra[r].* = tmpRef(rf);
                         }
                         // one could iterate this logic with
                         // the newly freed rt, but in this case
@@ -642,7 +642,7 @@ pub fn rega(f: *Fn) void {
             const x = rl[@intCast(r)];
             assert(x != 0 or t < Tmp0); // todo, ditto
             if (x > 0 and !bshas(&m.b, x)) {
-                pmadd(TMP(x), TMP(r), tmp[@intCast(t)].cls.int());
+                pmadd(tmpRef(x), tmpRef(r), tmp[@intCast(t)].cls.int());
                 m.r[j] = x;
                 bsset(&m.b, x);
             }
@@ -688,7 +688,7 @@ pub fn rega(f: *Fn) void {
                     const r = rfind(&beg[s.id], (dst.val));
                     if (r == -1)
                         continue;
-                    dst = TMP(r);
+                    dst = tmpRef(r);
                 }
                 var u: uint = 0;
                 while (p.blk[u] != b) : (u += 1)

@@ -4,7 +4,7 @@ const std = @import("std");
 const all = @import("../all.zig");
 const tgt = @import("all.zig");
 const Amd64Op = tgt.Amd64Op;
-const BIT = all.BIT;
+const bitAt = all.bitAt;
 const NFPR = tgt.NFPR;
 const NFPS = tgt.NFPS;
 const NGPR = tgt.NGPR;
@@ -49,7 +49,7 @@ fn common(t: Target) Target {
     r.ngpr = NGPR;
     r.fpr0 = XMM0;
     r.nfpr = NFPR;
-    r.rglob = BIT(RBP) | BIT(RSP);
+    r.rglob = bitAt(RBP) | bitAt(RSP);
     r.nrglob = 2;
     r.memargs = &amd64_memargs;
     r.abi0 = &elimsb;

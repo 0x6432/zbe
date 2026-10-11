@@ -258,7 +258,7 @@ DONE 6l: TESTS + 3 real bugs found by them:
 DONE 6m: jump kinds are `pub const J = enum(i16)` in all.zig (fields xxx,
 retw..hlt); the old names `Jjmp`, `Jretw`, ... are aliases `= J.jmp` etc.;
 Blk.jmp.type and cfg.zig Jmp.type are `J`. Arithmetic uses `J.add(n)`
-(C: `Jjf + c`) and `.int()`; INRANGE/isret/isretbh accept enums or ints.
+(C: `Jjf + c`) and `.int()`; inRange/isret/isretbh accept enums or ints.
 SANDBOX NOTE: long foreground commands (all.sh ~2 min) have killed the sandbox
 twice and rolled /data back to an older snapshot. Always run all.sh in the
 background (`(sh tools/all.sh > /tmp/all.log 2>&1; echo EXIT $? >> /tmp/all.log) &`)
@@ -394,7 +394,7 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   (`AKind`) are enums, following the jump enum `J`; the old constant names are
   aliases, so call sites did not change. Kept as integers on purpose:
   symbol kinds (`SGlo/SThr/SExt` are bit flags, combined as `SExtThr`),
-  widths (`W*`, used as array indices, `BIT()` positions and offsets that must
+  widths (`W*`, used as array indices, `bitAt()` positions and offsets that must
   match the Oload/Oext order), comparison kinds (`Ci*`/`Cf*`, offsets added to
   op numbers).
 - Item 6: `Ins.cls`, `Tmp.cls` and `Phi.cls` share one type, now `Cls` (below).
@@ -415,7 +415,7 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - `Ins.cls`, `Tmp.cls`, `Phi.cls` are `all.Cls` (`enum(i16)`: `x = -1`, `w`,
   `l`, `s`, `d`; `Kx..Kd` are aliases). `.int()`, `.idx()` (table index, never
   `x`) and `.offset(n)`; `all.knum`/`all.kof` convert at integer boundaries;
-  `KBASE`/`KWIDE` accept both. `clsmerge` takes `*Cls`.
+  `clsBase`/`clsWide` accept both. `clsmerge` takes `*Cls`.
 - Emitter omap tables use a per-file `KPat` enum (`a = -2`, `i = -1`, `w`, `l`,
   `s`, `d`) because the `Ki`/`Ka` wildcards are not real classes.
 - Kept as integers: the parser's extended modes (`Ksb..Kuh = 4..7`, `Kc`,

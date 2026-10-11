@@ -5,12 +5,12 @@ const assert = std.debug.assert;
 const all = @import("all.zig");
 const Cls = all.Cls;
 const Opc = all.Opc;
-const BIT = all.BIT;
+const bitAt = all.bitAt;
 const BSet = all.BSet;
 const Blk = all.Blk;
 const CAddr = all.CAddr;
 const CBits = all.CBits;
-const CON = all.CON;
+const conRef = all.conRef;
 const CUndef = all.CUndef;
 const Cfeq = all.Cfeq;
 const Cfge = all.Cfge;
@@ -32,7 +32,7 @@ const Ciule = all.Ciule;
 const Ciult = all.Ciult;
 const Con = all.Con;
 const Fn = all.Fn;
-const INRANGE = all.INRANGE;
+const inRange = all.inRange;
 const Ins = all.Ins;
 const NBit = all.NBit;
 const NCmp = all.NCmp;
@@ -47,7 +47,7 @@ const RCon = all.RCon;
 const RTmp = all.RTmp;
 const Ref = all.Ref;
 const Sym = all.Sym;
-const TMP = all.TMP;
+const tmpRef = all.tmpRef;
 const Tmp = all.Tmp;
 const Tmp0 = all.Tmp0;
 const bits = all.bits;
@@ -546,9 +546,9 @@ pub fn cmpop(cc: anytype) i32 {
 
 pub fn cmpwlneg(op: anytype) i32 {
     const o: i32 = op;
-    if (INRANGE(o, Opc.cmpw_first, Opc.cmpw_last))
+    if (inRange(o, Opc.cmpw_first, Opc.cmpw_last))
         return cmptab[(o - all.ops.num(Opc.cmpw_first))][0] + Opc.cmpw_first;
-    if (INRANGE(o, Opc.cmpl_first, Opc.cmpl_last))
+    if (inRange(o, Opc.cmpl_first, Opc.cmpl_last))
         return cmptab[(o - all.ops.num(Opc.cmpl_first))][0] + Opc.cmpl_first;
     die("not a wl comparison", .{});
 }
@@ -605,7 +605,7 @@ pub fn newtmp(prfx: ?[*:0]const u8, k: anytype, f: *Fn) Ref {
     f.tmp[t].slot = -1;
     f.tmp[t].nuse = 1;
     f.tmp[t].ndef = 1;
-    return TMP(t);
+    return tmpRef(t);
 }
 
 pub fn chuse(r: Ref, du: i32, f: *Fn) void {
@@ -622,25 +622,25 @@ pub fn newcon(c0: *Con, f: *Fn) Ref {
     while (i < f.ncon) : (i += 1) {
         const c1 = &f.con[@intCast(i)];
         if (c0.type == c1.type and symeq(c0.sym, c1.sym) and c0.bits.i == c1.bits.i)
-            return CON(i);
+            return conRef(i);
     }
     f.ncon += 1;
     vgrow(&f.con, f.ncon);
     f.con[@intCast(i)] = c0.*;
-    return CON(i);
+    return conRef(i);
 }
 
 pub fn getcon(val: i64, f: *Fn) Ref {
     var cc: i32 = 1;
     while (cc < f.ncon) : (cc += 1)
         if (f.con[@intCast(cc)].type == CBits and f.con[@intCast(cc)].bits.i == val)
-            return CON(cc);
+            return conRef(cc);
     f.ncon += 1;
     vgrow(&f.con, f.ncon);
     f.con[@intCast(cc)] = std.mem.zeroes(Con);
     f.con[@intCast(cc)].type = CBits;
     f.con[@intCast(cc)].bits.i = val;
-    return CON(cc);
+    return conRef(cc);
 }
 
 pub fn addcon(c0: *Con, c1: *Con, m: i32) bool {
@@ -753,13 +753,13 @@ inline fn bsmax(bs: *BSet) uint {
 pub fn bsset(bs: *BSet, elt: anytype) void {
     assert(elt < bsmax(bs));
     const e: uint = @intCast(elt);
-    bs.t[e / NBit] |= BIT(e % NBit);
+    bs.t[e / NBit] |= bitAt(e % NBit);
 }
 
 pub fn bsclr(bs: *BSet, elt: anytype) void {
     assert(elt < bsmax(bs));
     const e: uint = @intCast(elt);
-    bs.t[e / NBit] &= ~BIT(e % NBit);
+    bs.t[e / NBit] &= ~bitAt(e % NBit);
 }
 
 pub fn bscopy(a: *BSet, b: *BSet) void {
@@ -807,7 +807,7 @@ pub fn bsiter(bs: *BSet, elt: *i32) bool {
     if (t >= bs.nt)
         return false;
     var b = bs.t[t];
-    b &= ~(BIT(i % NBit) -% 1);
+    b &= ~(bitAt(i % NBit) -% 1);
     while (b == 0) {
         t += 1;
         if (t >= bs.nt)

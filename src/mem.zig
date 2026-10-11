@@ -9,21 +9,21 @@ const U = all.U;
 const Opc = all.Opc;
 const ALoc = all.ALoc;
 const Alias = all.Alias;
-const BIT = all.BIT;
+const bitAt = all.bitAt;
 const Blk = all.Blk;
 const CON_Z = all.CON_Z;
 const Fn = all.Fn;
-const INS0 = all.INS0;
-const INT = all.INT;
+const insOp = all.insOp;
+const intRef = all.intRef;
 const Ins = all.Ins;
-const KBASE = all.KBASE;
+const clsBase = all.clsBase;
 const NBit = all.NBit;
 const PHeap = all.PHeap;
 const R = all.R;
 const RInt = all.RInt;
 const RTmp = all.RTmp;
 const Ref = all.Ref;
-const TMP = all.TMP;
+const tmpRef = all.tmpRef;
 const Tmp = all.Tmp;
 const Tmp0 = all.Tmp0;
 const UNDEF = all.UNDEF;
@@ -89,7 +89,7 @@ pub fn promote(f: *Fn) void {
             continue :outer;
         }
         // get rid of the alloc and replace uses
-        i.* = INS0(.nop);
+        i.* = insOp(.nop);
         t.ndef -= 1;
         for (t.use.?[0..t.nuse]) |*u| {
             const l = u.u.ins;
@@ -112,7 +112,7 @@ pub fn promote(f: *Fn) void {
                         continue :sw .load;
                     },
                     .load => {
-                        if (KBASE(k) != KBASE(l.cls))
+                        if (clsBase(k) != clsBase(l.cls))
                             l.op = .cast
                         else
                             l.op = .copy;
@@ -225,8 +225,8 @@ fn maxrpo(hd: *Blk, b: *Blk) void {
 /// kills an instruction; blits are killed as a pair
 fn killins(i: [*]Ins) void {
     if (i[0].op == .blit0)
-        i[1] = INS0(.nop);
-    i[0] = INS0(.nop);
+        i[1] = insOp(.nop);
+    i[0] = insOp(.nop);
 }
 
 pub fn coalesce(f: *Fn) void {
@@ -304,12 +304,12 @@ pub fn coalesce(f: *Fn) void {
                 load(arg[1], ones, ip, f, sl);
             }
             if (isload(i.op)) {
-                const x = BIT(loadsz(i)) -% 1;
+                const x = bitAt(loadsz(i)) -% 1;
                 ip -= 1;
                 load(arg[0], x, ip, f, sl);
             }
             if (isstore(i.op)) {
-                const x = BIT(storesz(i)) -% 1;
+                const x = bitAt(storesz(i)) -% 1;
                 store(arg[1], x, ip, ii, f, sl);
                 ip -= 1;
             }
@@ -317,7 +317,7 @@ pub fn coalesce(f: *Fn) void {
                 assert(ii[1].op == .blit1);
                 assert(rtype(ii[1].arg[0]) == RInt);
                 const sz: i32 = @intCast(@abs(rsval(ii[1].arg[0])));
-                const x = if (sz >= NBit) ones else BIT(sz) -% 1;
+                const x = if (sz >= NBit) ones else bitAt(sz) -% 1;
                 store(arg[1], x, ip, ii, f, sl);
                 ip -= 1;
                 load(arg[0], x, ip, f, sl);
@@ -385,7 +385,7 @@ pub fn coalesce(f: *Fn) void {
             i.arg[0] = UNDEF;
             continue;
         }
-        i.* = INS0(.nop);
+        i.* = insOp(.nop);
         for (t.use.?[0..t.nuse]) |*u| {
             if (u.type == .jmp) {
                 const b = f.rpo[u.bid];
@@ -448,7 +448,7 @@ pub fn coalesce(f: *Fn) void {
         const ss = s.s.?;
         if (ss == s)
             continue;
-        t.def.?.* = INS0(.nop);
+        t.def.?.* = insOp(.nop);
         const ts = &f.tmp[@intCast(ss.t)];
         assert(t.bid == ts.bid);
         if (@intFromPtr(t.def) < @intFromPtr(ts.def)) {
@@ -456,18 +456,18 @@ pub fn coalesce(f: *Fn) void {
             // selected has a def that
             // dominates its new uses
             t.def.?.* = ts.def.?.*;
-            ts.def.?.* = INS0(.nop);
+            ts.def.?.* = insOp(.nop);
             ts.def = t.def;
         }
         for (t.use.?[0..t.nuse]) |*u| {
             if (u.type == .jmp) {
-                f.rpo[u.bid].jmp.arg = TMP(ss.t);
+                f.rpo[u.bid].jmp.arg = tmpRef(ss.t);
                 continue;
             }
             assert(u.type == .ins);
             for (&u.u.ins.arg) |*arg| {
-                if (req(arg.*, TMP(s.t)))
-                    arg.* = TMP(ss.t);
+                if (req(arg.*, tmpRef(s.t)))
+                    arg.* = tmpRef(ss.t);
             }
         }
     }
@@ -483,10 +483,10 @@ pub fn coalesce(f: *Fn) void {
                         if (off0 < off1) {
                             const sz = rsval(i[1].arg[0]);
                             assert(sz >= 0);
-                            i[1].arg[0] = INT(-sz);
+                            i[1].arg[0] = intRef(-sz);
                         } else if (off0 == off1) {
-                            i[0] = INS0(.nop);
-                            i[1] = INS0(.nop);
+                            i[0] = insOp(.nop);
+                            i[1] = insOp(.nop);
                         }
                     };
     }

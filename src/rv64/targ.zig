@@ -11,7 +11,7 @@ const A4 = tgt.A4;
 const A5 = tgt.A5;
 const A6 = tgt.A6;
 const A7 = tgt.A7;
-const BIT = all.BIT;
+const bitAt = all.bitAt;
 const FA0 = tgt.FA0;
 const FA1 = tgt.FA1;
 const FA2 = tgt.FA2;
@@ -106,7 +106,7 @@ pub var rv64_rclob = [_]i32{
     -1,
 };
 
-const RGLOB = BIT(FP) | BIT(SP) | BIT(GP) | BIT(TP) | BIT(RA);
+const RGLOB = bitAt(FP) | bitAt(SP) | bitAt(GP) | bitAt(TP) | bitAt(RA);
 
 fn rv64_memargs(op: i32) i32 {
     _ = op;

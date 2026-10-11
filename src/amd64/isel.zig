@@ -8,9 +8,9 @@ const J = all.J;
 const Opc = all.Opc;
 const tgt = @import("all.zig");
 const Addr = all.Addr;
-const BIT = all.BIT;
+const bitAt = all.bitAt;
 const Blk = all.Blk;
-const CALL = all.CALL;
+const callRef = all.callRef;
 const CAddr = all.CAddr;
 const CBits = all.CBits;
 const CON_Z = all.CON_Z;
@@ -24,11 +24,11 @@ const Cfne = all.Cfne;
 const Cine = all.Cine;
 const Con = all.Con;
 const Fn = all.Fn;
-const INS0 = all.INS0;
+const insOp = all.insOp;
 const Ins = all.Ins;
-const KBASE = all.KBASE;
-const KWIDE = all.KWIDE;
-const MEM = all.MEM;
+const clsBase = all.clsBase;
+const clsWide = all.clsWide;
+const memRef = all.memRef;
 const NCmpI = all.NCmpI;
 const Num = all.Num;
 const Phi = all.Phi;
@@ -42,9 +42,9 @@ const RMem = all.RMem;
 const RTmp = all.RTmp;
 const Ref = all.Ref;
 const SExt = all.SExt;
-const SLOT = all.SLOT;
+const slotRef = all.slotRef;
 const SThr = all.SThr;
-const TMP = all.TMP;
+const tmpRef = all.tmpRef;
 const addcon = all.addcon;
 const amd64_op = tgt.amd64_op;
 const argcls = all.argcls;
@@ -149,16 +149,16 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
     var r1 = r0;
     const s = rslot(r0, f);
     const op: i32 = if (i) |ii| all.ops.num(ii.op) else all.ops.num(.copy);
-    if (KBASE(k) == 1 and rtype(r0) == RCon) {
+    if (clsBase(k) == 1 and rtype(r0) == RCon) {
         // load floating points from memory
         // slots, they can't be used as
         // immediates
-        r1 = MEM(f.nmem);
+        r1 = memRef(f.nmem);
         f.nmem += 1;
         vgrow(&f.mem, f.nmem);
         a = std.mem.zeroes(Addr);
         a.offset.type = CAddr;
-        const n = stashbits(@bitCast(f.con[r0.val].bits.i), if (KWIDE(k) != 0) 8 else 4);
+        const n = stashbits(@bitCast(f.con[r0.val].bits.i), if (clsWide(k) != 0) 8 else 4);
         // quote the name so that we do not
         // add symbol prefixes on the apple
         // target variant
@@ -183,7 +183,7 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
         // temporaries right before the
         // instruction
         r1 = newtmp("isel", .l, f);
-        emit(.addr, .l, r1, SLOT(s), R);
+        emit(.addr, .l, r1, slotRef(s), R);
     } else if (op != Opc.call.int() and hascon(r0, &c, f) and
         c.type == CAddr and ((c.sym.type & SExt) != 0 or
         (all.T.apple != 0 and c.sym.type == SThr)))
@@ -200,11 +200,11 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
             emit(.add, .l, r1, r2, r3);
         } else r2 = r1;
         if (all.T.apple != 0 and (c.sym.type & SThr) != 0) {
-            emit(.copy, .l, r2, TMP(RAX), R);
+            emit(.copy, .l, r2, tmpRef(RAX), R);
             r2 = newtmp("isel", .l, f);
             r3 = newtmp("isel", .l, f);
-            emit(.call, 0, R, r3, CALL(17));
-            emit(.copy, .l, TMP(RDI), r2, R);
+            emit(.call, 0, R, r3, callRef(17));
+            emit(.copy, .l, tmpRef(RDI), r2, R);
             emit(.load, .l, r3, r2, R);
         }
         cc = c.*;
@@ -271,7 +271,7 @@ fn seladdr(r: *Ref, tn: [*]Num, f: *Fn) void {
         f.mem[@intCast(f.nmem - 1)] = a;
         chuse(a.base, 1, f);
         chuse(a.index, 1, f);
-        r.* = MEM(f.nmem - 1);
+        r.* = memRef(f.nmem - 1);
     }
 }
 
@@ -322,14 +322,14 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
     const k: i32 = all.knum(i.cls);
     sw: switch (i.op) {
         .div, .rem, .udiv, .urem => {
-            if (KBASE(k) == 1)
+            if (clsBase(k) == 1)
                 continue :sw .copy; // goto Emit
             if (i.op == .div or i.op == .udiv) {
-                r0 = TMP(RAX);
-                r1 = TMP(RDX);
+                r0 = tmpRef(RAX);
+                r1 = tmpRef(RDX);
             } else {
-                r0 = TMP(RDX);
-                r1 = TMP(RAX);
+                r0 = tmpRef(RDX);
+                r1 = tmpRef(RAX);
             }
             emit(.copy, k, i.to, r0, R);
             emit(.copy, k, R, r1, R);
@@ -342,12 +342,12 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
                 err("unlikely argument %{s} in {s}", .{cs(f.tmp[r0.val].name), cs(all.optab[i.op.int()].name)});
             if (i.op == .div or i.op == .rem) {
                 emit(.xidiv, k, R, r0, R);
-                emit(.sign, k, TMP(RDX), TMP(RAX), R);
+                emit(.sign, k, tmpRef(RDX), tmpRef(RAX), R);
             } else {
                 emit(.xdiv, k, R, r0, R);
-                emit(.copy, k, TMP(RDX), CON_Z, R);
+                emit(.copy, k, tmpRef(RDX), CON_Z, R);
             }
-            emit(.copy, k, TMP(RAX), i.arg[0], R);
+            emit(.copy, k, tmpRef(RAX), i.arg[0], R);
             fixarg(&all.curi[0].arg[0], k, &all.curi[0], f);
             if (rtype(i.arg[1]) == RCon)
                 emit(.copy, k, r0, i.arg[1], R);
@@ -366,11 +366,11 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
             }
             if (f.tmp[r0.val].slot != -1)
                 err("unlikely argument %{s} in {s}", .{cs(f.tmp[r0.val].name), cs(all.optab[i.op.int()].name)});
-            i.arg[1] = TMP(RCX);
-            emit(.copy, .w, R, TMP(RCX), R);
+            i.arg[1] = tmpRef(RCX);
+            emit(.copy, .w, R, tmpRef(RCX), R);
             emiti(i);
             i_1 = &all.curi[0];
-            emit(.copy, .w, TMP(RCX), r0, R);
+            emit(.copy, .w, tmpRef(RCX), r0, R);
             fixarg(&i_1.arg[0], argcls(&i, 0), i_1, f);
         },
         .uwtof => {
@@ -594,7 +594,7 @@ fn selsel(f: *Fn, b: *Blk, n1: uint, tn: [*]Num) uint {
                     gencmp = true;
                     cr[0] = fi.arg[0];
                     cr[1] = fi.arg[1];
-                    fi.* = INS0(.nop);
+                    fi.* = insOp(.nop);
                 }
             }
         } else if (fi.op == .@"and" and t.nuse == 1 and
@@ -631,7 +631,7 @@ fn selsel(f: *Fn, b: *Blk, n1: uint, tn: [*]Num) uint {
         selcmp(&cr, k, swap, f);
     if (gencpy)
         emit(.copy, .w, R, r, R);
-    isel0.* = INS0(.nop);
+    isel0.* = insOp(.nop);
     return n0;
 }
 
@@ -671,7 +671,7 @@ fn seljmp(b: *Blk, f: *Fn) void {
             c = cmpop(c);
         if (t.nuse == 1) {
             selcmp(&fi.arg, k, swap, f);
-            fi.* = INS0(.nop);
+            fi.* = insOp(.nop);
         }
         b.jmp.type = J.jf_first.add(c);
     } else if (fi.op == .@"and" and t.nuse == 1 and
@@ -773,15 +773,15 @@ fn refn(r: Ref, tn: [*]Num, con: [*]const Con) i32 {
 
 const match = blk: {
     var m: [13]bits = @splat(0);
-    m[4] = BIT(Pob);
-    m[5] = BIT(Pbi1);
-    m[6] = BIT(Pob) | BIT(Pois);
-    m[7] = BIT(Pob) | BIT(Pobi1);
-    m[8] = BIT(Pbi1) | BIT(Pbis);
-    m[9] = BIT(Pbi1) | BIT(Pobi1);
-    m[10] = BIT(Pbi1) | BIT(Pbis) | BIT(Pobi1) | BIT(Pobis);
-    m[11] = BIT(Pob) | BIT(Pobi1) | BIT(Pobis);
-    m[12] = BIT(Pbi1) | BIT(Pobi1) | BIT(Pobis);
+    m[4] = bitAt(Pob);
+    m[5] = bitAt(Pbi1);
+    m[6] = bitAt(Pob) | bitAt(Pois);
+    m[7] = bitAt(Pob) | bitAt(Pobi1);
+    m[8] = bitAt(Pbi1) | bitAt(Pbis);
+    m[9] = bitAt(Pbi1) | bitAt(Pobi1);
+    m[10] = bitAt(Pbi1) | bitAt(Pbis) | bitAt(Pobi1) | bitAt(Pobis);
+    m[11] = bitAt(Pob) | bitAt(Pobi1) | bitAt(Pobis);
+    m[12] = bitAt(Pbi1) | bitAt(Pobi1) | bitAt(Pobis);
     break :blk m;
 };
 
@@ -836,7 +836,7 @@ fn adisp(c: *Con, tn: [*]Num, r_: Ref, f: *Fn, s: i32) Ref {
     while (!req(r, R)) {
         assert(rtype(r) == RTmp);
         const n = refn(r, tn, f.con);
-        if ((match[@intCast(n)] & BIT(Pob)) == 0)
+        if ((match[@intCast(n)] & bitAt(Pob)) == 0)
             break;
         runmatch(matcher[Pob], tn, r, &v);
         assert(rtype(v[0]) == RCon);
@@ -859,7 +859,7 @@ fn amatch(a: ?*Addr, tn: [*]Num, r: Ref, f: *Fn) bool {
     v = @splat(std.mem.zeroes(Ref));
     var p: usize = 0;
     while (pat[p] >= 0) : (p += 1) {
-        if ((match[@intCast(n)] & BIT(pat[p])) != 0) {
+        if ((match[@intCast(n)] & bitAt(pat[p])) != 0) {
             runmatch(matcher[@intCast(pat[p])], tn, r, &v);
             break;
         }
@@ -904,7 +904,7 @@ fn amatch(a: ?*Addr, tn: [*]Num, r: Ref, f: *Fn) bool {
         assert(rtype(a.?.base) == RTmp);
         s = f.tmp[a.?.base.val].slot;
         if (s != -1)
-            a.?.base = SLOT(s);
+            a.?.base = slotRef(s);
     }
     return true;
 }
@@ -936,7 +936,7 @@ pub fn amd64_isel(f: *Fn) void {
                 f.tmp[i.to.val].slot = f.slot;
                 f.slot += @intCast(sz);
                 f.salign = 2 + al - all.ops.num(Opc.alloc_first);
-                i.* = INS0(.nop);
+                i.* = insOp(.nop);
             }
         }
     }

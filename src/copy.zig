@@ -6,14 +6,14 @@ const all = @import("all.zig");
 const Cls = all.Cls;
 const J = all.J;
 const U = all.U;
-const BIT = all.BIT;
+const bitAt = all.bitAt;
 const Blk = all.Blk;
 const CON_Z = all.CON_Z;
 const Fn = all.Fn;
-const INS0 = all.INS0;
+const insOp = all.insOp;
 const Ins = all.Ins;
-const KBASE = all.KBASE;
-const KWIDE = all.KWIDE;
+const clsBase = all.clsBase;
+const clsWide = all.clsWide;
 const PFn = all.PFn;
 const Phi = all.Phi;
 const R = all.R;
@@ -260,7 +260,7 @@ pub fn narrowpars(f: *Fn) void {
     b.nins = nins;
 
     for (b.ins[0..npar], b.ins[npar .. 2 * npar]) |*i, *ext_slot| {
-        e = INS0(.nop);
+        e = insOp(.nop);
         if (i.cls == .w)
             if (usewidthle(f, i.to, 16)) {
                 e.op = .extuh;
@@ -281,12 +281,12 @@ pub fn narrowpars(f: *Fn) void {
 const extcpy = blk: {
     var t: [Wuw + 1]bits = undefined;
     t[WFull] = 0;
-    t[Wsb] = BIT(Wsb) | BIT(Wsh) | BIT(Wsw);
-    t[Wub] = BIT(Wub) | BIT(Wuh) | BIT(Wuw);
-    t[Wsh] = BIT(Wsh) | BIT(Wsw);
-    t[Wuh] = BIT(Wuh) | BIT(Wuw);
-    t[Wsw] = BIT(Wsw);
-    t[Wuw] = BIT(Wuw);
+    t[Wsb] = bitAt(Wsb) | bitAt(Wsh) | bitAt(Wsw);
+    t[Wub] = bitAt(Wub) | bitAt(Wuh) | bitAt(Wuw);
+    t[Wsh] = bitAt(Wsh) | bitAt(Wsw);
+    t[Wuh] = bitAt(Wuh) | bitAt(Wuw);
+    t[Wsw] = bitAt(Wsw);
+    t[Wuw] = bitAt(Wuw);
     break :blk t;
 };
 
@@ -300,7 +300,7 @@ pub fn copyref(f: *Fn, b: *Blk, i: *Ins) Ref {
         return i.arg[0];
 
     // op identity value
-    if (op.hasid != 0 and KBASE(i.cls) == 0 // integer only - fp NaN!
+    if (op.hasid != 0 and clsBase(i.cls) == 0 // integer only - fp NaN!
     and req(i.arg[1], all.con01[op.idval]) and (op.cmpeqwl == 0 or isw1(f, i.arg[0])))
         return i.arg[0];
 
@@ -325,15 +325,15 @@ pub fn copyref(f: *Fn, b: *Blk, i: *Ins) Ref {
 
     if (ext(i, &e) and rtype(i.arg[0]) == RTmp) {
         const t = &f.tmp[i.arg[0].val];
-        assert(KBASE(t.cls) == 0);
+        assert(clsBase(t.cls) == 0);
 
         // do not break typing by returning
         // a narrower temp
-        if (KWIDE(i.cls) > KWIDE(t.cls))
+        if (clsWide(i.cls) > clsWide(t.cls))
             return R;
 
         const w = Wsb + i.op.diff(.extsb);
-        if ((BIT(w) & extcpy[@intCast(t.width)]) != 0)
+        if ((bitAt(w) & extcpy[@intCast(t.width)]) != 0)
             return i.arg[0];
 
         // avoid eliding extensions of params

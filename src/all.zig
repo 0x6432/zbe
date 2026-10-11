@@ -38,7 +38,7 @@ pub const Target = struct {
     cansel: u1,
 };
 
-pub inline fn BIT(n: anytype) bits {
+pub inline fn bitAt(n: anytype) bits {
     return @as(bits, 1) << @intCast(n);
 }
 
@@ -66,25 +66,25 @@ pub const RMem = 6;
 pub const R = Ref{ .type = RTmp, .val = 0 };
 pub const UNDEF = Ref{ .type = RCon, .val = 0 }; // represents uninitialized data
 pub const CON_Z = Ref{ .type = RCon, .val = 1 };
-pub inline fn TMP(x: anytype) Ref {
+pub inline fn tmpRef(x: anytype) Ref {
     return .{ .type = RTmp, .val = @intCast(x) };
 }
-pub inline fn CON(x: anytype) Ref {
+pub inline fn conRef(x: anytype) Ref {
     return .{ .type = RCon, .val = @intCast(x) };
 }
-pub inline fn SLOT(x: anytype) Ref {
+pub inline fn slotRef(x: anytype) Ref {
     return .{ .type = RSlot, .val = @truncate(@as(u128, @bitCast(@as(i128, x))) & 0x1fffffff) };
 }
-pub inline fn TYPE(x: anytype) Ref {
+pub inline fn typeRef(x: anytype) Ref {
     return .{ .type = RType, .val = @intCast(x) };
 }
-pub inline fn CALL(x: anytype) Ref {
+pub inline fn callRef(x: anytype) Ref {
     return .{ .type = RCall, .val = @intCast(x) };
 }
-pub inline fn MEM(x: anytype) Ref {
+pub inline fn memRef(x: anytype) Ref {
     return .{ .type = RMem, .val = @intCast(x) };
 }
-pub inline fn INT(x: anytype) Ref {
+pub inline fn intRef(x: anytype) Ref {
     return .{ .type = RInt, .val = @truncate(@as(u128, @bitCast(@as(i128, x))) & 0x1fffffff) };
 }
 
@@ -190,43 +190,43 @@ inline fn ordinal(x: anytype) i32 {
         else => @intCast(x),
     };
 }
-pub inline fn INRANGE(x: anytype, comptime l: anytype, comptime u: anytype) bool {
+pub inline fn inRange(x: anytype, comptime l: anytype, comptime u: anytype) bool {
     const lo = comptime ordinal(l);
     const hi = comptime ordinal(u);
     return @as(u32, @bitCast(ordinal(x) -% lo)) <= hi - lo;
 }
 pub inline fn isstore(o: anytype) bool {
-    return INRANGE(o, Opc.storeb, Opc.stored);
+    return inRange(o, Opc.storeb, Opc.stored);
 }
 pub inline fn isload(o: anytype) bool {
-    return INRANGE(o, Opc.loadsb, Opc.load);
+    return inRange(o, Opc.loadsb, Opc.load);
 }
 pub inline fn isalloc(o: anytype) bool {
-    return INRANGE(o, Opc.alloc4, Opc.alloc16);
+    return inRange(o, Opc.alloc4, Opc.alloc16);
 }
 pub inline fn isext(o: anytype) bool {
-    return INRANGE(o, Opc.extsb, Opc.extuw);
+    return inRange(o, Opc.extsb, Opc.extuw);
 }
 pub inline fn ispar(o: anytype) bool {
-    return INRANGE(o, Opc.par, Opc.pare);
+    return inRange(o, Opc.par, Opc.pare);
 }
 pub inline fn isarg(o: anytype) bool {
-    return INRANGE(o, Opc.arg, Opc.argv);
+    return inRange(o, Opc.arg, Opc.argv);
 }
 pub inline fn isret(j: anytype) bool {
-    return INRANGE(j, J.retw, J.ret0);
+    return inRange(j, J.retw, J.ret0);
 }
 pub inline fn isparbh(o: anytype) bool {
-    return INRANGE(o, Opc.parsb, Opc.paruh);
+    return inRange(o, Opc.parsb, Opc.paruh);
 }
 pub inline fn isargbh(o: anytype) bool {
-    return INRANGE(o, Opc.argsb, Opc.arguh);
+    return inRange(o, Opc.argsb, Opc.arguh);
 }
 pub inline fn isretbh(j: anytype) bool {
-    return INRANGE(j, J.retsb, J.retuh);
+    return inRange(j, J.retsb, J.retuh);
 }
 pub inline fn isxsel(o: anytype) bool {
-    return INRANGE(o, Opc.xsel_first, Opc.xsel_last);
+    return inRange(o, Opc.xsel_first, Opc.xsel_last);
 }
 
 /// Value class of a temporary or instruction result (C: Kw/Kl/Ks/Kd).
@@ -266,10 +266,10 @@ pub inline fn kof(k: anytype) Cls {
         else => @enumFromInt(@as(i16, @intCast(k))),
     };
 }
-pub inline fn KWIDE(k: anytype) i32 {
+pub inline fn clsWide(k: anytype) i32 {
     return knum(k) & 1;
 }
-pub inline fn KBASE(k: anytype) i32 {
+pub inline fn clsBase(k: anytype) i32 {
     return knum(k) >> 1;
 }
 
@@ -675,7 +675,7 @@ pub const ptrdiff = util.ptrdiff;
 pub inline fn bshas(bs: *BSet, elt: anytype) bool {
     const e: uint = @intCast(elt);
     std.debug.assert(e < bs.nt * NBit);
-    return (bs.t[e / NBit] & BIT(e % NBit)) != 0;
+    return (bs.t[e / NBit] & bitAt(e % NBit)) != 0;
 }
 
 // parse.c
@@ -778,11 +778,11 @@ pub const macho_emitfin = emit_.macho_emitfin;
 pub const pe_emitfin = emit_.pe_emitfin;
 
 // helpers for C compound literals of Ins
-pub inline fn INS(op: Opc, k: anytype, to: Ref, a0: Ref, a1: Ref) Ins {
+pub inline fn mkIns(op: Opc, k: anytype, to: Ref, a0: Ref, a1: Ref) Ins {
     return .{ .op = op, .cls = kof(k), .to = to, .arg = .{ a0, a1 } };
 }
 /// (Ins){.op = op}
-pub inline fn INS0(op: Opc) Ins {
+pub inline fn insOp(op: Opc) Ins {
     return .{ .op = op, .cls = .w, .to = R, .arg = .{ R, R } };
 }
 /// C-like `x << n` on 64-bit words (count taken mod 64, as on amd64)

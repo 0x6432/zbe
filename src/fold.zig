@@ -29,7 +29,7 @@ const Ciult = all.Ciult;
 const Con = all.Con;
 const Fn = all.Fn;
 const Ins = all.Ins;
-const KWIDE = all.KWIDE;
+const clsWide = all.clsWide;
 const R = all.R;
 const RCon = all.RCon;
 const RTmp = all.RTmp;
@@ -263,7 +263,7 @@ fn opfold(op: i32, cls: i32, cl: *Con, cr: *Con, f: *Fn) Ref {
         if (foldint(&c, op, cls == Cls.l.int(), cl, cr))
             return R;
     } else foldflt(&c, op, cls == Cls.d.int(), cl, cr);
-    if (KWIDE(cls) == 0)
+    if (clsWide(cls) == 0)
         c.bits.i &= 0xffffffff;
     const r = newcon(&c, f);
     assert(!(cls == Cls.s.int() or cls == Cls.d.int()) or c.flt != 0);

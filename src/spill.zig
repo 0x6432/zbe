@@ -4,21 +4,21 @@ const assert = std.debug.assert;
 // -- imports --
 const all = @import("all.zig");
 const Opc = all.Opc;
-const BIT = all.BIT;
+const bitAt = all.bitAt;
 const BSet = all.BSet;
 const Blk = all.Blk;
 const Fn = all.Fn;
 const Ins = all.Ins;
-const KBASE = all.KBASE;
-const KWIDE = all.KWIDE;
+const clsBase = all.clsBase;
+const clsWide = all.clsWide;
 const Phi = all.Phi;
 const R = all.R;
 const RCall = all.RCall;
 const RMem = all.RMem;
 const RTmp = all.RTmp;
 const Ref = all.Ref;
-const SLOT = all.SLOT;
-const TMP = all.TMP;
+const slotRef = all.slotRef;
+const tmpRef = all.tmpRef;
 const Tmp = all.Tmp;
 const Tmp0 = all.Tmp0;
 const bits = all.bits;
@@ -158,7 +158,7 @@ fn slot(t: i32) Ref {
         // one hole and slot4 points to it
         //
         // invariant: slot4 <= slot8
-        if (KWIDE(tmp[@intCast(t)].cls) != 0) {
+        if (clsWide(tmp[@intCast(t)].cls) != 0) {
             s = slot8;
             if (slot4 == slot8)
                 slot4 += 2;
@@ -173,7 +173,7 @@ fn slot(t: i32) Ref {
         s += locs;
         tmp[@intCast(t)].slot = s;
     }
-    return SLOT(s);
+    return slotRef(s);
 }
 
 var limit_tarr: ?[*]i32 = null;
@@ -246,13 +246,13 @@ fn reloads(u: *BSet, v: *BSet) void {
     var t: i32 = Tmp0;
     while (bsiter(u, &t)) : (t += 1) {
         if (!bshas(v, t))
-            emit(.load, tmp[@intCast(t)].cls, TMP(t), slot(t), R);
+            emit(.load, tmp[@intCast(t)].cls, tmpRef(t), slot(t), R);
     }
 }
 
 fn store(r: Ref, s: i32) void {
     if (s != -1)
-        emit(Opc.storew.offset(tmp[r.val].cls), 0, R, r, SLOT(s));
+        emit(Opc.storew.offset(tmp[r.val].cls), 0, R, r, slotRef(s));
 }
 
 fn regcpy(i: *Ins) bool {
@@ -296,7 +296,7 @@ fn dopm(b: *Blk, last: uint, v: *BSet) uint {
         r = 0;
         var k: usize = 0;
         while (all.T.rsave[k] >= 0) : (k += 1)
-            r |= BIT(all.T.rsave[k]);
+            r |= bitAt(all.T.rsave[k]);
         v.t[0] |= all.T.argregs(call.arg[1], null);
     } else {
         limit2(v, 0, 0, null);
@@ -357,7 +357,7 @@ pub fn spill(f: *Fn) void {
         if (t >= all.T.fpr0 and t < all.T.fpr0 + all.T.nfpr)
             k = 1;
         if (t >= Tmp0)
-            k = KBASE(tmp[@intCast(t)].cls);
+            k = clsBase(tmp[@intCast(t)].cls);
         bsset(&mask[@intCast(k)], t);
     }
 
@@ -417,7 +417,7 @@ pub fn spill(f: *Fn) void {
         }
         if (rtype(b.jmp.arg) == RTmp) {
             t = b.jmp.arg.val;
-            assert(KBASE(tmp[@intCast(t)].cls) == 0);
+            assert(clsBase(tmp[@intCast(t)].cls) == 0);
             bsset(&v, t);
             limit2(&v, 0, 0, null);
             if (!bshas(&v, t))

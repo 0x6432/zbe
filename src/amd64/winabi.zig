@@ -6,14 +6,14 @@ const all = @import("../all.zig");
 const Cls = all.Cls;
 const J = all.J;
 const tgt = @import("all.zig");
-const BIT = all.BIT;
+const bitAt = all.bitAt;
 const Blk = all.Blk;
-const CALL = all.CALL;
+const callRef = all.callRef;
 const Fn = all.Fn;
-const INS = all.INS;
-const INT = all.INT;
+const mkIns = all.mkIns;
+const intRef = all.intRef;
 const Ins = all.Ins;
-const KBASE = all.KBASE;
+const clsBase = all.clsBase;
 const NCLR_WIN = tgt.NCLR_WIN;
 const NFPS = tgt.NFPS;
 const NGPS_WIN = tgt.NGPS_WIN;
@@ -37,8 +37,8 @@ const RDX = tgt.RDX;
 const RSI = tgt.RSI;
 const RTmp = all.RTmp;
 const Ref = all.Ref;
-const SLOT = all.SLOT;
-const TMP = all.TMP;
+const slotRef = all.slotRef;
+const tmpRef = all.tmpRef;
 const Typ = all.Typ;
 const XMM0 = tgt.XMM0;
 const XMM1 = tgt.XMM1;
@@ -102,11 +102,11 @@ const ExtraAlloc = struct {
     link: ?*ExtraAlloc,
 };
 
-inline fn ALIGN_DOWN(n: anytype, a: @TypeOf(n)) @TypeOf(n) {
+inline fn alignDown(n: anytype, a: @TypeOf(n)) @TypeOf(n) {
     return n & ~(a - 1);
 }
-inline fn ALIGN_UP(n: anytype, a: @TypeOf(n)) @TypeOf(n) {
-    return ALIGN_DOWN(n + a - 1, a);
+inline fn alignUp(n: anytype, a: @TypeOf(n)) @TypeOf(n) {
+    return alignDown(n + a - 1, a);
 }
 
 // Number of stack bytes required be reserved for the callee.
@@ -142,9 +142,9 @@ pub fn amd64_winabi_retregs(r: Ref, p: ?*[2]i32) bits {
     const num_int_returns: i32 = (r.val & 1);
     const num_float_returns: i32 = (r.val & 2);
     if (num_int_returns == 1) {
-        b |= BIT(RAX);
+        b |= bitAt(RAX);
     } else {
-        b |= BIT(XMM0);
+        b |= bitAt(XMM0);
     }
     if (p) |q|
         q.* = .{ num_int_returns, num_float_returns };
@@ -172,15 +172,15 @@ pub fn amd64_winabi_argregs(r: Ref, p: ?*[2]i32) bits {
     const env_param = ((r.val >> 12) & 1) != 0;
 
     var b: bits = 0;
-    b |= if ((int_passed & 1) != 0) BIT(RCX) else 0;
-    b |= if ((int_passed & 2) != 0) BIT(RDX) else 0;
-    b |= if ((int_passed & 4) != 0) BIT(R8) else 0;
-    b |= if ((int_passed & 8) != 0) BIT(R9) else 0;
-    b |= if ((float_passed & 1) != 0) BIT(XMM0) else 0;
-    b |= if ((float_passed & 2) != 0) BIT(XMM1) else 0;
-    b |= if ((float_passed & 4) != 0) BIT(XMM2) else 0;
-    b |= if ((float_passed & 8) != 0) BIT(XMM3) else 0;
-    b |= if (env_param) BIT(RAX) else 0;
+    b |= if ((int_passed & 1) != 0) bitAt(RCX) else 0;
+    b |= if ((int_passed & 2) != 0) bitAt(RDX) else 0;
+    b |= if ((int_passed & 4) != 0) bitAt(R8) else 0;
+    b |= if ((int_passed & 8) != 0) bitAt(R9) else 0;
+    b |= if ((float_passed & 1) != 0) bitAt(XMM0) else 0;
+    b |= if ((float_passed & 2) != 0) bitAt(XMM1) else 0;
+    b |= if ((float_passed & 4) != 0) bitAt(XMM2) else 0;
+    b |= if ((float_passed & 8) != 0) bitAt(XMM3) else 0;
+    b |= if (env_param) bitAt(RAX) else 0;
     if (p) |q| {
         // TODO: The only place this is used is live.c. I'm not sure what should be
         // returned here wrt to using the same counter for int/float regs on win.
@@ -266,7 +266,7 @@ fn classify_arguments(reg_usage: *RegisterUsage, instrs: []const Ins, arg_classe
     for (instrs, arg_classes) |*instr, *arg| {
         switch (instr.op) {
             .arg, .par => {
-                assign_register_or_stack(reg_usage, arg, KBASE(instr.cls) != 0, false);
+                assign_register_or_stack(reg_usage, arg, clsBase(instr.cls) != 0, false);
                 arg.cls = instr.cls.int();
                 arg.@"align" = 3;
                 arg.size = 8;
@@ -318,15 +318,15 @@ fn classify_arguments(reg_usage: *RegisterUsage, instrs: []const Ins, arg_classe
 
 fn is_integer_type(ty: i32) bool {
     assert(ty >= 0 and ty < 4); // expecting Kw Kl Ks Kd
-    return KBASE(ty) == 0;
+    return clsBase(ty) == 0;
 }
 
 fn register_for_arg(cls: i32, counter: i32) Ref {
     assert(counter < 4);
     if (is_integer_type(cls)) {
-        return TMP(amd64_winabi_rsave[@intCast(counter)]);
+        return tmpRef(amd64_winabi_rsave[@intCast(counter)]);
     } else {
-        return TMP(XMM0 + counter);
+        return tmpRef(XMM0 + counter);
     }
 }
 
@@ -382,7 +382,7 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
             stack_usage += 8;
         }
     }
-    stack_usage = ALIGN_UP(stack_usage, 16);
+    stack_usage = alignUp(stack_usage, 16);
 
     // Note that here we're logically 'after' the call (due to emitting
     // instructions in reverse order), so we're doing a negative stack
@@ -394,11 +394,11 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
     if (is_struct_return) {
         return_pad = pnew(ExtraAlloc);
         const ret_pad_ref = newtmp("abi.ret_pad", .l, func);
-        return_pad.?.instr = INS(.alloc8, .l, ret_pad_ref, getcon(ret_arg_class.size, func), R);
+        return_pad.?.instr = mkIns(.alloc8, .l, ret_pad_ref, getcon(ret_arg_class.size, func), R);
         return_pad.?.link = pextra_alloc.*;
         pextra_alloc.* = return_pad;
         reg_usage.rax_returned = true;
-        emit(.copy, call_instr.cls, call_instr.to, TMP(RAX), R);
+        emit(.copy, call_instr.cls, call_instr.to, tmpRef(RAX), R);
     } else {
         if (il_has_struct_return) {
             // In the case that at the IL level, a struct return was specified, but as
@@ -406,20 +406,20 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
             // pointer, we need to store the return value into an alloca because
             // subsequent IL will still be treating the function return as a pointer.
             const return_copy = pnew(ExtraAlloc);
-            return_copy.instr = INS(.alloc8, .l, call_instr.to, getcon(8, func), R);
+            return_copy.instr = mkIns(.alloc8, .l, call_instr.to, getcon(8, func), R);
             return_copy.link = pextra_alloc.*;
             pextra_alloc.* = return_copy;
             const copy = newtmp("abi.copy", .l, func);
             emit(.storel, 0, R, copy, call_instr.to);
-            emit(.copy, .l, copy, TMP(RAX), R);
+            emit(.copy, .l, copy, tmpRef(RAX), R);
             reg_usage.rax_returned = true;
         } else if (is_integer_type(call_instr.cls.int())) {
             // Only a basic type returned from the call, integer.
-            emit(.copy, call_instr.cls, call_instr.to, TMP(RAX), R);
+            emit(.copy, call_instr.cls, call_instr.to, tmpRef(RAX), R);
             reg_usage.rax_returned = true;
         } else {
             // Basic type, floating point.
-            emit(.copy, call_instr.cls, call_instr.to, TMP(XMM0), R);
+            emit(.copy, call_instr.cls, call_instr.to, tmpRef(XMM0), R);
             reg_usage.xmm0_returned = true;
         }
     }
@@ -428,21 +428,21 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
     // because we've lowered it into register manipulation (that's the `R`),
     // arg[0] of the call is the function, and arg[1] is register usage is
     // documented as above (copied from SysV).
-    emit(.call, call_instr.cls, R, call_instr.arg[0], CALL(register_usage_to_call_arg_value(reg_usage)));
+    emit(.call, call_instr.cls, R, call_instr.arg[0], callRef(register_usage_to_call_arg_value(reg_usage)));
 
     if (!req(R, env)) {
         // If there's an env arg to be passed, it gets stashed in RAX.
-        emit(.copy, .l, TMP(RAX), env, R);
+        emit(.copy, .l, tmpRef(RAX), env, R);
     }
 
     if (reg_usage.is_varargs_call) {
         // Any float arguments need to be duplicated to integer registers. This is
         // required by the calling convention so that dumping to shadow space can be
         // done without a prototype and for varargs.
-        if (reg_usage.regs_passed[1][0]) emit(.cast, .l, TMP(RCX), TMP(XMM0), R);
-        if (reg_usage.regs_passed[1][1]) emit(.cast, .l, TMP(RDX), TMP(XMM1), R);
-        if (reg_usage.regs_passed[1][2]) emit(.cast, .l, TMP(R8), TMP(XMM2), R);
-        if (reg_usage.regs_passed[1][3]) emit(.cast, .l, TMP(R9), TMP(XMM3), R);
+        if (reg_usage.regs_passed[1][0]) emit(.cast, .l, tmpRef(RCX), tmpRef(XMM0), R);
+        if (reg_usage.regs_passed[1][1]) emit(.cast, .l, tmpRef(RDX), tmpRef(XMM1), R);
+        if (reg_usage.regs_passed[1][2]) emit(.cast, .l, tmpRef(R8), tmpRef(XMM2), R);
+        if (reg_usage.regs_passed[1][3]) emit(.cast, .l, tmpRef(R9), tmpRef(XMM3), R);
     }
 
     var reg_counter: i32 = 0;
@@ -493,10 +493,10 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
                 // copied location.
                 const arg_copy = pnew(ExtraAlloc);
                 const copy_ref = newtmp("abi.copy", .l, func);
-                arg_copy.instr = INS(.alloc8, .l, copy_ref, getcon(arg.size, func), R);
+                arg_copy.instr = mkIns(.alloc8, .l, copy_ref, getcon(arg.size, func), R);
                 arg_copy.link = pextra_alloc.*;
                 pextra_alloc.* = arg_copy;
-                emit(.blit1, 0, R, INT(arg.size), R);
+                emit(.blit1, 0, R, intRef(arg.size), R);
                 emit(.blit0, 0, R, instr.arg[1], copy_ref);
 
                 // Now load the pointer into the correct register or stack slot.
@@ -551,24 +551,24 @@ fn lower_block_return(func: *Fn, block: *Blk) void {
         const @"type" = &all.typ[@intCast(func.retty)];
         if (type_is_by_copy(@"type")) {
             assert(rtype(func.retr) == RTmp);
-            emit(.copy, .l, TMP(RAX), func.retr, R);
-            emit(.blit1, 0, R, INT(@"type".size), R);
+            emit(.copy, .l, tmpRef(RAX), func.retr, R);
+            emit(.blit1, 0, R, intRef(@"type".size), R);
             emit(.blit0, 0, R, ret_arg, func.retr);
         } else {
-            emit(.load, .l, TMP(RAX), ret_arg, R);
+            emit(.load, .l, tmpRef(RAX), ret_arg, R);
         }
         reg_usage.rax_returned = true;
     } else {
         const k = jmp_type - J.retw.int();
         if (is_integer_type(k)) {
-            emit(.copy, k, TMP(RAX), ret_arg, R);
+            emit(.copy, k, tmpRef(RAX), ret_arg, R);
             reg_usage.rax_returned = true;
         } else {
-            emit(.copy, k, TMP(XMM0), ret_arg, R);
+            emit(.copy, k, tmpRef(XMM0), ret_arg, R);
             reg_usage.xmm0_returned = true;
         }
     }
-    block.jmp.arg = CALL(register_usage_to_call_arg_value(reg_usage));
+    block.jmp.arg = callRef(register_usage_to_call_arg_value(reg_usage));
 }
 
 fn lower_vastart(func: *Fn, param_reg_usage: *RegisterUsage, valist: Ref) void {
@@ -587,7 +587,7 @@ fn lower_vastart(func: *Fn, param_reg_usage: *RegisterUsage, valist: Ref) void {
 
     // *8 for sizeof(u64), +16 because the return address and rbp have been pushed
     // by the time we get to the body of the function.
-    emit(.add, .l, offset, TMP(RBP), getcon(param_reg_usage.num_named_args_passed * 8 + 16, func));
+    emit(.add, .l, offset, tmpRef(RBP), getcon(param_reg_usage.num_named_args_passed * 8 + 16, func));
 }
 
 fn lower_vaarg(func: *Fn, vaarg_instr: *Ins) void {
@@ -675,14 +675,14 @@ fn lower_func_parameters(func: *Fn) RegisterUsage {
         if (by_copy) {
             assign_register_or_stack(&reg_usage, &arg_ret, false, by_copy);
             const ret_ref = newtmp("abi.ret", .l, func);
-            emit(.copy, .l, ret_ref, TMP(RCX), R);
+            emit(.copy, .l, ret_ref, tmpRef(RCX), R);
             func.retr = ret_ref;
             reg_counter += 1;
         }
     }
     var env = R;
     classify_arguments(&reg_usage, params, arg_classes, &env);
-    func.reg = amd64_winabi_argregs(CALL(register_usage_to_call_arg_value(reg_usage)), null);
+    func.reg = amd64_winabi_argregs(callRef(register_usage_to_call_arg_value(reg_usage)), null);
 
     // Copy from the registers or stack slots into the named parameters. Depending
     // on how they're passed, they either need to be copied or loaded.
@@ -707,15 +707,15 @@ fn lower_func_parameters(func: *Fn) RegisterUsage {
                 if (instr.op == .parc) {
                     arg.ref = newtmp("abi", .l, func);
                     emit(.storel, 0, R, arg.ref, instr.to);
-                    emit(.copy, instr.cls, arg.ref, SLOT(-slot_offset), R);
+                    emit(.copy, instr.cls, arg.ref, slotRef(-slot_offset), R);
                     emit(.alloc8, .l, instr.to, getcon(arg.size, func), R);
                 } else {
-                    emit(.copy, .l, instr.to, SLOT(-slot_offset), R);
+                    emit(.copy, .l, instr.to, slotRef(-slot_offset), R);
                 }
                 slot_offset += 2;
             },
             .APS_CopyAndPointerOnStack => {
-                emit(.load, .l, instr.to, SLOT(-slot_offset), R);
+                emit(.load, .l, instr.to, slotRef(-slot_offset), R);
                 slot_offset += 2;
             },
             .APS_CopyAndPointerInRegister => {
@@ -732,7 +732,7 @@ fn lower_func_parameters(func: *Fn) RegisterUsage {
 
     // If there was an `env`, it was passed in RAX, so copy it into the env ref.
     if (!req(R, env)) {
-        emit(.copy, .l, env, TMP(RAX), R);
+        emit(.copy, .l, env, tmpRef(RAX), R);
     }
 
     const num_created_instrs: uint = @intCast(all.insbTail());

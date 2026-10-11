@@ -6,7 +6,7 @@ const all = @import("all.zig");
 const BSet = all.BSet;
 const Blk = all.Blk;
 const Fn = all.Fn;
-const KBASE = all.KBASE;
+const clsBase = all.clsBase;
 const R = all.R;
 const RCall = all.RCall;
 const RMem = all.RMem;
@@ -52,7 +52,7 @@ fn bset(r: Ref, b: *Blk, nlv: *[2]i32, tmp: [*]const Tmp) void {
         return;
     bsset(&b.gen, r.val);
     if (!bshas(&b.in, r.val)) {
-        nlv[@intCast(KBASE(tmp[r.val].cls))] += 1;
+        nlv[@intCast(clsBase(tmp[r.val].cls))] += 1;
         bsset(&b.in, r.val);
     }
 }
@@ -93,7 +93,7 @@ pub fn filllive(f: *Fn) void {
             bscopy(&b.in, &b.out);
             var t: i32 = 0;
             while (bsiter(&b.in, &t)) : (t += 1)
-                nlv[@intCast(KBASE(f.tmp[@intCast(t)].cls))] += 1;
+                nlv[@intCast(clsBase(f.tmp[@intCast(t)].cls))] += 1;
             if (rtype(b.jmp.arg) == RCall) {
                 assert(@as(i32, @intCast(bscount(&b.in))) == all.T.nrglob and
                     b.in.t[0] == all.T.rglob);
@@ -125,7 +125,7 @@ pub fn filllive(f: *Fn) void {
                     assert(rtype(i.to) == RTmp);
                     const tt = i.to.val;
                     if (bshas(&b.in, tt))
-                        nlv[@intCast(KBASE(f.tmp[tt].cls))] -= 1;
+                        nlv[@intCast(clsBase(f.tmp[tt].cls))] -= 1;
                     bsset(&b.gen, tt);
                     bsclr(&b.in, tt);
                 }

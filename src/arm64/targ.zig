@@ -3,7 +3,7 @@ const std = @import("std");
 // -- imports --
 const all = @import("../all.zig");
 const tgt = @import("all.zig");
-const BIT = all.BIT;
+const bitAt = all.bitAt;
 const FP = tgt.FP;
 const IP0 = tgt.IP0;
 const IP1 = tgt.IP1;
@@ -101,7 +101,7 @@ pub var arm64_rclob = [_]i32{
     -1,
 };
 
-const RGLOB = BIT(FP) | BIT(SP) | BIT(IP1) | BIT(R18);
+const RGLOB = bitAt(FP) | bitAt(SP) | bitAt(IP1) | bitAt(R18);
 
 fn arm64_memargs(op: i32) i32 {
     _ = op;
@@ -151,7 +151,7 @@ pub fn init() void {
 }
 
 comptime {
-    if ((RGLOB & (BIT(R8 + 1) - 1)) != 0) @compileError("globals_are_not_arguments");
+    if ((RGLOB & (bitAt(R8 + 1) - 1)) != 0) @compileError("globals_are_not_arguments");
     if (!(arm64_rsave.len == NGPS + NFPS + 1 and arm64_rclob.len == NCLR + 1))
         @compileError("arrays_size_ok");
 }

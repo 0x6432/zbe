@@ -10,14 +10,14 @@ const AEsc = all.AEsc;
 const ALoc = all.ALoc;
 const ASym = all.ASym;
 const AUnk = all.AUnk;
-const BIT = all.BIT;
+const bitAt = all.bitAt;
 const Blk = all.Blk;
 const CAddr = all.CAddr;
 const Con = all.Con;
 const Fn = all.Fn;
-const INS = all.INS;
+const mkIns = all.mkIns;
 const Ins = all.Ins;
-const KWIDE = all.KWIDE;
+const clsWide = all.clsWide;
 const MayAlias = all.MayAlias;
 const MustAlias = all.MustAlias;
 const NoAlias = all.NoAlias;
@@ -29,7 +29,7 @@ const RCon = all.RCon;
 const RInt = all.RInt;
 const RTmp = all.RTmp;
 const Ref = all.Ref;
-const TMP = all.TMP;
+const tmpRef = all.tmpRef;
 const alias = all.alias;
 const bits = all.bits;
 const die = all.die;
@@ -57,8 +57,8 @@ const vnewT = all.vnewT;
 // -- end imports --
 
 /// must work when w==8
-inline fn MASK(w: anytype) bits {
-    return BIT(8 * @as(i32, (w)) - 1) *% 2 -% 1;
+inline fn lowMask(w: anytype) bits {
+    return bitAt(8 * @as(i32, (w)) - 1) *% 2 -% 1;
 }
 
 const LRoot = 0; // right above the original load
@@ -102,7 +102,7 @@ pub fn loadsz(l: *Ins) i32 {
         .loadsb, .loadub => return 1,
         .loadsh, .loaduh => return 2,
         .loadsw, .loaduw => return 4,
-        .load => return if (KWIDE(l.cls) != 0) 8 else 4,
+        .load => return if (clsWide(l.cls) != 0) 8 else 4,
         else => {},
     }
     die("unreachable", .{});
@@ -128,7 +128,7 @@ fn iins(cls: i32, op: Opc, a0: Ref, a1: Ref, l: *Loc) Ref {
     inum += 1;
     ist.bid = l.blk.id;
     ist.off = l.off;
-    ist.new.ins = INS(op, cls, R, a0, a1);
+    ist.new.ins = mkIns(op, cls, R, a0, a1);
     ist.new.ins.to = newtmp("ld", cls, curf);
     return ist.new.ins.to;
 }
@@ -140,7 +140,7 @@ fn cast(r: *Ref, cls: i32, l: *Loc) void {
     const cls0: i32 = curf.tmp[r.val].cls.int();
     if (cls0 == cls or (cls == Cls.w.int() and cls0 == Cls.l.int()))
         return;
-    if (KWIDE(cls0) < KWIDE(cls)) {
+    if (clsWide(cls0) < clsWide(cls)) {
         if (cls0 == Cls.s.int())
             r.* = iins(all.knum(.w), .cast, r.*, R, l);
         r.* = iins(all.knum(.l), .extuw, r.*, R, l);
@@ -171,7 +171,7 @@ fn load(sl: Slice, msk: bits, l: *Loc) Ref {
         8 => .load,
         else => .xxx,
     };
-    const all_ = msk == MASK(sl.sz);
+    const all_ = msk == lowMask(sl.sz);
     if (all_)
         cls = sl.cls
     else
@@ -184,7 +184,7 @@ fn load(sl: Slice, msk: bits, l: *Loc) Ref {
         const a = &curf.tmp[r.val].alias;
         switch (a.type) {
             ALoc, AEsc, AUnk => {
-                r = TMP(a.base);
+                r = tmpRef(a.base);
                 if (a.offset != 0) {
                     const r1 = getcon(a.offset, curf);
                     r = iins(all.knum(.l), .add, r, r1, l);
@@ -212,7 +212,7 @@ fn rebase(sl: *Slice) void {
     const a = &curf.tmp[sl.ref.val].alias;
     if (a.offset == @as(i16, @truncate(a.offset)))
         if (a.type == ALoc or a.type == AEsc or a.type == AUnk) {
-            sl.ref = TMP(a.base);
+            sl.ref = tmpRef(a.base);
             sl.off = @intCast(a.offset);
         };
 }
@@ -222,7 +222,7 @@ fn killsl(r: Ref, sl: Slice) bool {
         return false;
     const a = &curf.tmp[sl.ref.val].alias;
     switch (a.type) {
-        ALoc, AEsc, AUnk => return req(TMP(a.base), r),
+        ALoc, AEsc, AUnk => return req(tmpRef(a.base), r),
         ACon, ASym => return false,
         else => die("unreachable", .{}),
     }
@@ -273,7 +273,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
     var l: Loc = undefined;
     var idx = i_ orelse b.nins;
     const cls: i32 = if (sl.sz > 4) all.knum(.l) else all.knum(.w);
-    const msks = MASK(sl.sz);
+    const msks = lowMask(sl.sz);
 
     while (idx > 0) {
         idx -= 1;
@@ -319,16 +319,16 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
                 }
                 if (off < 0) {
                     off = -off;
-                    msk1 = shl64(MASK(sz), 8 * off) & msks;
+                    msk1 = shl64(lowMask(sz), 8 * off) & msks;
                     op = .shl;
                 } else {
-                    msk1 = (MASK(sz) >> @intCast(8 * off)) & msks;
+                    msk1 = (lowMask(sz) >> @intCast(8 * off)) & msks;
                     op = .shr;
                 }
                 if ((msk1 & msk) == 0)
                     continue;
                 if (i.op == .blit0) {
-                    r = def(sl1, MASK(sz), b, idx, il);
+                    r = def(sl1, lowMask(sz), b, idx, il);
                     if (req(r, R))
                         return null;
                 }
@@ -461,7 +461,7 @@ pub fn loadopt(f: *Fn) void {
             var sl: Slice = .{ .ref = i.arg[0], .off = 0, .sz = @intCast(sz), .cls = @intFromEnum(i.cls) };
             var l: Loc = .{ .type = LRoot, .off = @intCast(n), .blk = b };
             rebase(&sl);
-            i.arg[1] = def(sl, MASK(sz), b, @intCast(n), &l);
+            i.arg[1] = def(sl, lowMask(sz), b, @intCast(n), &l);
         }
     }
     sort(Insert, ilog, nlog, icmp);

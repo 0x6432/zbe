@@ -7,7 +7,7 @@ const Cls = all.Cls;
 const J = all.J;
 const Opc = all.Opc;
 const tgt = @import("all.zig");
-const BIT = all.BIT;
+const bitAt = all.bitAt;
 const Blk = all.Blk;
 const CAddr = all.CAddr;
 const CBits = all.CBits;
@@ -31,11 +31,11 @@ const Ciule = all.Ciule;
 const Ciult = all.Ciult;
 const Con = all.Con;
 const Fn = all.Fn;
-const INS = all.INS;
+const mkIns = all.mkIns;
 const IP1 = tgt.IP1;
 const Ins = all.Ins;
-const KBASE = all.KBASE;
-const KWIDE = all.KWIDE;
+const clsBase = all.clsBase;
+const clsWide = all.clsWide;
 const LR = tgt.LR;
 const NCmp = all.NCmp;
 const NCmpI = all.NCmpI;
@@ -50,10 +50,10 @@ const Ref = all.Ref;
 const SExt = all.SExt;
 const SExtThr = all.SExtThr;
 const SGlo = all.SGlo;
-const SLOT = all.SLOT;
+const slotRef = all.slotRef;
 const SP = tgt.SP;
 const SThr = all.SThr;
-const TMP = all.TMP;
+const tmpRef = all.tmpRef;
 const V0 = tgt.V0;
 const V30 = tgt.V30;
 const Writer = all.Writer;
@@ -276,14 +276,14 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
                     continue :sw;
                 },
                 '?' => {
-                    if (KBASE(k) == 0)
+                    if (clsBase(k) == 0)
                         try e.f.writeAll(cs(rname(IP1, k)))
                     else
                         try e.f.writeAll(cs(rname(V31, k)));
                 },
                 '=', '0' => {
                     r = if (c == '=') i.to else i.arg[0];
-                    assert(isreg(r) or req(r, TMP(V31)));
+                    assert(isreg(r) or req(r, tmpRef(V31)));
                     try e.f.writeAll(cs(rname((r.val), k)));
                 },
                 '1' => {
@@ -386,7 +386,7 @@ fn loadaddr(c: *Con, rn: [*:0]const u8, e: *E) Writer.Error!void {
 }
 
 fn loadcon(c: *Con, r: i32, k: i32, e: *E) Writer.Error!void {
-    const w = KWIDE(k);
+    const w = clsWide(k);
     var rn = rname(r, k);
     var n = c.bits.i;
     if (c.type == CAddr) {
@@ -419,9 +419,9 @@ fn fixarg(pr: *Ref, sz: i32, t: i32, e: *E) Writer.Error!bool {
         if (s > @as(u32, @bitCast(sz)) *% 4095) {
             if (t < 0)
                 return true;
-            var i = INS(.addr, .l, TMP(t), r, R);
+            var i = mkIns(.addr, .l, tmpRef(t), r, R);
             try emitins(&i, e);
-            pr.* = TMP(t);
+            pr.* = tmpRef(t);
         }
     }
     return false;
@@ -435,9 +435,9 @@ fn emitins(i: *Ins, e: *E) Writer.Error!void {
             if (isstore(i.op)) {
                 const t: i32 = if (all.T.apple != 0) -1 else R18;
                 if (try fixarg(&i.arg[1], storesz(i), t, e)) {
-                    if (req(i.arg[0], TMP(IP1))) {
+                    if (req(i.arg[0], tmpRef(IP1))) {
                         try e.f.print("\tfmov\t{c}31, {c}17\n", .{"ds"[@intFromBool(i.cls == .w)], "xw"[@intFromBool(i.cls == .w)]});
-                        i.arg[0] = TMP(V31);
+                        i.arg[0] = tmpRef(V31);
                         i.op = Opc.stores.offset(i.cls.int() - Cls.w.int());
                     }
                     _ = try fixarg(&i.arg[1], storesz(i), IP1, e);
@@ -452,7 +452,7 @@ fn emitins(i: *Ins, e: *E) Writer.Error!void {
             if (rtype(i.to) == RSlot) {
                 const r = i.to;
                 if (!isreg(i.arg[0])) {
-                    i.to = TMP(IP1);
+                    i.to = tmpRef(IP1);
                     try emitins(i, e);
                     i.arg[0] = i.to;
                 }
@@ -524,7 +524,7 @@ fn table(i: *Ins, e: *E) Writer.Error!void {
             die("no match for {s}({c})", .{cs(all.optab[i.op.int()].name), "wlsd"[i.cls.idx()]});
         if (omap[o].op == i.op and
             (@intFromEnum(omap[o].cls) == @intFromEnum(i.cls) or omap[o].cls == .a or
-            (omap[o].cls == .i and KBASE(i.cls) == 0)))
+            (omap[o].cls == .i and clsBase(i.cls) == 0)))
             break;
     }
     try emitf(omap[o].fmt.?, i, e);
@@ -605,9 +605,9 @@ pub fn arm64_emitfn(f: *Fn, out: *Writer) Writer.Error!void {
     var s: i32 = @intCast((e.frame - e.padding) / 4);
     for (arm64_rclob) |r| {
         if (r < 0) break;
-        if ((e.@"fn".reg & BIT(r)) != 0) {
+        if ((e.@"fn".reg & bitAt(r)) != 0) {
             s -= 2;
-            var i = INS(if (r >= V0) .stored else .storel, 0, R, TMP(r), SLOT(s));
+            var i = mkIns(if (r >= V0) .stored else .storel, 0, R, tmpRef(r), slotRef(s));
             try emitins(&i, e);
         }
     }
@@ -627,9 +627,9 @@ pub fn arm64_emitfn(f: *Fn, out: *Writer) Writer.Error!void {
                 s = @intCast((e.frame - e.padding) / 4);
                 for (arm64_rclob) |r| {
                     if (r < 0) break;
-                    if ((e.@"fn".reg & BIT(r)) != 0) {
+                    if ((e.@"fn".reg & bitAt(r)) != 0) {
                         s -= 2;
-                        var in = INS(.load, @as(i32, if (r >= V0) all.knum(.d) else all.knum(.l)), TMP(r), SLOT(s), R);
+                        var in = mkIns(.load, @as(i32, if (r >= V0) all.knum(.d) else all.knum(.l)), tmpRef(r), slotRef(s), R);
                         try emitins(&in, e);
                     }
                 }

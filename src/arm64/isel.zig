@@ -8,18 +8,18 @@ const J = all.J;
 const Opc = all.Opc;
 const tgt = @import("all.zig");
 const Blk = all.Blk;
-const CALL = all.CALL;
+const callRef = all.callRef;
 const CAddr = all.CAddr;
 const CBits = all.CBits;
-const CON = all.CON;
+const conRef = all.conRef;
 const CON_Z = all.CON_Z;
 const Con = all.Con;
 const Fn = all.Fn;
-const INRANGE = all.INRANGE;
-const INS0 = all.INS0;
+const inRange = all.inRange;
+const insOp = all.insOp;
 const Ins = all.Ins;
-const KBASE = all.KBASE;
-const KWIDE = all.KWIDE;
+const clsBase = all.clsBase;
+const clsWide = all.clsWide;
 const Phi = all.Phi;
 const R = all.R;
 const R0 = tgt.R0;
@@ -27,9 +27,9 @@ const RCon = all.RCon;
 const RTmp = all.RTmp;
 const Ref = all.Ref;
 const SExt = all.SExt;
-const SLOT = all.SLOT;
+const slotRef = all.slotRef;
 const SThr = all.SThr;
-const TMP = all.TMP;
+const tmpRef = all.tmpRef;
 const argcls = all.argcls;
 const bufPrintZ = all.bufPrintZ;
 const cmpop = all.cmpop;
@@ -138,11 +138,11 @@ fn fixarg(pr: *Ref, k: i32, phi: bool, f: *Fn) void {
                     r1 = r2;
                 }
                 if (all.T.apple != 0 and (c.sym.type & SThr) != 0) {
-                    emit(.copy, .l, r1, TMP(R0), R);
+                    emit(.copy, .l, r1, tmpRef(R0), R);
                     r1 = newtmp("isel", .l, f);
                     r2 = newtmp("isel", .l, f);
-                    emit(.call, 0, R, r1, CALL(33));
-                    emit(.copy, .l, TMP(R0), r2, R);
+                    emit(.call, 0, R, r1, callRef(33));
+                    emit(.copy, .l, tmpRef(R0), r2, R);
                     emit(.load, .l, r1, r2, R);
                     r1 = r2;
                 }
@@ -152,13 +152,13 @@ fn fixarg(pr: *Ref, k: i32, phi: bool, f: *Fn) void {
                 emit(.copy, .l, r1, r3, R);
                 return;
             }
-            if (KBASE(k) == 0 and phi)
+            if (clsBase(k) == 0 and phi)
                 return;
             r1 = newtmp("isel", k, f);
-            if (KBASE(k) == 0) {
+            if (clsBase(k) == 0) {
                 emit(.copy, k, r1, r0, R);
             } else {
-                const n = stashbits(@bitCast(c.bits.i), if (KWIDE(k) != 0) 8 else 4);
+                const n = stashbits(@bitCast(c.bits.i), if (clsWide(k) != 0) 8 else 4);
                 f.ncon += 1;
                 vgrow(&f.con, f.ncon);
                 const ci: usize = @intCast(f.ncon - 1);
@@ -169,7 +169,7 @@ fn fixarg(pr: *Ref, k: i32, phi: bool, f: *Fn) void {
                 c.sym.id = intern(@ptrCast(&buf));
                 r2 = newtmp("isel", .l, f);
                 emit(.load, k, r1, r2, R);
-                emit(.copy, .l, r2, CON(ci), R);
+                emit(.copy, .l, r2, conRef(ci), R);
             }
             pr.* = r1;
         },
@@ -178,7 +178,7 @@ fn fixarg(pr: *Ref, k: i32, phi: bool, f: *Fn) void {
             if (s == -1)
                 return;
             r1 = newtmp("isel", .l, f);
-            emit(.addr, .l, r1, SLOT(s), R);
+            emit(.addr, .l, r1, slotRef(s), R);
             pr.* = r1;
         },
         else => {},
@@ -188,7 +188,7 @@ fn fixarg(pr: *Ref, k: i32, phi: bool, f: *Fn) void {
 fn selcmp(arg: *[2]Ref, k: i32, f: *Fn) bool {
     var n: i64 = undefined;
 
-    if (KBASE(k) == 1) {
+    if (clsBase(k) == 1) {
         emit(.afcmp, k, R, arg[0], arg[1]);
         const iarg = &all.curi[0].arg;
         fixarg(&iarg[0], k, false, f);
@@ -240,7 +240,7 @@ fn sel(i_: Ins, f: *Fn) void {
     var ck: i32 = undefined;
     var cc: i32 = undefined;
 
-    if (INRANGE(i.op, Opc.alloc_first, Opc.alloc_last)) {
+    if (inRange(i.op, Opc.alloc_first, Opc.alloc_last)) {
         const i_0 = &(all.curi - 1)[0];
         salloc(i.to, i.arg[0], f);
         fixarg(&i_0.arg[0], all.knum(.l), false, f);
@@ -294,7 +294,7 @@ fn seljmp(b: *Blk, f: *Fn) void {
         if (selcmp(&ir.arg, ck, f))
             cc = cmpop(cc);
         b.jmp.type = J.jf_first.add(cc);
-        ir.* = INS0(.nop);
+        ir.* = insOp(.nop);
     } else {
         var a = [2]Ref{ r, CON_Z };
         _ = selcmp(&a, all.knum(.w), f);
@@ -324,7 +324,7 @@ pub fn arm64_isel(f: *Fn) void {
                 sz = @divTrunc(sz, 4);
                 f.tmp[i.to.val].slot = f.slot;
                 f.slot += @intCast(sz);
-                i.* = INS0(.nop);
+                i.* = insOp(.nop);
             }
         }
     }

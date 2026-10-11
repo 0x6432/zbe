@@ -6,9 +6,9 @@ const all = @import("all.zig");
 const U = all.U;
 const Blk = all.Blk;
 const Fn = all.Fn;
-const INS0 = all.INS0;
+const insOp = all.insOp;
 const Ins = all.Ins;
-const KBASE = all.KBASE;
+const clsBase = all.clsBase;
 const PFn = all.PFn;
 const PHeap = all.PHeap;
 const Phi = all.Phi;
@@ -45,7 +45,7 @@ const NOBID: uint = std.math.maxInt(uint);
 
 fn isdivwl(i: *Ins) bool {
     return switch (i.op) {
-        .div, .rem, .udiv, .urem => KBASE(i.cls) == 0,
+        .div, .rem, .udiv, .urem => clsBase(i.cls) == 0,
         else => false,
     };
 }
@@ -265,7 +265,7 @@ fn gcmmove(f: *Fn) void {
         assert(t == &f.tmp[i.to.val]);
         if (t.gcmbid != NOBID)
             addins(&vins, &nins, i);
-        i.* = INS0(.nop);
+        i.* = insOp(.nop);
     }
     addgcmins(f, vins[0..nins]);
 }
@@ -286,7 +286,7 @@ fn schedins(f: *Fn, b: *Blk, n: uint, pvins: *[*]Ins, pnins: *uint) uint {
     }
     for (b.ins[lo..hi]) |*i| {
         addins(pvins, pnins, i);
-        i.* = INS0(.nop);
+        i.* = insOp(.nop);
     }
     return hi;
 }
@@ -308,7 +308,7 @@ fn schedblk(f: *Fn) void {
 fn cheap(i: *Ins) bool {
     var x: i32 = undefined;
 
-    if (KBASE(i.cls) != 0)
+    if (clsBase(i.cls) != 0)
         return false;
     return switch (i.op) {
         .neg, .add, .sub, .mul, .@"and", .@"or", .xor, .sar, .shr, .shl => true,

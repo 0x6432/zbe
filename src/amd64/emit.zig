@@ -7,7 +7,7 @@ const Cls = all.Cls;
 const J = all.J;
 const Opc = all.Opc;
 const tgt = @import("all.zig");
-const BIT = all.BIT;
+const bitAt = all.bitAt;
 const Blk = all.Blk;
 const CAddr = all.CAddr;
 const CBits = all.CBits;
@@ -30,10 +30,10 @@ const Ciule = all.Ciule;
 const Ciult = all.Ciult;
 const Con = all.Con;
 const Fn = all.Fn;
-const INS = all.INS;
+const mkIns = all.mkIns;
 const Ins = all.Ins;
-const KBASE = all.KBASE;
-const KWIDE = all.KWIDE;
+const clsBase = all.clsBase;
+const clsWide = all.clsWide;
 const NCLR_SYSV = tgt.NCLR_SYSV;
 const NCLR_WIN = tgt.NCLR_WIN;
 const NCmp = all.NCmp;
@@ -65,7 +65,7 @@ const SExt = all.SExt;
 const SExtThr = all.SExtThr;
 const SGlo = all.SGlo;
 const SThr = all.SThr;
-const TMP = all.TMP;
+const tmpRef = all.tmpRef;
 const Writer = all.Writer;
 const XMM0 = tgt.XMM0;
 const XMM15 = tgt.XMM15;
@@ -331,7 +331,7 @@ fn emitmem(ref: Ref, e: *E) Writer.Error!void {
         off.type = CBits;
         off.bits.i = slot(m.base, e);
         _ = addcon(&m.offset, &off, 1);
-        m.base = TMP(e.fp);
+        m.base = tmpRef(e.fp);
     }
     if (m.offset.type != CUndef)
         try emitcon(&m.offset, e);
@@ -385,7 +385,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
             '%' => try e.f.writeByte('%'),
             'k' => try e.f.writeAll(cs(clstoa[i.cls.idx()])),
             '0', '1', '=' => {
-                sz = if (KWIDE(i.cls) != 0) SLong else SWord;
+                sz = if (clsWide(i.cls) != 0) SLong else SWord;
                 s -= 1;
                 doref = true;
             },
@@ -471,7 +471,7 @@ fn emittable(i: *Ins, e: *E) Writer.Error!void {
             die("no match for {s}({c})", .{cs(all.optab[i.op.int()].name), "wlsd"[i.cls.idx()]});
         if (omap[o].op == i.op)
             if (@intFromEnum(omap[o].cls) == @intFromEnum(i.cls) or
-                (omap[o].cls == .i and KBASE(i.cls) == 0) or
+                (omap[o].cls == .i and clsBase(i.cls) == 0) or
                 (omap[o].cls == .a))
                 break;
     }
@@ -508,7 +508,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
                 i.arg[0] = i.arg[1];
                 i.arg[1] = r;
             }
-            if (KBASE(i.cls) == 0 and // only available for ints
+            if (clsBase(i.cls) == 0 and // only available for ints
                 rtype(i.arg[0]) == RCon and
                 rtype(i.arg[1]) == RTmp)
             {
@@ -521,7 +521,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             // we have to use the negation trick to handle
             // some 3-address subtractions
             if (req(i.to, i.arg[1]) and !req(i.arg[0], i.to)) {
-                const ineg = INS(.neg, i.cls, i.to, i.to, R);
+                const ineg = mkIns(.neg, i.cls, i.to, i.to, R);
                 try emitins(ineg, e);
                 try emitf("add%k %0, %=", &i, e);
                 return;
@@ -531,7 +531,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
         .neg => {
             if (!req(i.to, i.arg[0]))
                 try emitf("mov%k %0, %=", &i, e);
-            if (KBASE(i.cls) == 0)
+            if (clsBase(i.cls) == 0)
                 try emitf("neg%k %=", &i, e)
             else
                 try e.f.print("\txorp{c} {s}fp{d}(%rip), %{s}\n", .{"xxsd"[i.cls.idx()], cs(&all.T.asloc), stashbits(negmask[i.cls.idx()], 16), cs(regtoa((i.to.val), SLong))});
@@ -540,7 +540,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             // use xmm15 to adjust the instruction when the
             // conversion to 2-address in emitf() would fail
             if (req(i.to, i.arg[1])) {
-                i.arg[1] = TMP(XMM0 + 15);
+                i.arg[1] = tmpRef(XMM0 + 15);
                 try emitf("mov%k %=, %1", &i, e);
                 try emitf("mov%k %0, %=", &i, e);
                 i.arg[0] = i.to;
@@ -584,8 +584,8 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             if (rtype(i.to) == RSlot and
                 (t0 == RSlot or t0 == RMem))
             {
-                i.cls = if (KWIDE(i.cls) != 0) .d else .s;
-                i.arg[1] = TMP(XMM0 + 15);
+                i.cls = if (clsWide(i.cls) != 0) .d else .s;
+                i.arg[1] = tmpRef(XMM0 + 15);
                 try emitf("mov%k %0, %1", &i, e);
                 try emitf("mov%k %1, %=", &i, e);
                 return;
@@ -659,18 +659,18 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             assert(e.fp == RBP);
             try emitf("subq %L0, %%rsp", &i, e);
             if (!req(i.to, R))
-                try emitcopy(i.to, TMP(RSP), all.knum(.l), e);
+                try emitcopy(i.to, tmpRef(RSP), all.knum(.l), e);
         },
         .swap => {
-            if (KBASE(i.cls) == 0) {
+            if (clsBase(i.cls) == 0) {
                 try emittable(&i, e);
                 return;
             }
             // for floats, there is no swap instruction
             // so we use xmm15 as a temporary
-            try emitcopy(TMP(XMM0 + 15), i.arg[0], all.knum(i.cls), e);
+            try emitcopy(tmpRef(XMM0 + 15), i.arg[0], all.knum(i.cls), e);
             try emitcopy(i.arg[0], i.arg[1], all.knum(i.cls), e);
-            try emitcopy(i.arg[1], TMP(XMM0 + 15), all.knum(i.cls), e);
+            try emitcopy(i.arg[1], tmpRef(XMM0 + 15), all.knum(i.cls), e);
         },
         .dbgloc => try emitdbgloc(i.arg[0].val, i.arg[1].val, e.f),
     }
@@ -727,8 +727,8 @@ pub fn amd64_sysv_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
             try fp.print("\tmovaps %xmm{d}, {d}(%rbp)\n", .{n, o});
     }
     for (rclob) |r| {
-        if ((f.reg & BIT(r)) != 0) {
-            itmp.arg[0] = TMP(r);
+        if ((f.reg & bitAt(r)) != 0) {
+            itmp.arg[0] = tmpRef(r);
             try emitf("pushq %L0", &itmp, e);
             e.nclob += 1;
         }
@@ -757,8 +757,8 @@ pub fn amd64_sysv_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
                 while (k > 0) {
                     k -= 1;
                     const r = rclob[k];
-                    if ((f.reg & BIT(r)) != 0) {
-                        itmp.arg[0] = TMP(r);
+                    if ((f.reg & bitAt(r)) != 0) {
+                        itmp.arg[0] = tmpRef(r);
                         try emitf("popq %L0", &itmp, e);
                     }
                 }
@@ -840,8 +840,8 @@ pub fn amd64_winabi_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
     if (e.fsz != 0)
         try fp.print("\tsubq ${d}, %rsp\n", .{e.fsz});
     for (rclob) |r| {
-        if ((f.reg & BIT(r)) != 0) {
-            itmp.arg[0] = TMP(r);
+        if ((f.reg & bitAt(r)) != 0) {
+            itmp.arg[0] = tmpRef(r);
             try emitf("pushq %L0", &itmp, e);
             e.nclob += 1;
         }
@@ -864,8 +864,8 @@ pub fn amd64_winabi_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
                 while (k > 0) {
                     k -= 1;
                     const r = rclob[k];
-                    if ((f.reg & BIT(r)) != 0) {
-                        itmp.arg[0] = TMP(r);
+                    if ((f.reg & bitAt(r)) != 0) {
+                        itmp.arg[0] = tmpRef(r);
                         try emitf("popq %L0", &itmp, e);
                     }
                 }

@@ -7,10 +7,10 @@ const Cls = all.Cls;
 const J = all.J;
 const Blk = all.Blk;
 const Fn = all.Fn;
-const INS = all.INS;
-const INS0 = all.INS0;
+const mkIns = all.mkIns;
+const insOp = all.insOp;
 const Ins = all.Ins;
-const KBASE = all.KBASE;
+const clsBase = all.clsBase;
 const PHeap = all.PHeap;
 const Phi = all.Phi;
 const R = all.R;
@@ -48,7 +48,7 @@ fn okjoin(b: *Blk) bool {
     var n: i32 = 0;
     var p_it: ?*Phi = b.phi;
     while (p_it) |p| : (p_it = p.link) {
-        if (KBASE(p.cls) != 0)
+        if (clsBase(p.cls) != 0)
             return false;
         n += 1;
     }
@@ -77,10 +77,10 @@ fn convert(ifb: *Blk, thenb: *Blk, elseb: *Blk, joinb: *Blk) void {
     assert(joinb.npred == 2);
     var sel: Ins = undefined;
     if (joinb.phi != null) {
-        sel = INS(.sel0, .w, R, ifb.jmp.arg, R);
+        sel = mkIns(.sel0, .w, R, ifb.jmp.arg, R);
         addins(&ins, &nins, &sel);
     }
-    sel = INS0(.sel1);
+    sel = insOp(.sel1);
     var p_it: ?*Phi = joinb.phi;
     while (p_it) |p| : (p_it = p.link) {
         sel.to = p.to;

@@ -13,7 +13,7 @@ const Phi = all.Phi;
 const R = all.R;
 const RTmp = all.RTmp;
 const Ref = all.Ref;
-const TMP = all.TMP;
+const tmpRef = all.tmpRef;
 const Tmp = all.Tmp;
 const Tmp0 = all.Tmp0;
 const UNDEF = all.UNDEF;
@@ -192,12 +192,12 @@ fn phiins(f: *Fn) void {
             var r = R;
             for (b.insns()) |*i| {
                 if (!req(r, R)) {
-                    if (req(i.arg[0], TMP(t)))
+                    if (req(i.arg[0], tmpRef(t)))
                         i.arg[0] = r;
-                    if (req(i.arg[1], TMP(t)))
+                    if (req(i.arg[1], tmpRef(t)))
                         i.arg[1] = r;
                 }
-                if (req(i.to, TMP(t))) {
+                if (req(i.to, tmpRef(t))) {
                     if (!bshas(&b.out, t)) {
                         r = refindex(t, f);
                         i.to = r;
@@ -212,7 +212,7 @@ fn phiins(f: *Fn) void {
                     }
                 }
             }
-            if (!req(r, R) and req(b.jmp.arg, TMP(t)))
+            if (!req(r, R) and req(b.jmp.arg, tmpRef(t)))
                 b.jmp.arg = r;
         }
         bscopy(&defs, &u);
@@ -227,7 +227,7 @@ fn phiins(f: *Fn) void {
                 if (v == 0 and bshas(&a.in, t)) {
                     const p = pnew(Phi);
                     p.cls = k;
-                    p.to = TMP(t);
+                    p.to = tmpRef(t);
                     p.link = a.phi;
                     p.arg = vnewT(Ref, 0, PFn);
                     p.blk = vnewT(*Blk, 0, PFn);

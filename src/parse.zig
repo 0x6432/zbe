@@ -32,7 +32,7 @@ const Fl = all.Fl;
 const Fn = all.Fn;
 const Fs = all.Fs;
 const Fw = all.Fw;
-const INT = all.INT;
+const intRef = all.intRef;
 const Ins = all.Ins;
 const Lnk = all.Lnk;
 const Mem = all.Mem;
@@ -54,8 +54,8 @@ const RType = all.RType;
 const Ref = all.Ref;
 const SExt = all.SExt;
 const SThr = all.SThr;
-const TMP = all.TMP;
-const TYPE = all.TYPE;
+const tmpRef = all.tmpRef;
+const typeRef = all.typeRef;
 const Tmp = all.Tmp;
 const Tmp0 = all.Tmp0;
 const Typ = all.Typ;
@@ -604,13 +604,13 @@ fn tmpref() Ref {
     while (tmph[@intCast(i)] != 0) : (i = (i + 1) & (tmphcap - 1)) {
         t = tmph[@intCast(i)];
         if (streq(curf.tmp[@intCast(t)].name, tokval.str))
-            return TMP(t);
+            return tmpRef(t);
     }
     t = curf.ntmp;
     tmph[@intCast(i)] = t;
     _ = newtmp(null, .x, curf);
     curf.tmp[@intCast(t)].name = strf(PFn, "{s}", .{cs(tokval.str)});
-    return TMP(t);
+    return tmpRef(t);
 }
 
 fn parseref() Ref {
@@ -746,9 +746,9 @@ fn parserefl(arg: bool) bool {
                     all.curi[0] = mkins(.pare, k, r, R, R);
             } else if (k == Kc) {
                 if (arg)
-                    all.curi[0] = mkins(.argc, .l, R, TYPE(ty), r)
+                    all.curi[0] = mkins(.argc, .l, R, typeRef(ty), r)
                 else
-                    all.curi[0] = mkins(.parc, .l, r, TYPE(ty), R);
+                    all.curi[0] = mkins(.parc, .l, r, typeRef(ty), R);
             } else if (k >= Ksb) {
                 if (arg)
                     all.curi[0] = mkins(Opc.argsb.offset(k - Ksb), .w, R, r, R)
@@ -869,16 +869,16 @@ fn parseline(ps: PState) PState {
             k = all.knum(.w);
             r = R;
             expect(Tint);
-            arg[0] = INT(tokval.num);
+            arg[0] = intRef(tokval.num);
             if (arg[0].val != tokval.num)
                 err("line number too big", .{});
             if (peek() == Tcomma) {
                 _ = next();
                 expect(Tint);
-                arg[1] = INT(tokval.num);
+                arg[1] = intRef(tokval.num);
                 if (arg[1].val != tokval.num)
                     err("column number too big", .{});
-            } else arg[1] = INT(0);
+            } else arg[1] = intRef(0);
             flow = .ins;
         },
         else => {
@@ -914,7 +914,7 @@ fn parseline(ps: PState) PState {
         expect(Tnl);
         if (k == Kc) {
             k = all.knum(.l);
-            arg[1] = TYPE(ty);
+            arg[1] = typeRef(ty);
         }
         if (k >= Ksb)
             k = all.knum(.w);
@@ -979,7 +979,7 @@ fn parseline(ps: PState) PState {
                 if (rtype(arg[2]) != RCon)
                     err("blit size must be constant", .{});
                 const c = &curf.con[arg[2].val];
-                r = INT(c.bits.i);
+                r = intRef(c.bits.i);
                 if (c.type != CBits or rsval(r) < 0 or rsval(r) != c.bits.i)
                     err("invalid blit size", .{});
                 all.curi[0].op = .blit1;

@@ -57,7 +57,7 @@ const die = all.die;
 const dprint = all.dprint;
 const emit = all.emit;
 const emiti = all.emiti;
-const err = all.err;
+const fail = all.fail;
 const getcon = all.getcon;
 const icpy = all.icpy;
 const idup = all.idup;
@@ -161,7 +161,7 @@ fn isfloatv(t: *Typ, cls: *Cls) bool {
     return true;
 }
 
-fn typclass(c: *Class, t: *Typ, gp: []const i32, fp: []const i32) void {
+fn typclass(c: *Class, t: *Typ, gp: []const i32, fp: []const i32) all.Error!void {
     const sz: u64 = (t.size + 7) & ~@as(u64, 7);
     c.t = t;
     c.class = 0;
@@ -170,7 +170,7 @@ fn typclass(c: *Class, t: *Typ, gp: []const i32, fp: []const i32) void {
     c.@"align" = 8;
 
     if (t.@"align" > 3)
-        err("alignments larger than 8 are not supported", .{});
+        return fail("alignments larger than 8 are not supported", .{});
 
     c.size = @truncate(sz);
     c.hfa.base = .x;
@@ -236,7 +236,7 @@ fn ldregs(reg: []const i32, cls: []const Cls, n: i32, mem: Ref, f: *Fn) void {
     }
 }
 
-fn selret(b: *Blk, f: *Fn) void {
+fn selret(b: *Blk, f: *Fn) all.Error!void {
     var cr: Class = undefined;
     var cty: i32 = undefined;
 
@@ -249,7 +249,7 @@ fn selret(b: *Blk, f: *Fn) void {
     b.jmp.type = .ret0;
 
     if (j == J.retc.int()) {
-        typclass(&cr, &all.typ[@intCast(f.retty)], &gpreg, &fpreg);
+        try typclass(&cr, &all.typ[@intCast(f.retty)], &gpreg, &fpreg);
         if ((cr.class & Cptr) != 0) {
             assert(rtype(f.retr) == RTmp);
             emit(.blit1, .w, R, intRef(cr.t.?.size), R);
@@ -278,7 +278,7 @@ fn selret(b: *Blk, f: *Fn) void {
 var va_ngp: i32 = 0;
 var va_nfp: i32 = 0;
 
-fn argsclass(ins: []const Ins, carg: []Class) i32 {
+fn argsclass(ins: []const Ins, carg: []Class) all.Error!i32 {
     var va = false;
     var envc: i32 = 0;
     var gp: usize = 0; // next gpreg
@@ -303,7 +303,7 @@ fn argsclass(ins: []const Ins, carg: []Class) i32 {
                 scalar = true;
             },
             .parc, .argc => {
-                typclass(c, &all.typ[i.arg[0].val], gpreg[gp..], fpreg[fp..]);
+                try typclass(c, &all.typ[i.arg[0].val], gpreg[gp..], fpreg[fp..]);
                 if (c.ngp <= ngp) {
                     if (c.nfp <= nfp) {
                         ngp -= c.ngp;
@@ -411,13 +411,13 @@ fn alignu(x: uint, al: uint) uint {
 }
 
 /// lowers the call i_1 with its arguments args
-fn selcall(f: *Fn, args: []Ins, i_1: *Ins, ilp: *?*Insl) void {
+fn selcall(f: *Fn, args: []Ins, i_1: *Ins, ilp: *?*Insl) all.Error!void {
     var cr: Class = undefined;
     var tmp: [4]Ref = undefined;
     var op: Opc = undefined;
 
     const ca = palloc(Class, args.len)[0..args.len];
-    var cty = argsclass(args, ca);
+    var cty = try argsclass(args, ca);
 
     var stk: uint = 0;
     for (args, ca) |*i, *c| {
@@ -437,7 +437,7 @@ fn selcall(f: *Fn, args: []Ins, i_1: *Ins, ilp: *?*Insl) void {
         emit(.add, .l, tmpRef(SP), tmpRef(SP), rstk);
 
     if (!req(i_1.arg[1], R)) {
-        typclass(&cr, &all.typ[i_1.arg[1].val], &gpreg, &fpreg);
+        try typclass(&cr, &all.typ[i_1.arg[1].val], &gpreg, &fpreg);
         stkblob(i_1.to, &cr, f, ilp);
         cty |= (@as(i32, cr.nfp) << 2) | cr.ngp;
         if ((cr.class & Cptr) != 0) {
@@ -512,7 +512,7 @@ fn selcall(f: *Fn, args: []Ins, i_1: *Ins, ilp: *?*Insl) void {
     }
 }
 
-fn selpar(f: *Fn, pars: []Ins) Params {
+fn selpar(f: *Fn, pars: []Ins) all.Error!Params {
     var cr: Class = undefined;
     var tmp: [16]Ref = undefined;
     var op: Opc = undefined;
@@ -520,7 +520,7 @@ fn selpar(f: *Fn, pars: []Ins) Params {
     const ca = palloc(Class, pars.len)[0..pars.len];
     all.curi = all.insbEnd();
 
-    const cty = argsclass(pars, ca);
+    const cty = try argsclass(pars, ca);
     f.reg = arm64_argregs(callRef(cty), null);
 
     var il: ?*Insl = null;
@@ -536,7 +536,7 @@ fn selpar(f: *Fn, pars: []Ins) Params {
         emiti(l.i);
 
     if (f.retty >= 0) {
-        typclass(&cr, &all.typ[@intCast(f.retty)], &gpreg, &fpreg);
+        try typclass(&cr, &all.typ[@intCast(f.retty)], &gpreg, &fpreg);
         if ((cr.class & Cptr) != 0) {
             f.retr = newtmp("abi", .l, f);
             emit(.copy, .l, f.retr, tmpRef(R8), R);
@@ -743,7 +743,7 @@ fn arm64_selvastart(f: *Fn, p: Params, ap: Ref) void {
     emit(.add, .l, r0, ap, getcon(28, f));
 }
 
-pub fn arm64_abi(f: *Fn) void {
+pub fn arm64_abi(f: *Fn) all.Error!void {
     var b_it = f.start;
     while (b_it) |b| : (b_it = b.link)
         b.visit = 0;
@@ -753,7 +753,7 @@ pub fn arm64_abi(f: *Fn) void {
     var np: uint = 0;
     while (np < start.nins and ispar(start.ins[np].op))
         np += 1;
-    const p = selpar(f, start.ins[0..np]);
+    const p = try selpar(f, start.ins[0..np]);
     const n0: uint = @intCast(all.insbTail());
     const n1: uint = start.nins - np;
     vgrow(&start.ins, n0 + n1);
@@ -768,7 +768,7 @@ pub fn arm64_abi(f: *Fn) void {
         b = b.link orelse start; // do the start block last
         if (b.visit == 0) {
             all.curi = all.insbEnd();
-            selret(b, f);
+            try selret(b, f);
             var n = b.nins;
             while (n != 0) {
                 n -= 1;
@@ -779,7 +779,7 @@ pub fn arm64_abi(f: *Fn) void {
                         var n0_ = n;
                         while (n0_ > 0 and isarg(b.ins[n0_ - 1].op))
                             n0_ -= 1;
-                        selcall(f, b.ins[n0_..n], i, &il);
+                        try selcall(f, b.ins[n0_..n], i, &il);
                         n = n0_;
                     },
                     .vastart => {
@@ -815,7 +815,7 @@ pub fn arm64_abi(f: *Fn) void {
 /// abi0 for apple target; introduces
 /// necessary sign extensions in calls
 /// and returns
-pub fn apple_extsb(f: *Fn) void {
+pub fn apple_extsb(f: *Fn) all.Error!void {
     var b_it: ?*Blk = f.start;
     while (b_it) |b| : (b_it = b.link) {
         all.curi = all.insbEnd();

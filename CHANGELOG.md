@@ -71,10 +71,14 @@
   list, load's slice and helper classes, gvn's `cmpeqz`/`zeroval`/`usecls`/`propjnz0`
   and amd64 `emitcopy` all use `Cls`. Only the parser and `mem` (which compares raw
   op-table entries) still convert integer classes with `kof`.
-- Parser errors are a Zig error (`parse.Error`) propagated with `try` through the
-  lexer and parser instead of exiting the process. The `qbe` binary prints the
-  same message and exits 1 as before; the library `compile()` now returns
-  `error.Parse` and `qbe_compile` returns 3 rather than killing the host.
+- Input errors are a Zig error (`all.Error`, `error.InvalidInput`) instead of
+  exiting the process. The parser and the backend checks (ABI alignment limits,
+  invalid alloc sizes, unused stack slots, SSA checks, invalid data strings) return
+  it via `fail()`, and it propagates with `try` through the pass pipeline and the
+  target `abi0`/`abi1`/`isel` hooks. The `qbe` binary prints the same message and
+  exits 1; the library `compile()` returns `error.InvalidInput` and `qbe_compile`
+  returns 3 rather than killing the host. The exiting `err()` is removed; `die()`
+  remains for internal invariant failures and still prints `dying:` like C qbe.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit

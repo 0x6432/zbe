@@ -60,7 +60,7 @@ const die = all.die;
 const dprint = all.dprint;
 const emit = all.emit;
 const emiti = all.emiti;
-const err = all.err;
+const fail = all.fail;
 const getcon = all.getcon;
 const icpy = all.icpy;
 const idup = all.idup;
@@ -330,7 +330,7 @@ fn register_for_arg(cls: Cls, counter: i32) Ref {
     }
 }
 
-fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAlloc) uint {
+fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAlloc) all.Error!uint {
     // Call arguments are instructions. Walk through them to find the start of
     // the call+args that we need to process (and return its index, the number
     // of instructions before it, for continuing processing).
@@ -375,7 +375,7 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
         // only have (potentially) 8 bytes to add to stack_usage here.
         if (arg.style == .APS_InlineOnStack) {
             if (arg.@"align" > 4) {
-                err("win abi cannot pass alignments > 16", .{});
+                return fail("win abi cannot pass alignments > 16", .{});
             }
             stack_usage += arg.size;
         } else if (arg.style == .APS_CopyAndPointerOnStack) {
@@ -602,7 +602,7 @@ fn lower_vaarg(func: *Fn, vaarg_instr: *Ins) void {
     emit(.load, .l, ptr, vaarg_instr.arg[0], R);
 }
 
-fn lower_args_for_block(func: *Fn, block: *Blk, param_reg_usage: *RegisterUsage, pextra_alloc: *?*ExtraAlloc) void {
+fn lower_args_for_block(func: *Fn, block: *Blk, param_reg_usage: *RegisterUsage, pextra_alloc: *?*ExtraAlloc) all.Error!void {
     // global temporary buffer used by emit. Reset to the end, and predecremented
     // when adding to it.
     all.curi = all.insbEnd();
@@ -615,7 +615,7 @@ fn lower_args_for_block(func: *Fn, block: *Blk, param_reg_usage: *RegisterUsage,
     while (n > 0) {
         const instr = &block.ins[n - 1];
         switch (instr.op) {
-            .call => n = lower_call(func, block, n - 1, pextra_alloc),
+            .call => n = try lower_call(func, block, n - 1, pextra_alloc),
             .vastart => {
                 lower_vastart(func, param_reg_usage, instr.arg[0]);
                 n -= 1;
@@ -753,7 +753,7 @@ fn lower_func_parameters(func: *Fn) RegisterUsage {
 // https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention .
 //
 // (see winabi.c for the full description of differences from SysV)
-pub fn amd64_winabi_abi(func: *Fn) void {
+pub fn amd64_winabi_abi(func: *Fn) all.Error!void {
     // The first thing to do is lower incoming parameters to this function.
     var param_reg_usage = lower_func_parameters(func);
 
@@ -769,9 +769,9 @@ pub fn amd64_winabi_abi(func: *Fn) void {
     var extra_alloc: ?*ExtraAlloc = null;
     var block_it: ?*Blk = func.start.?.link;
     while (block_it) |block| : (block_it = block.link) {
-        lower_args_for_block(func, block, &param_reg_usage, &extra_alloc);
+        try lower_args_for_block(func, block, &param_reg_usage, &extra_alloc);
     }
-    lower_args_for_block(func, func.start.?, &param_reg_usage, &extra_alloc);
+    try lower_args_for_block(func, func.start.?, &param_reg_usage, &extra_alloc);
 
     if (all.debug['A'] != 0) {
         dprint("\n> After ABI lowering:\n", .{});

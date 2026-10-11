@@ -20,7 +20,7 @@ const cs = all.cs;
 const die = all.die;
 const efree = all.efree;
 const enew = all.enew;
-const err = all.err;
+const fail = all.fail;
 const intern = all.intern;
 const uint = all.uint;
 const vgrow = all.vgrow;
@@ -79,7 +79,7 @@ const di = blk: {
 };
 var emitdat_zero: i64 = 0;
 
-pub fn emitdat(d: *Dat, f: *Writer) Writer.Error!void {
+pub fn emitdat(d: *Dat, f: *Writer) (Writer.Error || all.Error)!void {
     switch (d.type) {
         DStart => emitdat_zero = 0,
         DEnd => {
@@ -111,7 +111,7 @@ pub fn emitdat(d: *Dat, f: *Writer) Writer.Error!void {
             }
             if (d.isstr != 0) {
                 if (d.type != DB)
-                    err("strings only supported for 'b' currently", .{});
+                    return fail("strings only supported for 'b' currently", .{});
                 try f.print("\t.ascii {s}\n", .{cs(d.u.str)});
             } else if (d.isref != 0) {
                 const p: [*:0]const u8 = if (d.u.ref.name.?[0] == '"') "" else @ptrCast(&all.T.assym);

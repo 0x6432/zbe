@@ -14,7 +14,7 @@ const isretbh = all.isretbh;
 /// treat char/short/... as
 /// words with arbitrary high
 /// bits
-pub fn elimsb(f: *Fn) void {
+pub fn elimsb(f: *Fn) all.Error!void {
     var b_it: ?*Blk = f.start;
     while (b_it) |b| : (b_it = b.link) {
         for (b.insns()) |*i| {

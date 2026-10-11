@@ -56,7 +56,7 @@ const die = all.die;
 const dprint = all.dprint;
 const emit = all.emit;
 const emiti = all.emiti;
-const err = all.err;
+const fail = all.fail;
 const getcon = all.getcon;
 const icpy = all.icpy;
 const idup = all.idup;
@@ -195,14 +195,14 @@ fn fpstruct(t: *Typ, off_: i32, c: *Class) i32 {
     return c.nfp;
 }
 
-fn typclass(c: *Class, t: *Typ, fpabi: bool, gp: []const i32, fp: []const i32) void {
+fn typclass(c: *Class, t: *Typ, fpabi: bool, gp: []const i32, fp: []const i32) all.Error!void {
     c.type = t;
     c.class = 0;
     c.ngp = 0;
     c.nfp = 0;
 
     if (t.@"align" > 4)
-        err("alignments larger than 16 are not supported", .{});
+        return fail("alignments larger than 16 are not supported", .{});
 
     if (t.isdark != 0 or t.size > 16 or t.size == 0) {
         // large structs are replaced by a
@@ -267,7 +267,7 @@ fn ldregs(c: *Class, mem: Ref, f: *Fn) void {
     }
 }
 
-fn selret(b: *Blk, f: *Fn) void {
+fn selret(b: *Blk, f: *Fn) all.Error!void {
     var cr: Class = undefined;
     var cty: i32 = undefined;
 
@@ -280,7 +280,7 @@ fn selret(b: *Blk, f: *Fn) void {
     b.jmp.type = .ret0;
 
     if (j == J.retc.int()) {
-        typclass(&cr, &all.typ[@intCast(f.retty)], true, &gpreg, &fpreg);
+        try typclass(&cr, &all.typ[@intCast(f.retty)], true, &gpreg, &fpreg);
         if ((cr.class & Cptr) != 0) {
             assert(rtype(f.retr) == RTmp);
             emit(.blit1, .w, R, intRef(cr.type.?.size), R);
@@ -304,7 +304,7 @@ fn selret(b: *Blk, f: *Fn) void {
     b.jmp.arg = callRef(cty);
 }
 
-fn argsclass(ins: []const Ins, carg: []Class, retptr: bool) i32 {
+fn argsclass(ins: []const Ins, carg: []Class, retptr: bool) all.Error!i32 {
     var gp: usize = 0; // next gpreg
     var fp: usize = 0; // next fpreg
     var ngp: i32 = 8;
@@ -334,9 +334,9 @@ fn argsclass(ins: []const Ins, carg: []Class, retptr: bool) i32 {
             .argv => vararg = true,
             .parc, .argc => {
                 const t = &all.typ[i.arg[0].val];
-                typclass(c, t, true, gpreg[gp..], fpreg[fp..]);
+                try typclass(c, t, true, gpreg[gp..], fpreg[fp..]);
                 if (c.nfp > 0 and (c.nfp > nfp or c.ngp > ngp))
-                    typclass(c, t, false, gpreg[gp..], fpreg[fp..]);
+                    try typclass(c, t, false, gpreg[gp..], fpreg[fp..]);
                 assert(c.nfp <= nfp);
                 if (c.ngp <= ngp) {
                     ngp -= c.ngp;
@@ -382,7 +382,7 @@ fn stkblob(r: Ref, t: *Typ, f: *Fn, ilp: *?*Insl) void {
 }
 
 /// lowers the call i_1 with its arguments ins
-fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
+fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) all.Error!void {
     var cr: Class = undefined;
     var tmp: [2]Ref = undefined;
     var k: Cls = undefined;
@@ -394,9 +394,9 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
     cr.class = 0;
 
     if (!req(i_1.arg[1], R))
-        typclass(&cr, &all.typ[i_1.arg[1].val], true, &gpreg, &fpreg);
+        try typclass(&cr, &all.typ[i_1.arg[1].val], true, &gpreg, &fpreg);
 
-    var cty = argsclass(ins, ca, (cr.class & Cptr) != 0);
+    var cty = try argsclass(ins, ca, (cr.class & Cptr) != 0);
     var stk: u64 = 0;
     for (ins, ca) |*i, *c| {
         if (i.op == .argv)
@@ -520,7 +520,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
     emit(.salloc, .l, r, getcon(@bitCast(stk), f), R);
 }
 
-fn selpar(f: *Fn, ins: []Ins) Params {
+fn selpar(f: *Fn, ins: []Ins) all.Error!Params {
     var cr: Class = undefined;
     var tmp: [17]Ref = undefined;
 
@@ -529,14 +529,14 @@ fn selpar(f: *Fn, ins: []Ins) Params {
     all.curi = all.insbEnd();
 
     if (f.retty >= 0) {
-        typclass(&cr, &all.typ[@intCast(f.retty)], true, &gpreg, &fpreg);
+        try typclass(&cr, &all.typ[@intCast(f.retty)], true, &gpreg, &fpreg);
         if ((cr.class & Cptr) != 0) {
             f.retr = newtmp("abi", .l, f);
             emit(.copy, .l, f.retr, tmpRef(A0), R);
         }
     }
 
-    const cty = argsclass(ins, ca, (cr.class & Cptr) != 0);
+    const cty = try argsclass(ins, ca, (cr.class & Cptr) != 0);
     f.reg = rv64_argregs(callRef(cty), null);
 
     var il: ?*Insl = null;
@@ -616,7 +616,7 @@ fn selvastart(f: *Fn, p: Params, ap: Ref) void {
     emit(.addr, .l, rsave, slotRef(-s), R);
 }
 
-pub fn rv64_abi(f: *Fn) void {
+pub fn rv64_abi(f: *Fn) all.Error!void {
     var b_it = f.start;
     while (b_it) |b| : (b_it = b.link)
         b.visit = 0;
@@ -626,7 +626,7 @@ pub fn rv64_abi(f: *Fn) void {
     var np: uint = 0;
     while (np < start.nins and ispar(start.ins[np].op))
         np += 1;
-    const p = selpar(f, start.ins[0..np]);
+    const p = try selpar(f, start.ins[0..np]);
     const n0: uint = @intCast(all.insbTail());
     const n1: uint = start.nins - np;
     vgrow(&start.ins, n0 + n1);
@@ -641,7 +641,7 @@ pub fn rv64_abi(f: *Fn) void {
         b = b.link orelse start; // do the start block last
         if (b.visit == 0) {
             all.curi = all.insbEnd();
-            selret(b, f);
+            try selret(b, f);
             var n = b.nins;
             while (n != 0) {
                 n -= 1;
@@ -652,7 +652,7 @@ pub fn rv64_abi(f: *Fn) void {
                         var n0_ = n;
                         while (n0_ > 0 and isarg(b.ins[n0_ - 1].op))
                             n0_ -= 1;
-                        selcall(f, b.ins[n0_..n], i, &il);
+                        try selcall(f, b.ins[n0_..n], i, &il);
                         n = n0_;
                     },
                     .vastart => selvastart(f, p, i.arg[0]),

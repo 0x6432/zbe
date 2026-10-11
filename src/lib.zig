@@ -24,7 +24,7 @@ pub const Options = struct {
     name: []const u8 = "<input>",
 };
 
-pub const Error = error{ UnknownTarget, WriteFailed, Parse };
+pub const Error = error{ UnknownTarget, WriteFailed, InvalidInput };
 
 var inited = false;
 var names: [8][]const u8 = undefined;
@@ -88,7 +88,7 @@ export fn qbe_compile(text: [*]const u8, len: usize, target: ?[*:0]const u8, opt
     }, &aw.writer) catch |e| return switch (e) {
         error.UnknownTarget => 1,
         error.WriteFailed => 2,
-        error.Parse => 3,
+        error.InvalidInput => 3,
     };
     const s = aw.toOwnedSliceSentinel(0) catch return 2;
     out.* = s.ptr;

@@ -37,7 +37,7 @@ const Ref = all.Ref;
 const Sym = all.Sym;
 const cs = all.cs;
 const die = all.die;
-const err = all.err;
+const fail = all.fail;
 const newcon = all.newcon;
 const req = all.req;
 const rtype = all.rtype;
@@ -210,9 +210,9 @@ pub fn foldint(res: *Con, op_: i32, w_: bool, cl: *Con, cr: *Con) bool {
     return false;
 }
 
-fn foldflt(res: *Con, op: i32, w: bool, cl: *Con, cr: *Con) void {
+fn foldflt(res: *Con, op: i32, w: bool, cl: *Con, cr: *Con) all.Error!void {
     if (cl.type != CBits or cr.type != CBits)
-        err("invalid address operand for '{s}'", .{cs(all.optab[@intCast(op)].name)});
+        return fail("invalid address operand for '{s}'", .{cs(all.optab[@intCast(op)].name)});
     res.* = std.mem.zeroes(Con);
     res.type = CBits;
     if (w) {
@@ -256,13 +256,13 @@ fn foldflt(res: *Con, op: i32, w: bool, cl: *Con, cr: *Con) void {
     }
 }
 
-fn opfold(op: i32, cls: i32, cl: *Con, cr: *Con, f: *Fn) Ref {
+fn opfold(op: i32, cls: i32, cl: *Con, cr: *Con, f: *Fn) all.Error!Ref {
     var c: Con = undefined;
 
     if (cls == Cls.w.int() or cls == Cls.l.int()) {
         if (foldint(&c, op, cls == Cls.l.int(), cl, cr))
             return R;
-    } else foldflt(&c, op, cls == Cls.d.int(), cl, cr);
+    } else try foldflt(&c, op, cls == Cls.d.int(), cl, cr);
     if (clsWide(cls) == 0)
         c.bits.i &= 0xffffffff;
     const r = newcon(&c, f);
@@ -271,7 +271,7 @@ fn opfold(op: i32, cls: i32, cl: *Con, cr: *Con, f: *Fn) Ref {
 }
 
 /// used by GVN
-pub fn foldref(f: *Fn, i: *Ins) Ref {
+pub fn foldref(f: *Fn, i: *Ins) all.Error!Ref {
     if (rtype(i.to) != RTmp)
         return R;
     if (all.optab[i.op.int()].canfold != 0) {
@@ -285,7 +285,7 @@ pub fn foldref(f: *Fn, i: *Ins) Ref {
             return R;
         const cr = &f.con[rr.val];
 
-        return opfold(@intCast(i.op.int()), i.cls.int(), cl, cr, f);
+        return try opfold(@intCast(i.op.int()), i.cls.int(), cl, cr, f);
     }
     return R;
 }

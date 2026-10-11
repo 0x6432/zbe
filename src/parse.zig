@@ -380,21 +380,15 @@ var nblk: i32 = 0;
 var rcls: i32 = 0;
 var ntyp: uint = 0;
 
-pub fn err(comptime fmt: []const u8, args: anytype) noreturn {
-    dprint("qbe:{s}:{d}: " ++ fmt ++ "\n", .{ inpath, lnum } ++ args);
-    all.dbg.flush() catch {};
-    if (all.outw) |w| w.flush() catch {};
-    std.process.exit(1);
-}
-
-pub const Error = error{Parse};
+pub const Error = error{InvalidInput};
 
 /// Reports a syntax or type error at the current input line and returns
-/// `error.Parse`; the caller decides whether to exit or recover.
-fn fail(comptime fmt: []const u8, args: anytype) Error {
+/// `error.InvalidInput`; the caller decides whether to exit or recover.
+/// The backends use it too, so the message names the input file.
+pub fn fail(comptime fmt: []const u8, args: anytype) Error {
     dprint("qbe:{s}:{d}: " ++ fmt ++ "\n", .{ inpath, lnum } ++ args);
     all.dbg.flush() catch {};
-    return error.Parse;
+    return error.InvalidInput;
 }
 
 var lexinit_done = false;
@@ -1334,7 +1328,7 @@ fn parsedatstr(d: *Dat) void {
     d.u.str = strf(PFn, "{s}", .{cs(tokval.str)});
 }
 
-fn parsedat(cb: *const fn (*Dat) void, lnk: ?*Lnk) Error!void {
+fn parsedat(cb: *const fn (*Dat) Error!void, lnk: ?*Lnk) Error!void {
     var t: i32 = undefined;
     var d: Dat = undefined;
 
@@ -1354,7 +1348,7 @@ fn parsedat(cb: *const fn (*Dat) void, lnk: ?*Lnk) Error!void {
     d.type = DStart;
     d.name = name;
     d.lnk = lnk;
-    cb(&d);
+    try cb(&d);
 
     if (t != Tlbrace)
         return fail("expected data contents in {{ .. }}", .{});
@@ -1387,7 +1381,7 @@ fn parsedat(cb: *const fn (*Dat) void, lnk: ?*Lnk) Error!void {
                 parsedatstr(&d)
             else
                 return fail("constant literal expected", .{});
-            cb(&d);
+            try cb(&d);
             t = try nextnl();
             if (!(t == Tint or t == Tflts or t == Tfltd or t == Tstr or t == Tglo)) break;
         }
@@ -1398,7 +1392,7 @@ fn parsedat(cb: *const fn (*Dat) void, lnk: ?*Lnk) Error!void {
     }
     // Done:
     d.type = DEnd;
-    cb(&d);
+    try cb(&d);
 }
 
 fn parselnk(lnk: *Lnk) Error!i32 {
@@ -1431,7 +1425,7 @@ fn parselnk(lnk: *Lnk) Error!i32 {
     }
 }
 
-pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*:0]const u8) void, data: *const fn (*Dat) void, func: *const fn (*Fn) void) Error!void {
+pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*:0]const u8) void, data: *const fn (*Dat) Error!void, func: *const fn (*Fn) Error!void) Error!void {
     var lnk: Lnk = undefined;
 
     lexinit();
@@ -1452,7 +1446,7 @@ pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*:0]const 
             },
             Tfunc => {
                 lnk.@"align" = 16;
-                func(try parsefn(&lnk));
+                try func(try parsefn(&lnk));
             },
             Tdata => try parsedat(data, &lnk),
             Ttype => try parsetyp(),

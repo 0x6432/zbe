@@ -38,7 +38,7 @@ const ealloc = all.ealloc;
 const eallocSlice = all.eallocSlice;
 const efree = all.efree;
 const enew = all.enew;
-const err = all.err;
+const fail = all.fail;
 const filldom = all.filldom;
 const fillfron = all.fillfron;
 const filllive = all.filllive;
@@ -376,7 +376,7 @@ fn phicheck(p: *Phi, b: *Blk, t: Ref) bool {
 }
 
 /// require use and ssa
-pub fn ssacheck(f: *Fn) void {
+pub fn ssacheck(f: *Fn) all.Error!void {
     var t: *Tmp = undefined;
     var bu: ?*Blk = undefined;
     var r: Ref = undefined;
@@ -385,7 +385,7 @@ pub fn ssacheck(f: *Fn) void {
         for (f.tmp[Tmp0..@intCast(f.ntmp)]) |*tt| {
             t = tt;
             if (t.ndef > 1)
-                err("ssa temporary %{s} defined more than once", .{cs(t.name)});
+                return fail("ssa temporary %{s} defined more than once", .{cs(t.name)});
             if (t.nuse > 0 and t.ndef == 0) {
                 bu = f.rpo[t.use.?[0].bid];
                 break :errblk;
@@ -433,5 +433,5 @@ pub fn ssacheck(f: *Fn) void {
     if (t.visit != 0)
         die("%{s} violates ssa invariant", .{cs(t.name)})
     else
-        err("ssa temporary %{s} is used undefined in @{s}", .{cs(t.name), cs(bu.?.name)});
+        return fail("ssa temporary %{s} is used undefined in @{s}", .{cs(t.name), cs(bu.?.name)});
 }

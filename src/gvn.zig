@@ -223,7 +223,7 @@ fn killins(f: *Fn, i: *Ins, r: Ref) void {
     i.* = insOp(.nop);
 }
 
-fn dedupins(f: *Fn, b: *Blk, i: *Ins) void {
+fn dedupins(f: *Fn, b: *Blk, i: *Ins) all.Error!void {
     normins(f, i);
     if (i.op == .nop or pinned(i))
         return;
@@ -240,7 +240,7 @@ fn dedupins(f: *Fn, b: *Blk, i: *Ins) void {
         killins(f, i, r);
         return;
     }
-    r = foldref(f, i);
+    r = try foldref(f, i);
     if (!req(r, R)) {
         killins(f, i, r);
         return;
@@ -395,7 +395,7 @@ fn rebuildcfg(f: *Fn) void {
 /// requires rpo pred ssa use
 /// recreates rpo preds
 /// breaks pred use dom ssa (GCM fixes ssa)
-pub fn gvn(f: *Fn) void {
+pub fn gvn(f: *Fn) all.Error!void {
     all.con01[0] = getcon(0, f);
     all.con01[1] = getcon(1, f);
 
@@ -410,7 +410,7 @@ pub fn gvn(f: *Fn) void {
     fillloop(f);
     narrowpars(f);
     filluse(f);
-    ssacheck(f);
+    try ssacheck(f);
 
     var nins: uint = 0;
     b_it = f.start;
@@ -425,7 +425,7 @@ pub fn gvn(f: *Fn) void {
     for (f.blks()) |b| {
         dedupphi(f, b);
         for (b.insns()) |*i|
-            dedupins(f, b, i);
+            try dedupins(f, b, i);
         dedupjmp(f, b);
     }
     rebuildcfg(f);

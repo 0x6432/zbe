@@ -50,7 +50,7 @@ const die = all.die;
 const dprint = all.dprint;
 const emit = all.emit;
 const emiti = all.emiti;
-const err = all.err;
+const fail = all.fail;
 const getcon = all.getcon;
 const idup = all.idup;
 const intern = all.intern;
@@ -226,14 +226,14 @@ fn selcmp(i_: Ins, k: Cls, op_: i32, f: *Fn) void {
     fixcmp(k, f);
 }
 
-fn sel(i_: Ins, f: *Fn) void {
+fn sel(i_: Ins, f: *Fn) all.Error!void {
     var i = i_;
     var ck: Cls = undefined;
     var cc: i32 = undefined;
 
     if (inRange(i.op, Opc.alloc_first, Opc.alloc_last)) {
         const i_0 = &(all.curi - 1)[0];
-        salloc(i.to, i.arg[0], f);
+        try salloc(i.to, i.arg[0], f);
         fixarg(&i_0.arg[0], .l, i_0, f);
         return;
     }
@@ -265,7 +265,7 @@ fn seljmp(b: *Blk, f: *Fn) void {
         fixarg(&b.jmp.arg, .w, null, f);
 }
 
-pub fn rv64_isel(f: *Fn) void {
+pub fn rv64_isel(f: *Fn) all.Error!void {
     // assign slots to fast allocs
     const start = f.start.?;
     // specific to NAlign == 3
@@ -282,7 +282,7 @@ pub fn rv64_isel(f: *Fn) void {
                     break;
                 var sz = f.con[i.arg[0].val].bits.i;
                 if (sz < 0 or sz >= std.math.maxInt(i32) - 15)
-                    err("invalid alloc size {d}", .{sz});
+                    return fail("invalid alloc size {d}", .{sz});
                 sz = (sz + n - 1) & -@as(i64, n);
                 sz = @divTrunc(sz, 4);
                 if (sz > std.math.maxInt(i32) - f.slot)
@@ -311,7 +311,7 @@ pub fn rv64_isel(f: *Fn) void {
         var i_n = b.nins;
         while (i_n > 0) {
             i_n -= 1;
-            sel(b.ins[i_n], f);
+            try sel(b.ins[i_n], f);
         }
         idup(b, all.curi, (all.insbTail()));
     }

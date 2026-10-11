@@ -34,7 +34,7 @@ const dprint = all.dprint;
 const ealloc = all.ealloc;
 const eallocSlice = all.eallocSlice;
 const efree = all.efree;
-const err = all.err;
+const fail = all.fail;
 const getalias = all.getalias;
 const isarg = all.isarg;
 const isload = all.isload;
@@ -57,7 +57,7 @@ const vnewT = all.vnewT;
 // -- end imports --
 
 /// require use, maintains use counts
-pub fn promote(f: *Fn) void {
+pub fn promote(f: *Fn) all.Error!void {
     // promote uniform stack slots to temporaries
     const b = f.start.?;
     outer: for (b.insns()) |*i| {
@@ -103,7 +103,7 @@ pub fn promote(f: *Fn) void {
                 t.ndef += 1;
             } else {
                 if (k == -1)
-                    err("slot %{s} is read but never stored to", .{cs(f.tmp[l.arg[0].val].name)});
+                    return fail("slot %{s} is read but never stored to", .{cs(f.tmp[l.arg[0].val].name)});
                 // try to turn loads into copies so we
                 // can eliminate them later
                 sw: switch (l.op) {

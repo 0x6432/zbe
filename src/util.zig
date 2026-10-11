@@ -51,7 +51,7 @@ const tmpRef = all.tmpRef;
 const Tmp = all.Tmp;
 const Tmp0 = all.Tmp0;
 const bits = all.bits;
-const err = all.err;
+const fail = all.fail;
 const isarg = all.isarg;
 const ispar = all.ispar;
 const rtype = all.rtype;
@@ -676,7 +676,7 @@ pub fn isconbits(f: *Fn, r: Ref, v: *i64) bool {
     return false;
 }
 
-pub fn salloc(rt: Ref, rs: Ref, f: *Fn) void {
+pub fn salloc(rt: Ref, rs: Ref, f: *Fn) all.Error!void {
     // we need to make sure
     // the stack remains aligned
     // (rsp = 0) mod 16
@@ -684,7 +684,7 @@ pub fn salloc(rt: Ref, rs: Ref, f: *Fn) void {
     if (rtype(rs) == RCon) {
         var sz = f.con[rs.val].bits.i;
         if (sz < 0 or sz >= std.math.maxInt(c_int) - 15)
-            err("invalid alloc size {d}", .{sz});
+            return fail("invalid alloc size {d}", .{sz});
         sz = (sz + 15) & -16;
         emit(.salloc, .l, rt, getcon(sz, f), R);
     } else {
@@ -695,7 +695,7 @@ pub fn salloc(rt: Ref, rs: Ref, f: *Fn) void {
         emit(.@"and", .l, r0, r1, getcon(-16, f));
         emit(.add, .l, r1, rs, getcon(15, f));
         if (f.tmp[rs.val].slot != -1)
-            err("unlikely alloc argument %{s} for %{s}", .{cs(f.tmp[rs.val].name), cs(f.tmp[rt.val].name)});
+            return fail("unlikely alloc argument %{s} for %{s}", .{cs(f.tmp[rs.val].name), cs(f.tmp[rt.val].name)});
     }
 }
 

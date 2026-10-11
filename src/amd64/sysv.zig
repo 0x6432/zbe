@@ -76,7 +76,7 @@ const die = all.die;
 const dprint = all.dprint;
 const emit = all.emit;
 const emiti = all.emiti;
-const err = all.err;
+const fail = all.fail;
 const getcon = all.getcon;
 const icpy = all.icpy;
 const idup = all.idup;
@@ -236,7 +236,7 @@ fn selret(b: *Blk, f: *Fn) void {
     b.jmp.arg = callRef(ca);
 }
 
-fn argsclass(ins: []const Ins, ac: []AClass, op: i32, aret: ?*const AClass, env: *Ref) i32 {
+fn argsclass(ins: []const Ins, ac: []AClass, op: i32, aret: ?*const AClass, env: *Ref) all.Error!i32 {
     var nint: i32 = undefined;
     if (aret != null and aret.?.inmem != 0)
         nint = 5 // hidden argument
@@ -289,7 +289,7 @@ fn argsclass(ins: []const Ins, ac: []AClass, op: i32, aret: ?*const AClass, env:
     }
 
     if (varc != 0 and envc != 0)
-        err("sysv abi does not support variadic env calls", .{});
+        return fail("sysv abi does not support variadic env calls", .{});
 
     return ((varc | envc) << 12) | ((6 - nint) << 4) | ((8 - nsse) << 8);
 }
@@ -365,7 +365,7 @@ fn rarg(ty: Cls, ni: *i32, ns: *i32) Ref {
 }
 
 /// lowers the call i_1 with its arguments ins
-fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
+fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) all.Error!void {
     var aret: AClass = undefined;
     var reg: [2]Ref = undefined;
     var ca: i32 = undefined;
@@ -379,8 +379,8 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
     if (!req(i_1.arg[1], R)) {
         assert(rtype(i_1.arg[1]) == RType);
         typclass(&aret, &all.typ[i_1.arg[1].val]);
-        ca = argsclass(ins, ac, all.ops.num(.arg), &aret, &env);
-    } else ca = argsclass(ins, ac, all.ops.num(.arg), null, &env);
+        ca = try argsclass(ins, ac, all.ops.num(.arg), &aret, &env);
+    } else ca = try argsclass(ins, ac, all.ops.num(.arg), null, &env);
 
     var stk: uint = 0;
     var k = ac.len;
@@ -389,7 +389,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
         const a = &ac[k];
         if (a.inmem != 0) {
             if (a.@"align" > 4)
-                err("sysv abi requires alignments of 16 or less", .{});
+                return fail("sysv abi requires alignments of 16 or less", .{});
             stk += a.size;
             if (a.@"align" == 4)
                 stk += stk & 15;
@@ -493,7 +493,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
     emit(.salloc, .l, r, getcon(stk, f), R);
 }
 
-fn selpar(f: *Fn, ins: []Ins) i32 {
+fn selpar(f: *Fn, ins: []Ins) all.Error!i32 {
     var aret: AClass = undefined;
     var fa: i32 = undefined;
     var r: Ref = undefined;
@@ -506,8 +506,8 @@ fn selpar(f: *Fn, ins: []Ins) i32 {
 
     if (f.retty >= 0) {
         typclass(&aret, &all.typ[@intCast(f.retty)]);
-        fa = argsclass(ins, ac, all.ops.num(.par), &aret, &env);
-    } else fa = argsclass(ins, ac, all.ops.num(.par), null, &env);
+        fa = try argsclass(ins, ac, all.ops.num(.par), &aret, &env);
+    } else fa = try argsclass(ins, ac, all.ops.num(.par), null, &env);
     f.reg = amd64_sysv_argregs(callRef(fa), null);
 
     for (ins, ac) |*i, *a| {
@@ -537,7 +537,7 @@ fn selpar(f: *Fn, ins: []Ins) i32 {
         switch (a.inmem) {
             1 => {
                 if (a.@"align" > 4)
-                    err("sysv abi requires alignments of 16 or less", .{});
+                    return fail("sysv abi requires alignments of 16 or less", .{});
                 if (a.@"align" == 4)
                     s = (s + 3) & -4;
                 f.tmp[i.to.val].slot = -s;
@@ -703,7 +703,7 @@ fn selvastart(f: *Fn, fa: i32, ap: Ref) void {
     emit(.storew, .w, R, getcon(gp, f), ap);
 }
 
-pub fn amd64_sysv_abi(f: *Fn) void {
+pub fn amd64_sysv_abi(f: *Fn) all.Error!void {
     var b_it = f.start;
     while (b_it) |b| : (b_it = b.link)
         b.visit = 0;
@@ -713,7 +713,7 @@ pub fn amd64_sysv_abi(f: *Fn) void {
     var np: uint = 0;
     while (np < start.nins and ispar(start.ins[np].op))
         np += 1;
-    const fa = selpar(f, start.ins[0..np]);
+    const fa = try selpar(f, start.ins[0..np]);
     const n0: uint = @intCast(all.insbTail());
     const n1: uint = start.nins - np;
     vgrow(&start.ins, n0 + n1);
@@ -739,7 +739,7 @@ pub fn amd64_sysv_abi(f: *Fn) void {
                         var n0_ = n;
                         while (n0_ > 0 and isarg(b.ins[n0_ - 1].op))
                             n0_ -= 1;
-                        selcall(f, b.ins[n0_..n], i, &ral);
+                        try selcall(f, b.ins[n0_..n], i, &ral);
                         n = n0_;
                     },
                     .vastart => selvastart(f, fa, i.arg[0]),

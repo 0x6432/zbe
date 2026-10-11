@@ -92,31 +92,34 @@ fn writeFailed() noreturn {
     std.process.exit(1);
 }
 
-pub fn data(d: *Dat) void {
+pub fn data(d: *Dat) all.Error!void {
     if (dbg)
         return;
-    emitdat(d, outf) catch writeFailed();
+    emitdat(d, outf) catch |e| switch (e) {
+        error.WriteFailed => writeFailed(),
+        error.InvalidInput => return error.InvalidInput,
+    };
     if (d.type == DEnd) {
         outf.writeAll("/* end data */\n\n") catch writeFailed();
         freeall();
     }
 }
 
-pub fn func(f: *Fn) void {
+pub fn func(f: *Fn) all.Error!void {
     if (dbg)
         dprint("**** Function {s} ****", .{cs(f.name)});
     if (all.debug['P'] != 0) {
         dprint("\n> After parsing:\n", .{});
         printfn(f, all.dbg) catch {};
     }
-    all.T.abi0(f);
+    try all.T.abi0(f);
     fillcfg(f);
     filluse(f);
-    promote(f);
+    try promote(f);
     filluse(f);
     ssa(f);
     filluse(f);
-    ssacheck(f);
+    try ssacheck(f);
     fillalias(f);
     loadopt(f);
     filluse(f);
@@ -124,27 +127,27 @@ pub fn func(f: *Fn) void {
     coalesce(f);
     filluse(f);
     filldom(f);
-    ssacheck(f);
-    gvn(f);
+    try ssacheck(f);
+    try gvn(f);
     fillcfg(f);
     simplcfg(f);
     filluse(f);
     filldom(f);
     gcm(f);
     filluse(f);
-    ssacheck(f);
+    try ssacheck(f);
     if (all.T.cansel != 0) {
         ifconvert(f);
         fillcfg(f);
         filluse(f);
         filldom(f);
-        ssacheck(f);
+        try ssacheck(f);
     }
-    all.T.abi1(f);
+    try all.T.abi1(f);
     simpl(f);
     fillcfg(f);
     filluse(f);
-    all.T.isel(f);
+    try all.T.isel(f);
     fillcfg(f);
     filllive(f);
     fillloop(f);

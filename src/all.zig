@@ -28,9 +28,9 @@ pub const Target = struct {
     retregs: *const fn (Ref, ?*[2]i32) bits,
     argregs: *const fn (Ref, ?*[2]i32) bits,
     memargs: *const fn (i32) i32,
-    abi0: *const fn (*Fn) void,
-    abi1: *const fn (*Fn) void,
-    isel: *const fn (*Fn) void,
+    abi0: *const fn (*Fn) Error!void,
+    abi1: *const fn (*Fn) Error!void,
+    isel: *const fn (*Fn) Error!void,
     emitfn: *const fn (*Fn, *Writer) Writer.Error!void,
     emitfin: *const fn (*Writer) Writer.Error!void,
     asloc: [4]u8,
@@ -686,7 +686,8 @@ pub var optab: [NOp]Op = parse_.optab_init;
 pub const parse = parse_.parse;
 pub const printfn = parse_.printfn;
 pub const printref = parse_.printref;
-pub const err = parse_.err;
+pub const Error = parse_.Error;
+pub const fail = parse_.fail;
 
 // abi.c
 pub const elimsb = @import("abi.zig").elimsb;

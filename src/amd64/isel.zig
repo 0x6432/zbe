@@ -59,7 +59,7 @@ const ealloc = all.ealloc;
 const efree = all.efree;
 const emit = all.emit;
 const emiti = all.emiti;
-const err = all.err;
+const fail = all.fail;
 const getcon = all.getcon;
 const idup = all.idup;
 const intern = all.intern;
@@ -302,7 +302,7 @@ fn selcmp(arg: *[2]Ref, k: Cls, swap: bool, f: *Fn) void {
     fixarg(&icmp.arg[1], k, icmp, f);
 }
 
-fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
+fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) all.Error!void {
     var i = i_;
     var r0: Ref = undefined;
     var r1: Ref = undefined;
@@ -339,7 +339,7 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
                 r0 = newtmp("isel", k, f);
             } else r0 = i.arg[1];
             if (f.tmp[r0.val].slot != -1)
-                err("unlikely argument %{s} in {s}", .{cs(f.tmp[r0.val].name), cs(all.optab[i.op.int()].name)});
+                return fail("unlikely argument %{s} in {s}", .{cs(f.tmp[r0.val].name), cs(all.optab[i.op.int()].name)});
             if (i.op == .div or i.op == .rem) {
                 emit(.xidiv, k, R, r0, R);
                 emit(.sign, k, tmpRef(RDX), tmpRef(RAX), R);
@@ -365,7 +365,7 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
                 continue :sw .copy; // goto Emit
             }
             if (f.tmp[r0.val].slot != -1)
-                err("unlikely argument %{s} in {s}", .{cs(f.tmp[r0.val].name), cs(all.optab[i.op.int()].name)});
+                return fail("unlikely argument %{s} in {s}", .{cs(f.tmp[r0.val].name), cs(all.optab[i.op.int()].name)});
             i.arg[1] = tmpRef(RCX);
             emit(.copy, .w, R, tmpRef(RCX), R);
             emiti(i);
@@ -412,7 +412,7 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
             emit(.shr, .l, tmp[2], i.arg[0], tmp[1]);
             const ci = &all.curi[0];
             all.curi += 1;
-            sel(ci.*, null, f);
+            try sel(ci.*, null, f);
             emit(.shr, .l, tmp[1], i.arg[0], getcon(63, f));
             fixarg(&all.curi[0].arg[0], .l, &all.curi[0], f);
             emit(.@"and", .l, tmp[0], i.arg[0], getcon(1, f));
@@ -480,7 +480,7 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
             fixarg(&i_1.arg[0], argcls(&i, 0), i_1, f);
             fixarg(&i_1.arg[1], argcls(&i, 1), i_1, f);
         },
-        .alloc4, .alloc8, .alloc16 => salloc(i.to, i.arg[0], f),
+        .alloc4, .alloc8, .alloc16 => try salloc(i.to, i.arg[0], f),
         else => {
             if (isext(i.op))
                 continue :sw .copy; // goto case_Oext
@@ -547,7 +547,7 @@ fn flagi(ins: []Ins) ?*Ins {
 
 /// selects the sel0/sel1 group ending at b.ins[n1];
 /// returns the index of its sel0
-fn selsel(f: *Fn, b: *Blk, n1: uint, tn: [*]Num) uint {
+fn selsel(f: *Fn, b: *Blk, n1: uint, tn: [*]Num) all.Error!uint {
     var cr: [2]Ref = undefined;
 
     assert(b.ins[n1].op == .sel1);
@@ -624,7 +624,7 @@ fn selsel(f: *Fn, b: *Blk, n1: uint, tn: [*]Num) uint {
     while (n0 < k1) : (k1 -= 1) {
         const isel1 = &b.ins[k1];
         isel1.op = Opc.xsel_first.offset(c);
-        sel(isel1.*, tn, f);
+        try sel(isel1.*, tn, f);
     }
     assert(!gencmp or !gencpy);
     if (gencmp)
@@ -911,7 +911,7 @@ fn amatch(a: ?*Addr, tn: [*]Num, r: Ref, f: *Fn) bool {
 
 /// instruction selection
 /// requires use counts (as given by parsing)
-pub fn amd64_isel(f: *Fn) void {
+pub fn amd64_isel(f: *Fn) all.Error!void {
     // assign slots to fast allocs
     const start = f.start.?;
     // specific to NAlign == 3
@@ -928,7 +928,7 @@ pub fn amd64_isel(f: *Fn) void {
                     break;
                 var sz = f.con[i.arg[0].val].bits.i;
                 if (sz < 0 or sz >= std.math.maxInt(i32) - 15)
-                    err("invalid alloc size {d}", .{sz});
+                    return fail("invalid alloc size {d}", .{sz});
                 sz = (sz + n - 1) & -@as(i64, n);
                 sz = @divTrunc(sz, 4);
                 if (sz > std.math.maxInt(i32) - f.slot)
@@ -965,9 +965,9 @@ pub fn amd64_isel(f: *Fn) void {
             k -= 1;
             assert(b.ins[k].op != .sel0);
             if (b.ins[k].op == .sel1)
-                k = selsel(f, b, k, num)
+                k = try selsel(f, b, k, num)
             else
-                sel(b.ins[k], num, f);
+                try sel(b.ins[k], num, f);
         }
         idup(b, all.curi, (all.insbTail()));
     }

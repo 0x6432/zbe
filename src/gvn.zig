@@ -22,7 +22,6 @@ const RCon = all.RCon;
 const RTmp = all.RTmp;
 const Ref = all.Ref;
 const Tmp = all.Tmp;
-const UXXX = all.UXXX;
 const Use = all.Use;
 const addins = all.addins;
 const adduse = all.adduse;
@@ -120,7 +119,7 @@ fn replaceuse(f: *Fn, u: *Use, r1: Ref, r2: Ref) void {
             if (t2) |t|
                 adduse(t, .jmp, b, null);
         },
-        UXXX => die("unreachable", .{}),
+        .xxx => die("unreachable", .{}),
     }
 }
 

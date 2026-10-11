@@ -355,7 +355,6 @@ pub const Blk = extern struct {
 };
 
 pub const U = enum(i32) { xxx = 0, phi = 1, ins = 2, jmp = 3 };
-pub const UXXX = U.xxx;
 
 pub const Use = extern struct {
     type: U,

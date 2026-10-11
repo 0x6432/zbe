@@ -50,6 +50,8 @@
   bare literals (`.add =>`) instead of `ops.num(.add) =>`.
 - `Opc.within(first, last)` checks op ranges; `iscmp` takes an `Opc`, and the
   alloc-slot loops in the instruction selectors count with `Opc.diff`.
+- `Oaddtbl` is `add_table`; the `UXXX` alias is gone (use `.xxx`). `assoccon`
+  keeps its op as an `Opc`.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit

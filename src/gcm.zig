@@ -15,7 +15,6 @@ const Phi = all.Phi;
 const R = all.R;
 const RTmp = all.RTmp;
 const Ref = all.Ref;
-const UXXX = all.UXXX;
 const addins = all.addins;
 const die = all.die;
 const dom = all.dom;
@@ -161,7 +160,7 @@ fn schedlate(f: *Fn, r: Ref) uint {
         const b = f.rpo[u.bid];
         var uselatebid: uint = undefined;
         switch (u.type) {
-            UXXX => die("unreachable", .{}),
+            .xxx => die("unreachable", .{}),
             .phi => uselatebid = latephi(f, u.u.phi, r),
             .ins => uselatebid = lateins(f, b, u.u.ins, r),
             .jmp => uselatebid = latejmp(b, r),

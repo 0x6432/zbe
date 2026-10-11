@@ -715,7 +715,7 @@ const Pobi1 = 5;
 //     (obi1 (add (con o) (tmp b) (tmp i)))
 // ))
 
-const Oaddtbl = [91]uchar{
+const add_table = [91]uchar{
     2,
     2,  2,
     4,  4,  5,
@@ -747,7 +747,7 @@ fn opn(op: i32, l_: i32, r_: i32) i32 {
                 };
             return 2;
         },
-        all.ops.num(.add) => return Oaddtbl[@intCast(@divTrunc(l + l * l, 2) + r)],
+        all.ops.num(.add) => return add_table[@intCast(@divTrunc(l + l * l, 2) + r)],
         else => return 2,
     }
 }

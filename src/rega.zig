@@ -67,7 +67,7 @@ var mem: [*]Mem = undefined; // function mem references
 const PMove = struct {
     src: Ref,
     dst: Ref,
-    cls: i32,
+    cls: Cls,
 };
 var pm: [NPm]PMove = undefined; // parallel move constructed
 var npm: i32 = 0; // size of pm
@@ -211,7 +211,7 @@ fn mdump(m: *RMap) void {
     dprint("\n", .{});
 }
 
-fn pmadd(src: Ref, dst: Ref, k: i32) void {
+fn pmadd(src: Ref, dst: Ref, k: Cls) void {
     if (npm == NPm)
         die("no more pm slots", .{});
     pm[@intCast(npm)].src = src;
@@ -222,7 +222,7 @@ fn pmadd(src: Ref, dst: Ref, k: i32) void {
 
 const PMStat = enum(i32) { ToMove = 0, Moving, Moved };
 
-fn pmrec(status: []PMStat, i: usize, k: *i32) i32 {
+fn pmrec(status: []PMStat, i: usize, k: *Cls) i32 {
     var c: i32 = undefined;
 
     // note, this routine might emit
@@ -233,7 +233,7 @@ fn pmrec(status: []PMStat, i: usize, k: *i32) i32 {
     }
     assert(clsBase(pm[i].cls) == clsBase(k.*));
     assert((Cls.w.int() | Cls.l.int()) == Cls.l.int() and (Cls.s.int() | Cls.d.int()) == Cls.d.int());
-    k.* |= pm[i].cls;
+    k.* = all.kof(k.*.int() | pm[i].cls.int());
     var j: usize = 0;
     while (j < npm) : (j += 1) {
         if (req(pm[j].dst, pm[i].src))
@@ -242,7 +242,7 @@ fn pmrec(status: []PMStat, i: usize, k: *i32) i32 {
     sw: switch (if (j == npm) PMStat.Moved else status[j]) {
         .Moving => {
             c = @intCast(j); // start of cycle
-            emit(.swap, all.kof(k.*), R, pm[i].src, pm[i].dst);
+            emit(.swap, k.*, R, pm[i].src, pm[i].dst);
         },
         .ToMove => {
             status[i] = .Moving;
@@ -252,14 +252,14 @@ fn pmrec(status: []PMStat, i: usize, k: *i32) i32 {
                 break :sw;
             }
             if (c != -1) {
-                emit(.swap, all.kof(k.*), R, pm[i].src, pm[i].dst);
+                emit(.swap, k.*, R, pm[i].src, pm[i].dst);
                 break :sw;
             }
             continue :sw .Moved;
         },
         .Moved => {
             c = -1;
-            emit(.copy, all.kof(pm[i].cls), pm[i].dst, pm[i].src, R);
+            emit(.copy, pm[i].cls, pm[i].dst, pm[i].src, R);
         },
     }
     status[i] = .Moved;
@@ -327,9 +327,9 @@ fn dopm(b: *Blk, last: uint, m: *RMap) uint {
         const r1 = m.r[n];
         const r = rfind(&m0, t);
         if (r != -1)
-            pmadd(tmpRef(r1), tmpRef(r), tmp[@intCast(t)].cls.int())
+            pmadd(tmpRef(r1), tmpRef(r), tmp[@intCast(t)].cls)
         else if (s != -1)
-            pmadd(tmpRef(r1), slotRef(s), tmp[@intCast(t)].cls.int());
+            pmadd(tmpRef(r1), slotRef(s), tmp[@intCast(t)].cls);
     }
     for (b.ins[i .. last + 1]) |*ip| {
         if (!req(ip.to, R))
@@ -642,7 +642,7 @@ pub fn rega(f: *Fn) void {
             const x = rl[@intCast(r)];
             assert(x != 0 or t < Tmp0); // todo, ditto
             if (x > 0 and !bshas(&m.b, x)) {
-                pmadd(tmpRef(x), tmpRef(r), tmp[@intCast(t)].cls.int());
+                pmadd(tmpRef(x), tmpRef(r), tmp[@intCast(t)].cls);
                 m.r[j] = x;
                 bsset(&m.b, x);
             }
@@ -696,13 +696,13 @@ pub fn rega(f: *Fn) void {
                 var src = p.arg[u];
                 if (rtype(src) == RTmp)
                     src = rref(&end[b.id], (src.val));
-                pmadd(src, dst, p.cls.int());
+                pmadd(src, dst, p.cls);
             }
             t = Tmp0;
             while (bsiter(&s.in, &t)) : (t += 1) {
                 const src = rref(&end[b.id], t);
                 const dst = rref(&beg[s.id], t);
-                pmadd(src, dst, tmp[@intCast(t)].cls.int());
+                pmadd(src, dst, tmp[@intCast(t)].cls);
             }
             all.curi = all.insbEnd();
             pmgen();

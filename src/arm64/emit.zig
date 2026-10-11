@@ -629,7 +629,7 @@ pub fn arm64_emitfn(f: *Fn, out: *Writer) Writer.Error!void {
                     if (r < 0) break;
                     if ((e.@"fn".reg & bitAt(r)) != 0) {
                         s -= 2;
-                        var in = mkIns(.load, all.kof(@as(i32, if (r >= V0) Cls.d.int() else Cls.l.int())), tmpRef(r), slotRef(s), R);
+                        var in = mkIns(.load, if (r >= V0) Cls.d else Cls.l, tmpRef(r), slotRef(s), R);
                         try emitins(&in, e);
                     }
                 }

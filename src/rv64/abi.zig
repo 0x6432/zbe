@@ -291,12 +291,12 @@ fn selret(b: *Blk, f: *Fn) void {
             cty = (@as(i32, cr.nfp) << 2) | cr.ngp;
         }
     } else {
-        const k = j - J.retw.int();
+        const k = all.kof(j - J.retw.int());
         if (clsBase(k) == 0) {
-            emit(.copy, all.kof(k), tmpRef(A0), r, R);
+            emit(.copy, k, tmpRef(A0), r, R);
             cty = 1;
         } else {
-            emit(.copy, all.kof(k), tmpRef(FA0), r, R);
+            emit(.copy, k, tmpRef(FA0), r, R);
             cty = 1 << 2;
         }
     }
@@ -385,7 +385,7 @@ fn stkblob(r: Ref, t: *Typ, f: *Fn, ilp: *?*Insl) void {
 fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
     var cr: Class = undefined;
     var tmp: [2]Ref = undefined;
-    var k: i32 = undefined;
+    var k: Cls = undefined;
     var r: Ref = undefined;
     var r1: Ref = undefined;
     var r2: Ref = undefined;
@@ -452,9 +452,9 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
         if (i.op == .argc) {
             ldregs(c, i.arg[1], f);
         } else if ((c.class & Cfpint) != 0) {
-            k = if (clsWide(c.cls[0]) != 0) Cls.l.int() else Cls.w.int();
-            r = newtmp("abi", all.kof(k), f);
-            emit(.copy, all.kof(k), tmpRef(c.reg[0]), r, R);
+            k = if (clsWide(c.cls[0]) != 0) .l else .w;
+            r = newtmp("abi", k, f);
+            emit(.copy, k, tmpRef(c.reg[0]), r, R);
             c.reg[0] = r.val;
         } else {
             emit(.copy, c.cls[0], tmpRef(c.reg[0]), i.arg[0], R);
@@ -463,8 +463,8 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
 
     for (ins, ca) |*i, *c| {
         if ((c.class & Cfpint) != 0) {
-            k = if (clsWide(c.cls[0]) != 0) Cls.l.int() else Cls.w.int();
-            emit(.cast, all.kof(k), tmpRef(c.reg[0]), i.arg[0], R);
+            k = if (clsWide(c.cls[0]) != 0) .l else .w;
+            emit(.cast, k, tmpRef(c.reg[0]), i.arg[0], R);
         }
         if ((c.class & Cptr) != 0) {
             emit(.blit1, .w, R, intRef(c.type.?.size), R);
@@ -546,8 +546,8 @@ fn selpar(f: *Fn, ins: []Ins) Params {
             const r = i.to;
             const k = c.cls[0];
             c.cls[0] = if (clsWide(k) != 0) .l else .w;
-            i.to = newtmp("abi", all.kof(k), f);
-            emit(.cast, all.kof(k), r, i.to, R);
+            i.to = newtmp("abi", k, f);
+            emit(.cast, k, r, i.to, R);
         }
         if (i.op == .parc and (c.class & Cptr) == 0 and c.nreg != 0) {
             var nt: i32 = c.nreg;

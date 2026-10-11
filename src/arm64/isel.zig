@@ -262,8 +262,8 @@ fn sel(i_: Ins, f: *Fn) void {
     if (i.op != .nop) {
         emiti(i);
         const iarg = &all.curi[0].arg; // fixarg() can change curi
-        fixarg(&iarg[0], all.kof(argcls(&i, 0)), false, f);
-        fixarg(&iarg[1], all.kof(argcls(&i, 1)), false, f);
+        fixarg(&iarg[0], argcls(&i, 0), false, f);
+        fixarg(&iarg[1], argcls(&i, 1), false, f);
     }
 }
 

@@ -312,13 +312,13 @@ fn getarg(c: u8, i: *Ins) Ref {
     }
 }
 
-fn emitcopy(r1: Ref, r2: Ref, k: i32, e: *E) Writer.Error!void {
+fn emitcopy(r1: Ref, r2: Ref, k: Cls, e: *E) Writer.Error!void {
     var icp: Ins = undefined;
 
     icp.op = .copy;
     icp.arg[0] = r2;
     icp.to = r1;
-    icp.cls = all.kof(k);
+    icp.cls = k;
     try emitins(icp, e);
 }
 
@@ -361,7 +361,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
                 // fall through
             }
             assert(!req(i.arg[1], i.to) or req(i.arg[0], i.to)); // cannot convert to 2-address
-            try emitcopy(i.to, i.arg[0], i.cls.int(), e);
+            try emitcopy(i.to, i.arg[0], i.cls, e);
             s += 1;
         },
         else => {},
@@ -659,7 +659,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             assert(e.fp == RBP);
             try emitf("subq %L0, %%rsp", &i, e);
             if (!req(i.to, R))
-                try emitcopy(i.to, tmpRef(RSP), Cls.l.int(), e);
+                try emitcopy(i.to, tmpRef(RSP), .l, e);
         },
         .swap => {
             if (clsBase(i.cls) == 0) {
@@ -668,9 +668,9 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
             }
             // for floats, there is no swap instruction
             // so we use xmm15 as a temporary
-            try emitcopy(tmpRef(XMM0 + 15), i.arg[0], i.cls.int(), e);
-            try emitcopy(i.arg[0], i.arg[1], i.cls.int(), e);
-            try emitcopy(i.arg[1], tmpRef(XMM0 + 15), i.cls.int(), e);
+            try emitcopy(tmpRef(XMM0 + 15), i.arg[0], i.cls, e);
+            try emitcopy(i.arg[0], i.arg[1], i.cls, e);
+            try emitcopy(i.arg[1], tmpRef(XMM0 + 15), i.cls, e);
         },
         .dbgloc => try emitdbgloc(i.arg[0].val, i.arg[1].val, e.f),
     }

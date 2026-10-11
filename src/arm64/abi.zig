@@ -260,12 +260,12 @@ fn selret(b: *Blk, f: *Fn) void {
             cty = (@as(i32, cr.nfp) << 2) | cr.ngp;
         }
     } else {
-        const k = j - J.retw.int();
+        const k = all.kof(j - J.retw.int());
         if (clsBase(k) == 0) {
-            emit(.copy, all.kof(k), tmpRef(R0), r, R);
+            emit(.copy, k, tmpRef(R0), r, R);
             cty = 1;
         } else {
-            emit(.copy, all.kof(k), tmpRef(V0), r, R);
+            emit(.copy, k, tmpRef(V0), r, R);
             cty = 1 << 2;
         }
     }

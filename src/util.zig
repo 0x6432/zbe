@@ -484,8 +484,8 @@ pub fn igroup(b: *Blk, n0: uint) struct { uint, uint } {
     }
 }
 
-pub fn argcls(i: *Ins, n: anytype) i32 {
-    return all.optab[i.op.int()].argcls[n][i.cls.idx()];
+pub fn argcls(i: *Ins, n: anytype) Cls {
+    return all.kof(all.optab[i.op.int()].argcls[n][i.cls.idx()]);
 }
 
 pub fn emit(op: Opc, k: Cls, to: Ref, arg0: Ref, arg1: Ref) void {

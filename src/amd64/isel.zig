@@ -371,7 +371,7 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
             emiti(i);
             i_1 = &all.curi[0];
             emit(.copy, .w, tmpRef(RCX), r0, R);
-            fixarg(&i_1.arg[0], all.kof(argcls(&i, 0)), i_1, f);
+            fixarg(&i_1.arg[0], argcls(&i, 0), i_1, f);
         },
         .uwtof => {
             r0 = newtmp("utof", .l, f);
@@ -477,8 +477,8 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
             // Emit:
             emiti(i);
             i_1 = &all.curi[0]; // fixarg() can change curi
-            fixarg(&i_1.arg[0], all.kof(argcls(&i, 0)), i_1, f);
-            fixarg(&i_1.arg[1], all.kof(argcls(&i, 1)), i_1, f);
+            fixarg(&i_1.arg[0], argcls(&i, 0), i_1, f);
+            fixarg(&i_1.arg[1], argcls(&i, 1), i_1, f);
         },
         .alloc4, .alloc8, .alloc16 => salloc(i.to, i.arg[0], f),
         else => {

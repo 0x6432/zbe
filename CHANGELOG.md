@@ -67,6 +67,10 @@
 - The ABI class arrays (sysv, winabi, arm64, rv64) hold `Cls` values, as do their
   register helpers (`rarg`, `register_for_arg`, `sttmps`, `ldregs`, `isfloatv`)
   and the arm64 HFA base class.
+- `argcls` returns a `Cls`. Return-value classes in the ABIs, the rega parallel-move
+  list, load's slice and helper classes, gvn's `cmpeqz`/`zeroval`/`usecls`/`propjnz0`
+  and amd64 `emitcopy` all use `Cls`. Only the parser and `mem` (which compares raw
+  op-table entries) still convert integer classes with `kof`.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit

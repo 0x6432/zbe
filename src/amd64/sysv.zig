@@ -223,12 +223,12 @@ fn selret(b: *Blk, f: *Fn) void {
             emit(.load, .l, reg[0], r0, R);
         }
     } else {
-        const k = j - J.retw.int();
+        const k = all.kof(j - J.retw.int());
         if (clsBase(k) == 0) {
-            emit(.copy, all.kof(k), tmpRef(RAX), r0, R);
+            emit(.copy, k, tmpRef(RAX), r0, R);
             ca = 1;
         } else {
-            emit(.copy, all.kof(k), tmpRef(XMM0), r0, R);
+            emit(.copy, k, tmpRef(XMM0), r0, R);
             ca = 1 << 2;
         }
     }

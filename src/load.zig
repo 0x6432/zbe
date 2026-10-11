@@ -75,7 +75,7 @@ const Slice = extern struct {
     ref: Ref,
     off: i32,
     sz: i16,
-    cls: i16, // load class
+    cls: Cls, // load class
 };
 
 const Insert = extern struct {
@@ -119,7 +119,7 @@ pub fn storesz(s: *Ins) i32 {
     die("unreachable", .{});
 }
 
-fn iins(cls: i32, op: Opc, a0: Ref, a1: Ref, l: *Loc) Ref {
+fn iins(cls: Cls, op: Opc, a0: Ref, a1: Ref, l: *Loc) Ref {
     nlog += 1;
     vgrow(&ilog, nlog);
     const ist = &ilog[nlog - 1];
@@ -128,40 +128,40 @@ fn iins(cls: i32, op: Opc, a0: Ref, a1: Ref, l: *Loc) Ref {
     inum += 1;
     ist.bid = l.blk.id;
     ist.off = l.off;
-    ist.new.ins = mkIns(op, all.kof(cls), R, a0, a1);
-    ist.new.ins.to = newtmp("ld", all.kof(cls), curf);
+    ist.new.ins = mkIns(op, cls, R, a0, a1);
+    ist.new.ins.to = newtmp("ld", cls, curf);
     return ist.new.ins.to;
 }
 
-fn cast(r: *Ref, cls: i32, l: *Loc) void {
+fn cast(r: *Ref, cls: Cls, l: *Loc) void {
     if (rtype(r.*) == RCon)
         return;
     assert(rtype(r.*) == RTmp);
-    const cls0: i32 = curf.tmp[r.val].cls.int();
-    if (cls0 == cls or (cls == Cls.w.int() and cls0 == Cls.l.int()))
+    const cls0 = curf.tmp[r.val].cls;
+    if (cls0 == cls or (cls == .w and cls0 == .l))
         return;
     if (clsWide(cls0) < clsWide(cls)) {
-        if (cls0 == Cls.s.int())
-            r.* = iins(Cls.w.int(), .cast, r.*, R, l);
-        r.* = iins(Cls.l.int(), .extuw, r.*, R, l);
-        if (cls == Cls.d.int())
-            r.* = iins(Cls.d.int(), .cast, r.*, R, l);
+        if (cls0 == .s)
+            r.* = iins(.w, .cast, r.*, R, l);
+        r.* = iins(.l, .extuw, r.*, R, l);
+        if (cls == .d)
+            r.* = iins(.d, .cast, r.*, R, l);
     } else {
-        if (cls0 == Cls.d.int() and cls != Cls.l.int())
-            r.* = iins(Cls.l.int(), .cast, r.*, R, l);
-        if (cls0 != Cls.d.int() or cls != Cls.w.int())
+        if (cls0 == .d and cls != .l)
+            r.* = iins(.l, .cast, r.*, R, l);
+        if (cls0 != .d or cls != .w)
             r.* = iins(cls, .cast, r.*, R, l);
     }
 }
 
-inline fn mask(cls: i32, r: *Ref, msk: bits, l: *Loc) void {
+inline fn mask(cls: Cls, r: *Ref, msk: bits, l: *Loc) void {
     cast(r, cls, l);
     r.* = iins(cls, .@"and", r.*, getcon(@bitCast(msk), curf), l);
 }
 
 fn load(sl: Slice, msk: bits, l: *Loc) Ref {
     var r: Ref = undefined;
-    var cls: i32 = undefined;
+    var cls: Cls = undefined;
     var c: Con = undefined;
 
     const ld: Opc = switch (sl.sz) {
@@ -175,7 +175,7 @@ fn load(sl: Slice, msk: bits, l: *Loc) Ref {
     if (all_)
         cls = sl.cls
     else
-        cls = if (sl.sz > 4) Cls.l.int() else Cls.w.int();
+        cls = if (sl.sz > 4) Cls.l else Cls.w;
     r = sl.ref;
     // sl.ref might not be live here,
     // but its alias base ref will be
@@ -187,7 +187,7 @@ fn load(sl: Slice, msk: bits, l: *Loc) Ref {
                 r = tmpRef(a.base);
                 if (a.offset != 0) {
                     const r1 = getcon(a.offset, curf);
-                    r = iins(Cls.l.int(), .add, r, r1, l);
+                    r = iins(.l, .add, r, r1, l);
                 }
             },
             ACon, ASym => {
@@ -265,14 +265,14 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
     var sl1: Slice = undefined;
     var msk1: bits = undefined;
     var off: i32 = undefined;
-    var cls1: i32 = undefined;
+    var cls1: Cls = undefined;
     var op: Opc = undefined;
     var sz: i32 = undefined;
     var r: Ref = undefined;
     var r1: Ref = undefined;
     var l: Loc = undefined;
     var idx = i_ orelse b.nins;
-    const cls: i32 = if (sl.sz > 4) Cls.l.int() else Cls.w.int();
+    const cls: Cls = if (sl.sz > 4) Cls.l else Cls.w;
     const msks = lowMask(sl.sz);
 
     while (idx > 0) {
@@ -335,7 +335,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
                 if (off != 0) {
                     cls1 = cls;
                     if (op == .shr and off + sl.sz > 4)
-                        cls1 = Cls.l.int();
+                        cls1 = .l;
                     cast(&r, cls1, il);
                     r1 = getcon(8 * off, curf);
                     r = iins(cls1, op, r, r1, il);
@@ -396,7 +396,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
         return r1;
     }
 
-    r = newtmp("ld", all.kof(sl.cls), curf);
+    r = newtmp("ld", sl.cls, curf);
     const p = pnew(Phi);
     nlog += 1;
     vgrow(&ilog, nlog);
@@ -406,7 +406,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
     ist.new.phi.m = sl;
     ist.new.phi.p = p;
     p.to = r;
-    p.cls = all.kof(sl.cls);
+    p.cls = sl.cls;
     p.narg = b.npred;
     p.arg = vnewT(Ref, p.narg, PFn);
     p.blk = vnewT(*Blk, p.narg, PFn);
@@ -458,7 +458,7 @@ pub fn loadopt(f: *Fn) void {
             if (!isload(i.op))
                 continue;
             const sz = loadsz(i);
-            var sl: Slice = .{ .ref = i.arg[0], .off = 0, .sz = @intCast(sz), .cls = @intFromEnum(i.cls) };
+            var sl: Slice = .{ .ref = i.arg[0], .off = 0, .sz = @intCast(sz), .cls = i.cls };
             var l: Loc = .{ .type = LRoot, .off = @intCast(n), .blk = b };
             rebase(&sl);
             i.arg[1] = def(sl, lowMask(sz), b, @intCast(n), &l);

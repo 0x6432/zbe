@@ -249,7 +249,7 @@ fn dedupins(f: *Fn, b: *Blk, i: *Ins) void {
         killins(f, i, i_1.to);
 }
 
-pub fn cmpeqz(f: *Fn, r: Ref, arg: *Ref, cls: *i32, eqval: *i32) bool {
+pub fn cmpeqz(f: *Fn, r: Ref, arg: *Ref, cls: *Cls, eqval: *i32) bool {
     if (rtype(r) != RTmp)
         return false;
     const i = f.tmp[r.val].def orelse return false;
@@ -279,16 +279,16 @@ fn domzero(f: *Fn, d: *Blk, b: *Blk, z: *i32) bool {
 }
 
 /// infer 0/non-0 value from dominating jnz
-pub fn zeroval(f: *Fn, b: *Blk, r: Ref, cls: i32, z: *i32) bool {
+pub fn zeroval(f: *Fn, b: *Blk, r: Ref, cls: Cls, z: *i32) bool {
     var arg: Ref = undefined;
-    var cls1: i32 = undefined;
+    var cls1: Cls = undefined;
     var eqval: i32 = undefined;
 
     var d_it: ?*Blk = b.idom;
     while (d_it) |d| : (d_it = d.idom) {
         if (d.jmp.type != .jnz)
             continue;
-        if (req(r, d.jmp.arg) and cls == Cls.w.int() and domzero(f, d, b, z)) {
+        if (req(r, d.jmp.arg) and cls == .w and domzero(f, d, b, z)) {
             return true;
         }
         if (cmpeqz(f, d.jmp.arg, &arg, &cls1, &eqval) and req(r, arg) and cls == cls1 and domzero(f, d, b, z)) {
@@ -299,30 +299,30 @@ pub fn zeroval(f: *Fn, b: *Blk, r: Ref, cls: i32, z: *i32) bool {
     return false;
 }
 
-fn usecls(u: *Use, r: Ref, cls: i32) i32 {
+fn usecls(u: *Use, r: Ref, cls: Cls) Cls {
     switch (u.type) {
         .ins => {
-            var k: i32 = Cls.x.int(); // widest use
+            var k: Cls = .x; // widest use
             if (req(u.u.ins.arg[0], r))
                 k = argcls(u.u.ins, 0);
             if (req(u.u.ins.arg[1], r))
-                if (k == Cls.x.int() or clsWide(k) == 0) {
+                if (k == .x or clsWide(k) == 0) {
                     k = argcls(u.u.ins, 1);
                 };
-            return if (k == Cls.x.int()) cls else k;
+            return if (k == .x) cls else k;
         },
         .phi => {
             if (req(u.u.phi.to, R))
                 return cls; // eliminated
-            return u.u.phi.cls.int();
+            return u.u.phi.cls;
         },
-        .jmp => return Cls.w.int(),
+        .jmp => return .w,
         else => {},
     }
     die("unreachable", .{});
 }
 
-fn propjnz0(f: *Fn, bif: *Blk, s0: *Blk, snon0: *Blk, r: Ref, cls: i32) void {
+fn propjnz0(f: *Fn, bif: *Blk, s0: *Blk, snon0: *Blk, r: Ref, cls: Cls) void {
     if (s0.npred != 1 or rtype(r) != RTmp)
         return;
     const t = &f.tmp[r.val];
@@ -340,7 +340,7 @@ fn propjnz0(f: *Fn, bif: *Blk, s0: *Blk, snon0: *Blk, r: Ref, cls: i32) void {
 fn dedupjmp(f: *Fn, b: *Blk) void {
     var v: i64 = undefined;
     var arg: Ref = undefined;
-    var cls: i32 = undefined;
+    var cls: Cls = undefined;
     var eqval: i32 = undefined;
     var z: i32 = undefined;
 
@@ -348,7 +348,7 @@ fn dedupjmp(f: *Fn, b: *Blk) void {
         return;
 
     // propagate jmp arg as 0 through s2
-    propjnz0(f, b, b.s2.?, b.s1.?, b.jmp.arg, Cls.w.int());
+    propjnz0(f, b, b.s2.?, b.s1.?, b.jmp.arg, .w);
     // propagate cmp eq/ne 0 def of jmp arg as 0
     if (cmpeqz(f, b.jmp.arg, &arg, &cls, &eqval)) {
         const ps = [2]*Blk{ b.s1.?, b.s2.? };
@@ -358,7 +358,7 @@ fn dedupjmp(f: *Fn, b: *Blk) void {
     // collapse trivial/constant jnz to jmp
     v = 1;
     z = 0;
-    if (b.s1 == b.s2 or isconbits(f, b.jmp.arg, &v) or zeroval(f, b, b.jmp.arg, Cls.w.int(), &z)) {
+    if (b.s1 == b.s2 or isconbits(f, b.jmp.arg, &v) or zeroval(f, b, b.jmp.arg, .w, &z)) {
         if (v == 0 or z != 0)
             b.s1 = b.s2;
         // we later move active ins out of dead blks

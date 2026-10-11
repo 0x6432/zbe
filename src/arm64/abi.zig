@@ -88,7 +88,7 @@ const Class = struct {
     class: i8,
     ishfa: i8,
     hfa: struct {
-        base: i8,
+        base: Cls,
         size: u8,
     },
     size: uint,
@@ -98,7 +98,7 @@ const Class = struct {
     ngp: u8,
     nfp: u8,
     reg: [4]i32,
-    cls: [4]i32,
+    cls: [4]Cls,
 };
 
 const Insl = struct {
@@ -135,20 +135,20 @@ const store = blk: {
 //        | ` indirect result register x8 used  (0..1)
 //        ` env pointer passed in x9            (0..1)
 
-fn isfloatv(t: *Typ, cls: *i8) bool {
+fn isfloatv(t: *Typ, cls: *Cls) bool {
     for (0..t.nunion) |n| {
         for (&t.fields[n]) |*f| {
             if (f.type == FEnd) break;
             switch (f.type) {
                 Fs => {
-                    if (cls.* == Cls.d.int())
+                    if (cls.* == .d)
                         return false;
-                    cls.* = @intCast(Cls.s.int());
+                    cls.* = .s;
                 },
                 Fd => {
-                    if (cls.* == Cls.s.int())
+                    if (cls.* == .s)
                         return false;
-                    cls.* = @intCast(Cls.d.int());
+                    cls.* = .d;
                 },
                 FTyp => {
                     if (!isfloatv(&all.typ[f.len], cls))
@@ -173,7 +173,7 @@ fn typclass(c: *Class, t: *Typ, gp: []const i32, fp: []const i32) void {
         err("alignments larger than 8 are not supported", .{});
 
     c.size = @truncate(sz);
-    c.hfa.base = @intCast(Cls.x.int());
+    c.hfa.base = .x;
     var ishfa = isfloatv(t, &c.hfa.base);
     const hfasz: u64 = t.size / @as(u64, if (clsWide(c.hfa.base) != 0) 8 else 4);
     ishfa = ishfa and t.isdark == 0 and hfasz <= 4;
@@ -198,7 +198,7 @@ fn typclass(c: *Class, t: *Typ, gp: []const i32, fp: []const i32) void {
         c.size = 8;
         c.ngp = 1;
         c.reg[0] = gp[0];
-        c.cls[0] = Cls.l.int();
+        c.cls[0] = .l;
     } else {
         var n: uint = 0;
         while (n < sz / 8) : ({
@@ -206,31 +206,31 @@ fn typclass(c: *Class, t: *Typ, gp: []const i32, fp: []const i32) void {
             c.ngp += 1;
         }) {
             c.reg[n] = gp[n];
-            c.cls[n] = Cls.l.int();
+            c.cls[n] = .l;
         }
         c.nreg = @intCast(n);
     }
 }
 
-fn sttmps(tmp: []Ref, cls: []const i32, nreg: uint, mem: Ref, f: *Fn) void {
+fn sttmps(tmp: []Ref, cls: []const Cls, nreg: uint, mem: Ref, f: *Fn) void {
     assert(nreg <= 4);
     var off: u64 = 0;
     for (0..nreg) |n| {
-        tmp[n] = newtmp("abi", all.kof(cls[n]), f);
+        tmp[n] = newtmp("abi", cls[n], f);
         const r = newtmp("abi", .l, f);
-        emit(store[@intCast(cls[n])], .w, R, tmp[n], r);
+        emit(store[cls[n].idx()], .w, R, tmp[n], r);
         emit(.add, .l, r, mem, getcon(@bitCast(off), f));
         off += if (clsWide(cls[n]) != 0) 8 else 4;
     }
 }
 
 // todo, may read out of bounds
-fn ldregs(reg: []const i32, cls: []const i32, n: i32, mem: Ref, f: *Fn) void {
+fn ldregs(reg: []const i32, cls: []const Cls, n: i32, mem: Ref, f: *Fn) void {
     var off: u64 = 0;
     var i: usize = 0;
     while (i < @as(usize, @intCast(n))) : (i += 1) {
         const r = newtmp("abi", .l, f);
-        emit(.load, all.kof(cls[i]), tmpRef(reg[i]), r, R);
+        emit(.load, cls[i], tmpRef(reg[i]), r, R);
         emit(.add, .l, r, mem, getcon(@bitCast(off), f));
         off += if (clsWide(cls[i]) != 0) 8 else 4;
     }
@@ -317,7 +317,7 @@ fn argsclass(ins: []const Ins, carg: []Class) i32 {
             },
             .pare, .arge => {
                 c.reg[0] = R9;
-                c.cls[0] = Cls.l.int();
+                c.cls[0] = .l;
                 envc = 1;
             },
             .argv => {
@@ -327,7 +327,7 @@ fn argsclass(ins: []const Ins, carg: []Class) i32 {
         }
         if (scalar) {
             c.@"align" = c.size;
-            c.cls[0] = i.cls.int();
+            c.cls[0] = i.cls;
             if (va) {
                 c.class |= Cstk;
                 c.size = 8;
@@ -450,7 +450,7 @@ fn selcall(f: *Fn, args: []Ins, i_1: *Ins, ilp: *?*Insl) void {
             sttmps(&tmp, &cr.cls, cr.nreg, i_1.to, f);
             for (0..cr.nreg) |n| {
                 const r = tmpRef(cr.reg[n]);
-                emit(.copy, all.kof(cr.cls[n]), tmp[n], r, R);
+                emit(.copy, cr.cls[n], tmp[n], r, R);
             }
         }
     } else {
@@ -473,7 +473,7 @@ fn selcall(f: *Fn, args: []Ins, i_1: *Ins, ilp: *?*Insl) void {
         if ((c.class & Cstk) != 0)
             continue;
         if (i.op == .arg or i.op == .arge or isargbh(i.op))
-            emit(.copy, all.kof(c.cls[0]), tmpRef(c.reg[0]), i.arg[0], R);
+            emit(.copy, c.cls[0], tmpRef(c.reg[0]), i.arg[0], R);
         if (i.op == .argc)
             ldregs(&c.reg, &c.cls, c.nreg, i.arg[1], f);
     }
@@ -489,7 +489,7 @@ fn selcall(f: *Fn, args: []Ins, i_1: *Ins, ilp: *?*Insl) void {
             switch (c.size) {
                 1 => op = .storeb,
                 2 => op = .storeh,
-                4, 8 => op = store[@intCast(c.cls[0])],
+                4, 8 => op = store[c.cls[0].idx()],
                 else => die("unreachable", .{}),
             }
             emit(op, .w, R, i.arg[0], r);
@@ -555,7 +555,7 @@ fn selpar(f: *Fn, pars: []Ins) Params {
             } else {
                 for (0..c.nreg) |n| {
                     const r = tmpRef(c.reg[n]);
-                    emit(.copy, all.kof(c.cls[n]), tmp[t], r, R);
+                    emit(.copy, c.cls[n], tmp[t], r, R);
                     t += 1;
                 }
             }
@@ -565,10 +565,10 @@ fn selpar(f: *Fn, pars: []Ins) Params {
                 op = Opc.loadsb.offset(i.op.diff(.parsb))
             else
                 op = .load;
-            emit(op, all.kof(c.cls[0]), i.to, slotRef(-@as(i32, @intCast(off + 2))), R);
+            emit(op, c.cls[0], i.to, slotRef(-@as(i32, @intCast(off + 2))), R);
             off += c.size;
         } else {
-            emit(.copy, all.kof(c.cls[0]), i.to, tmpRef(c.reg[0]), R);
+            emit(.copy, c.cls[0], i.to, tmpRef(c.reg[0]), R);
         }
     }
 

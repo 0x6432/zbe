@@ -64,6 +64,9 @@
   so converting an `argcls` result can no longer panic.
 - `iscmp` reports the comparison class as a `Cls`. The arm64 and rv64 `fixarg`,
   `selcmp`, `imm` and `fixcmp` helpers take a `Cls`, like amd64.
+- The ABI class arrays (sysv, winabi, arm64, rv64) hold `Cls` values, as do their
+  register helpers (`rarg`, `register_for_arg`, `sttmps`, `ldregs`, `isfloatv`)
+  and the arm64 HFA base class.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit

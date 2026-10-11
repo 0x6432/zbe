@@ -93,7 +93,7 @@ const ArgClass = struct {
     style: ArgPassStyle,
     @"align": i32,
     size: uint,
-    cls: i32,
+    cls: Cls,
     ref: Ref,
 };
 
@@ -267,7 +267,7 @@ fn classify_arguments(reg_usage: *RegisterUsage, instrs: []const Ins, arg_classe
         switch (instr.op) {
             .arg, .par => {
                 assign_register_or_stack(reg_usage, arg, clsBase(instr.cls) != 0, false);
-                arg.cls = instr.cls.int();
+                arg.cls = instr.cls;
                 arg.@"align" = 3;
                 arg.size = 8;
             },
@@ -276,9 +276,9 @@ fn classify_arguments(reg_usage: *RegisterUsage, instrs: []const Ins, arg_classe
                 const @"type" = &all.typ[typ_index];
                 const by_copy = type_is_by_copy(@"type");
                 assign_register_or_stack(reg_usage, arg, false, by_copy);
-                arg.cls = Cls.l.int();
+                arg.cls = .l;
                 if (!by_copy and @"type".size <= 4) {
-                    arg.cls = Cls.w.int();
+                    arg.cls = .w;
                 }
                 arg.@"align" = 3;
                 arg.size = @intCast(@"type".size);
@@ -316,12 +316,12 @@ fn classify_arguments(reg_usage: *RegisterUsage, instrs: []const Ins, arg_classe
     }
 }
 
-fn is_integer_type(ty: i32) bool {
-    assert(ty >= 0 and ty < 4); // expecting Kw Kl Ks Kd
+fn is_integer_type(ty: Cls) bool {
+    assert(ty.int() >= 0 and ty.int() < 4); // expecting Kw Kl Ks Kd
     return clsBase(ty) == 0;
 }
 
-fn register_for_arg(cls: i32, counter: i32) Ref {
+fn register_for_arg(cls: Cls, counter: i32) Ref {
     assert(counter < 4);
     if (is_integer_type(cls)) {
         return tmpRef(amd64_winabi_rsave[@intCast(counter)]);
@@ -413,7 +413,7 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
             emit(.storel, .w, R, copy, call_instr.to);
             emit(.copy, .l, copy, tmpRef(RAX), R);
             reg_usage.rax_returned = true;
-        } else if (is_integer_type(call_instr.cls.int())) {
+        } else if (is_integer_type(call_instr.cls)) {
             // Only a basic type returned from the call, integer.
             emit(.copy, call_instr.cls, call_instr.to, tmpRef(RAX), R);
             reg_usage.rax_returned = true;
@@ -447,7 +447,7 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
 
     var reg_counter: i32 = 0;
     if (is_struct_return) {
-        const first_reg = register_for_arg(Cls.l.int(), reg_counter);
+        const first_reg = register_for_arg(.l, reg_counter);
         reg_counter += 1;
         emit(.copy, .l, first_reg, return_pad.?.instr.to, R);
     }
@@ -465,7 +465,7 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
                     // If this is a small struct being passed by value. The value in the
                     // instruction in this case is a pointer, but it needs to be loaded
                     // into the register.
-                    emit(.load, all.kof(arg.cls), into, instr.arg[1], R);
+                    emit(.load, arg.cls, into, instr.arg[1], R);
                 } else {
                     // Otherwise, a normal value passed in a register.
                     emit(.copy, instr.cls, into, instr.arg[0], R);
@@ -478,9 +478,9 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
                     // instruction is a pointer. So we need to copy it into the stack
                     // slot. (And, remember that these are emitted backwards, so store,
                     // then load.)
-                    const smalltmp = newtmp("abi.smalltmp", all.kof(arg.cls), func);
+                    const smalltmp = newtmp("abi.smalltmp", arg.cls, func);
                     emit(.storel, .w, R, smalltmp, slot);
-                    emit(.load, all.kof(arg.cls), smalltmp, instr.arg[1], R);
+                    emit(.load, arg.cls, smalltmp, instr.arg[1], R);
                 } else {
                     // Stash the value into the stack slot.
                     emit(.storel, .w, R, instr.arg[0], slot);
@@ -559,12 +559,12 @@ fn lower_block_return(func: *Fn, block: *Blk) void {
         }
         reg_usage.rax_returned = true;
     } else {
-        const k = jmp_type - J.retw.int();
+        const k = all.kof(jmp_type - J.retw.int());
         if (is_integer_type(k)) {
-            emit(.copy, all.kof(k), tmpRef(RAX), ret_arg, R);
+            emit(.copy, k, tmpRef(RAX), ret_arg, R);
             reg_usage.rax_returned = true;
         } else {
-            emit(.copy, all.kof(k), tmpRef(XMM0), ret_arg, R);
+            emit(.copy, k, tmpRef(XMM0), ret_arg, R);
             reg_usage.xmm0_returned = true;
         }
     }
@@ -721,7 +721,7 @@ fn lower_func_parameters(func: *Fn) RegisterUsage {
             .APS_CopyAndPointerInRegister => {
                 // Because this has to be a copy (that we own), it is sufficient to just
                 // copy the register to the target.
-                const from = register_for_arg(Cls.l.int(), reg_counter);
+                const from = register_for_arg(.l, reg_counter);
                 reg_counter += 1;
                 emit(.copy, .l, instr.to, from, R);
             },

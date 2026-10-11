@@ -102,7 +102,7 @@ const AClass = struct {
     inmem: i32,
     @"align": i32,
     size: uint,
-    cls: [2]i32,
+    cls: [2]Cls,
     ref: [2]Ref,
 };
 
@@ -130,12 +130,12 @@ fn classify(a: *AClass, t: *Typ, s_: uint) void {
                     s += f.len;
                 },
                 Fs, Fd => {
-                    if (cls.* == Cls.x.int())
-                        cls.* = Cls.d.int();
+                    if (cls.* == .x)
+                        cls.* = .d;
                     s += f.len;
                 },
                 Fb, Fh, Fw, Fl => {
-                    cls.* = Cls.l.int();
+                    cls.* = .l;
                     s += f.len;
                 },
                 FTyp => {
@@ -172,8 +172,8 @@ fn typclass(a: *AClass, t: *Typ) void {
         return;
     }
 
-    a.cls[0] = Cls.x.int();
-    a.cls[1] = Cls.x.int();
+    a.cls[0] = .x;
+    a.cls[1] = .x;
     a.inmem = 0;
     classify(a, t, 0);
 }
@@ -255,7 +255,7 @@ fn argsclass(ins: []const Ins, ac: []AClass, op: i32, aret: ?*const AClass, env:
                 } else a.inmem = 2;
                 a.@"align" = 3;
                 a.size = 8;
-                a.cls[0] = i.cls.int();
+                a.cls[0] = i.cls;
             },
             all.ops.num(.argc) => {
                 const n0 = i.arg[0].val;
@@ -352,7 +352,7 @@ pub fn amd64_sysv_argregs(r: Ref, p: ?*[2]i32) bits {
     return b | (if (ra != 0) bitAt(RAX) else 0);
 }
 
-fn rarg(ty: i32, ni: *i32, ns: *i32) Ref {
+fn rarg(ty: Cls, ni: *i32, ns: *i32) Ref {
     if (clsBase(ty) == 0) {
         const r = tmpRef(amd64_sysv_rsave[@intCast(ni.*)]);
         ni.* += 1;
@@ -414,16 +414,16 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
             // this should still be fixed.
             if (aret.size > 8) {
                 r = newtmp("abi", .l, f);
-                aret.ref[1] = newtmp("abi", all.kof(aret.cls[1]), f);
+                aret.ref[1] = newtmp("abi", aret.cls[1], f);
                 emit(.storel, .w, R, aret.ref[1], r);
                 emit(.add, .l, r, i_1.to, getcon(8, f));
             }
-            aret.ref[0] = newtmp("abi", all.kof(aret.cls[0]), f);
+            aret.ref[0] = newtmp("abi", aret.cls[0], f);
             emit(.storel, .w, R, aret.ref[0], i_1.to);
             ca += retr(&reg, &aret);
             if (aret.size > 8)
-                emit(.copy, all.kof(aret.cls[1]), aret.ref[1], reg[1], R);
-            emit(.copy, all.kof(aret.cls[0]), aret.ref[0], reg[0], R);
+                emit(.copy, aret.cls[1], aret.ref[1], reg[1], R);
+            emit(.copy, aret.cls[0], aret.ref[0], reg[0], R);
             r1 = i_1.to;
         }
         // allocate return pad
@@ -455,7 +455,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
     var ni: i32 = 0;
     var ns: i32 = 0;
     if (ra != null and aret.inmem != 0)
-        emit(.copy, .l, rarg(Cls.l.int(), &ni, &ns), ra.?.i.to, R); // pass hidden argument
+        emit(.copy, .l, rarg(.l, &ni, &ns), ra.?.i.to, R); // pass hidden argument
 
     for (ins, ac) |*i, *a| {
         if (i.op.int() >= Opc.arge.int() or a.inmem != 0)
@@ -465,10 +465,10 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
             if (a.size > 8) {
                 const r2 = rarg(a.cls[1], &ni, &ns);
                 r = newtmp("abi", .l, f);
-                emit(.load, all.kof(a.cls[1]), r2, r, R);
+                emit(.load, a.cls[1], r2, r, R);
                 emit(.add, .l, r, i.arg[1], getcon(8, f));
             }
-            emit(.load, all.kof(a.cls[0]), r1, i.arg[1], R);
+            emit(.load, a.cls[0], r1, i.arg[1], R);
         } else emit(.copy, i.cls, r1, i.arg[0], R);
     }
 
@@ -528,7 +528,7 @@ fn selpar(f: *Fn, ins: []Ins) i32 {
 
     if (f.retty >= 0 and aret.inmem != 0) {
         r = newtmp("abi", .l, f);
-        emit(.copy, .l, r, rarg(Cls.l.int(), &ni, &ns), R);
+        emit(.copy, .l, r, rarg(.l, &ni, &ns), R);
         f.retr = r;
     }
 
@@ -555,10 +555,10 @@ fn selpar(f: *Fn, ins: []Ins) i32 {
             continue;
         r = rarg(a.cls[0], &ni, &ns);
         if (i.op == .parc) {
-            emit(.copy, all.kof(a.cls[0]), a.ref[0], r, R);
+            emit(.copy, a.cls[0], a.ref[0], r, R);
             if (a.size > 8) {
                 r = rarg(a.cls[1], &ni, &ns);
-                emit(.copy, all.kof(a.cls[1]), a.ref[1], r, R);
+                emit(.copy, a.cls[1], a.ref[1], r, R);
             }
         } else emit(.copy, i.cls, i.to, r, R);
     }

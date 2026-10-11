@@ -313,7 +313,10 @@ pub fn main(init: std.process.Init) u8 {
             text = std.Io.Dir.cwd().readFileAlloc(io, path, arena, .unlimited) catch
                 fail("cannot open '{s}'\n", .{path});
         }
-        parse(text, path, &dbgfile, &data, &func);
+        parse(text, path, &dbgfile, &data, &func) catch {
+            outf.flush() catch {};
+            std.process.exit(1);
+        };
     }
 
     if (!dbg)

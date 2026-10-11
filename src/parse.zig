@@ -387,6 +387,16 @@ pub fn err(comptime fmt: []const u8, args: anytype) noreturn {
     std.process.exit(1);
 }
 
+pub const Error = error{Parse};
+
+/// Reports a syntax or type error at the current input line and returns
+/// `error.Parse`; the caller decides whether to exit or recover.
+fn fail(comptime fmt: []const u8, args: anytype) Error {
+    dprint("qbe:{s}:{d}: " ++ fmt ++ "\n", .{ inpath, lnum } ++ args);
+    all.dbg.flush() catch {};
+    return error.Parse;
+}
+
 var lexinit_done = false;
 fn lexinit() void {
     if (lexinit_done)
@@ -407,14 +417,14 @@ fn lexinit() void {
     lexinit_done = true;
 }
 
-fn getint() i64 {
+fn getint() Error!i64 {
     var n: u64 = 0;
     var c = getc();
     const m = (c == '-');
     if (m) {
         c = getc();
         if (!isdigit(c))
-            err("integer expected", .{});
+            return fail("integer expected", .{});
     }
     while (true) {
         n = 10 *% n +% @as(u64, @bitCast(@as(i64, c - '0')));
@@ -427,7 +437,7 @@ fn getint() i64 {
     return @bitCast(n);
 }
 
-fn lex() i32 {
+fn lex() Error!i32 {
     var c: i32 = undefined;
     var i: usize = undefined;
     var esc: bool = undefined;
@@ -493,7 +503,7 @@ fn lex() i32 {
     if (go == .none) {
         if (isdigit(c) or c == '-') {
             ungetc(c);
-            tokval.num = getint();
+            tokval.num = try getint();
             return Tint;
         }
         if (c == '"') {
@@ -508,7 +518,7 @@ fn lex() i32 {
         while (true) : (i += 1) {
             c = getc();
             if (c == EOF)
-                err("unterminated string", .{});
+                return fail("unterminated string", .{});
             vgrow(&tokval.str, i + 2);
             tokval.str[i] = @truncate(@as(c_uint, @bitCast(c)));
             if (c == '"' and !esc) {
@@ -520,7 +530,7 @@ fn lex() i32 {
     }
     // Alpha:
     if (!isalpha(c) and c != '.' and c != '_')
-        err("invalid character {c} ({d})", .{ @as(u8, @truncate(@as(c_uint, @bitCast(c)))), c });
+        return fail("invalid character {c} ({d})", .{ @as(u8, @truncate(@as(c_uint, @bitCast(c)))), c });
     i = 0;
     while (true) {
         vgrow(&tokval.str, i + 2);
@@ -536,27 +546,27 @@ fn lex() i32 {
     }
     t = lexh[(hash(tokval.str) *% K) >> M];
     if (t == Txxx or !streq(kwmap[@intCast(t)], tokval.str)) {
-        err("unknown keyword {s}", .{cs(tokval.str)});
+        return fail("unknown keyword {s}", .{cs(tokval.str)});
     }
     return t;
 }
 
-fn peek() i32 {
+fn peek() Error!i32 {
     if (thead == Txxx)
-        thead = lex();
+        thead = try lex();
     return thead;
 }
 
-fn next() i32 {
-    const t = peek();
+fn next() Error!i32 {
+    const t = try peek();
     thead = Txxx;
     return t;
 }
 
-fn nextnl() i32 {
+fn nextnl() Error!i32 {
     var t: i32 = undefined;
     while (true) {
-        t = next();
+        t = try next();
         if (t != Tnl) break;
     }
     return t;
@@ -576,13 +586,13 @@ const ttoa: [Ntok]?[]const u8 = blk: {
     break :blk m;
 };
 
-fn expect(t: i32) void {
-    const t1 = next();
+fn expect(t: i32) Error!void {
+    const t1 = try next();
     if (t == t1)
         return;
     const s1 = ttoa[@intCast(t)] orelse "??";
     const s2 = ttoa[@intCast(t1)] orelse "??";
-    err("{s} expected, got {s} instead", .{ s1, s2 });
+    return fail("{s} expected, got {s} instead", .{ s1, s2 });
 }
 
 fn tmpref() Ref {
@@ -613,9 +623,9 @@ fn tmpref() Ref {
     return tmpRef(t);
 }
 
-fn parseref() Ref {
+fn parseref() Error!Ref {
     var c: Con = std.mem.zeroes(Con);
-    var tok = next();
+    var tok = try next();
     switch (tok) {
         Ttmp => return tmpref(),
         Tint => {
@@ -634,7 +644,7 @@ fn parseref() Ref {
         },
         else => {
             if (tok != Tglo) {
-                while (true) : (tok = next()) {
+                while (true) : (tok = try next()) {
                     switch (tok) {
                         Textern => {
                             c.sym.type |= SExt;
@@ -659,7 +669,7 @@ fn parseref() Ref {
     return newcon(&c, curf);
 }
 
-fn findtyp(i_: i32) i32 {
+fn findtyp(i_: i32) Error!i32 {
     var i = i_;
     while (true) {
         i -= 1;
@@ -667,13 +677,13 @@ fn findtyp(i_: i32) i32 {
         if (streq(tokval.str, all.typ[@intCast(i)].name))
             return i;
     }
-    err("undefined type :{s}", .{cs(tokval.str)});
+    return fail("undefined type :{s}", .{cs(tokval.str)});
 }
 
-fn parsecls(tyn: *i32) i32 {
-    switch (next()) {
+fn parsecls(tyn: *i32) Error!i32 {
+    switch (try next()) {
         Ttyp => {
-            tyn.* = findtyp(@intCast(ntyp));
+            tyn.* = try findtyp(@intCast(ntyp));
             return Kc;
         },
         Tsb => return Ksb,
@@ -684,7 +694,7 @@ fn parsecls(tyn: *i32) i32 {
         Tl => return Cls.l.int(),
         Ts => return Cls.s.int(),
         Td => return Cls.d.int(),
-        else => err("invalid class specifier", .{}),
+        else => return fail("invalid class specifier", .{}),
     }
 }
 
@@ -692,7 +702,7 @@ inline fn mkins(op: Opc, k: anytype, to: Ref, a0: Ref, a1: Ref) Ins {
     return .{ .op = op, .cls = all.kof(k), .to = to, .arg = .{ a0, a1 } };
 }
 
-fn parserefl(arg: bool) bool {
+fn parserefl(arg: bool) Error!bool {
     var k: i32 = undefined;
     var ty: i32 = undefined;
     var env: bool = undefined;
@@ -700,45 +710,45 @@ fn parserefl(arg: bool) bool {
 
     var hasenv = false;
     var vararg = false;
-    expect(Tlparen);
-    while (peek() != Trparen) {
+    try expect(Tlparen);
+    while (try peek() != Trparen) {
         if (all.insbHead() >= NIns)
-            err("too many instructions", .{});
+            return fail("too many instructions", .{});
         if (!arg and vararg)
-            err("no parameters allowed after '...'", .{});
+            return fail("no parameters allowed after '...'", .{});
         var skip = false;
-        switch (peek()) {
+        switch (try peek()) {
             Tdots => {
                 if (vararg)
-                    err("only one '...' allowed", .{});
+                    return fail("only one '...' allowed", .{});
                 vararg = true;
                 if (arg) {
                     all.curi[0] = std.mem.zeroes(Ins);
                     all.curi[0].op = .argv;
                     all.curi += 1;
                 }
-                _ = next();
+                _ = try next();
                 skip = true; // goto Next
             },
             Tenv => {
                 if (hasenv)
-                    err("only one environment allowed", .{});
+                    return fail("only one environment allowed", .{});
                 hasenv = true;
                 env = true;
-                _ = next();
+                _ = try next();
                 k = Cls.l.int();
             },
             else => {
                 env = false;
-                k = parsecls(&ty);
+                k = try parsecls(&ty);
             },
         }
         if (!skip) {
-            r = parseref();
+            r = try parseref();
             if (req(r, R))
-                err("invalid argument", .{});
+                return fail("invalid argument", .{});
             if (!arg and rtype(r) != RTmp)
-                err("invalid function parameter", .{});
+                return fail("invalid function parameter", .{});
             if (env) {
                 if (arg)
                     all.curi[0] = mkins(.arge, k, R, r, R)
@@ -763,11 +773,11 @@ fn parserefl(arg: bool) bool {
             all.curi += 1;
         }
         // Next:
-        if (peek() == Trparen)
+        if (try peek() == Trparen)
             break;
-        expect(Tcomma);
+        try expect(Tcomma);
     }
-    expect(Trparen);
+    try expect(Trparen);
     return vararg;
 }
 
@@ -792,7 +802,7 @@ fn closeblk() void {
     all.curi = &all.insb;
 }
 
-fn parseline(ps: PState) PState {
+fn parseline(ps: PState) Error!PState {
     var arg: [NPred]Ref = @splat(R);
     var blk: [NPred]*Blk = undefined;
     var r: Ref = R;
@@ -801,17 +811,17 @@ fn parseline(ps: PState) PState {
     var k: i32 = 0;
     var ty: i32 = 0;
 
-    var t = nextnl();
+    var t = try nextnl();
     if (ps == PLbl and t != Tlbl and t != Trbrace)
-        err("label or }} expected", .{});
+        return fail("label or }} expected", .{});
     const Flow = enum { normal, jump, close, ins };
     var flow: Flow = .normal;
     switch (t) {
         Ttmp => {
             r = tmpref();
-            expect(Teq);
-            k = parsecls(&ty);
-            op = next();
+            try expect(Teq);
+            k = try parsecls(&ty);
+            op = try next();
         },
         Tblit, Tcall, all.ops.num(.vastart) => {
             // operations without result
@@ -828,21 +838,21 @@ fn parseline(ps: PState) PState {
                 curb.?.s1 = b;
             }
             if (b.jmp.type != .xxx)
-                err("multiple definitions of block @{s}", .{cs(b.name)});
+                return fail("multiple definitions of block @{s}", .{cs(b.name)});
             blink.* = b;
             curb = b;
             plink = &b.phi;
-            expect(Tnl);
+            try expect(Tnl);
             return PPhi;
         },
         Tret => {
             curb.?.jmp.type = J.retw.add(rcls);
-            if (peek() == Tnl)
+            if (try peek() == Tnl)
                 curb.?.jmp.type = .ret0
             else if (rcls != K0) {
-                r = parseref();
+                r = try parseref();
                 if (req(r, R))
-                    err("invalid return value", .{});
+                    return fail("invalid return value", .{});
                 curb.?.jmp.arg = r;
             }
             flow = .close;
@@ -853,11 +863,11 @@ fn parseline(ps: PState) PState {
         },
         Tjnz => {
             curb.?.jmp.type = .jnz;
-            r = parseref();
+            r = try parseref();
             if (req(r, R))
-                err("invalid argument for jnz jump", .{});
+                return fail("invalid argument for jnz jump", .{});
             curb.?.jmp.arg = r;
-            expect(Tcomma);
+            try expect(Tcomma);
             flow = .jump;
         },
         Thlt => {
@@ -868,16 +878,16 @@ fn parseline(ps: PState) PState {
             op = t;
             k = Cls.w.int();
             r = R;
-            expect(Tint);
+            try expect(Tint);
             arg[0] = intRef(tokval.num);
             if (arg[0].val != tokval.num)
-                err("line number too big", .{});
-            if (peek() == Tcomma) {
-                _ = next();
-                expect(Tint);
+                return fail("line number too big", .{});
+            if (try peek() == Tcomma) {
+                _ = try next();
+                try expect(Tint);
                 arg[1] = intRef(tokval.num);
                 if (arg[1].val != tokval.num)
-                    err("column number too big", .{});
+                    return fail("column number too big", .{});
             } else arg[1] = intRef(0);
             flow = .ins;
         },
@@ -886,32 +896,32 @@ fn parseline(ps: PState) PState {
                 r = R;
                 k = Cls.w.int();
                 op = t;
-            } else err("label, instruction or jump expected", .{});
+            } else return fail("label, instruction or jump expected", .{});
         },
     }
     if (flow == .jump) {
-        expect(Tlbl);
+        try expect(Tlbl);
         curb.?.s1 = findblk();
         if (curb.?.jmp.type != .jmp) {
-            expect(Tcomma);
-            expect(Tlbl);
+            try expect(Tcomma);
+            try expect(Tlbl);
             curb.?.s2 = findblk();
         }
         if (curb.?.s1 == curf.start or curb.?.s2 == curf.start)
-            err("invalid jump to the start block", .{});
+            return fail("invalid jump to the start block", .{});
         flow = .close;
     }
     if (flow == .close) {
-        expect(Tnl);
+        try expect(Tnl);
         closeblk();
         return PLbl;
     }
     if (flow == .normal and op == Tcall) {
         curf.leaf = 0;
-        arg[0] = parseref();
-        _ = parserefl(true);
+        arg[0] = try parseref();
+        _ = try parserefl(true);
         op = all.ops.num(.call);
-        expect(Tnl);
+        try expect(Tnl);
         if (k == Kc) {
             k = Cls.l.int();
             arg[1] = typeRef(ty);
@@ -928,34 +938,34 @@ fn parseline(ps: PState) PState {
         if (op == Talloc1 or op == Talloc2)
             op = all.ops.num(Opc.alloc_first);
         if (op == Opc.vastart.int() and curf.vararg == 0)
-            err("cannot use vastart in non-variadic function", .{});
+            return fail("cannot use vastart in non-variadic function", .{});
         if (k >= Ksb)
-            err("size class must be w, l, s, or d", .{});
+            return fail("size class must be w, l, s, or d", .{});
         i = 0;
-        if (peek() != Tnl)
+        if (try peek() != Tnl)
             while (true) {
                 if (i == NPred)
-                    err("too many arguments", .{});
+                    return fail("too many arguments", .{});
                 if (op == Tphi) {
-                    expect(Tlbl);
+                    try expect(Tlbl);
                     blk[i] = findblk();
                 }
-                arg[i] = parseref();
+                arg[i] = try parseref();
                 if (req(arg[i], R))
-                    err("invalid instruction argument", .{});
+                    return fail("invalid instruction argument", .{});
                 i += 1;
-                t = peek();
+                t = try peek();
                 if (t == Tnl)
                     break;
                 if (t != Tcomma)
-                    err(", or end of line expected", .{});
-                _ = next();
+                    return fail(", or end of line expected", .{});
+                _ = try next();
             };
-        _ = next();
+        _ = try next();
         switch (op) {
             Tphi => {
                 if (ps != PPhi or curb == curf.start)
-                    err("unexpected phi instruction", .{});
+                    return fail("unexpected phi instruction", .{});
                 const phi = pnew(Phi);
                 phi.to = r;
                 phi.cls = all.kof(k);
@@ -970,18 +980,18 @@ fn parseline(ps: PState) PState {
             },
             Tblit => {
                 if (all.insbHead() >= NIns - 1)
-                    err("too many instructions", .{});
+                    return fail("too many instructions", .{});
                 @memset(all.curi[0..2], std.mem.zeroes(Ins));
                 all.curi[0].op = .blit0;
                 all.curi[0].arg[0] = arg[0];
                 all.curi[0].arg[1] = arg[1];
                 all.curi += 1;
                 if (rtype(arg[2]) != RCon)
-                    err("blit size must be constant", .{});
+                    return fail("blit size must be constant", .{});
                 const c = &curf.con[arg[2].val];
                 r = intRef(c.bits.i);
                 if (c.type != CBits or rsval(r) < 0 or rsval(r) != c.bits.i)
-                    err("invalid blit size", .{});
+                    return fail("invalid blit size", .{});
                 all.curi[0].op = .blit1;
                 all.curi[0].arg[0] = r;
                 all.curi += 1;
@@ -989,13 +999,13 @@ fn parseline(ps: PState) PState {
             },
             else => {
                 if (op >= NPubOp)
-                    err("invalid instruction", .{});
+                    return fail("invalid instruction", .{});
             },
         }
     }
     // Ins:
     if (all.insbHead() >= NIns)
-        err("too many instructions", .{});
+        return fail("too many instructions", .{});
     all.curi[0].op = all.ops.of(op);
     all.curi[0].cls = all.kof(k);
     all.curi[0].to = r;
@@ -1009,7 +1019,7 @@ fn usecheck(r: Ref, k: i32, f: *Fn) bool {
     return rtype(r) != RTmp or f.tmp[r.val].cls.int() == k or (f.tmp[r.val].cls == .l and k == Cls.w.int());
 }
 
-fn typecheck(f: *Fn) void {
+fn typecheck(f: *Fn) Error!void {
     var pb: BSet = undefined;
     var ppb: BSet = undefined;
     var k: i32 = undefined;
@@ -1028,7 +1038,7 @@ fn typecheck(f: *Fn) void {
             if (rtype(i.to) == RTmp) {
                 t = &f.tmp[i.to.val];
                 if (clsmerge(&t.?.cls, i.cls))
-                    err("temporary %{s} is assigned with multiple types", .{cs(t.?.name)});
+                    return fail("temporary %{s} is assigned with multiple types", .{cs(t.?.name)});
             };
     }
     b_it = f.start;
@@ -1045,13 +1055,13 @@ fn typecheck(f: *Fn) void {
             while (n < p.narg) : (n += 1) {
                 k = t.?.cls.int();
                 if (bshas(&ppb, p.blk[n].id))
-                    err("multiple entries for @{s} in phi %{s}", .{cs(p.blk[n].name), cs(t.?.name)});
+                    return fail("multiple entries for @{s} in phi %{s}", .{cs(p.blk[n].name), cs(t.?.name)});
                 if (!usecheck(p.arg[n], k, f))
-                    err("invalid type for operand %{s} in phi %{s}", .{cs(f.tmp[p.arg[n].val].name), cs(t.?.name)});
+                    return fail("invalid type for operand %{s} in phi %{s}", .{cs(f.tmp[p.arg[n].val].name), cs(t.?.name)});
                 bsset(&ppb, p.blk[n].id);
             }
             if (!bsequal(&pb, &ppb))
-                err("predecessors not matched in phi %{s}", .{cs(t.?.name)});
+                return fail("predecessors not matched in phi %{s}", .{cs(t.?.name)});
         }
         for (b.insns()) |*i| {
             n = 0;
@@ -1061,15 +1071,15 @@ fn typecheck(f: *Fn) void {
                 t = &f.tmp[r.val];
                 const which: []const u8 = if (n == 1) "second" else "first";
                 if (k == Ke)
-                    err("invalid instruction type in {s}", .{cs(all.optab[i.op.int()].name)});
+                    return fail("invalid instruction type in {s}", .{cs(all.optab[i.op.int()].name)});
                 if (rtype(r) == RType)
                     continue;
                 if (rtype(r) != -1 and k == Cls.x.int())
-                    err("no {s} operand expected in {s}", .{which, cs(all.optab[i.op.int()].name)});
+                    return fail("no {s} operand expected in {s}", .{which, cs(all.optab[i.op.int()].name)});
                 if (rtype(r) == -1 and k != Cls.x.int())
-                    err("missing {s} operand in {s}", .{which, cs(all.optab[i.op.int()].name)});
+                    return fail("missing {s} operand in {s}", .{which, cs(all.optab[i.op.int()].name)});
                 if (!usecheck(r, k, f))
-                    err("invalid type for {s} operand %{s} in {s}", .{which, cs(t.?.name), cs(all.optab[i.op.int()].name)});
+                    return fail("invalid type for {s} operand %{s} in {s}", .{which, cs(t.?.name), cs(all.optab[i.op.int()].name)});
             }
         }
         r = b.jmp.arg;
@@ -1085,15 +1095,15 @@ fn typecheck(f: *Fn) void {
                 jerr = true;
         }
         if (jerr or (b.jmp.type == .jnz and !usecheck(r, Cls.w.int(), f)))
-            err("invalid type for jump argument %{s} in block @{s}", .{cs(f.tmp[r.val].name), cs(b.name)});
+            return fail("invalid type for jump argument %{s} in block @{s}", .{cs(f.tmp[r.val].name), cs(b.name)});
         if (b.s1 != null and b.s1.?.jmp.type == .xxx)
-            err("block @{s} is used undefined", .{cs(b.s1.?.name)});
+            return fail("block @{s} is used undefined", .{cs(b.s1.?.name)});
         if (b.s2 != null and b.s2.?.jmp.type == .xxx)
-            err("block @{s} is used undefined", .{cs(b.s2.?.name)});
+            return fail("block @{s} is used undefined", .{cs(b.s2.?.name)});
     }
 }
 
-fn parsefn(lnk: *Lnk) *Fn {
+fn parsefn(lnk: *Lnk) Error!*Fn {
     var ps: PState = undefined;
 
     curb = null;
@@ -1118,25 +1128,25 @@ fn parsefn(lnk: *Lnk) *Fn {
     curf.leaf = 1;
     blink = &curf.start;
     curf.retty = Cls.x.int();
-    if (peek() != Tglo)
-        rcls = parsecls(&curf.retty)
+    if (try peek() != Tglo)
+        rcls = try parsecls(&curf.retty)
     else
         rcls = K0;
-    if (next() != Tglo)
-        err("function name expected", .{});
+    if (try next() != Tglo)
+        return fail("function name expected", .{});
     curf.name = strf(PFn, "{s}", .{cs(tokval.str)});
-    curf.vararg = @intFromBool(parserefl(false));
-    if (nextnl() != Tlbrace)
-        err("function body must start with {{", .{});
+    curf.vararg = @intFromBool(try parserefl(false));
+    if (try nextnl() != Tlbrace)
+        return fail("function body must start with {{", .{});
     ps = PLbl;
     while (true) {
-        ps = parseline(ps);
+        ps = try parseline(ps);
         if (ps == PEnd) break;
     }
     if (curb == null)
-        err("empty function", .{});
+        return fail("empty function", .{});
     if (curb.?.jmp.type == .xxx)
-        err("last block misses jump", .{});
+        return fail("last block misses jump", .{});
     curf.mem = vnewT(Mem, 0, PFn);
     curf.nmem = 0;
     curf.nblk = @intCast(nblk);
@@ -1146,11 +1156,11 @@ fn parsefn(lnk: *Lnk) *Fn {
         b.dlink = null; // was trashed by findblk()
     blkh = @splat(null);
     if (tmphcap != 0) @memset(tmph[0..@intCast(tmphcap)], 0);
-    typecheck(curf);
+    try typecheck(curf);
     return curf;
 }
 
-fn parsefields(fld: *[NField + 1]Field, ty: *Typ, t_: i32) void {
+fn parsefields(fld: *[NField + 1]Field, ty: *Typ, t_: i32) Error!void {
     var t = t_;
     var ty1: usize = undefined; // index of the member type
     var c: i32 = undefined;
@@ -1195,11 +1205,11 @@ fn parsefields(fld: *[NField + 1]Field, ty: *Typ, t_: i32) void {
             },
             Ttyp => {
                 @"type" = FTyp;
-                ty1 = @intCast(findtyp(@as(i32, @intCast(ntyp)) - 1));
+                ty1 = @intCast(try findtyp(@as(i32, @intCast(ntyp)) - 1));
                 s = all.typ[ty1].size;
                 a = all.typ[ty1].@"align";
             },
-            else => err("invalid type member specifier", .{}),
+            else => return fail("invalid type member specifier", .{}),
         }
         if (a > al)
             al = a;
@@ -1214,10 +1224,10 @@ fn parsefields(fld: *[NField + 1]Field, ty: *Typ, t_: i32) void {
                 n += 1;
             }
         }
-        t = nextnl();
+        t = try nextnl();
         if (t == Tint) {
             c = @truncate(tokval.num);
-            t = nextnl();
+            t = try nextnl();
         } else c = 1;
         sz +%= @as(u64, @bitCast(@as(i64, a))) +% @as(u64, @bitCast(@as(i64, c))) *% s;
         if (@"type" == FTyp)
@@ -1231,10 +1241,10 @@ fn parsefields(fld: *[NField + 1]Field, ty: *Typ, t_: i32) void {
         }
         if (t != Tcomma)
             break;
-        t = nextnl();
+        t = try nextnl();
     }
     if (t != Trbrace)
-        err(", or }} expected", .{});
+        return fail(", or }} expected", .{});
     fld[n].type = FEnd;
     // C: `1 << al` with al == -1 for an empty type; match x86 shift masking
     a = @as(i32, 1) << @as(u5, @truncate(@as(u32, @bitCast(al))));
@@ -1245,7 +1255,7 @@ fn parsefields(fld: *[NField + 1]Field, ty: *Typ, t_: i32) void {
     ty.@"align" = al;
 }
 
-fn parsetyp() void {
+fn parsetyp() Error!void {
     var t: i32 = undefined;
     var al: i32 = undefined;
 
@@ -1259,31 +1269,31 @@ fn parsetyp() void {
     ty.isunion = 0;
     ty.@"align" = -1;
     ty.size = 0;
-    if (nextnl() != Ttyp or nextnl() != Teq)
-        err("type name and then = expected", .{});
+    if (try nextnl() != Ttyp or try nextnl() != Teq)
+        return fail("type name and then = expected", .{});
     ty.name = strf(PHeap, "{s}", .{cs(tokval.str)});
-    t = nextnl();
+    t = try nextnl();
     if (t == Talign) {
-        if (nextnl() != Tint)
-            err("alignment expected", .{});
+        if (try nextnl() != Tint)
+            return fail("alignment expected", .{});
         al = 0;
         while (true) : (al += 1) {
             tokval.num = @divTrunc(tokval.num, 2);
             if (tokval.num == 0) break;
         }
         ty.@"align" = al;
-        t = nextnl();
+        t = try nextnl();
     }
     if (t != Tlbrace)
-        err("type body must start with {{", .{});
-    t = nextnl();
+        return fail("type body must start with {{", .{});
+    t = try nextnl();
     if (t == Tint) {
         ty.isdark = 1;
         ty.size = @bitCast(tokval.num);
         if (ty.@"align" == -1)
-            err("dark types need alignment", .{});
-        if (nextnl() != Trbrace)
-            err("}} expected", .{});
+            return fail("dark types need alignment", .{});
+        if (try nextnl() != Trbrace)
+            return fail("}} expected", .{});
         return;
     }
     var n: uint = 0;
@@ -1292,29 +1302,29 @@ fn parsetyp() void {
         ty.isunion = 1;
         while (true) {
             if (t != Tlbrace)
-                err("invalid union member", .{});
+                return fail("invalid union member", .{});
             vgrow(&ty.fields, n + 1);
-            parsefields(&ty.fields[n], ty, nextnl());
+            try parsefields(&ty.fields[n], ty, try nextnl());
             n += 1;
-            t = nextnl();
+            t = try nextnl();
             if (t == Trbrace) break;
         }
     } else {
-        parsefields(&ty.fields[n], ty, t);
+        try parsefields(&ty.fields[n], ty, t);
         n += 1;
     }
     ty.nunion = n;
 }
 
-fn parsedatref(d: *Dat) void {
+fn parsedatref(d: *Dat) Error!void {
     d.isref = 1;
     d.u.ref.name = strf(PFn, "{s}", .{cs(tokval.str)});
     d.u.ref.off = 0;
-    const t = peek();
+    const t = try peek();
     if (t == Tplus) {
-        _ = next();
-        if (next() != Tint)
-            err("invalid token after offset in ref", .{});
+        _ = try next();
+        if (try next() != Tint)
+            return fail("invalid token after offset in ref", .{});
         d.u.ref.off = tokval.num;
     }
 }
@@ -1324,22 +1334,22 @@ fn parsedatstr(d: *Dat) void {
     d.u.str = strf(PFn, "{s}", .{cs(tokval.str)});
 }
 
-fn parsedat(cb: *const fn (*Dat) void, lnk: ?*Lnk) void {
+fn parsedat(cb: *const fn (*Dat) void, lnk: ?*Lnk) Error!void {
     var t: i32 = undefined;
     var d: Dat = undefined;
 
-    if (nextnl() != Tglo or nextnl() != Teq)
-        err("data name, then = expected", .{});
+    if (try nextnl() != Tglo or try nextnl() != Teq)
+        return fail("data name, then = expected", .{});
     const name = strf(PFn, "{s}", .{cs(tokval.str)});
-    t = nextnl();
+    t = try nextnl();
     lnk.?.@"align" = 8;
     if (t == Talign) {
-        if (nextnl() != Tint)
-            err("alignment expected", .{});
+        if (try nextnl() != Tint)
+            return fail("alignment expected", .{});
         if (tokval.num <= 0 or tokval.num > 127 or (tokval.num & (tokval.num - 1)) != 0)
-            err("invalid alignment", .{});
+            return fail("invalid alignment", .{});
         lnk.?.@"align" = @intCast(tokval.num);
-        t = nextnl();
+        t = try nextnl();
     }
     d.type = DStart;
     d.name = name;
@@ -1347,9 +1357,9 @@ fn parsedat(cb: *const fn (*Dat) void, lnk: ?*Lnk) void {
     cb(&d);
 
     if (t != Tlbrace)
-        err("expected data contents in {{ .. }}", .{});
+        return fail("expected data contents in {{ .. }}", .{});
     outer: while (true) {
-        switch (nextnl()) {
+        switch (try nextnl()) {
             Trbrace => break :outer,
             Tl => d.type = DL,
             Tw => d.type = DW,
@@ -1358,9 +1368,9 @@ fn parsedat(cb: *const fn (*Dat) void, lnk: ?*Lnk) void {
             Ts => d.type = DW,
             Td => d.type = DL,
             Tz => d.type = DZ,
-            else => err("invalid size specifier {c} in data", .{tokval.chr}),
+            else => return fail("invalid size specifier {c} in data", .{tokval.chr}),
         }
-        t = nextnl();
+        t = try nextnl();
         while (true) {
             d.isstr = 0;
             d.isref = 0;
@@ -1372,56 +1382,56 @@ fn parsedat(cb: *const fn (*Dat) void, lnk: ?*Lnk) void {
             else if (t == Tint)
                 d.u.num = tokval.num
             else if (t == Tglo)
-                parsedatref(&d)
+                try parsedatref(&d)
             else if (t == Tstr)
                 parsedatstr(&d)
             else
-                err("constant literal expected", .{});
+                return fail("constant literal expected", .{});
             cb(&d);
-            t = nextnl();
+            t = try nextnl();
             if (!(t == Tint or t == Tflts or t == Tfltd or t == Tstr or t == Tglo)) break;
         }
         if (t == Trbrace)
             break;
         if (t != Tcomma)
-            err(", or }} expected", .{});
+            return fail(", or }} expected", .{});
     }
     // Done:
     d.type = DEnd;
     cb(&d);
 }
 
-fn parselnk(lnk: *Lnk) i32 {
+fn parselnk(lnk: *Lnk) Error!i32 {
     var haslnk = false;
     while (true) : (haslnk = true) {
-        const t = nextnl();
+        const t = try nextnl();
         switch (t) {
             Texport => lnk.@"export" = 1,
             Tthread => lnk.thread = 1,
             Tcommon => lnk.common = 1,
             Tsection => {
                 if (lnk.sec != null)
-                    err("only one section allowed", .{});
-                if (next() != Tstr)
-                    err("section \"name\" expected", .{});
+                    return fail("only one section allowed", .{});
+                if (try next() != Tstr)
+                    return fail("section \"name\" expected", .{});
                 lnk.sec = strf(PFn, "{s}", .{cs(tokval.str)});
-                if (peek() == Tstr) {
-                    _ = next();
+                if (try peek() == Tstr) {
+                    _ = try next();
                     lnk.secf = strf(PFn, "{s}", .{cs(tokval.str)});
                 }
             },
             else => {
                 if (t == Tfunc and lnk.thread != 0)
-                    err("only data may have thread linkage", .{});
+                    return fail("only data may have thread linkage", .{});
                 if (haslnk and t != Tdata and t != Tfunc)
-                    err("only data and function have linkage", .{});
+                    return fail("only data and function have linkage", .{});
                 return t;
             },
         }
     }
 }
 
-pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*:0]const u8) void, data: *const fn (*Dat) void, func: *const fn (*Fn) void) void {
+pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*:0]const u8) void, data: *const fn (*Dat) void, func: *const fn (*Fn) void) Error!void {
     var lnk: Lnk = undefined;
 
     lexinit();
@@ -1435,17 +1445,17 @@ pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*:0]const 
     tokval.str = @ptrCast(vnewT(u8, 128, PHeap));
     while (true) {
         lnk = std.mem.zeroes(Lnk);
-        switch (parselnk(&lnk)) {
+        switch (try parselnk(&lnk)) {
             Tdbgfile => {
-                expect(Tstr);
+                try expect(Tstr);
                 dbgfile(tokval.str);
             },
             Tfunc => {
                 lnk.@"align" = 16;
-                func(parsefn(&lnk));
+                func(try parsefn(&lnk));
             },
-            Tdata => parsedat(data, &lnk),
-            Ttype => parsetyp(),
+            Tdata => try parsedat(data, &lnk),
+            Ttype => try parsetyp(),
             Teof => {
                 for (0..ntyp) |n| {
                     efree((all.typ[n].name));
@@ -1455,7 +1465,7 @@ pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*:0]const 
                 vfree(all.typ);
                 return;
             },
-            else => err("top-level definition expected", .{}),
+            else => return fail("top-level definition expected", .{}),
         }
     }
 }

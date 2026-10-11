@@ -24,7 +24,7 @@ pub const Options = struct {
     name: []const u8 = "<input>",
 };
 
-pub const Error = error{ UnknownTarget, WriteFailed };
+pub const Error = error{ UnknownTarget, WriteFailed, Parse };
 
 var inited = false;
 var names: [8][]const u8 = undefined;
@@ -70,14 +70,15 @@ pub fn compile(text: []const u8, opts: Options, out: *Writer) Error!void {
     const ls = std.debug.lockStderr(&ebuf);
     defer std.debug.unlockStderr();
     all.dbg = &ls.file_writer.interface;
-    all.parse(text, opts.name, &drv.dbgfile, &drv.data, &drv.func);
+    try all.parse(text, opts.name, &drv.dbgfile, &drv.data, &drv.func);
     all.T.emitfin(out) catch return error.WriteFailed;
 }
 
 // ---- C ABI ----
 
 /// Returns 0 and a malloc'ed, NUL-terminated buffer in *out (length in
-/// *outlen, may be null) on success; 1 = unknown target, 2 = out of memory.
+/// *outlen, may be null) on success; 1 = unknown target, 2 = out of memory,
+/// 3 = invalid input (the message is printed to stderr).
 export fn qbe_compile(text: [*]const u8, len: usize, target: ?[*:0]const u8, opt: c_int, out: *?[*:0]u8, outlen: ?*usize) c_int {
     var aw: Writer.Allocating = .init(std.heap.c_allocator);
     defer aw.deinit();
@@ -87,6 +88,7 @@ export fn qbe_compile(text: [*]const u8, len: usize, target: ?[*:0]const u8, opt
     }, &aw.writer) catch |e| return switch (e) {
         error.UnknownTarget => 1,
         error.WriteFailed => 2,
+        error.Parse => 3,
     };
     const s = aw.toOwnedSliceSentinel(0) catch return 2;
     out.* = s.ptr;

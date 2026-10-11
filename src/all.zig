@@ -231,6 +231,8 @@ pub inline fn isxsel(o: Opc) bool {
 
 /// Value class of a temporary or instruction result (C: Kw/Kl/Ks/Kd).
 pub const Cls = enum(i16) {
+    /// "erroneous" class from the op table (C: Ke); never a real value class
+    e = -2,
     /// "top" class (see usecheck() and clsmerge())
     x = -1,
     w = 0,

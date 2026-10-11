@@ -59,6 +59,9 @@
   class fields use `i.cls.int()` instead of `knum(i.cls)`.
 - `emit`, `newtmp` and `mkIns` take a `Cls` instead of `anytype`. Literal `0`
   classes are `.w`; callers that still hold integer classes convert with `kof`.
+- amd64 `fixarg`, `selcmp` and `sel` keep classes as `Cls`. `Cls` gains `e = -2`
+  (C: `Ke`), the erroneous class the op table uses for invalid operand classes,
+  so converting an `argcls` result can no longer panic.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit

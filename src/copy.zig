@@ -146,6 +146,7 @@ fn dwl(f: *Fn, r: Ref, w_: i32) bool {
     var e: Ext = undefined;
     var v: i64 = undefined;
     var x: i32 = undefined;
+    var xk: Cls = undefined;
 
     if (isconbits(f, r, &v) and bitwidth(@bitCast(v)) <= w)
         return true;
@@ -189,7 +190,7 @@ fn dwl(f: *Fn, r: Ref, w_: i32) bool {
             };
         return dwl(f, i.arg[0], w);
     }
-    if (iscmp(i.op, &x, &x))
+    if (iscmp(i.op, &xk, &x))
         return w >= 1;
     if (i.op == .@"and") {
         if (dwl(f, i.arg[0], w) or dwl(f, i.arg[1], w))

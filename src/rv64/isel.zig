@@ -83,7 +83,7 @@ fn immarg(r: *Ref, op: Opc, i: ?*Ins) bool {
     return rv64_op[op.int()].imm != 0 and r == &ii.arg[1];
 }
 
-fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
+fn fixarg(r: *Ref, k: Cls, i: ?*Ins, f: *Fn) void {
     var buf: [32]u8 = undefined;
 
     const r0 = r.*;
@@ -97,7 +97,7 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
             if (clsBase(k) == 0 and c.type == CBits and immarg(r, op, i) and
                 -2048 <= c.bits.i and c.bits.i < 2048)
                 break :blk;
-            r1 = newtmp("isel", all.kof(k), f);
+            r1 = newtmp("isel", k, f);
             if (clsBase(k) == 1) {
                 // load floating points from memory
                 // slots, they can't be used as
@@ -112,10 +112,10 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
                 c.* = std.mem.zeroes(Con);
                 c.type = CAddr;
                 c.sym.id = intern(@ptrCast(&buf));
-                emit(.load, all.kof(k), r1, conRef(ci), R);
+                emit(.load, k, r1, conRef(ci), R);
                 break :blk;
             }
-            emit(.copy, all.kof(k), r1, r0, R);
+            emit(.copy, k, r1, r0, R);
         },
         RTmp => blk: {
             if (isreg(r0))
@@ -129,17 +129,17 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
                     r1 = slotRef(s);
                     break :blk;
                 }
-                r1 = newtmp("isel", all.kof(k), f);
-                emit(.addr, all.kof(k), r1, slotRef(s), R);
+                r1 = newtmp("isel", k, f);
+                emit(.addr, k, r1, slotRef(s), R);
                 break :blk;
             }
-            if (k == Cls.w.int() and f.tmp[r0.val].cls == .l) {
+            if (k == .w and f.tmp[r0.val].cls == .l) {
                 // TODO: this sign extension isn't needed
                 // for 32-bit arithmetic instructions
-                r1 = newtmp("isel", all.kof(k), f);
+                r1 = newtmp("isel", k, f);
                 emit(.extsw, .l, r1, r0, R);
             } else {
-                assert(k == f.tmp[r0.val].cls.int());
+                assert(k == f.tmp[r0.val].cls);
             }
         },
         else => {},
@@ -153,13 +153,13 @@ fn negate(pr: *Ref, f: *Fn) void {
     pr.* = r;
 }
 
-fn fixcmp(k: i32, f: *Fn) void {
+fn fixcmp(k: Cls, f: *Fn) void {
     const icmp = &all.curi[0];
     fixarg(&icmp.arg[0], k, icmp, f);
     fixarg(&icmp.arg[1], k, icmp, f);
 }
 
-fn selcmp(i_: Ins, k: i32, op_: i32, f: *Fn) void {
+fn selcmp(i_: Ins, k: Cls, op_: i32, f: *Fn) void {
     var i = i_;
     const op = op_;
     var sign = false;
@@ -168,16 +168,16 @@ fn selcmp(i_: Ins, k: i32, op_: i32, f: *Fn) void {
 
     switch (op) {
         Cieq => {
-            const r = newtmp("isel", all.kof(k), f);
+            const r = newtmp("isel", k, f);
             emit(.reqz, i.cls, i.to, r, R);
-            emit(.xor, all.kof(k), r, i.arg[0], i.arg[1]);
+            emit(.xor, k, r, i.arg[0], i.arg[1]);
             fixcmp(k, f);
             return;
         },
         Cine => {
-            const r = newtmp("isel", all.kof(k), f);
+            const r = newtmp("isel", k, f);
             emit(.rnez, i.cls, i.to, r, R);
-            emit(.xor, all.kof(k), r, i.arg[0], i.arg[1]);
+            emit(.xor, k, r, i.arg[0], i.arg[1]);
             fixcmp(k, f);
             return;
         },
@@ -228,13 +228,13 @@ fn selcmp(i_: Ins, k: i32, op_: i32, f: *Fn) void {
 
 fn sel(i_: Ins, f: *Fn) void {
     var i = i_;
-    var ck: i32 = undefined;
+    var ck: Cls = undefined;
     var cc: i32 = undefined;
 
     if (inRange(i.op, Opc.alloc_first, Opc.alloc_last)) {
         const i_0 = &(all.curi - 1)[0];
         salloc(i.to, i.arg[0], f);
-        fixarg(&i_0.arg[0], Cls.l.int(), i_0, f);
+        fixarg(&i_0.arg[0], .l, i_0, f);
         return;
     }
     if (iscmp(i.op, &ck, &cc)) {
@@ -254,15 +254,15 @@ fn sel(i_: Ins, f: *Fn) void {
     if (i.op != .nop) {
         emiti(i);
         const i_0 = &all.curi[0]; // fixarg() can change curi
-        fixarg(&i_0.arg[0], argcls(&i, 0), i_0, f);
-        fixarg(&i_0.arg[1], argcls(&i, 1), i_0, f);
+        fixarg(&i_0.arg[0], all.kof(argcls(&i, 0)), i_0, f);
+        fixarg(&i_0.arg[1], all.kof(argcls(&i, 1)), i_0, f);
     }
 }
 
 fn seljmp(b: *Blk, f: *Fn) void {
     // TODO: replace cmp+jnz with beq/bne/blt[u]/bge[u]
     if (b.jmp.type == .jnz)
-        fixarg(&b.jmp.arg, Cls.w.int(), null, f);
+        fixarg(&b.jmp.arg, .w, null, f);
 }
 
 pub fn rv64_isel(f: *Fn) void {
@@ -304,7 +304,7 @@ pub fn rv64_isel(f: *Fn) void {
                 var a: uint = 0;
                 while (p.blk[a] != b) : (a += 1)
                     assert(a + 1 < p.narg);
-                fixarg(&p.arg[a], p.cls.int(), null, f);
+                fixarg(&p.arg[a], p.cls, null, f);
             }
         }
         seljmp(b, f);

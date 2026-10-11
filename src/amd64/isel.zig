@@ -491,9 +491,7 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) void {
                 seladdr(&i.arg[0], tn.?, f);
                 continue :sw .copy; // goto Emit
             }
-            var kn: i32 = undefined;
-            if (iscmp(i.op, &kn, &x)) {
-                kc = all.kof(kn);
+            if (iscmp(i.op, &kc, &x)) {
                 switch (x) {
                     NCmpI + Cfeq => {
                         // zf is set when operands are
@@ -570,7 +568,7 @@ fn selsel(f: *Fn, b: *Blk, n1: uint, tn: [*]Num) uint {
     var gencmp = false;
     var gencpy = false;
     var swap = false;
-    var k: i32 = Cls.w.int();
+    var k: Cls = .w;
     var c: i32 = Cine;
     var other = false;
     if (fi_ == null or !req(fi_.?.to, r)) {
@@ -630,7 +628,7 @@ fn selsel(f: *Fn, b: *Blk, n1: uint, tn: [*]Num) uint {
     }
     assert(!gencmp or !gencpy);
     if (gencmp)
-        selcmp(&cr, all.kof(k), swap, f);
+        selcmp(&cr, k, swap, f);
     if (gencpy)
         emit(.copy, .w, R, r, R);
     isel0.* = insOp(.nop);
@@ -638,7 +636,7 @@ fn selsel(f: *Fn, b: *Blk, n1: uint, tn: [*]Num) uint {
 }
 
 fn seljmp(b: *Blk, f: *Fn) void {
-    var k: i32 = undefined;
+    var k: Cls = undefined;
     var c: i32 = undefined;
 
     if (b.jmp.type == .ret0 or
@@ -672,7 +670,7 @@ fn seljmp(b: *Blk, f: *Fn) void {
         if (swap)
             c = cmpop(c);
         if (t.nuse == 1) {
-            selcmp(&fi.arg, all.kof(k), swap, f);
+            selcmp(&fi.arg, k, swap, f);
             fi.* = insOp(.nop);
         }
         b.jmp.type = J.jf_first.add(c);

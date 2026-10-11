@@ -306,12 +306,13 @@ fn schedblk(f: *Fn) void {
 
 fn cheap(i: *Ins) bool {
     var x: i32 = undefined;
+    var xk: all.Cls = undefined;
 
     if (clsBase(i.cls) != 0)
         return false;
     return switch (i.op) {
         .neg, .add, .sub, .mul, .@"and", .@"or", .xor, .sar, .shr, .shl => true,
-        else => iscmp(i.op, &x, &x),
+        else => iscmp(i.op, &xk, &x),
     };
 }
 

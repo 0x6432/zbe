@@ -417,19 +417,19 @@ pub fn isreg(r: Ref) bool {
     return rtype(r) == RTmp and r.val < Tmp0;
 }
 
-pub fn iscmp(op: Opc, pk: *i32, pc: *i32) bool {
+pub fn iscmp(op: Opc, pk: *Cls, pc: *i32) bool {
     if (op.within(Opc.cmpw_first, Opc.cmpw_last)) {
         pc.* = op.diff(Opc.cmpw_first);
-        pk.* = Cls.w.int();
+        pk.* = .w;
     } else if (op.within(Opc.cmpl_first, Opc.cmpl_last)) {
         pc.* = op.diff(Opc.cmpl_first);
-        pk.* = Cls.l.int();
+        pk.* = .l;
     } else if (op.within(Opc.cmps_first, Opc.cmps_last)) {
         pc.* = NCmpI + op.diff(Opc.cmps_first);
-        pk.* = Cls.s.int();
+        pk.* = .s;
     } else if (op.within(Opc.cmpd_first, Opc.cmpd_last)) {
         pc.* = NCmpI + op.diff(Opc.cmpd_first);
-        pk.* = Cls.d.int();
+        pk.* = .d;
     } else return false;
     return true;
 }

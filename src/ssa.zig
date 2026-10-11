@@ -87,6 +87,7 @@ pub fn filluse(f: *Fn) void {
     var tp: i32 = undefined;
     var w: i32 = undefined;
     var x: i32 = undefined;
+    var xk: Cls = undefined;
 
     const tmp = f.tmp;
     t = Tmp0;
@@ -131,7 +132,7 @@ pub fn filluse(f: *Fn) void {
                     w = @intCast(Wsb + i.op.diff(.loadsb));
                 if (isext(i.op))
                     w = @intCast(Wsb + i.op.diff(.extsb));
-                if (iscmp(i.op, &x, &x))
+                if (iscmp(i.op, &xk, &x))
                     w = Wub;
                 if (w == Wsw or w == Wuw)
                     if (i.cls == .w) {

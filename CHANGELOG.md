@@ -62,6 +62,8 @@
 - amd64 `fixarg`, `selcmp` and `sel` keep classes as `Cls`. `Cls` gains `e = -2`
   (C: `Ke`), the erroneous class the op table uses for invalid operand classes,
   so converting an `argcls` result can no longer panic.
+- `iscmp` reports the comparison class as a `Cls`. The arm64 and rv64 `fixarg`,
+  `selcmp`, `imm` and `fixcmp` helpers take a `Cls`, like amd64.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit

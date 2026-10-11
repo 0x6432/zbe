@@ -32,6 +32,7 @@ const cint = all.cint;
 const cs = all.cs;
 const dprint = all.dprint;
 const ealloc = all.ealloc;
+const eallocSlice = all.eallocSlice;
 const efree = all.efree;
 const err = all.err;
 const getalias = all.getalias;
@@ -268,7 +269,7 @@ pub fn coalesce(f: *Fn) void {
     loopiter(f, maxrpo);
     var nbl: usize = 0;
     var bl = vnewT([*]Ins, 0, PHeap);
-    const br = ealloc(Range, f.nblk)[0..f.nblk];
+    const br = eallocSlice(Range, f.nblk);
     var ip: i32 = std.math.maxInt(c_int) - 1;
     var bn = f.nblk;
     while (bn > 0) {

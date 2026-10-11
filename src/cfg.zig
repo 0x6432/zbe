@@ -13,6 +13,7 @@ const addbins = all.addbins;
 const addins = all.addins;
 const dprint = all.dprint;
 const ealloc = all.ealloc;
+const eallocSlice = all.eallocSlice;
 const efree = all.efree;
 const phiarg = all.phiarg;
 const phiargn = all.phiargn;
@@ -295,7 +296,7 @@ pub fn simpljmp(f: *Fn) void {
     ret.id = f.nblk;
     f.nblk += 1;
     ret.jmp.type = .ret0;
-    const uf = ealloc(?*Blk, f.nblk)[0..f.nblk]; // union-find
+    const uf = eallocSlice(?*Blk, f.nblk); // union-find
     var b_it = f.start;
     while (b_it) |b| : (b_it = b.link) {
         assert(b.phi == null);
@@ -439,8 +440,8 @@ pub fn simplcfg(f: *Fn) void {
             b.phi = null;
         };
 
-    const jmp = ealloc(Jmp, f.nblk)[0..f.nblk];
-    const empty = ealloc(bool, f.nblk)[0..f.nblk];
+    const jmp = eallocSlice(Jmp, f.nblk);
+    const empty = eallocSlice(bool, f.nblk);
     b_it = f.start;
     while (b_it) |b| : (b_it = b.link) {
         jmp[b.id] = .{ .type = b.jmp.type, .arg = b.jmp.arg, .s1 = b.s1, .s2 = b.s2 };

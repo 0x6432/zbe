@@ -32,6 +32,7 @@ const die = all.die;
 const dom = all.dom;
 const dprint = all.dprint;
 const ealloc = all.ealloc;
+const eallocSlice = all.eallocSlice;
 const efree = all.efree;
 const fillcfg = all.fillcfg;
 const fillloop = all.fillloop;
@@ -371,7 +372,7 @@ fn dedupjmp(f: *Fn, b: *Blk) void {
 }
 
 fn rebuildcfg(f: *Fn) void {
-    const rpo = ealloc(*Blk, f.nblk)[0..f.nblk];
+    const rpo = eallocSlice(*Blk, f.nblk);
     @memcpy(rpo, f.blks());
 
     fillcfg(f);
@@ -422,7 +423,7 @@ pub fn gvn(f: *Fn) void {
     }
 
     const n = nins + nins / 2;
-    gvntbl = ealloc(?*Ins, n)[0..n];
+    gvntbl = eallocSlice(?*Ins, n);
     @memset(gvntbl, null);
     for (f.blks()) |b| {
         dedupphi(f, b);

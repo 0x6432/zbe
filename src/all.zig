@@ -610,6 +610,7 @@ pub const palloc = util.palloc;
 pub const pnew = util.pnew;
 pub const enew = util.enew;
 pub const ealloc = util.ealloc;
+pub const eallocSlice = util.eallocSlice;
 pub const cfloat = util.cfloat;
 pub const cint = util.cint;
 pub const bufPrintZ = util.bufPrintZ;

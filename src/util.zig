@@ -289,6 +289,11 @@ pub fn ealloc(comptime T: type, n: anytype) [*]T {
     return @ptrCast(@alignCast(emalloc(@as(usize, @intCast(n)) * @sizeOf(T))));
 }
 
+/// zeroed slice of n T from the heap (release with efree(s.ptr))
+pub fn eallocSlice(comptime T: type, n: anytype) []T {
+    return ealloc(T, n)[0..@intCast(n)];
+}
+
 /// one zeroed T from the heap (release with efree)
 pub fn enew(comptime T: type) *T {
     return @ptrCast(@alignCast(emalloc(@sizeOf(T))));

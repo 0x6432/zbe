@@ -35,6 +35,7 @@ const die = all.die;
 const dom = all.dom;
 const dprint = all.dprint;
 const ealloc = all.ealloc;
+const eallocSlice = all.eallocSlice;
 const efree = all.efree;
 const enew = all.enew;
 const err = all.err;
@@ -167,7 +168,7 @@ fn phiins(f: *Fn) void {
     bsinit(&u, f.nblk);
     bsinit(&defs, f.nblk);
     // work stack of blocks
-    const blist = ealloc(*Blk, f.nblk)[0..f.nblk];
+    const blist = eallocSlice(*Blk, f.nblk);
     var nb: usize = 0;
     const nt = f.ntmp;
     var t: i32 = Tmp0;
@@ -329,7 +330,7 @@ fn renblk(b: *Blk, stk: []?*Name, f: *Fn) void {
 
 /// require rpo and use
 pub fn ssa(f: *Fn) void {
-    const stk = ealloc(?*Name, f.ntmp)[0..@intCast(f.ntmp)];
+    const stk = eallocSlice(?*Name, f.ntmp);
     const d = all.debug['L'];
     all.debug['L'] = 0;
     filldom(f);

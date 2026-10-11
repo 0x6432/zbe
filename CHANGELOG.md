@@ -45,6 +45,7 @@
   `INS`/`INS0` are `mkIns`/`insOp`; `KBASE`/`KWIDE` are `clsBase`/`clsWide`;
   `BIT` is `bitAt`, `INRANGE` is `inRange`, `MASK` is `lowMask`, and
   `ALIGN_UP`/`ALIGN_DOWN` are `alignUp`/`alignDown`.
+- `eallocSlice(T, n)` returns a `[]T`; it replaces `ealloc(T, n)[0..n]`.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit

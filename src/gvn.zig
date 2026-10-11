@@ -183,18 +183,16 @@ fn negcon(cls: anytype, c: *Con) bool {
 fn assoccon(f: *Fn, b: *Blk, i_1: *Ins) void {
     var c: Con = undefined;
 
-    var op: i32 = @intCast(i_1.op.int());
-    if (op == Opc.sub.int())
-        op = all.ops.num(.add);
+    var op: Opc = if (i_1.op == .sub) .add else i_1.op;
 
-    if (all.optab[@intCast(op)].assoc == 0 or clsBase(i_1.cls) != 0 or rtype(i_1.arg[0]) != RTmp or rtype(i_1.arg[1]) != RCon)
+    if (all.optab[op.int()].assoc == 0 or clsBase(i_1.cls) != 0 or rtype(i_1.arg[0]) != RTmp or rtype(i_1.arg[1]) != RCon)
         return;
     var c1 = f.con[i_1.arg[1].val];
 
     const t2 = &f.tmp[i_1.arg[0].val];
     const i_2 = t2.def orelse return;
 
-    if (op != all.ops.num(if (i_2.op == .sub) .add else i_2.op) or rtype(i_2.arg[1]) != RCon)
+    if (op != (if (i_2.op == .sub) Opc.add else i_2.op) or rtype(i_2.arg[1]) != RCon)
         return;
     var c2 = f.con[i_2.arg[1].val];
 
@@ -205,17 +203,17 @@ fn assoccon(f: *Fn, b: *Blk, i_1: *Ins) void {
         return;
     if (i_2.op == .sub and negcon(i_2.cls, &c2))
         return;
-    if (foldint(&c, op, i_1.cls != .w, &c1, &c2))
+    if (foldint(&c, all.ops.num(op), i_1.cls != .w, &c1, &c2))
         return;
 
-    if (op == Opc.add.int() and c.type == CBits)
+    if (op == .add and c.type == CBits)
         if ((i_1.cls == .l and c.bits.i < 0) or (i_1.cls == .w and @as(i32, @truncate(c.bits.i)) < 0)) {
             const fail = negcon(i_1.cls, &c);
             assert(!fail);
-            op = all.ops.num(.sub);
+            op = .sub;
         };
 
-    i_1.op = all.ops.of(op);
+    i_1.op = op;
     i_1.arg[0] = i_2.arg[0];
     i_1.arg[1] = newcon(&c, f);
     adduse(&f.tmp[i_1.arg[0].val], .ins, b, (i_1));

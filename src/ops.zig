@@ -180,6 +180,10 @@ pub const Opc = enum(u32) {
     pub inline fn diff(o: Opc, base: Opc) i32 {
         return @as(i32, @intCast(@intFromEnum(o))) - @as(i32, @intCast(@intFromEnum(base)));
     }
+    /// first <= o <= last
+    pub inline fn within(o: Opc, first: Opc, last: Opc) bool {
+        return @intFromEnum(first) <= @intFromEnum(o) and @intFromEnum(o) <= @intFromEnum(last);
+    }
     pub inline fn int(o: Opc) u32 {
         return @intFromEnum(o);
     }

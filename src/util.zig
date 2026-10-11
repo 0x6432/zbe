@@ -417,19 +417,18 @@ pub fn isreg(r: Ref) bool {
     return rtype(r) == RTmp and r.val < Tmp0;
 }
 
-pub fn iscmp(op: anytype, pk: *i32, pc: *i32) bool {
-    const o: i32 = all.ops.num(op);
-    if (all.ops.num(Opc.cmpw_first) <= o and o <= all.ops.num(Opc.cmpw_last)) {
-        pc.* = o - all.ops.num(Opc.cmpw_first);
+pub fn iscmp(op: Opc, pk: *i32, pc: *i32) bool {
+    if (op.within(Opc.cmpw_first, Opc.cmpw_last)) {
+        pc.* = op.diff(Opc.cmpw_first);
         pk.* = all.knum(.w);
-    } else if (all.ops.num(Opc.cmpl_first) <= o and o <= all.ops.num(Opc.cmpl_last)) {
-        pc.* = o - all.ops.num(Opc.cmpl_first);
+    } else if (op.within(Opc.cmpl_first, Opc.cmpl_last)) {
+        pc.* = op.diff(Opc.cmpl_first);
         pk.* = all.knum(.l);
-    } else if (all.ops.num(Opc.cmps_first) <= o and o <= all.ops.num(Opc.cmps_last)) {
-        pc.* = NCmpI + o - all.ops.num(Opc.cmps_first);
+    } else if (op.within(Opc.cmps_first, Opc.cmps_last)) {
+        pc.* = NCmpI + op.diff(Opc.cmps_first);
         pk.* = all.knum(.s);
-    } else if (all.ops.num(Opc.cmpd_first) <= o and o <= all.ops.num(Opc.cmpd_last)) {
-        pc.* = NCmpI + o - all.ops.num(Opc.cmpd_first);
+    } else if (op.within(Opc.cmpd_first, Opc.cmpd_last)) {
+        pc.* = NCmpI + op.diff(Opc.cmpd_first);
         pk.* = all.knum(.d);
     } else return false;
     return true;
@@ -552,9 +551,9 @@ pub fn cmpop(cc: anytype) i32 {
 pub fn cmpwlneg(op: anytype) i32 {
     const o: i32 = op;
     if (inRange(o, Opc.cmpw_first, Opc.cmpw_last))
-        return cmptab[(o - all.ops.num(Opc.cmpw_first))][0] + Opc.cmpw_first;
+        return cmptab[@intCast(all.ops.of(o).diff(Opc.cmpw_first))][0] + Opc.cmpw_first;
     if (inRange(o, Opc.cmpl_first, Opc.cmpl_last))
-        return cmptab[(o - all.ops.num(Opc.cmpl_first))][0] + Opc.cmpl_first;
+        return cmptab[@intCast(all.ops.of(o).diff(Opc.cmpl_first))][0] + Opc.cmpl_first;
     die("not a wl comparison", .{});
 }
 

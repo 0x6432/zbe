@@ -48,6 +48,8 @@
 - `eallocSlice(T, n)` returns a `[]T`; it replaces `ealloc(T, n)[0..n]`.
 - The constant folder switches on the `Opc` enum, so its 47 case labels are
   bare literals (`.add =>`) instead of `ops.num(.add) =>`.
+- `Opc.within(first, last)` checks op ranges; `iscmp` takes an `Opc`, and the
+  alloc-slot loops in the instruction selectors count with `Opc.diff`.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit

@@ -270,14 +270,14 @@ pub fn rv64_isel(f: *Fn) void {
     const start = f.start.?;
     // specific to NAlign == 3
     // or change n=4 and sz /= 4 below
-    var al: i32 = all.ops.num(Opc.alloc_first);
+    var al: i32 = 0; // alloc4, alloc8, alloc16
     var n: i32 = 4;
-    while (al <= Opc.alloc_last.int()) : ({
+    while (al <= Opc.alloc_last.diff(Opc.alloc_first)) : ({
         al += 1;
         n *= 2;
     }) {
         for (start.insns()) |*i| {
-            if (all.ops.num(i.op) == al) {
+            if (i.op.diff(Opc.alloc_first) == al) {
                 if (rtype(i.arg[0]) != RCon)
                     break;
                 var sz = f.con[i.arg[0].val].bits.i;

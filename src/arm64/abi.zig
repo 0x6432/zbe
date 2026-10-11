@@ -216,9 +216,9 @@ fn sttmps(tmp: []Ref, cls: []const i32, nreg: uint, mem: Ref, f: *Fn) void {
     assert(nreg <= 4);
     var off: u64 = 0;
     for (0..nreg) |n| {
-        tmp[n] = newtmp("abi", cls[n], f);
+        tmp[n] = newtmp("abi", all.kof(cls[n]), f);
         const r = newtmp("abi", .l, f);
-        emit(store[@intCast(cls[n])], 0, R, tmp[n], r);
+        emit(store[@intCast(cls[n])], .w, R, tmp[n], r);
         emit(.add, .l, r, mem, getcon(@bitCast(off), f));
         off += if (clsWide(cls[n]) != 0) 8 else 4;
     }
@@ -230,7 +230,7 @@ fn ldregs(reg: []const i32, cls: []const i32, n: i32, mem: Ref, f: *Fn) void {
     var i: usize = 0;
     while (i < @as(usize, @intCast(n))) : (i += 1) {
         const r = newtmp("abi", .l, f);
-        emit(.load, cls[i], tmpRef(reg[i]), r, R);
+        emit(.load, all.kof(cls[i]), tmpRef(reg[i]), r, R);
         emit(.add, .l, r, mem, getcon(@bitCast(off), f));
         off += if (clsWide(cls[i]) != 0) 8 else 4;
     }
@@ -252,8 +252,8 @@ fn selret(b: *Blk, f: *Fn) void {
         typclass(&cr, &all.typ[@intCast(f.retty)], &gpreg, &fpreg);
         if ((cr.class & Cptr) != 0) {
             assert(rtype(f.retr) == RTmp);
-            emit(.blit1, 0, R, intRef(cr.t.?.size), R);
-            emit(.blit0, 0, R, r, f.retr);
+            emit(.blit1, .w, R, intRef(cr.t.?.size), R);
+            emit(.blit0, .w, R, r, f.retr);
             cty = 0;
         } else {
             ldregs(&cr.reg, &cr.cls, cr.nreg, r, f);
@@ -262,10 +262,10 @@ fn selret(b: *Blk, f: *Fn) void {
     } else {
         const k = j - J.retw.int();
         if (clsBase(k) == 0) {
-            emit(.copy, k, tmpRef(R0), r, R);
+            emit(.copy, all.kof(k), tmpRef(R0), r, R);
             cty = 1;
         } else {
-            emit(.copy, k, tmpRef(V0), r, R);
+            emit(.copy, all.kof(k), tmpRef(V0), r, R);
             cty = 1 << 2;
         }
     }
@@ -450,7 +450,7 @@ fn selcall(f: *Fn, args: []Ins, i_1: *Ins, ilp: *?*Insl) void {
             sttmps(&tmp, &cr.cls, cr.nreg, i_1.to, f);
             for (0..cr.nreg) |n| {
                 const r = tmpRef(cr.reg[n]);
-                emit(.copy, cr.cls[n], tmp[n], r, R);
+                emit(.copy, all.kof(cr.cls[n]), tmp[n], r, R);
             }
         }
     } else {
@@ -463,7 +463,7 @@ fn selcall(f: *Fn, args: []Ins, i_1: *Ins, ilp: *?*Insl) void {
         }
     }
 
-    emit(.call, 0, R, i_1.arg[0], callRef(cty));
+    emit(.call, .w, R, i_1.arg[0], callRef(cty));
 
     if ((cty & (1 << 13)) != 0)
         // struct return argument
@@ -473,7 +473,7 @@ fn selcall(f: *Fn, args: []Ins, i_1: *Ins, ilp: *?*Insl) void {
         if ((c.class & Cstk) != 0)
             continue;
         if (i.op == .arg or i.op == .arge or isargbh(i.op))
-            emit(.copy, c.cls[0], tmpRef(c.reg[0]), i.arg[0], R);
+            emit(.copy, all.kof(c.cls[0]), tmpRef(c.reg[0]), i.arg[0], R);
         if (i.op == .argc)
             ldregs(&c.reg, &c.cls, c.nreg, i.arg[1], f);
     }
@@ -492,11 +492,11 @@ fn selcall(f: *Fn, args: []Ins, i_1: *Ins, ilp: *?*Insl) void {
                 4, 8 => op = store[@intCast(c.cls[0])],
                 else => die("unreachable", .{}),
             }
-            emit(op, 0, R, i.arg[0], r);
+            emit(op, .w, R, i.arg[0], r);
         } else {
             assert(i.op == .argc);
-            emit(.blit1, 0, R, intRef(c.size), R);
-            emit(.blit0, 0, R, i.arg[1], r);
+            emit(.blit1, .w, R, intRef(c.size), R);
+            emit(.blit0, .w, R, i.arg[1], r);
         }
         emit(.add, .l, r, tmpRef(SP), getcon(off, f));
         off += c.size;
@@ -506,8 +506,8 @@ fn selcall(f: *Fn, args: []Ins, i_1: *Ins, ilp: *?*Insl) void {
 
     for (args, ca) |*i, *c| {
         if ((c.class & Cptr) != 0) {
-            emit(.blit1, 0, R, intRef(c.t.?.size), R);
-            emit(.blit0, 0, R, i.arg[1], i.arg[0]);
+            emit(.blit1, .w, R, intRef(c.t.?.size), R);
+            emit(.blit0, .w, R, i.arg[1], i.arg[0]);
         }
     }
 }
@@ -555,7 +555,7 @@ fn selpar(f: *Fn, pars: []Ins) Params {
             } else {
                 for (0..c.nreg) |n| {
                     const r = tmpRef(c.reg[n]);
-                    emit(.copy, c.cls[n], tmp[t], r, R);
+                    emit(.copy, all.kof(c.cls[n]), tmp[t], r, R);
                     t += 1;
                 }
             }
@@ -565,10 +565,10 @@ fn selpar(f: *Fn, pars: []Ins) Params {
                 op = Opc.loadsb.offset(i.op.diff(.parsb))
             else
                 op = .load;
-            emit(op, c.cls[0], i.to, slotRef(-@as(i32, @intCast(off + 2))), R);
+            emit(op, all.kof(c.cls[0]), i.to, slotRef(-@as(i32, @intCast(off + 2))), R);
             off += c.size;
         } else {
-            emit(.copy, c.cls[0], i.to, tmpRef(c.reg[0]), R);
+            emit(.copy, all.kof(c.cls[0]), i.to, tmpRef(c.reg[0]), R);
         }
     }
 
@@ -610,7 +610,7 @@ fn apple_selvaarg(f: *Fn, b: *Blk, i: *Ins) void {
     const stk8 = newtmp("abi", .l, f);
     const stk = newtmp("abi", .l, f);
 
-    emit(.storel, 0, R, stk8, ap);
+    emit(.storel, .w, R, stk8, ap);
     emit(.add, .l, stk8, stk, c8);
     emit(.load, i.cls, i.to, stk, R);
     emit(.load, .l, stk, ap, R);
@@ -708,7 +708,7 @@ fn apple_selvastart(f: *Fn, p: Params, ap: Ref) void {
     const stk = newtmp("abi", .l, f);
     const arg = newtmp("abi", .l, f);
 
-    emit(.storel, 0, R, arg, ap);
+    emit(.storel, .w, R, arg, ap);
     emit(.add, .l, arg, stk, off);
     emit(.addr, .l, stk, slotRef(-1), R);
 }

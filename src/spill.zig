@@ -252,7 +252,7 @@ fn reloads(u: *BSet, v: *BSet) void {
 
 fn store(r: Ref, s: i32) void {
     if (s != -1)
-        emit(Opc.storew.offset(tmp[r.val].cls), 0, R, r, slotRef(s));
+        emit(Opc.storew.offset(tmp[r.val].cls), .w, R, r, slotRef(s));
 }
 
 fn regcpy(i: *Ins) bool {

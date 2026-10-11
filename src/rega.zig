@@ -242,7 +242,7 @@ fn pmrec(status: []PMStat, i: usize, k: *i32) i32 {
     sw: switch (if (j == npm) PMStat.Moved else status[j]) {
         .Moving => {
             c = @intCast(j); // start of cycle
-            emit(.swap, k.*, R, pm[i].src, pm[i].dst);
+            emit(.swap, all.kof(k.*), R, pm[i].src, pm[i].dst);
         },
         .ToMove => {
             status[i] = .Moving;
@@ -252,14 +252,14 @@ fn pmrec(status: []PMStat, i: usize, k: *i32) i32 {
                 break :sw;
             }
             if (c != -1) {
-                emit(.swap, k.*, R, pm[i].src, pm[i].dst);
+                emit(.swap, all.kof(k.*), R, pm[i].src, pm[i].dst);
                 break :sw;
             }
             continue :sw .Moved;
         },
         .Moved => {
             c = -1;
-            emit(.copy, pm[i].cls, pm[i].dst, pm[i].src, R);
+            emit(.copy, all.kof(pm[i].cls), pm[i].dst, pm[i].src, R);
         },
     }
     status[i] = .Moved;

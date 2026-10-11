@@ -251,9 +251,9 @@ fn sttmps(tmp: []Ref, ntmp: i32, c: *Class, mem: Ref, f: *Fn) void {
     assert(ntmp <= 2);
     var i: usize = 0;
     while (i < ntmp) : (i += 1) {
-        tmp[i] = newtmp("abi", c.cls[i], f);
+        tmp[i] = newtmp("abi", all.kof(c.cls[i]), f);
         const r = newtmp("abi", .l, f);
-        emit(st[@intCast(c.cls[i])], 0, R, tmp[i], r);
+        emit(st[@intCast(c.cls[i])], .w, R, tmp[i], r);
         emit(.add, .l, r, mem, getcon(c.off[i], f));
     }
 }
@@ -262,7 +262,7 @@ fn ldregs(c: *Class, mem: Ref, f: *Fn) void {
     var i: usize = 0;
     while (i < c.nreg) : (i += 1) {
         const r = newtmp("abi", .l, f);
-        emit(.load, c.cls[i], tmpRef(c.reg[i]), r, R);
+        emit(.load, all.kof(c.cls[i]), tmpRef(c.reg[i]), r, R);
         emit(.add, .l, r, mem, getcon(c.off[i], f));
     }
 }
@@ -283,8 +283,8 @@ fn selret(b: *Blk, f: *Fn) void {
         typclass(&cr, &all.typ[@intCast(f.retty)], true, &gpreg, &fpreg);
         if ((cr.class & Cptr) != 0) {
             assert(rtype(f.retr) == RTmp);
-            emit(.blit1, 0, R, intRef(cr.type.?.size), R);
-            emit(.blit0, 0, R, r, f.retr);
+            emit(.blit1, .w, R, intRef(cr.type.?.size), R);
+            emit(.blit0, .w, R, r, f.retr);
             cty = 0;
         } else {
             ldregs(&cr, r, f);
@@ -293,10 +293,10 @@ fn selret(b: *Blk, f: *Fn) void {
     } else {
         const k = j - J.retw.int();
         if (clsBase(k) == 0) {
-            emit(.copy, k, tmpRef(A0), r, R);
+            emit(.copy, all.kof(k), tmpRef(A0), r, R);
             cty = 1;
         } else {
-            emit(.copy, k, tmpRef(FA0), r, R);
+            emit(.copy, all.kof(k), tmpRef(FA0), r, R);
             cty = 1 << 2;
         }
     }
@@ -428,7 +428,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
             var j: usize = 0;
             while (j < cr.nreg) : (j += 1) {
                 r = tmpRef(cr.reg[j]);
-                emit(.copy, cr.cls[j], tmp[j], r, R);
+                emit(.copy, all.kof(cr.cls[j]), tmp[j], r, R);
             }
         }
     } else if (clsBase(i_1.cls) == 0) {
@@ -439,7 +439,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
         cty |= 1 << 2;
     }
 
-    emit(.call, 0, R, i_1.arg[0], callRef(cty));
+    emit(.call, .w, R, i_1.arg[0], callRef(cty));
 
     if ((cr.class & Cptr) != 0)
         // struct return argument
@@ -453,22 +453,22 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
             ldregs(c, i.arg[1], f);
         } else if ((c.class & Cfpint) != 0) {
             k = if (clsWide(c.cls[0]) != 0) Cls.l.int() else Cls.w.int();
-            r = newtmp("abi", k, f);
-            emit(.copy, k, tmpRef(c.reg[0]), r, R);
+            r = newtmp("abi", all.kof(k), f);
+            emit(.copy, all.kof(k), tmpRef(c.reg[0]), r, R);
             c.reg[0] = r.val;
         } else {
-            emit(.copy, c.cls[0], tmpRef(c.reg[0]), i.arg[0], R);
+            emit(.copy, all.kof(c.cls[0]), tmpRef(c.reg[0]), i.arg[0], R);
         }
     }
 
     for (ins, ca) |*i, *c| {
         if ((c.class & Cfpint) != 0) {
             k = if (clsWide(c.cls[0]) != 0) Cls.l.int() else Cls.w.int();
-            emit(.cast, k, tmpRef(c.reg[0]), i.arg[0], R);
+            emit(.cast, all.kof(k), tmpRef(c.reg[0]), i.arg[0], R);
         }
         if ((c.class & Cptr) != 0) {
-            emit(.blit1, 0, R, intRef(c.type.?.size), R);
-            emit(.blit0, 0, R, i.arg[1], i.arg[0]);
+            emit(.blit1, .w, R, intRef(c.type.?.size), R);
+            emit(.blit0, .w, R, i.arg[1], i.arg[0]);
         }
     }
 
@@ -500,7 +500,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
             if ((c.class & Cstk1) != 0) {
                 r1 = newtmp("abi", .l, f);
                 r2 = newtmp("abi", .l, f);
-                emit(.storel, 0, R, r2, r1);
+                emit(.storel, .w, R, r2, r1);
                 emit(.add, .l, r1, r, getcon(@bitCast(off), f));
                 emit(.load, .l, r2, i.arg[1], R);
                 off += 8;
@@ -508,7 +508,7 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, ilp: *?*Insl) void {
             if ((c.class & Cstk2) != 0) {
                 r1 = newtmp("abi", .l, f);
                 r2 = newtmp("abi", .l, f);
-                emit(.storel, 0, R, r2, r1);
+                emit(.storel, .w, R, r2, r1);
                 emit(.add, .l, r1, r, getcon(@bitCast(off), f));
                 r1 = newtmp("abi", .l, f);
                 emit(.load, .l, r2, r1, R);
@@ -546,8 +546,8 @@ fn selpar(f: *Fn, ins: []Ins) Params {
             const r = i.to;
             const k = c.cls[0];
             c.cls[0] = if (clsWide(k) != 0) Cls.l.int() else Cls.w.int();
-            i.to = newtmp("abi", k, f);
-            emit(.cast, k, r, i.to, R);
+            i.to = newtmp("abi", all.kof(k), f);
+            emit(.cast, all.kof(k), r, i.to, R);
         }
         if (i.op == .parc and (c.class & Cptr) == 0 and c.nreg != 0) {
             var nt: i32 = c.nreg;
@@ -577,7 +577,7 @@ fn selpar(f: *Fn, ins: []Ins) Params {
             var j: usize = 0;
             while (j < c.nreg) : (j += 1) {
                 const r = tmpRef(c.reg[j]);
-                emit(.copy, c.cls[j], tmp[t], r, R);
+                emit(.copy, all.kof(c.cls[j]), tmp[t], r, R);
                 t += 1;
             }
             if ((c.class & Cstk2) != 0) {
@@ -586,10 +586,10 @@ fn selpar(f: *Fn, ins: []Ins) Params {
                 s += 1;
             }
         } else if ((c.class & Cstk1) != 0) {
-            emit(.load, c.cls[0], i.to, slotRef(-s), R);
+            emit(.load, all.kof(c.cls[0]), i.to, slotRef(-s), R);
             s += 1;
         } else {
-            emit(.copy, c.cls[0], i.to, tmpRef(c.reg[0]), R);
+            emit(.copy, all.kof(c.cls[0]), i.to, tmpRef(c.reg[0]), R);
         }
     }
 

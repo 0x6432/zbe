@@ -210,8 +210,8 @@ fn selret(b: *Blk, f: *Fn) void {
         if (aret.inmem != 0) {
             assert(rtype(f.retr) == RTmp);
             emit(.copy, .l, tmpRef(RAX), f.retr, R);
-            emit(.blit1, 0, R, intRef(aret.type.?.size), R);
-            emit(.blit0, 0, R, r0, f.retr);
+            emit(.blit1, .w, R, intRef(aret.type.?.size), R);
+            emit(.blit0, .w, R, r0, f.retr);
             ca = 1;
         } else {
             ca = retr(&reg, &aret);
@@ -225,10 +225,10 @@ fn selret(b: *Blk, f: *Fn) void {
     } else {
         const k = j - J.retw.int();
         if (clsBase(k) == 0) {
-            emit(.copy, k, tmpRef(RAX), r0, R);
+            emit(.copy, all.kof(k), tmpRef(RAX), r0, R);
             ca = 1;
         } else {
-            emit(.copy, k, tmpRef(XMM0), r0, R);
+            emit(.copy, all.kof(k), tmpRef(XMM0), r0, R);
             ca = 1 << 2;
         }
     }
@@ -414,16 +414,16 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
             // this should still be fixed.
             if (aret.size > 8) {
                 r = newtmp("abi", .l, f);
-                aret.ref[1] = newtmp("abi", aret.cls[1], f);
-                emit(.storel, 0, R, aret.ref[1], r);
+                aret.ref[1] = newtmp("abi", all.kof(aret.cls[1]), f);
+                emit(.storel, .w, R, aret.ref[1], r);
                 emit(.add, .l, r, i_1.to, getcon(8, f));
             }
-            aret.ref[0] = newtmp("abi", aret.cls[0], f);
-            emit(.storel, 0, R, aret.ref[0], i_1.to);
+            aret.ref[0] = newtmp("abi", all.kof(aret.cls[0]), f);
+            emit(.storel, .w, R, aret.ref[0], i_1.to);
             ca += retr(&reg, &aret);
             if (aret.size > 8)
-                emit(.copy, aret.cls[1], aret.ref[1], reg[1], R);
-            emit(.copy, aret.cls[0], aret.ref[0], reg[0], R);
+                emit(.copy, all.kof(aret.cls[1]), aret.ref[1], reg[1], R);
+            emit(.copy, all.kof(aret.cls[0]), aret.ref[0], reg[0], R);
             r1 = i_1.to;
         }
         // allocate return pad
@@ -465,10 +465,10 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
             if (a.size > 8) {
                 const r2 = rarg(a.cls[1], &ni, &ns);
                 r = newtmp("abi", .l, f);
-                emit(.load, a.cls[1], r2, r, R);
+                emit(.load, all.kof(a.cls[1]), r2, r, R);
                 emit(.add, .l, r, i.arg[1], getcon(8, f));
             }
-            emit(.load, a.cls[0], r1, i.arg[1], R);
+            emit(.load, all.kof(a.cls[0]), r1, i.arg[1], R);
         } else emit(.copy, i.cls, r1, i.arg[0], R);
     }
 
@@ -484,9 +484,9 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) void {
         if (i.op == .argc) {
             if (a.@"align" == 4)
                 off += off & 15;
-            emit(.blit1, 0, R, intRef(a.type.?.size), R);
-            emit(.blit0, 0, R, i.arg[1], r1);
-        } else emit(.storel, 0, R, i.arg[0], r1);
+            emit(.blit1, .w, R, intRef(a.type.?.size), R);
+            emit(.blit0, .w, R, i.arg[1], r1);
+        } else emit(.storel, .w, R, i.arg[0], r1);
         emit(.add, .l, r1, r, getcon(off, f));
         off += a.size;
     }
@@ -516,11 +516,11 @@ fn selpar(f: *Fn, ins: []Ins) i32 {
         if (a.size > 8) {
             r = newtmp("abi", .l, f);
             a.ref[1] = newtmp("abi", .l, f);
-            emit(.storel, 0, R, a.ref[1], r);
+            emit(.storel, .w, R, a.ref[1], r);
             emit(.add, .l, r, i.to, getcon(8, f));
         }
         a.ref[0] = newtmp("abi", .l, f);
-        emit(.storel, 0, R, a.ref[0], i.to);
+        emit(.storel, .w, R, a.ref[0], i.to);
         // specific to NAlign == 3
         const al: i32 = if (a.@"align" >= 2) a.@"align" - 2 else 0;
         emit(Opc.alloc_first.offset(al), .l, i.to, getcon(a.size, f), R);
@@ -555,10 +555,10 @@ fn selpar(f: *Fn, ins: []Ins) i32 {
             continue;
         r = rarg(a.cls[0], &ni, &ns);
         if (i.op == .parc) {
-            emit(.copy, a.cls[0], a.ref[0], r, R);
+            emit(.copy, all.kof(a.cls[0]), a.ref[0], r, R);
             if (a.size > 8) {
                 r = rarg(a.cls[1], &ni, &ns);
-                emit(.copy, a.cls[1], a.ref[1], r, R);
+                emit(.copy, all.kof(a.cls[1]), a.ref[1], r, R);
             }
         } else emit(.copy, i.cls, i.to, r, R);
     }

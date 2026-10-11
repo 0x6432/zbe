@@ -778,8 +778,8 @@ pub const macho_emitfin = emit_.macho_emitfin;
 pub const pe_emitfin = emit_.pe_emitfin;
 
 // helpers for C compound literals of Ins
-pub inline fn mkIns(op: Opc, k: anytype, to: Ref, a0: Ref, a1: Ref) Ins {
-    return .{ .op = op, .cls = kof(k), .to = to, .arg = .{ a0, a1 } };
+pub inline fn mkIns(op: Opc, k: Cls, to: Ref, a0: Ref, a1: Ref) Ins {
+    return .{ .op = op, .cls = k, .to = to, .arg = .{ a0, a1 } };
 }
 /// (Ins){.op = op}
 pub inline fn insOp(op: Opc) Ins {

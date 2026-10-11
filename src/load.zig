@@ -128,8 +128,8 @@ fn iins(cls: i32, op: Opc, a0: Ref, a1: Ref, l: *Loc) Ref {
     inum += 1;
     ist.bid = l.blk.id;
     ist.off = l.off;
-    ist.new.ins = mkIns(op, cls, R, a0, a1);
-    ist.new.ins.to = newtmp("ld", cls, curf);
+    ist.new.ins = mkIns(op, all.kof(cls), R, a0, a1);
+    ist.new.ins.to = newtmp("ld", all.kof(cls), curf);
     return ist.new.ins.to;
 }
 
@@ -396,7 +396,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
         return r1;
     }
 
-    r = newtmp("ld", sl.cls, curf);
+    r = newtmp("ld", all.kof(sl.cls), curf);
     const p = pnew(Phi);
     nlog += 1;
     vgrow(&ilog, nlog);

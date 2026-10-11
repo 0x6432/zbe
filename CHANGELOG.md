@@ -57,6 +57,8 @@
   instead of `anytype`. amd64 `fixarg` keeps its op as an `Opc`.
 - Literal class numbers use `Cls.w.int()` instead of `knum(.w)` (91 sites), and
   class fields use `i.cls.int()` instead of `knum(i.cls)`.
+- `emit`, `newtmp` and `mkIns` take a `Cls` instead of `anytype`. Literal `0`
+  classes are `.w`; callers that still hold integer classes convert with `kof`.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit

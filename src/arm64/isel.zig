@@ -141,7 +141,7 @@ fn fixarg(pr: *Ref, k: i32, phi: bool, f: *Fn) void {
                     emit(.copy, .l, r1, tmpRef(R0), R);
                     r1 = newtmp("isel", .l, f);
                     r2 = newtmp("isel", .l, f);
-                    emit(.call, 0, R, r1, callRef(33));
+                    emit(.call, .w, R, r1, callRef(33));
                     emit(.copy, .l, tmpRef(R0), r2, R);
                     emit(.load, .l, r1, r2, R);
                     r1 = r2;
@@ -154,9 +154,9 @@ fn fixarg(pr: *Ref, k: i32, phi: bool, f: *Fn) void {
             }
             if (clsBase(k) == 0 and phi)
                 return;
-            r1 = newtmp("isel", k, f);
+            r1 = newtmp("isel", all.kof(k), f);
             if (clsBase(k) == 0) {
-                emit(.copy, k, r1, r0, R);
+                emit(.copy, all.kof(k), r1, r0, R);
             } else {
                 const n = stashbits(@bitCast(c.bits.i), if (clsWide(k) != 0) 8 else 4);
                 f.ncon += 1;
@@ -168,7 +168,7 @@ fn fixarg(pr: *Ref, k: i32, phi: bool, f: *Fn) void {
                 c.type = CAddr;
                 c.sym.id = intern(@ptrCast(&buf));
                 r2 = newtmp("isel", .l, f);
-                emit(.load, k, r1, r2, R);
+                emit(.load, all.kof(k), r1, r2, R);
                 emit(.copy, .l, r2, conRef(ci), R);
             }
             pr.* = r1;
@@ -189,7 +189,7 @@ fn selcmp(arg: *[2]Ref, k: i32, f: *Fn) bool {
     var n: i64 = undefined;
 
     if (clsBase(k) == 1) {
-        emit(.afcmp, k, R, arg[0], arg[1]);
+        emit(.afcmp, all.kof(k), R, arg[0], arg[1]);
         const iarg = &all.curi[0].arg;
         fixarg(&iarg[0], k, false, f);
         fixarg(&iarg[1], k, false, f);
@@ -216,7 +216,7 @@ fn selcmp(arg: *[2]Ref, k: i32, f: *Fn) bool {
             },
         }
     }
-    emit(cmp, k, R, arg[0], r);
+    emit(cmp, all.kof(k), R, arg[0], r);
     const iarg = &all.curi[0].arg;
     fixarg(&iarg[0], k, false, f);
     if (fix)

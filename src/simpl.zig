@@ -48,7 +48,7 @@ fn blit(sd: *[2]Ref, sz_: i32, f: *Fn) void {
             const r = newtmp("blt", .l, f);
             var r1 = newtmp("blt", .l, f);
             const ro = getcon(off, f);
-            emit(p.st, 0, R, r, r1);
+            emit(p.st, .w, R, r, r1);
             emit(.add, .l, r1, sd[1], ro);
             r1 = newtmp("blt", .l, f);
             emit(p.ld, p.cls, r, r1, R);
@@ -176,7 +176,7 @@ fn sdivpow2(i: *Ins, b: *Blk, k: uint, new: *bool, f: *Fn) bool {
         return false;
     const w: i64 = if (wide) 64 else 32;
     const n: i64 = ulog2(@bitCast(sv));
-    const cls: i32 = i.cls.int();
+    const cls = i.cls;
     const x = i.arg[0];
     const to = i.to;
     const isdiv = i.op == .div;

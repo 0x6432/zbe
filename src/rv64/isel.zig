@@ -97,7 +97,7 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
             if (clsBase(k) == 0 and c.type == CBits and immarg(r, op, i) and
                 -2048 <= c.bits.i and c.bits.i < 2048)
                 break :blk;
-            r1 = newtmp("isel", k, f);
+            r1 = newtmp("isel", all.kof(k), f);
             if (clsBase(k) == 1) {
                 // load floating points from memory
                 // slots, they can't be used as
@@ -112,10 +112,10 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
                 c.* = std.mem.zeroes(Con);
                 c.type = CAddr;
                 c.sym.id = intern(@ptrCast(&buf));
-                emit(.load, k, r1, conRef(ci), R);
+                emit(.load, all.kof(k), r1, conRef(ci), R);
                 break :blk;
             }
-            emit(.copy, k, r1, r0, R);
+            emit(.copy, all.kof(k), r1, r0, R);
         },
         RTmp => blk: {
             if (isreg(r0))
@@ -129,14 +129,14 @@ fn fixarg(r: *Ref, k: i32, i: ?*Ins, f: *Fn) void {
                     r1 = slotRef(s);
                     break :blk;
                 }
-                r1 = newtmp("isel", k, f);
-                emit(.addr, k, r1, slotRef(s), R);
+                r1 = newtmp("isel", all.kof(k), f);
+                emit(.addr, all.kof(k), r1, slotRef(s), R);
                 break :blk;
             }
             if (k == Cls.w.int() and f.tmp[r0.val].cls == .l) {
                 // TODO: this sign extension isn't needed
                 // for 32-bit arithmetic instructions
-                r1 = newtmp("isel", k, f);
+                r1 = newtmp("isel", all.kof(k), f);
                 emit(.extsw, .l, r1, r0, R);
             } else {
                 assert(k == f.tmp[r0.val].cls.int());
@@ -168,16 +168,16 @@ fn selcmp(i_: Ins, k: i32, op_: i32, f: *Fn) void {
 
     switch (op) {
         Cieq => {
-            const r = newtmp("isel", k, f);
+            const r = newtmp("isel", all.kof(k), f);
             emit(.reqz, i.cls, i.to, r, R);
-            emit(.xor, k, r, i.arg[0], i.arg[1]);
+            emit(.xor, all.kof(k), r, i.arg[0], i.arg[1]);
             fixcmp(k, f);
             return;
         },
         Cine => {
-            const r = newtmp("isel", k, f);
+            const r = newtmp("isel", all.kof(k), f);
             emit(.rnez, i.cls, i.to, r, R);
-            emit(.xor, k, r, i.arg[0], i.arg[1]);
+            emit(.xor, all.kof(k), r, i.arg[0], i.arg[1]);
             fixcmp(k, f);
             return;
         },

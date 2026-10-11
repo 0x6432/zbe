@@ -410,7 +410,7 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
             return_copy.link = pextra_alloc.*;
             pextra_alloc.* = return_copy;
             const copy = newtmp("abi.copy", .l, func);
-            emit(.storel, 0, R, copy, call_instr.to);
+            emit(.storel, .w, R, copy, call_instr.to);
             emit(.copy, .l, copy, tmpRef(RAX), R);
             reg_usage.rax_returned = true;
         } else if (is_integer_type(call_instr.cls.int())) {
@@ -465,7 +465,7 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
                     // If this is a small struct being passed by value. The value in the
                     // instruction in this case is a pointer, but it needs to be loaded
                     // into the register.
-                    emit(.load, arg.cls, into, instr.arg[1], R);
+                    emit(.load, all.kof(arg.cls), into, instr.arg[1], R);
                 } else {
                     // Otherwise, a normal value passed in a register.
                     emit(.copy, instr.cls, into, instr.arg[0], R);
@@ -478,12 +478,12 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
                     // instruction is a pointer. So we need to copy it into the stack
                     // slot. (And, remember that these are emitted backwards, so store,
                     // then load.)
-                    const smalltmp = newtmp("abi.smalltmp", arg.cls, func);
-                    emit(.storel, 0, R, smalltmp, slot);
-                    emit(.load, arg.cls, smalltmp, instr.arg[1], R);
+                    const smalltmp = newtmp("abi.smalltmp", all.kof(arg.cls), func);
+                    emit(.storel, .w, R, smalltmp, slot);
+                    emit(.load, all.kof(arg.cls), smalltmp, instr.arg[1], R);
                 } else {
                     // Stash the value into the stack slot.
-                    emit(.storel, 0, R, instr.arg[0], slot);
+                    emit(.storel, .w, R, instr.arg[0], slot);
                 }
                 emit(.add, .l, slot, arg_stack_slots, getcon(slot_offset, func));
                 slot_offset += arg.size;
@@ -496,8 +496,8 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
                 arg_copy.instr = mkIns(.alloc8, .l, copy_ref, getcon(arg.size, func), R);
                 arg_copy.link = pextra_alloc.*;
                 pextra_alloc.* = arg_copy;
-                emit(.blit1, 0, R, intRef(arg.size), R);
-                emit(.blit0, 0, R, instr.arg[1], copy_ref);
+                emit(.blit1, .w, R, intRef(arg.size), R);
+                emit(.blit0, .w, R, instr.arg[1], copy_ref);
 
                 // Now load the pointer into the correct register or stack slot.
                 if (arg.style == .APS_CopyAndPointerInRegister) {
@@ -507,7 +507,7 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
                 } else {
                     assert(arg.style == .APS_CopyAndPointerOnStack);
                     const slot = newtmp("abi.off", .l, func);
-                    emit(.storel, 0, R, copy_ref, slot);
+                    emit(.storel, .w, R, copy_ref, slot);
                     emit(.add, .l, slot, arg_stack_slots, getcon(slot_offset, func));
                     slot_offset += 8;
                 }
@@ -552,8 +552,8 @@ fn lower_block_return(func: *Fn, block: *Blk) void {
         if (type_is_by_copy(@"type")) {
             assert(rtype(func.retr) == RTmp);
             emit(.copy, .l, tmpRef(RAX), func.retr, R);
-            emit(.blit1, 0, R, intRef(@"type".size), R);
-            emit(.blit0, 0, R, ret_arg, func.retr);
+            emit(.blit1, .w, R, intRef(@"type".size), R);
+            emit(.blit0, .w, R, ret_arg, func.retr);
         } else {
             emit(.load, .l, tmpRef(RAX), ret_arg, R);
         }
@@ -561,10 +561,10 @@ fn lower_block_return(func: *Fn, block: *Blk) void {
     } else {
         const k = jmp_type - J.retw.int();
         if (is_integer_type(k)) {
-            emit(.copy, k, tmpRef(RAX), ret_arg, R);
+            emit(.copy, all.kof(k), tmpRef(RAX), ret_arg, R);
             reg_usage.rax_returned = true;
         } else {
-            emit(.copy, k, tmpRef(XMM0), ret_arg, R);
+            emit(.copy, all.kof(k), tmpRef(XMM0), ret_arg, R);
             reg_usage.xmm0_returned = true;
         }
     }
@@ -583,7 +583,7 @@ fn lower_vastart(func: *Fn, param_reg_usage: *RegisterUsage, valist: Ref) void {
     // that were actually passed.
 
     const offset = newtmp("abi.vastart", .l, func);
-    emit(.storel, 0, R, offset, valist);
+    emit(.storel, .w, R, offset, valist);
 
     // *8 for sizeof(u64), +16 because the return address and rbp have been pushed
     // by the time we get to the body of the function.
@@ -596,7 +596,7 @@ fn lower_vaarg(func: *Fn, vaarg_instr: *Ins) void {
     // (All emitted backwards as usual.)
     const inc = newtmp("abi.vaarg.inc", .l, func);
     const ptr = newtmp("abi.vaarg.ptr", .l, func);
-    emit(.storel, 0, R, inc, vaarg_instr.arg[0]);
+    emit(.storel, .w, R, inc, vaarg_instr.arg[0]);
     emit(.add, .l, inc, ptr, getcon(8, func));
     emit(.load, vaarg_instr.cls, vaarg_instr.to, ptr, R);
     emit(.load, .l, ptr, vaarg_instr.arg[0], R);
@@ -696,7 +696,7 @@ fn lower_func_parameters(func: *Fn) RegisterUsage {
                 // an alloca so we have something to point at (same for InlineOnStack).
                 if (instr.op == .parc) {
                     arg.ref = newtmp("abi", .l, func);
-                    emit(.storel, 0, R, arg.ref, instr.to);
+                    emit(.storel, .w, R, arg.ref, instr.to);
                     emit(.copy, instr.cls, arg.ref, from, R);
                     emit(.alloc8, .l, instr.to, getcon(arg.size, func), R);
                 } else {
@@ -706,7 +706,7 @@ fn lower_func_parameters(func: *Fn) RegisterUsage {
             .APS_InlineOnStack => {
                 if (instr.op == .parc) {
                     arg.ref = newtmp("abi", .l, func);
-                    emit(.storel, 0, R, arg.ref, instr.to);
+                    emit(.storel, .w, R, arg.ref, instr.to);
                     emit(.copy, instr.cls, arg.ref, slotRef(-slot_offset), R);
                     emit(.alloc8, .l, instr.to, getcon(arg.size, func), R);
                 } else {

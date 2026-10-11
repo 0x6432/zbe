@@ -488,13 +488,13 @@ pub fn argcls(i: *Ins, n: anytype) i32 {
     return all.optab[i.op.int()].argcls[n][i.cls.idx()];
 }
 
-pub fn emit(op: Opc, k: anytype, to: Ref, arg0: Ref, arg1: Ref) void {
+pub fn emit(op: Opc, k: Cls, to: Ref, arg0: Ref, arg1: Ref) void {
     if (all.curi == @as([*]Ins, &all.insb))
         die("emit, too many instructions", .{});
     all.curi -= 1;
     all.curi[0] = Ins{
         .op = op,
-        .cls = all.kof(k),
+        .cls = k,
         .to = to,
         .arg = .{ arg0, arg1 },
     };
@@ -596,7 +596,7 @@ pub fn phiarg(p: *Phi, b: *Blk) Ref {
 }
 
 var newtmp_n: i32 = 0;
-pub fn newtmp(prfx: ?[*:0]const u8, k: anytype, f: *Fn) Ref {
+pub fn newtmp(prfx: ?[*:0]const u8, k: Cls, f: *Fn) Ref {
     const t: usize = @intCast(f.ntmp);
     f.ntmp += 1;
     vgrow(&f.tmp, f.ntmp);
@@ -605,7 +605,7 @@ pub fn newtmp(prfx: ?[*:0]const u8, k: anytype, f: *Fn) Ref {
         newtmp_n += 1;
         f.tmp[t].name = strf(PFn, "{s}.{d}", .{ cs(prfx), newtmp_n });
     }
-    f.tmp[t].cls = all.kof(k);
+    f.tmp[t].cls = k;
     f.tmp[t].slot = -1;
     f.tmp[t].nuse = 1;
     f.tmp[t].ndef = 1;

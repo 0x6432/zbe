@@ -85,7 +85,7 @@ const macho_emitfin = all.macho_emitfin;
 const strarr = all.strarr;
 // -- end imports --
 
-pub var arm64_rsave = [_]i32{
+pub const arm64_rsave = [_]i32{
     R0,  R1,  R2,  R3,  R4,  R5,  R6,  R7,
     R8,  R9,  R10, R11, R12, R13, R14, R15,
     IP0, IP1, R18, LR,
@@ -94,7 +94,7 @@ pub var arm64_rsave = [_]i32{
     V24, V25, V26, V27, V28, V29, V30,
     -1,
 };
-pub var arm64_rclob = [_]i32{
+pub const arm64_rclob = [_]i32{
     R19, R20, R21, R22, R23, R24, R25, R26,
     R27, R28,
     V8,  V9,  V10, V11, V12, V13, V14, V15,

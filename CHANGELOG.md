@@ -84,6 +84,8 @@
 - The same applies to the data/debug emitter, SSA construction, GVN and the arm64
   vararg counters. Register tables that are never written (amd64 rsave/rclob,
   arm64/rv64 argument registers) are `const`, and `Target.rsave` is `[*]const i32`.
+- The parser keeps its 16 lexer/parser variables in a `State` struct; the arm64
+  and rv64 rsave/rclob tables are `const` too.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit

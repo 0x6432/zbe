@@ -255,21 +255,38 @@ const BMask = 8191; // for blocks hash
 const K: u32 = 11183273; // found using tools/lexh.c
 const M = 23;
 
-var lexh: [1 << (32 - M)]uchar = @splat(0);
+/// Lexer and parser state for the input being read.
+const State = struct {
+    lexh: [1 << (32 - M)]uchar = @splat(0),
+    in: []const u8 = "",
+    ipos: usize = 0,
+    inpath: []const u8 = "",
+    thead: i32 = 0,
+    lnum: i32 = 0,
+    curf: *Fn = undefined,
+    tmph: [*]i32 = undefined,
+    tmphcap: i32 = 0,
+    plink: *?*Phi = undefined,
+    curb: ?*Blk = null,
+    blink: *?*Blk = undefined,
+    blkh: [BMask + 1]?*Blk = @splat(null),
+    nblk: i32 = 0,
+    rcls: i32 = 0,
+    ntyp: uint = 0,
+};
+var st: State = .{};
 /// input text and read position (replaces FILE* + fgetc/ungetc)
-var in: []const u8 = "";
-var ipos: usize = 0;
 const EOF: i32 = -1;
 
 fn getc() i32 {
-    if (ipos >= in.len) return EOF;
-    const c = in[ipos];
-    ipos += 1;
+    if (st.ipos >= st.in.len) return EOF;
+    const c = st.in[st.ipos];
+    st.ipos += 1;
     return c;
 }
 
 fn ungetc(c: i32) void {
-    if (c != EOF) ipos -= 1;
+    if (c != EOF) st.ipos -= 1;
 }
 
 fn isdigit(c: i32) bool {
@@ -303,7 +320,7 @@ fn scanflt(comptime F: type, out: *F) bool {
     }
     c = getc();
     while (isspace(c)) c = getc();
-    const start = ipos - @intFromBool(c != EOF);
+    const start = st.ipos - @intFromBool(c != EOF);
     if (c == '+' or c == '-') c = getc();
     const ok = blk: {
         if (c == 'i' or c == 'I' or c == 'n' or c == 'N') {
@@ -350,7 +367,7 @@ fn scanflt(comptime F: type, out: *F) bool {
     };
     ungetc(c);
     if (!ok) return false;
-    var txt = in[start..ipos];
+    var txt = st.in[start..st.ipos];
     const neg = txt[0] == '-';
     if (txt[0] == '-' or txt[0] == '+') txt = txt[1..];
     const v = std.fmt.parseFloat(F, txt) catch return false;
@@ -358,8 +375,6 @@ fn scanflt(comptime F: type, out: *F) bool {
     return true;
 }
 
-var inpath: []const u8 = "";
-var thead: i32 = 0;
 var tokval: struct {
     chr: u8,
     fltd: f64,
@@ -367,18 +382,7 @@ var tokval: struct {
     num: i64,
     str: [*:0]u8, // growable token buffer (vector), NUL-terminated by lex()
 } = .{ .chr = 0, .fltd = 0, .flts = 0, .num = 0, .str = undefined };
-var lnum: i32 = 0;
 
-var curf: *Fn = undefined;
-var tmph: [*]i32 = undefined;
-var tmphcap: i32 = 0;
-var plink: *?*Phi = undefined;
-var curb: ?*Blk = null;
-var blink: *?*Blk = undefined;
-var blkh: [BMask + 1]?*Blk = @splat(null);
-var nblk: i32 = 0;
-var rcls: i32 = 0;
-var ntyp: uint = 0;
 
 pub const Error = error{InvalidInput};
 
@@ -386,7 +390,7 @@ pub const Error = error{InvalidInput};
 /// `error.InvalidInput`; the caller decides whether to exit or recover.
 /// The backends use it too, so the message names the input file.
 pub fn fail(comptime fmt: []const u8, args: anytype) Error {
-    dprint("qbe:{s}:{d}: " ++ fmt ++ "\n", .{ inpath, lnum } ++ args);
+    dprint("qbe:{s}:{d}: " ++ fmt ++ "\n", .{ st.inpath, st.lnum } ++ args);
     all.dbg.flush() catch {};
     return error.InvalidInput;
 }
@@ -405,8 +409,8 @@ fn lexinit() void {
     while (i < Ntok) : (i += 1)
         if (kwmap[i] != null) {
             const h = (hash(kwmap[i].?) *% K) >> M;
-            assert(lexh[h] == Txxx);
-            lexh[h] = @intCast(i);
+            assert(st.lexh[h] == Txxx);
+            st.lexh[h] = @intCast(i);
         };
     lexinit_done = true;
 }
@@ -489,7 +493,7 @@ fn lex() Error!i32 {
                     if (c == '\n' or c == EOF) break;
                 }
             }
-            lnum += 1;
+            st.lnum += 1;
             return Tnl;
         },
         else => {},
@@ -538,7 +542,7 @@ fn lex() Error!i32 {
     if (t != Txxx) {
         return t;
     }
-    t = lexh[(hash(tokval.str) *% K) >> M];
+    t = st.lexh[(hash(tokval.str) *% K) >> M];
     if (t == Txxx or !streq(kwmap[@intCast(t)], tokval.str)) {
         return fail("unknown keyword {s}", .{cs(tokval.str)});
     }
@@ -546,14 +550,14 @@ fn lex() Error!i32 {
 }
 
 fn peek() Error!i32 {
-    if (thead == Txxx)
-        thead = try lex();
-    return thead;
+    if (st.thead == Txxx)
+        st.thead = try lex();
+    return st.thead;
 }
 
 fn next() Error!i32 {
     const t = try peek();
-    thead = Txxx;
+    st.thead = Txxx;
     return t;
 }
 
@@ -593,27 +597,27 @@ fn tmpref() Ref {
     var t: i32 = undefined;
     var i: i32 = undefined;
 
-    if (@divTrunc(tmphcap, 2) <= curf.ntmp - Tmp0) {
-        if (tmphcap != 0) efree((tmph));
-        tmphcap = if (tmphcap != 0) tmphcap * 2 else TMask + 1;
-        tmph = ealloc(i32, tmphcap);
+    if (@divTrunc(st.tmphcap, 2) <= st.curf.ntmp - Tmp0) {
+        if (st.tmphcap != 0) efree((st.tmph));
+        st.tmphcap = if (st.tmphcap != 0) st.tmphcap * 2 else TMask + 1;
+        st.tmph = ealloc(i32, st.tmphcap);
         t = Tmp0;
-        while (t < curf.ntmp) : (t += 1) {
-            i = @bitCast(hash(curf.tmp[@intCast(t)].name.?) & @as(u32, @intCast(tmphcap - 1)));
-            while (tmph[@intCast(i)] != 0) : (i = (i + 1) & (tmphcap - 1)) {}
-            tmph[@intCast(i)] = t;
+        while (t < st.curf.ntmp) : (t += 1) {
+            i = @bitCast(hash(st.curf.tmp[@intCast(t)].name.?) & @as(u32, @intCast(st.tmphcap - 1)));
+            while (st.tmph[@intCast(i)] != 0) : (i = (i + 1) & (st.tmphcap - 1)) {}
+            st.tmph[@intCast(i)] = t;
         }
     }
-    i = @bitCast(hash(tokval.str) & @as(u32, @intCast(tmphcap - 1)));
-    while (tmph[@intCast(i)] != 0) : (i = (i + 1) & (tmphcap - 1)) {
-        t = tmph[@intCast(i)];
-        if (streq(curf.tmp[@intCast(t)].name, tokval.str))
+    i = @bitCast(hash(tokval.str) & @as(u32, @intCast(st.tmphcap - 1)));
+    while (st.tmph[@intCast(i)] != 0) : (i = (i + 1) & (st.tmphcap - 1)) {
+        t = st.tmph[@intCast(i)];
+        if (streq(st.curf.tmp[@intCast(t)].name, tokval.str))
             return tmpRef(t);
     }
-    t = curf.ntmp;
-    tmph[@intCast(i)] = t;
-    _ = newtmp(null, .x, curf);
-    curf.tmp[@intCast(t)].name = strf(PFn, "{s}", .{cs(tokval.str)});
+    t = st.curf.ntmp;
+    st.tmph[@intCast(i)] = t;
+    _ = newtmp(null, .x, st.curf);
+    st.curf.tmp[@intCast(t)].name = strf(PFn, "{s}", .{cs(tokval.str)});
     return tmpRef(t);
 }
 
@@ -660,7 +664,7 @@ fn parseref() Error!Ref {
             c.sym.id = intern(tokval.str);
         },
     }
-    return newcon(&c, curf);
+    return newcon(&c, st.curf);
 }
 
 fn findtyp(i_: i32) Error!i32 {
@@ -677,7 +681,7 @@ fn findtyp(i_: i32) Error!i32 {
 fn parsecls(tyn: *i32) Error!i32 {
     switch (try next()) {
         Ttyp => {
-            tyn.* = try findtyp(@intCast(ntyp));
+            tyn.* = try findtyp(@intCast(st.ntyp));
             return Kc;
         },
         Tsb => return Ksb,
@@ -777,22 +781,22 @@ fn parserefl(arg: bool) Error!bool {
 
 fn findblk() *Blk {
     const h = hash(tokval.str) & BMask;
-    var b_it = blkh[h];
+    var b_it = st.blkh[h];
     while (b_it) |b| : (b_it = b.dlink)
         if (streq(b.name, tokval.str))
             return b;
     const b = newblk();
-    b.id = @intCast(nblk);
-    nblk += 1;
+    b.id = @intCast(st.nblk);
+    st.nblk += 1;
     b.name = strf(PFn, "{s}", .{cs(tokval.str)});
-    b.dlink = blkh[h];
-    blkh[h] = b;
+    b.dlink = st.blkh[h];
+    st.blkh[h] = b;
     return b;
 }
 
 fn closeblk() void {
-    idup(curb.?, &all.insb, (all.insbHead()));
-    blink = &curb.?.link;
+    idup(st.curb.?, &all.insb, (all.insbHead()));
+    st.blink = &st.curb.?.link;
     all.curi = &all.insb;
 }
 
@@ -826,46 +830,46 @@ fn parseline(ps: PState) Error!PState {
         Trbrace => return PEnd,
         Tlbl => {
             const b = findblk();
-            if (curb != null and curb.?.jmp.type == .xxx) {
+            if (st.curb != null and st.curb.?.jmp.type == .xxx) {
                 closeblk();
-                curb.?.jmp.type = .jmp;
-                curb.?.s1 = b;
+                st.curb.?.jmp.type = .jmp;
+                st.curb.?.s1 = b;
             }
             if (b.jmp.type != .xxx)
                 return fail("multiple definitions of block @{s}", .{cs(b.name)});
-            blink.* = b;
-            curb = b;
-            plink = &b.phi;
+            st.blink.* = b;
+            st.curb = b;
+            st.plink = &b.phi;
             try expect(Tnl);
             return PPhi;
         },
         Tret => {
-            curb.?.jmp.type = J.retw.add(rcls);
+            st.curb.?.jmp.type = J.retw.add(st.rcls);
             if (try peek() == Tnl)
-                curb.?.jmp.type = .ret0
-            else if (rcls != K0) {
+                st.curb.?.jmp.type = .ret0
+            else if (st.rcls != K0) {
                 r = try parseref();
                 if (req(r, R))
                     return fail("invalid return value", .{});
-                curb.?.jmp.arg = r;
+                st.curb.?.jmp.arg = r;
             }
             flow = .close;
         },
         Tjmp => {
-            curb.?.jmp.type = .jmp;
+            st.curb.?.jmp.type = .jmp;
             flow = .jump;
         },
         Tjnz => {
-            curb.?.jmp.type = .jnz;
+            st.curb.?.jmp.type = .jnz;
             r = try parseref();
             if (req(r, R))
                 return fail("invalid argument for jnz jump", .{});
-            curb.?.jmp.arg = r;
+            st.curb.?.jmp.arg = r;
             try expect(Tcomma);
             flow = .jump;
         },
         Thlt => {
-            curb.?.jmp.type = .hlt;
+            st.curb.?.jmp.type = .hlt;
             flow = .close;
         },
         all.ops.num(.dbgloc) => {
@@ -895,13 +899,13 @@ fn parseline(ps: PState) Error!PState {
     }
     if (flow == .jump) {
         try expect(Tlbl);
-        curb.?.s1 = findblk();
-        if (curb.?.jmp.type != .jmp) {
+        st.curb.?.s1 = findblk();
+        if (st.curb.?.jmp.type != .jmp) {
             try expect(Tcomma);
             try expect(Tlbl);
-            curb.?.s2 = findblk();
+            st.curb.?.s2 = findblk();
         }
-        if (curb.?.s1 == curf.start or curb.?.s2 == curf.start)
+        if (st.curb.?.s1 == st.curf.start or st.curb.?.s2 == st.curf.start)
             return fail("invalid jump to the start block", .{});
         flow = .close;
     }
@@ -911,7 +915,7 @@ fn parseline(ps: PState) Error!PState {
         return PLbl;
     }
     if (flow == .normal and op == Tcall) {
-        curf.leaf = 0;
+        st.curf.leaf = 0;
         arg[0] = try parseref();
         _ = try parserefl(true);
         op = all.ops.num(.call);
@@ -931,8 +935,8 @@ fn parseline(ps: PState) Error!PState {
             op = all.ops.num(.load);
         if (op == Talloc1 or op == Talloc2)
             op = all.ops.num(Opc.alloc_first);
-        if (op == Opc.vastart.int() and curf.vararg == 0)
-            return fail("cannot use vastart in non-variadic function", .{});
+        if (op == Opc.vastart.int() and st.curf.vararg == 0)
+            return fail("cannot use vastart st.in non-variadic function", .{});
         if (k >= Ksb)
             return fail("size class must be w, l, s, or d", .{});
         i = 0;
@@ -958,7 +962,7 @@ fn parseline(ps: PState) Error!PState {
         _ = try next();
         switch (op) {
             Tphi => {
-                if (ps != PPhi or curb == curf.start)
+                if (ps != PPhi or st.curb == st.curf.start)
                     return fail("unexpected phi instruction", .{});
                 const phi = pnew(Phi);
                 phi.to = r;
@@ -968,8 +972,8 @@ fn parseline(ps: PState) Error!PState {
                 phi.blk = vnewT(*Blk, i, PFn);
                 @memcpy(phi.blk[0..i], blk[0..i]);
                 phi.narg = @intCast(i);
-                plink.* = phi;
-                plink = &phi.link;
+                st.plink.* = phi;
+                st.plink = &phi.link;
                 return PPhi;
             },
             Tblit => {
@@ -982,7 +986,7 @@ fn parseline(ps: PState) Error!PState {
                 all.curi += 1;
                 if (rtype(arg[2]) != RCon)
                     return fail("blit size must be constant", .{});
-                const c = &curf.con[arg[2].val];
+                const c = &st.curf.con[arg[2].val];
                 r = intRef(c.bits.i);
                 if (c.type != CBits or rsval(r) < 0 or rsval(r) != c.bits.i)
                     return fail("invalid blit size", .{});
@@ -1049,13 +1053,13 @@ fn typecheck(f: *Fn) Error!void {
             while (n < p.narg) : (n += 1) {
                 k = t.?.cls.int();
                 if (bshas(&ppb, p.blk[n].id))
-                    return fail("multiple entries for @{s} in phi %{s}", .{cs(p.blk[n].name), cs(t.?.name)});
+                    return fail("multiple entries for @{s} st.in phi %{s}", .{cs(p.blk[n].name), cs(t.?.name)});
                 if (!usecheck(p.arg[n], k, f))
-                    return fail("invalid type for operand %{s} in phi %{s}", .{cs(f.tmp[p.arg[n].val].name), cs(t.?.name)});
+                    return fail("invalid type for operand %{s} st.in phi %{s}", .{cs(f.tmp[p.arg[n].val].name), cs(t.?.name)});
                 bsset(&ppb, p.blk[n].id);
             }
             if (!bsequal(&pb, &ppb))
-                return fail("predecessors not matched in phi %{s}", .{cs(t.?.name)});
+                return fail("predecessors not matched st.in phi %{s}", .{cs(t.?.name)});
         }
         for (b.insns()) |*i| {
             n = 0;
@@ -1065,15 +1069,15 @@ fn typecheck(f: *Fn) Error!void {
                 t = &f.tmp[r.val];
                 const which: []const u8 = if (n == 1) "second" else "first";
                 if (k == Ke)
-                    return fail("invalid instruction type in {s}", .{cs(all.optab[i.op.int()].name)});
+                    return fail("invalid instruction type st.in {s}", .{cs(all.optab[i.op.int()].name)});
                 if (rtype(r) == RType)
                     continue;
                 if (rtype(r) != -1 and k == Cls.x.int())
-                    return fail("no {s} operand expected in {s}", .{which, cs(all.optab[i.op.int()].name)});
+                    return fail("no {s} operand expected st.in {s}", .{which, cs(all.optab[i.op.int()].name)});
                 if (rtype(r) == -1 and k != Cls.x.int())
-                    return fail("missing {s} operand in {s}", .{which, cs(all.optab[i.op.int()].name)});
+                    return fail("missing {s} operand st.in {s}", .{which, cs(all.optab[i.op.int()].name)});
                 if (!usecheck(r, k, f))
-                    return fail("invalid type for {s} operand %{s} in {s}", .{which, cs(t.?.name), cs(all.optab[i.op.int()].name)});
+                    return fail("invalid type for {s} operand %{s} st.in {s}", .{which, cs(t.?.name), cs(all.optab[i.op.int()].name)});
             }
         }
         r = b.jmp.arg;
@@ -1089,7 +1093,7 @@ fn typecheck(f: *Fn) Error!void {
                 jerr = true;
         }
         if (jerr or (b.jmp.type == .jnz and !usecheck(r, Cls.w.int(), f)))
-            return fail("invalid type for jump argument %{s} in block @{s}", .{cs(f.tmp[r.val].name), cs(b.name)});
+            return fail("invalid type for jump argument %{s} st.in block @{s}", .{cs(f.tmp[r.val].name), cs(b.name)});
         if (b.s1 != null and b.s1.?.jmp.type == .xxx)
             return fail("block @{s} is used undefined", .{cs(b.s1.?.name)});
         if (b.s2 != null and b.s2.?.jmp.type == .xxx)
@@ -1100,36 +1104,36 @@ fn typecheck(f: *Fn) Error!void {
 fn parsefn(lnk: *Lnk) Error!*Fn {
     var ps: PState = undefined;
 
-    curb = null;
-    nblk = 0;
+    st.curb = null;
+    st.nblk = 0;
     all.curi = &all.insb;
-    curf = pnew(Fn);
-    curf.ntmp = 0;
-    curf.ncon = 2;
-    curf.tmp = vnewT(Tmp, curf.ntmp, PFn);
-    curf.con = vnewT(Con, curf.ncon, PFn);
+    st.curf = pnew(Fn);
+    st.curf.ntmp = 0;
+    st.curf.ncon = 2;
+    st.curf.tmp = vnewT(Tmp, st.curf.ntmp, PFn);
+    st.curf.con = vnewT(Con, st.curf.ncon, PFn);
     var i: i32 = 0;
     while (i < Tmp0) : (i += 1)
         if (all.T.fpr0 <= i and i < all.T.fpr0 + all.T.nfpr) {
-            _ = newtmp(null, .d, curf);
+            _ = newtmp(null, .d, st.curf);
         } else {
-            _ = newtmp(null, .l, curf);
+            _ = newtmp(null, .l, st.curf);
         };
-    curf.con[0].type = CBits;
-    curf.con[0].bits.i = 0xdeaddead; // UNDEF
-    curf.con[1].type = CBits;
-    curf.lnk = lnk.*;
-    curf.leaf = 1;
-    blink = &curf.start;
-    curf.retty = Cls.x.int();
+    st.curf.con[0].type = CBits;
+    st.curf.con[0].bits.i = 0xdeaddead; // UNDEF
+    st.curf.con[1].type = CBits;
+    st.curf.lnk = lnk.*;
+    st.curf.leaf = 1;
+    st.blink = &st.curf.start;
+    st.curf.retty = Cls.x.int();
     if (try peek() != Tglo)
-        rcls = try parsecls(&curf.retty)
+        st.rcls = try parsecls(&st.curf.retty)
     else
-        rcls = K0;
+        st.rcls = K0;
     if (try next() != Tglo)
         return fail("function name expected", .{});
-    curf.name = strf(PFn, "{s}", .{cs(tokval.str)});
-    curf.vararg = @intFromBool(try parserefl(false));
+    st.curf.name = strf(PFn, "{s}", .{cs(tokval.str)});
+    st.curf.vararg = @intFromBool(try parserefl(false));
     if (try nextnl() != Tlbrace)
         return fail("function body must start with {{", .{});
     ps = PLbl;
@@ -1137,21 +1141,21 @@ fn parsefn(lnk: *Lnk) Error!*Fn {
         ps = try parseline(ps);
         if (ps == PEnd) break;
     }
-    if (curb == null)
+    if (st.curb == null)
         return fail("empty function", .{});
-    if (curb.?.jmp.type == .xxx)
+    if (st.curb.?.jmp.type == .xxx)
         return fail("last block misses jump", .{});
-    curf.mem = vnewT(Mem, 0, PFn);
-    curf.nmem = 0;
-    curf.nblk = @intCast(nblk);
-    curf.rpo = vnewT(*Blk, nblk, PFn);
-    var b_it = curf.start;
+    st.curf.mem = vnewT(Mem, 0, PFn);
+    st.curf.nmem = 0;
+    st.curf.nblk = @intCast(st.nblk);
+    st.curf.rpo = vnewT(*Blk, st.nblk, PFn);
+    var b_it = st.curf.start;
     while (b_it) |b| : (b_it = b.link)
         b.dlink = null; // was trashed by findblk()
-    blkh = @splat(null);
-    if (tmphcap != 0) @memset(tmph[0..@intCast(tmphcap)], 0);
-    try typecheck(curf);
-    return curf;
+    st.blkh = @splat(null);
+    if (st.tmphcap != 0) @memset(st.tmph[0..@intCast(st.tmphcap)], 0);
+    try typecheck(st.curf);
+    return st.curf;
 }
 
 fn parsefields(fld: *[NField + 1]Field, ty: *Typ, t_: i32) Error!void {
@@ -1199,7 +1203,7 @@ fn parsefields(fld: *[NField + 1]Field, ty: *Typ, t_: i32) Error!void {
             },
             Ttyp => {
                 @"type" = FTyp;
-                ty1 = @intCast(try findtyp(@as(i32, @intCast(ntyp)) - 1));
+                ty1 = @intCast(try findtyp(@as(i32, @intCast(st.ntyp)) - 1));
                 s = all.typ[ty1].size;
                 a = all.typ[ty1].@"align";
             },
@@ -1256,9 +1260,9 @@ fn parsetyp() Error!void {
     // be careful if extending the syntax
     // to handle nested types, any pointer
     // held to typ[] might be invalidated!
-    vgrow(&all.typ, ntyp + 1);
-    const ty = &all.typ[ntyp];
-    ntyp += 1;
+    vgrow(&all.typ, st.ntyp + 1);
+    const ty = &all.typ[st.ntyp];
+    st.ntyp += 1;
     ty.isdark = 0;
     ty.isunion = 0;
     ty.@"align" = -1;
@@ -1318,7 +1322,7 @@ fn parsedatref(d: *Dat) Error!void {
     if (t == Tplus) {
         _ = try next();
         if (try next() != Tint)
-            return fail("invalid token after offset in ref", .{});
+            return fail("invalid token after offset st.in ref", .{});
         d.u.ref.off = tokval.num;
     }
 }
@@ -1351,7 +1355,7 @@ fn parsedat(cb: *const fn (*Dat) Error!void, lnk: ?*Lnk) Error!void {
     try cb(&d);
 
     if (t != Tlbrace)
-        return fail("expected data contents in {{ .. }}", .{});
+        return fail("expected data contents st.in {{ .. }}", .{});
     outer: while (true) {
         switch (try nextnl()) {
             Trbrace => break :outer,
@@ -1362,7 +1366,7 @@ fn parsedat(cb: *const fn (*Dat) Error!void, lnk: ?*Lnk) Error!void {
             Ts => d.type = DW,
             Td => d.type = DL,
             Tz => d.type = DZ,
-            else => return fail("invalid size specifier {c} in data", .{tokval.chr}),
+            else => return fail("invalid size specifier {c} st.in data", .{tokval.chr}),
         }
         t = try nextnl();
         while (true) {
@@ -1429,12 +1433,12 @@ pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*:0]const 
     var lnk: Lnk = undefined;
 
     lexinit();
-    in = text;
-    ipos = 0;
-    inpath = path;
-    lnum = 1;
-    thead = Txxx;
-    ntyp = 0;
+    st.in = text;
+    st.ipos = 0;
+    st.inpath = path;
+    st.lnum = 1;
+    st.thead = Txxx;
+    st.ntyp = 0;
     all.typ = vnewT(Typ, 0, PHeap);
     tokval.str = @ptrCast(vnewT(u8, 128, PHeap));
     while (true) {
@@ -1451,7 +1455,7 @@ pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*:0]const 
             Tdata => try parsedat(data, &lnk),
             Ttype => try parsetyp(),
             Teof => {
-                for (0..ntyp) |n| {
+                for (0..st.ntyp) |n| {
                     efree((all.typ[n].name));
                     if (all.typ[n].nunion != 0)
                         vfree(all.typ[n].fields);

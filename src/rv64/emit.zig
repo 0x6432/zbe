@@ -453,7 +453,11 @@ fn emitins(i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
 // |  registers  |
 // +=============+
 
-var id0: i32 = 0;
+/// Emitter state: label counter.
+const State = struct {
+    id0: i32 = 0,
+};
+var st: State = .{};
 
 pub fn rv64_emitfn(fn_: *Fn, f: *Writer) Writer.Error!void {
     try emitfnlnk(fn_.name.?, &fn_.lnk, f);
@@ -495,7 +499,7 @@ pub fn rv64_emitfn(fn_: *Fn, f: *Writer) Writer.Error!void {
     var b_it: ?*Blk = fn_.start;
     while (b_it) |b| : (b_it = b.link) {
         if (lbl or b.npred > 1)
-            try f.print(".L{d}:\n", .{id0 + @as(i32, @intCast(b.id))});
+            try f.print(".L{d}:\n", .{st.id0 + @as(i32, @intCast(b.id))});
         for (b.insns()) |*i|
             try emitins(i, fn_, f);
         lbl = true;
@@ -535,18 +539,18 @@ pub fn rv64_emitfn(fn_: *Fn, f: *Writer) Writer.Error!void {
                     b.jmp.arg = tmpRef(T6);
                 }
                 assert(isreg(b.jmp.arg));
-                try f.print("\tb{s}z {s}, .L{d}\n", .{if (neg) "ne" else "eq", cs(rname[b.jmp.arg.val]), id0 + @as(i32, @intCast(b.s2.?.id))});
+                try f.print("\tb{s}z {s}, .L{d}\n", .{if (neg) "ne" else "eq", cs(rname[b.jmp.arg.val]), st.id0 + @as(i32, @intCast(b.s2.?.id))});
                 jmp = true;
             },
             else => {},
         }
         if (jmp) { // Jmp:
             if (b.s1 != b.link)
-                try f.print("\tj .L{d}\n", .{id0 + @as(i32, @intCast(b.s1.?.id))})
+                try f.print("\tj .L{d}\n", .{st.id0 + @as(i32, @intCast(b.s1.?.id))})
             else
                 lbl = false;
         }
     }
-    id0 += @intCast(fn_.nblk);
+    st.id0 += @intCast(fn_.nblk);
     try elf_emitfnfin(fn_.name.?, f);
 }

@@ -293,13 +293,19 @@ fn emitcon(con: *Con, e: *E) Writer.Error!void {
     }
 }
 
-var regtoa_buf: [6]u8 = undefined;
+/// Emitter state: register-name scratch buffer and per-ABI label counters.
+const State = struct {
+    regtoa_buf: [6]u8 = undefined,
+    sysv_id0: i32 = 0,
+    winabi_id0: i32 = 0,
+};
+var st: State = .{};
 
 fn regtoa(reg: i32, sz: i32) ?[*:0]const u8 {
     assert(reg <= XMM15);
     if (reg >= XMM0) {
-        bufPrintZ(&regtoa_buf, "xmm{d}", .{reg - XMM0});
-        return @ptrCast(&regtoa_buf);
+        bufPrintZ(&st.regtoa_buf, "xmm{d}", .{reg - XMM0});
+        return @ptrCast(&st.regtoa_buf);
     } else return rname[@intCast(reg)][@intCast(sz)];
 }
 
@@ -695,7 +701,6 @@ fn sysv_framesz(e: *E) void {
     e.fsz = 4 * f + 8 * o + 176 * @as(u64, @intCast(e.@"fn".vararg));
 }
 
-var sysv_id0: i32 = 0;
 
 pub fn amd64_sysv_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
     var itmp: Ins = undefined;
@@ -743,7 +748,7 @@ pub fn amd64_sysv_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
             } else false;
             if (has_back_edge)
                 try fp.print(".p2align 4\n", .{});
-            try fp.print("{s}bb{d}:\n", .{cs(&all.T.asloc), sysv_id0 + @as(i32, @intCast(b.id))});
+            try fp.print("{s}bb{d}:\n", .{cs(&all.T.asloc), st.sysv_id0 + @as(i32, @intCast(b.id))});
         }
         for (b.insns()) |*i|
             try emitins(i.*, e);
@@ -771,7 +776,7 @@ pub fn amd64_sysv_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
             .jmp => {
                 // Jmp:
                 if (b.s1 != b.link)
-                    try fp.print("\tjmp {s}bb{d}\n", .{cs(&all.T.asloc), sysv_id0 + @as(i32, @intCast(b.s1.?.id))})
+                    try fp.print("\tjmp {s}bb{d}\n", .{cs(&all.T.asloc), st.sysv_id0 + @as(i32, @intCast(b.s1.?.id))})
                 else
                     lbl = false;
             },
@@ -785,14 +790,14 @@ pub fn amd64_sysv_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
                         b.s2 = s;
                         n = 0;
                     } else n = 1;
-                    try fp.print("\tj{s} {s}bb{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), sysv_id0 + @as(i32, @intCast(b.s2.?.id))});
+                    try fp.print("\tj{s} {s}bb{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), st.sysv_id0 + @as(i32, @intCast(b.s2.?.id))});
                     continue :sw .jmp;
                 }
                 die("unhandled jump {d}", .{b.jmp.type});
             },
         }
     }
-    sysv_id0 += @intCast(f.nblk);
+    st.sysv_id0 += @intCast(f.nblk);
     if (all.T.apple == 0)
         try elf_emitfnfin(f.name.?, fp);
 }
@@ -816,7 +821,6 @@ fn winabi_framesz(e: *E) void {
     e.fsz = 4 * f + 8 * o;
 }
 
-var winabi_id0: i32 = 0;
 
 pub fn amd64_winabi_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
     var itmp: Ins = undefined;
@@ -851,7 +855,7 @@ pub fn amd64_winabi_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
     var b_it: ?*Blk = f.start;
     while (b_it) |b| : (b_it = b.link) {
         if (lbl or b.npred > 1)
-            try fp.print("{s}bb{d}:\n", .{cs(&all.T.asloc), winabi_id0 + @as(i32, @intCast(b.id))});
+            try fp.print("{s}bb{d}:\n", .{cs(&all.T.asloc), st.winabi_id0 + @as(i32, @intCast(b.id))});
         for (b.insns()) |*i|
             try emitins(i.*, e);
         lbl = true;
@@ -878,7 +882,7 @@ pub fn amd64_winabi_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
             .jmp => {
                 // Jmp:
                 if (b.s1 != b.link)
-                    try fp.print("\tjmp {s}bb{d}\n", .{cs(&all.T.asloc), winabi_id0 + @as(i32, @intCast(b.s1.?.id))})
+                    try fp.print("\tjmp {s}bb{d}\n", .{cs(&all.T.asloc), st.winabi_id0 + @as(i32, @intCast(b.s1.?.id))})
                 else
                     lbl = false;
             },
@@ -892,12 +896,12 @@ pub fn amd64_winabi_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
                         b.s2 = s;
                         n = 0;
                     } else n = 1;
-                    try fp.print("\tj{s} {s}bb{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), winabi_id0 + @as(i32, @intCast(b.s2.?.id))});
+                    try fp.print("\tj{s} {s}bb{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), st.winabi_id0 + @as(i32, @intCast(b.s2.?.id))});
                     continue :sw .jmp;
                 }
                 die("unhandled jump {d}", .{b.jmp.type});
             },
         }
     }
-    winabi_id0 += @intCast(f.nblk);
+    st.winabi_id0 += @intCast(f.nblk);
 }

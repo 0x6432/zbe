@@ -190,30 +190,35 @@ const omap = blk: {
 
 const V31 = 0x1fffffff; // local name for V31
 
-var rname_buf: [4]u8 = undefined;
+/// Emitter state: register-name scratch buffer and label counter.
+const State = struct {
+    rname_buf: [4]u8 = undefined,
+    id0: i32 = 0,
+};
+var st: State = .{};
 
 fn rname(r: i32, k: i32) [*:0]u8 {
-    const buf: [*]u8 = &rname_buf;
+    const buf: [*]u8 = &st.rname_buf;
     if (r == SP) {
         assert(k == Cls.l.int());
-        bufPrintZ(&rname_buf, "sp", .{});
+        bufPrintZ(&st.rname_buf, "sp", .{});
     } else if (R0 <= r and r <= LR) {
         switch (k) {
             else => die("invalid class", .{}),
-            Cls.w.int() => bufPrintZ(&rname_buf, "w{d}", .{r - R0}),
-            Cls.x.int(), Cls.l.int() => bufPrintZ(&rname_buf, "x{d}", .{r - R0}),
+            Cls.w.int() => bufPrintZ(&st.rname_buf, "w{d}", .{r - R0}),
+            Cls.x.int(), Cls.l.int() => bufPrintZ(&st.rname_buf, "x{d}", .{r - R0}),
         }
     } else if (V0 <= r and r <= V30) {
         switch (k) {
             else => die("invalid class", .{}),
-            Cls.s.int() => bufPrintZ(&rname_buf, "s{d}", .{r - V0}),
-            Cls.x.int(), Cls.d.int() => bufPrintZ(&rname_buf, "d{d}", .{r - V0}),
+            Cls.s.int() => bufPrintZ(&st.rname_buf, "s{d}", .{r - V0}),
+            Cls.x.int(), Cls.d.int() => bufPrintZ(&st.rname_buf, "d{d}", .{r - V0}),
         }
     } else if (r == V31) {
         switch (k) {
             else => die("invalid class", .{}),
-            Cls.s.int() => bufPrintZ(&rname_buf, "s31", .{}),
-            Cls.d.int() => bufPrintZ(&rname_buf, "d31", .{}),
+            Cls.s.int() => bufPrintZ(&st.rname_buf, "s31", .{}),
+            Cls.d.int() => bufPrintZ(&st.rname_buf, "d31", .{}),
         }
     } else die("invalid register", .{});
     return @ptrCast(buf);
@@ -573,7 +578,6 @@ const ctoa = blk: {
     break :blk t;
 };
 
-var id0: i32 = 0;
 
 pub fn arm64_emitfn(f: *Fn, out: *Writer) Writer.Error!void {
     var e_ = E{ .f = out, .@"fn" = f, .frame = 0, .padding = 0 };
@@ -616,7 +620,7 @@ pub fn arm64_emitfn(f: *Fn, out: *Writer) Writer.Error!void {
     var b_it: ?*Blk = e.@"fn".start;
     while (b_it) |b| : (b_it = b.link) {
         if (lbl or b.npred > 1)
-            try e.f.print("{s}{d}:\n", .{cs(&all.T.asloc), id0 + @as(i32, @intCast(b.id))});
+            try e.f.print("{s}{d}:\n", .{cs(&all.T.asloc), st.id0 + @as(i32, @intCast(b.id))});
         for (b.insns()) |*i|
             try emitins(i, e);
         lbl = true;
@@ -660,18 +664,18 @@ pub fn arm64_emitfn(f: *Fn, out: *Writer) Writer.Error!void {
                     b.s2 = t;
                     n = 0;
                 } else n = 1;
-                try e.f.print("\tb{s}\t{s}{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), id0 + @as(i32, @intCast(b.s2.?.id))});
+                try e.f.print("\tb{s}\t{s}{d}\n", .{cs(ctoa[@intCast(c)][n]), cs(&all.T.asloc), st.id0 + @as(i32, @intCast(b.s2.?.id))});
                 jmp = true;
             },
         }
         if (jmp) { // Jmp:
             if (b.s1 != b.link)
-                try e.f.print("\tb\t{s}{d}\n", .{cs(&all.T.asloc), id0 + @as(i32, @intCast(b.s1.?.id))})
+                try e.f.print("\tb\t{s}{d}\n", .{cs(&all.T.asloc), st.id0 + @as(i32, @intCast(b.s1.?.id))})
             else
                 lbl = false;
         }
     }
-    id0 += @intCast(e.@"fn".nblk);
+    st.id0 += @intCast(e.@"fn".nblk);
     if (all.T.apple == 0)
         try elf_emitfnfin(f.name.?, out);
 }

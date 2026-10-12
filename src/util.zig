@@ -595,15 +595,19 @@ pub fn phiarg(p: *Phi, b: *Blk) Ref {
     return p.arg[n];
 }
 
-var newtmp_n: i32 = 0;
+/// Counter for fresh temporary names.
+const State = struct {
+    newtmp_n: i32 = 0,
+};
+var st: State = .{};
 pub fn newtmp(prfx: ?[*:0]const u8, k: Cls, f: *Fn) Ref {
     const t: usize = @intCast(f.ntmp);
     f.ntmp += 1;
     vgrow(&f.tmp, f.ntmp);
     f.tmp[t] = std.mem.zeroes(Tmp);
     if (prfx != null) {
-        newtmp_n += 1;
-        f.tmp[t].name = strf(PFn, "{s}.{d}", .{ cs(prfx), newtmp_n });
+        st.newtmp_n += 1;
+        f.tmp[t].name = strf(PFn, "{s}.{d}", .{ cs(prfx), st.newtmp_n });
     }
     f.tmp[t].cls = k;
     f.tmp[t].slot = -1;

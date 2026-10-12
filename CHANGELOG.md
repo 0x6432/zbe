@@ -86,6 +86,8 @@
   arm64/rv64 argument registers) are `const`, and `Target.rsave` is `[*]const i32`.
 - The parser keeps its 16 lexer/parser variables in a `State` struct; the arm64
   and rv64 rsave/rclob tables are `const` too.
+- The amd64/arm64/rv64 emitters and `util` keep their label counters, scratch
+  buffers and fresh-temp counter in per-file `State` structs.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit

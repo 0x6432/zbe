@@ -936,7 +936,7 @@ fn parseline(ps: PState) Error!PState {
         if (op == Talloc1 or op == Talloc2)
             op = all.ops.num(Opc.alloc_first);
         if (op == Opc.vastart.int() and st.curf.vararg == 0)
-            return fail("cannot use vastart st.in non-variadic function", .{});
+            return fail("cannot use vastart in non-variadic function", .{});
         if (k >= Ksb)
             return fail("size class must be w, l, s, or d", .{});
         i = 0;
@@ -1053,13 +1053,13 @@ fn typecheck(f: *Fn) Error!void {
             while (n < p.narg) : (n += 1) {
                 k = t.?.cls.int();
                 if (bshas(&ppb, p.blk[n].id))
-                    return fail("multiple entries for @{s} st.in phi %{s}", .{cs(p.blk[n].name), cs(t.?.name)});
+                    return fail("multiple entries for @{s} in phi %{s}", .{cs(p.blk[n].name), cs(t.?.name)});
                 if (!usecheck(p.arg[n], k, f))
-                    return fail("invalid type for operand %{s} st.in phi %{s}", .{cs(f.tmp[p.arg[n].val].name), cs(t.?.name)});
+                    return fail("invalid type for operand %{s} in phi %{s}", .{cs(f.tmp[p.arg[n].val].name), cs(t.?.name)});
                 bsset(&ppb, p.blk[n].id);
             }
             if (!bsequal(&pb, &ppb))
-                return fail("predecessors not matched st.in phi %{s}", .{cs(t.?.name)});
+                return fail("predecessors not matched in phi %{s}", .{cs(t.?.name)});
         }
         for (b.insns()) |*i| {
             n = 0;
@@ -1069,15 +1069,15 @@ fn typecheck(f: *Fn) Error!void {
                 t = &f.tmp[r.val];
                 const which: []const u8 = if (n == 1) "second" else "first";
                 if (k == Ke)
-                    return fail("invalid instruction type st.in {s}", .{cs(all.optab[i.op.int()].name)});
+                    return fail("invalid instruction type in {s}", .{cs(all.optab[i.op.int()].name)});
                 if (rtype(r) == RType)
                     continue;
                 if (rtype(r) != -1 and k == Cls.x.int())
-                    return fail("no {s} operand expected st.in {s}", .{which, cs(all.optab[i.op.int()].name)});
+                    return fail("no {s} operand expected in {s}", .{which, cs(all.optab[i.op.int()].name)});
                 if (rtype(r) == -1 and k != Cls.x.int())
-                    return fail("missing {s} operand st.in {s}", .{which, cs(all.optab[i.op.int()].name)});
+                    return fail("missing {s} operand in {s}", .{which, cs(all.optab[i.op.int()].name)});
                 if (!usecheck(r, k, f))
-                    return fail("invalid type for {s} operand %{s} st.in {s}", .{which, cs(t.?.name), cs(all.optab[i.op.int()].name)});
+                    return fail("invalid type for {s} operand %{s} in {s}", .{which, cs(t.?.name), cs(all.optab[i.op.int()].name)});
             }
         }
         r = b.jmp.arg;
@@ -1093,7 +1093,7 @@ fn typecheck(f: *Fn) Error!void {
                 jerr = true;
         }
         if (jerr or (b.jmp.type == .jnz and !usecheck(r, Cls.w.int(), f)))
-            return fail("invalid type for jump argument %{s} st.in block @{s}", .{cs(f.tmp[r.val].name), cs(b.name)});
+            return fail("invalid type for jump argument %{s} in block @{s}", .{cs(f.tmp[r.val].name), cs(b.name)});
         if (b.s1 != null and b.s1.?.jmp.type == .xxx)
             return fail("block @{s} is used undefined", .{cs(b.s1.?.name)});
         if (b.s2 != null and b.s2.?.jmp.type == .xxx)
@@ -1322,7 +1322,7 @@ fn parsedatref(d: *Dat) Error!void {
     if (t == Tplus) {
         _ = try next();
         if (try next() != Tint)
-            return fail("invalid token after offset st.in ref", .{});
+            return fail("invalid token after offset in ref", .{});
         d.u.ref.off = tokval.num;
     }
 }
@@ -1355,7 +1355,7 @@ fn parsedat(cb: *const fn (*Dat) Error!void, lnk: ?*Lnk) Error!void {
     try cb(&d);
 
     if (t != Tlbrace)
-        return fail("expected data contents st.in {{ .. }}", .{});
+        return fail("expected data contents in {{ .. }}", .{});
     outer: while (true) {
         switch (try nextnl()) {
             Trbrace => break :outer,
@@ -1366,7 +1366,7 @@ fn parsedat(cb: *const fn (*Dat) Error!void, lnk: ?*Lnk) Error!void {
             Ts => d.type = DW,
             Td => d.type = DL,
             Tz => d.type = DZ,
-            else => return fail("invalid size specifier {c} st.in data", .{tokval.chr}),
+            else => return fail("invalid size specifier {c} in data", .{tokval.chr}),
         }
         t = try nextnl();
         while (true) {

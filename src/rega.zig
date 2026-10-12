@@ -217,7 +217,7 @@ fn mdump(m: *RMap) void {
 
 fn pmadd(src: Ref, dst: Ref, k: Cls) void {
     if (st.npm == NPm)
-        die("no more st.pm slots", .{});
+        die("no more pm slots", .{});
     st.pm[@intCast(st.npm)].src = src;
     st.pm[@intCast(st.npm)].dst = dst;
     st.pm[@intCast(st.npm)].cls = k;

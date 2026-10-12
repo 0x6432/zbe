@@ -74,19 +74,23 @@ fn ieq(ia: *Ins, ib: *Ins) bool {
         req(ia.arg[0], ib.arg[0]) and req(ia.arg[1], ib.arg[1]);
 }
 
-var gvntbl: []?*Ins = &.{};
+/// Global value numbering state.
+const State = struct {
+    gvntbl: []?*Ins = &.{},
+};
+var st: State = .{};
 
 fn gvndup(i: *Ins, insert: bool) ?*Ins {
-    var idx = ihash(i) % gvntbl.len;
-    while (gvntbl[idx]) |ii| {
+    var idx = ihash(i) % st.gvntbl.len;
+    while (st.gvntbl[idx]) |ii| {
         if (ieq(i, ii))
             return ii;
         idx += 1;
-        if (idx == gvntbl.len)
+        if (idx == st.gvntbl.len)
             idx = 0;
     }
     if (insert)
-        gvntbl[idx] = i;
+        st.gvntbl[idx] = i;
     return null;
 }
 
@@ -420,8 +424,8 @@ pub fn gvn(f: *Fn) all.Error!void {
     }
 
     const n = nins + nins / 2;
-    gvntbl = eallocSlice(?*Ins, n);
-    @memset(gvntbl, null);
+    st.gvntbl = eallocSlice(?*Ins, n);
+    @memset(st.gvntbl, null);
     for (f.blks()) |b| {
         dedupphi(f, b);
         for (b.insns()) |*i|
@@ -429,8 +433,8 @@ pub fn gvn(f: *Fn) all.Error!void {
         dedupjmp(f, b);
     }
     rebuildcfg(f);
-    efree(@ptrCast(gvntbl.ptr));
-    gvntbl = &.{};
+    efree(@ptrCast(st.gvntbl.ptr));
+    st.gvntbl = &.{};
 
     if (all.debug['G'] != 0) {
         dprint("\n> After GVN:\n", .{});

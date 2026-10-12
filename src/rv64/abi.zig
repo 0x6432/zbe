@@ -102,8 +102,8 @@ const Params = struct {
     stk: i32, // stack offset for varargs
 };
 
-var gpreg = [10]i32{ A0, A1, A2, A3, A4, A5, A6, A7, 0, 0 };
-var fpreg = [10]i32{ FA0, FA1, FA2, FA3, FA4, FA5, FA6, FA7, 0, 0 };
+const gpreg = [10]i32{ A0, A1, A2, A3, A4, A5, A6, A7, 0, 0 };
+const fpreg = [10]i32{ FA0, FA1, FA2, FA3, FA4, FA5, FA6, FA7, 0, 0 };
 
 // layout of call's second argument (RCall)
 //

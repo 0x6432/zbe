@@ -81,6 +81,9 @@
   remains for internal invariant failures and still prints `dying:` like C qbe.
 - The spiller, register allocator and load optimizer keep their per-function state
   in a documented `State` struct (`st`) instead of 21 loose file-level globals.
+- The same applies to the data/debug emitter, SSA construction, GVN and the arm64
+  vararg counters. Register tables that are never written (amd64 rsave/rclob,
+  arm64/rv64 argument registers) are `const`, and `Target.rsave` is `[*]const i32`.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit

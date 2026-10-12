@@ -112,8 +112,8 @@ const Params = struct {
     stk: uint,
 };
 
-var gpreg = [12]i32{ R0, R1, R2, R3, R4, R5, R6, R7, 0, 0, 0, 0 };
-var fpreg = [12]i32{ V0, V1, V2, V3, V4, V5, V6, V7, 0, 0, 0, 0 };
+const gpreg = [12]i32{ R0, R1, R2, R3, R4, R5, R6, R7, 0, 0, 0, 0 };
+const fpreg = [12]i32{ V0, V1, V2, V3, V4, V5, V6, V7, 0, 0, 0, 0 };
 const store = blk: {
     var s: [4]Opc = undefined;
     s[Cls.w.idx()] = .storew;
@@ -275,8 +275,12 @@ fn selret(b: *Blk, f: *Fn) all.Error!void {
 
 // registers really consumed by named args (an HFA/aggregate that does
 // not fit sets NSRN/NGRN to 8 without advancing gp/fp); used by vastart
-var va_ngp: i32 = 0;
-var va_nfp: i32 = 0;
+/// Vararg register counts of the function being lowered (for vastart).
+const State = struct {
+    va_ngp: i32 = 0,
+    va_nfp: i32 = 0,
+};
+var st: State = .{};
 
 fn argsclass(ins: []const Ins, carg: []Class) all.Error!i32 {
     var va = false;
@@ -352,8 +356,8 @@ fn argsclass(ins: []const Ins, carg: []Class) all.Error!i32 {
 
     const ngpu: i32 = @intCast(gp);
     const nfpu: i32 = @intCast(fp);
-    va_ngp = 8 - ngp;
-    va_nfp = 8 - nfp;
+    st.va_ngp = 8 - ngp;
+    st.va_nfp = 8 - nfp;
     return envc << 14 | ngpu << 5 | nfpu << 9;
 }
 
@@ -574,8 +578,8 @@ fn selpar(f: *Fn, pars: []Ins) all.Error!Params {
 
     return .{
         .stk = alignu(off, 8),
-        .ngp = @intCast(va_ngp),
-        .nfp = @intCast(va_nfp),
+        .ngp = @intCast(st.va_ngp),
+        .nfp = @intCast(st.va_nfp),
     };
 }
 

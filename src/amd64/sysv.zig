@@ -294,12 +294,12 @@ fn argsclass(ins: []const Ins, ac: []AClass, op: i32, aret: ?*const AClass, env:
     return ((varc | envc) << 12) | ((6 - nint) << 4) | ((8 - nsse) << 8);
 }
 
-pub var amd64_sysv_rsave = [_]i32{
+pub const amd64_sysv_rsave = [_]i32{
     RDI,  RSI,  RDX,  RCX,   R8,    R9,    R10,   R11,   RAX,
     XMM0, XMM1, XMM2, XMM3,  XMM4,  XMM5,  XMM6,  XMM7,  XMM8,
     XMM9, XMM10, XMM11, XMM12, XMM13, XMM14, -1,
 };
-pub var amd64_sysv_rclob = [_]i32{ RBX, R12, R13, R14, R15, -1 };
+pub const amd64_sysv_rclob = [_]i32{ RBX, R12, R13, R14, R15, -1 };
 
 comptime {
     if (!(amd64_sysv_rsave.len == NGPS_SYSV + NFPS + 1 and

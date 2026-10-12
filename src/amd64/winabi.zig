@@ -112,12 +112,12 @@ inline fn alignUp(n: anytype, a: @TypeOf(n)) @TypeOf(n) {
 // Number of stack bytes required be reserved for the callee.
 const SHADOW_SPACE_SIZE = 32;
 
-pub var amd64_winabi_rsave = [_]i32{
+pub const amd64_winabi_rsave = [_]i32{
     RCX,  RDX,  R8,    R9,    R10,   R11,   RAX,   XMM0,
     XMM1, XMM2, XMM3,  XMM4,  XMM5,  XMM6,  XMM7,  XMM8,
     XMM9, XMM10, XMM11, XMM12, XMM13, XMM14, -1,
 };
-pub var amd64_winabi_rclob = [_]i32{ RBX, R12, R13, R14, R15, RSI, RDI, -1 };
+pub const amd64_winabi_rclob = [_]i32{ RBX, R12, R13, R14, R15, RSI, RDI, -1 };
 
 comptime {
     if (!(amd64_winabi_rsave.len == NGPS_WIN + NFPS + 1 and

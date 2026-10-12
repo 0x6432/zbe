@@ -77,37 +77,45 @@ const di = blk: {
     t[DL] = .{ .decl = "\t.quad", .mask = -1 };
     break :blk t;
 };
-var emitdat_zero: i64 = 0;
+/// Data and debug-info emitter state.
+const State = struct {
+    emitdat_zero: i64 = 0,
+    stash: ?*Asmbits = null,
+    file: ?[*]u32 = null, // vector of interned file names
+    nfile: uint = 0,
+    curfile: uint = 0,
+};
+var st: State = .{};
 
 pub fn emitdat(d: *Dat, f: *Writer) (Writer.Error || all.Error)!void {
     switch (d.type) {
-        DStart => emitdat_zero = 0,
+        DStart => st.emitdat_zero = 0,
         DEnd => {
             if (d.lnk.?.common != 0) {
-                if (emitdat_zero == -1)
+                if (st.emitdat_zero == -1)
                     die("invalid common data definition", .{});
                 const p: [*:0]const u8 = if (d.name.?[0] == '"') "" else @ptrCast(&all.T.assym);
-                try f.print(".comm {s}{s},{d}", .{cs(p), cs(d.name), emitdat_zero});
+                try f.print(".comm {s}{s},{d}", .{cs(p), cs(d.name), st.emitdat_zero});
                 if (d.lnk.?.@"align" != 0)
                     try f.print(",{d}", .{d.lnk.?.@"align"});
                 try f.writeByte('\n');
-            } else if (emitdat_zero != -1) {
+            } else if (st.emitdat_zero != -1) {
                 try emitlnk(d.name.?, d.lnk.?, SecBss, f);
-                try f.print("\t.fill {d},1,0\n", .{emitdat_zero});
+                try f.print("\t.fill {d},1,0\n", .{st.emitdat_zero});
             }
         },
         DZ => {
-            if (emitdat_zero != -1)
-                emitdat_zero += d.u.num
+            if (st.emitdat_zero != -1)
+                st.emitdat_zero += d.u.num
             else
                 try f.print("\t.fill {d},1,0\n", .{d.u.num});
         },
         else => {
-            if (emitdat_zero != -1) {
+            if (st.emitdat_zero != -1) {
                 try emitlnk(d.name.?, d.lnk.?, SecData, f);
-                if (emitdat_zero > 0)
-                    try f.print("\t.fill {d},1,0\n", .{emitdat_zero});
-                emitdat_zero = -1;
+                if (st.emitdat_zero > 0)
+                    try f.print("\t.fill {d},1,0\n", .{st.emitdat_zero});
+                st.emitdat_zero = -1;
             }
             if (d.isstr != 0) {
                 if (d.type != DB)
@@ -129,11 +137,10 @@ const Asmbits = extern struct {
     link: ?*Asmbits,
 };
 
-var stash: ?*Asmbits = null;
 
 pub fn stashbits(n: bits, size: i32) i32 {
     assert(size == 4 or size == 8 or size == 16);
-    var pb: *?*Asmbits = &stash;
+    var pb: *?*Asmbits = &st.stash;
     var i: i32 = 0;
     while (pb.*) |b| : ({
         pb = &b.link;
@@ -151,12 +158,12 @@ pub fn stashbits(n: bits, size: i32) i32 {
 }
 
 fn emitfin(f: *Writer, sec: *const [3][*:0]const u8) Writer.Error!void {
-    if (stash == null)
+    if (st.stash == null)
         return;
     try f.print("/* floating point constants */\n", .{});
     var lg: i32 = 4;
     while (lg >= 2) : (lg -= 1) {
-        var b_it = stash;
+        var b_it = st.stash;
         var i: i32 = 0;
         while (b_it) |b| : ({
             b_it = b.link;
@@ -178,8 +185,8 @@ fn emitfin(f: *Writer, sec: *const [3][*:0]const u8) Writer.Error!void {
             }
         }
     }
-    while (stash) |b| {
-        stash = b.link;
+    while (st.stash) |b| {
+        st.stash = b.link;
         efree((b));
     }
 }
@@ -212,33 +219,30 @@ pub fn pe_emitfin(f: *Writer) Writer.Error!void {
     try emitfin(f, &sec);
 }
 
-var file: ?[*]u32 = null; // vector of interned file names
-var nfile: uint = 0;
-var curfile: uint = 0;
 
 pub fn emitdbgfile(fname: [*:0]const u8, f: *Writer) Writer.Error!void {
     const id = intern(fname);
     var n: uint = 0;
-    while (n < nfile) : (n += 1) {
-        if (file.?[n] == id) {
+    while (n < st.nfile) : (n += 1) {
+        if (st.file.?[n] == id) {
             // gas requires positive
             // file numbers
-            curfile = n + 1;
+            st.curfile = n + 1;
             return;
         }
     }
-    if (file == null)
-        file = vnewT(u32, 0, PHeap);
-    nfile += 1;
-    vgrow(&file, nfile);
-    file.?[nfile - 1] = id;
-    curfile = nfile;
-    try f.print(".file {d} {s}\n", .{curfile, cs(fname)});
+    if (st.file == null)
+        st.file = vnewT(u32, 0, PHeap);
+    st.nfile += 1;
+    vgrow(&st.file, st.nfile);
+    st.file.?[st.nfile - 1] = id;
+    st.curfile = st.nfile;
+    try f.print(".file {d} {s}\n", .{st.curfile, cs(fname)});
 }
 
 pub fn emitdbgloc(line: uint, col: uint, f: *Writer) Writer.Error!void {
     if (col != 0)
-        try f.print("\t.loc {d} {d} {d}\n", .{curfile, line, col})
+        try f.print("\t.loc {d} {d} {d}\n", .{st.curfile, line, col})
     else
-        try f.print("\t.loc {d} {d}\n", .{curfile, line});
+        try f.print("\t.loc {d} {d}\n", .{st.curfile, line});
 }

@@ -254,11 +254,15 @@ const Name = struct {
 };
 
 /// free list
-var namel: ?*Name = null;
+/// SSA construction state.
+const State = struct {
+    namel: ?*Name = null,
+};
+var st: State = .{};
 
 fn nnew(r: Ref, b: *Blk, up: ?*Name) *Name {
-    const n = if (namel) |n| blk: {
-        namel = n.up;
+    const n = if (st.namel) |n| blk: {
+        st.namel = n.up;
         break :blk n;
     } else
         // could use alloc, here
@@ -269,8 +273,8 @@ fn nnew(r: Ref, b: *Blk, up: ?*Name) *Name {
 }
 
 fn nfree(n: *Name) void {
-    n.up = namel;
-    namel = n;
+    n.up = st.namel;
+    st.namel = n;
 }
 
 fn rendef(r: *Ref, b: *Blk, stk: []?*Name, f: *Fn) void {

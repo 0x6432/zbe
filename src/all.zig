@@ -682,7 +682,7 @@ pub inline fn bshas(bs: *BSet, elt: anytype) bool {
 
 // parse.c
 pub const parse_ = @import("parse.zig");
-pub var optab: [NOp]Op = parse_.optab_init;
+pub const optab: [NOp]Op = parse_.optab_init;
 pub const parse = parse_.parse;
 pub const printfn = parse_.printfn;
 pub const printref = parse_.printref;

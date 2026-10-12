@@ -88,6 +88,10 @@
   and rv64 rsave/rclob tables are `const` too.
 - The amd64/arm64/rv64 emitters and `util` keep their label counters, scratch
   buffers and fresh-temp counter in per-file `State` structs.
+- `all.optab` is `const` (it was never written), and the library target-name
+  cache in `lib.zig` is a `State` struct. The remaining `all.zig` globals (target,
+  debug flags, instruction buffer, type table, output writers) stay module-level
+  as the program-wide compile context, matching C qbe.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit

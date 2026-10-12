@@ -26,25 +26,29 @@ pub const Options = struct {
 
 pub const Error = error{ UnknownTarget, WriteFailed, InvalidInput };
 
-var inited = false;
-var names: [8][]const u8 = undefined;
-var nnames: usize = 0;
+/// Target-name cache, filled on first use.
+const State = struct {
+    inited: bool = false,
+    names: [8][]const u8 = undefined,
+    nnames: usize = 0,
+};
+var st: State = .{};
 
 fn init() void {
-    if (inited) return;
+    if (st.inited) return;
     drv.inittargets();
     for (drv.tlist) |tp| {
         const t = tp orelse break;
-        names[nnames] = std.mem.sliceTo(&t.name, 0);
-        nnames += 1;
+        st.names[st.nnames] = std.mem.sliceTo(&t.name, 0);
+        st.nnames += 1;
     }
-    inited = true;
+    st.inited = true;
 }
 
 /// Names of all supported targets; the first one is the default.
 pub fn targets() []const []const u8 {
     init();
-    return names[0..nnames];
+    return st.names[0..st.nnames];
 }
 
 /// Compile IL `text` and write the assembly to `out` (not flushed).

@@ -129,28 +129,34 @@ pub fn fillcost(f: *Fn) void {
     }
 }
 
-var fst: ?*BSet = null; // temps to prioritize in registers (for tcmp1)
-var tmp: [*]Tmp = undefined; // current temporaries (for tcmpX), set by spill()
-var ntmp: i32 = 0; // current # of temps (for limit)
-var locs: i32 = 0; // stack size used by locals
-var slot4: i32 = 0; // next slot of 4 bytes
-var slot8: i32 = 0; // ditto, 8 bytes
-var mask: [2]BSet = undefined; // class masks
+/// Spiller state for the function being processed (set by fillcost/spill).
+const State = struct {
+    fst: ?*BSet = null, // temps to prioritize in registers (for tcmp1)
+    tmp: [*]Tmp = undefined, // current temporaries (for tcmpX), set by spill()
+    ntmp: i32 = 0, // current # of temps (for limit)
+    locs: i32 = 0, // stack size used by locals
+    slot4: i32 = 0, // next slot of 4 bytes
+    slot8: i32 = 0, // ditto, 8 bytes
+    mask: [2]BSet = undefined, // class masks
+    limit_tarr: ?[*]i32 = null,
+    limit_maxt: i32 = 0,
+};
+var st: State = .{};
 
 fn tcmp0(a: i32, b: i32) std.math.Order {
     // by decreasing cost
-    return std.math.order(tmp[@intCast(b)].cost, tmp[@intCast(a)].cost);
+    return std.math.order(st.tmp[@intCast(b)].cost, st.tmp[@intCast(a)].cost);
 }
 
 fn tcmp1(a: i32, b: i32) std.math.Order {
     // live-in temporaries first
-    const c = std.math.order(@intFromBool(bshas(fst.?, b)), @intFromBool(bshas(fst.?, a)));
+    const c = std.math.order(@intFromBool(bshas(st.fst.?, b)), @intFromBool(bshas(st.fst.?, a)));
     return if (c != .eq) c else tcmp0(a, b);
 }
 
 fn slot(t: i32) Ref {
     assert(t >= Tmp0); // cannot spill register
-    var s = tmp[@intCast(t)].slot;
+    var s = st.tmp[@intCast(t)].slot;
     if (s == -1) {
         // specific to NAlign == 3
         // nice logic to pack stack slots
@@ -158,26 +164,24 @@ fn slot(t: i32) Ref {
         // one hole and slot4 points to it
         //
         // invariant: slot4 <= slot8
-        if (clsWide(tmp[@intCast(t)].cls) != 0) {
-            s = slot8;
-            if (slot4 == slot8)
-                slot4 += 2;
-            slot8 += 2;
+        if (clsWide(st.tmp[@intCast(t)].cls) != 0) {
+            s = st.slot8;
+            if (st.slot4 == st.slot8)
+                st.slot4 += 2;
+            st.slot8 += 2;
         } else {
-            s = slot4;
-            if (slot4 == slot8) {
-                slot8 += 2;
-                slot4 += 1;
-            } else slot4 = slot8;
+            s = st.slot4;
+            if (st.slot4 == st.slot8) {
+                st.slot8 += 2;
+                st.slot4 += 1;
+            } else st.slot4 = st.slot8;
         }
-        s += locs;
-        tmp[@intCast(t)].slot = s;
+        s += st.locs;
+        st.tmp[@intCast(t)].slot = s;
     }
     return slotRef(s);
 }
 
-var limit_tarr: ?[*]i32 = null;
-var limit_maxt: i32 = 0;
 
 /// restricts b to hold at most k
 /// temporaries, preferring those
@@ -188,13 +192,13 @@ fn limit(b: *BSet, k: i32, f: ?*BSet) void {
     const nt: i32 = @intCast(bscount(b));
     if (nt <= k)
         return;
-    if (nt > limit_maxt) {
-        efree((limit_tarr));
-        limit_tarr = ealloc(i32, nt);
-        limit_maxt = nt;
+    if (nt > st.limit_maxt) {
+        efree((st.limit_tarr));
+        st.limit_tarr = ealloc(i32, nt);
+        st.limit_maxt = nt;
     }
     // null only while limit_maxt == 0, i.e. nt == 0 (k < 0): nothing to do
-    const tarr = limit_tarr orelse return;
+    const tarr = st.limit_tarr orelse return;
     var i: i32 = 0;
     var t: i32 = 0;
     while (bsiter(b, &t)) : (t += 1) {
@@ -206,7 +210,7 @@ fn limit(b: *BSet, k: i32, f: ?*BSet) void {
         if (f == null) {
             sort(i32, tarr, @intCast(nt), tcmp0);
         } else {
-            fst = f;
+            st.fst = f;
             sort(i32, tarr, @intCast(nt), tcmp1);
         }
     }
@@ -225,10 +229,10 @@ fn limit(b: *BSet, k: i32, f: ?*BSet) void {
 fn limit2(b1: *BSet, k1: i32, k2: i32, f: ?*BSet) void {
     var b2: BSet = undefined;
 
-    bsinit(&b2, @intCast(ntmp)); // todo, free those
+    bsinit(&b2, @intCast(st.ntmp)); // todo, free those
     bscopy(&b2, b1);
-    bsinter(b1, &mask[0]);
-    bsinter(&b2, &mask[1]);
+    bsinter(b1, &st.mask[0]);
+    bsinter(&b2, &st.mask[1]);
     limit(b1, all.T.ngpr - k1, f);
     limit(&b2, all.T.nfpr - k2, f);
     bsunion(b1, &b2);
@@ -237,7 +241,7 @@ fn limit2(b1: *BSet, k1: i32, k2: i32, f: ?*BSet) void {
 fn sethint(u: *BSet, r: bits) void {
     var t: i32 = Tmp0;
     while (bsiter(u, &t)) : (t += 1)
-        tmp[@intCast(phicls(t, tmp))].hint.m |= r;
+        st.tmp[@intCast(phicls(t, st.tmp))].hint.m |= r;
 }
 
 /// reloads temporaries in u that are
@@ -246,13 +250,13 @@ fn reloads(u: *BSet, v: *BSet) void {
     var t: i32 = Tmp0;
     while (bsiter(u, &t)) : (t += 1) {
         if (!bshas(v, t))
-            emit(.load, tmp[@intCast(t)].cls, tmpRef(t), slot(t), R);
+            emit(.load, st.tmp[@intCast(t)].cls, tmpRef(t), slot(t), R);
     }
 }
 
 fn store(r: Ref, s: i32) void {
     if (s != -1)
-        emit(Opc.storew.offset(tmp[r.val].cls), .w, R, r, slotRef(s));
+        emit(Opc.storew.offset(st.tmp[r.val].cls), .w, R, r, slotRef(s));
 }
 
 fn regcpy(i: *Ins) bool {
@@ -265,7 +269,7 @@ fn dopm(b: *Blk, last: uint, v: *BSet) uint {
     var u: BSet = undefined;
     var r: bits = undefined;
 
-    bsinit(&u, @intCast(ntmp)); // todo, free those
+    bsinit(&u, @intCast(st.ntmp)); // todo, free those
     // consecutive copies from
     // registers need to be handled
     // as one large instruction
@@ -283,7 +287,7 @@ fn dopm(b: *Blk, last: uint, v: *BSet) uint {
         if (!req(i.to, R))
             if (bshas(v, t)) {
                 bsclr(v, t);
-                store(i.to, tmp[t].slot);
+                store(i.to, st.tmp[t].slot);
             };
         bsset(v, i.arg[0].val);
         if (!(n != 0 and regcpy(&b.ins[n - 1]))) break;
@@ -318,7 +322,7 @@ fn merge(u: *BSet, bu: *Blk, v: *BSet, bv: *Blk) void {
     } else {
         var t: i32 = 0;
         while (bsiter(v, &t)) : (t += 1) {
-            if (tmp[@intCast(t)].slot == -1)
+            if (st.tmp[@intCast(t)].slot == -1)
                 bsset(u, t);
         }
     }
@@ -341,24 +345,24 @@ pub fn spill(f: *Fn) void {
     var v: BSet = undefined;
     var w: BSet = undefined;
 
-    tmp = f.tmp;
-    ntmp = f.ntmp;
-    bsinit(&u, @intCast(ntmp));
-    bsinit(&v, @intCast(ntmp));
-    bsinit(&w, @intCast(ntmp));
-    bsinit(&mask[0], @intCast(ntmp));
-    bsinit(&mask[1], @intCast(ntmp));
-    locs = f.slot;
-    slot4 = 0;
-    slot8 = 0;
+    st.tmp = f.tmp;
+    st.ntmp = f.ntmp;
+    bsinit(&u, @intCast(st.ntmp));
+    bsinit(&v, @intCast(st.ntmp));
+    bsinit(&w, @intCast(st.ntmp));
+    bsinit(&st.mask[0], @intCast(st.ntmp));
+    bsinit(&st.mask[1], @intCast(st.ntmp));
+    st.locs = f.slot;
+    st.slot4 = 0;
+    st.slot8 = 0;
     var t: i32 = 0;
-    while (t < ntmp) : (t += 1) {
+    while (t < st.ntmp) : (t += 1) {
         var k: i32 = 0;
         if (t >= all.T.fpr0 and t < all.T.fpr0 + all.T.nfpr)
             k = 1;
         if (t >= Tmp0)
-            k = clsBase(tmp[@intCast(t)].cls);
-        bsset(&mask[@intCast(k)], t);
+            k = clsBase(st.tmp[@intCast(t)].cls);
+        bsset(&st.mask[@intCast(k)], t);
     }
 
     var bn = f.nblk;
@@ -386,7 +390,7 @@ pub fn spill(f: *Fn) void {
             for (0..2) |k| {
                 const n: i32 = if (k == 0) all.T.ngpr else all.T.nfpr;
                 bscopy(&u, &b.out);
-                bsinter(&u, &mask[k]);
+                bsinter(&u, &st.mask[k]);
                 bscopy(&w, &u);
                 bsinter(&u, &hd.gen);
                 bsdiff(&w, &hd.gen);
@@ -417,7 +421,7 @@ pub fn spill(f: *Fn) void {
         }
         if (rtype(b.jmp.arg) == RTmp) {
             t = b.jmp.arg.val;
-            assert(clsBase(tmp[@intCast(t)].cls) == 0);
+            assert(clsBase(st.tmp[@intCast(t)].cls) == 0);
             bsset(&v, t);
             limit2(&v, 0, 0, null);
             if (!bshas(&v, t))
@@ -505,7 +509,7 @@ pub fn spill(f: *Fn) void {
             reloads(&u, &v);
             if (!req(i.to, R)) {
                 t = i.to.val;
-                store(i.to, tmp[@intCast(t)].slot);
+                store(i.to, st.tmp[@intCast(t)].slot);
                 if (t >= Tmp0)
                     // in case i->to was a
                     // dead temporary
@@ -527,7 +531,7 @@ pub fn spill(f: *Fn) void {
             t = p.to.val;
             if (bshas(&v, t)) {
                 bsclr(&v, t);
-                store(p.to, tmp[@intCast(t)].slot);
+                store(p.to, st.tmp[@intCast(t)].slot);
             } else if (bshas(&b.in, t))
                 // only if the phi is live
                 p.to = slot((p.to.val));
@@ -538,8 +542,8 @@ pub fn spill(f: *Fn) void {
 
     // align the locals to a 16 byte boundary
     // specific to NAlign == 3
-    slot8 += slot8 & 3;
-    f.slot += slot8;
+    st.slot8 += st.slot8 & 3;
+    f.slot += st.slot8;
 
     if (all.debug['S'] != 0) {
         dprint("\n> Block information:\n", .{});

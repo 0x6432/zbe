@@ -79,6 +79,8 @@
   exits 1; the library `compile()` returns `error.InvalidInput` and `qbe_compile`
   returns 3 rather than killing the host. The exiting `err()` is removed; `die()`
   remains for internal invariant failures and still prints `dying:` like C qbe.
+- The spiller, register allocator and load optimizer keep their per-function state
+  in a documented `State` struct (`st`) instead of 21 loose file-level globals.
 
 ### CI / tooling
 - CI compiles and passes again on all jobs (lib.sh crash detection, cproc limit

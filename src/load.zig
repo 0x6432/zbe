@@ -92,10 +92,14 @@ const Insert = extern struct {
     },
 };
 
-var curf: *Fn = undefined;
-var inum: uint = 0; // current insertion number
-var ilog: [*]Insert = undefined; // global insertion log
-var nlog: uint = 0; // number of entries in the log
+/// Load-elimination state for the function being processed.
+const State = struct {
+    curf: *Fn = undefined,
+    inum: uint = 0, // current insertion number
+    ilog: [*]Insert = undefined, // global insertion log
+    nlog: uint = 0, // number of entries in the log
+};
+var st: State = .{};
 
 pub fn loadsz(l: *Ins) i32 {
     switch (l.op) {
@@ -120,16 +124,16 @@ pub fn storesz(s: *Ins) i32 {
 }
 
 fn iins(cls: Cls, op: Opc, a0: Ref, a1: Ref, l: *Loc) Ref {
-    nlog += 1;
-    vgrow(&ilog, nlog);
-    const ist = &ilog[nlog - 1];
+    st.nlog += 1;
+    vgrow(&st.ilog, st.nlog);
+    const ist = &st.ilog[st.nlog - 1];
     ist.isphi = 0;
-    ist.num = inum;
-    inum += 1;
+    ist.num = st.inum;
+    st.inum += 1;
     ist.bid = l.blk.id;
     ist.off = l.off;
     ist.new.ins = mkIns(op, cls, R, a0, a1);
-    ist.new.ins.to = newtmp("ld", cls, curf);
+    ist.new.ins.to = newtmp("ld", cls, st.curf);
     return ist.new.ins.to;
 }
 
@@ -137,7 +141,7 @@ fn cast(r: *Ref, cls: Cls, l: *Loc) void {
     if (rtype(r.*) == RCon)
         return;
     assert(rtype(r.*) == RTmp);
-    const cls0 = curf.tmp[r.val].cls;
+    const cls0 = st.curf.tmp[r.val].cls;
     if (cls0 == cls or (cls == .w and cls0 == .l))
         return;
     if (clsWide(cls0) < clsWide(cls)) {
@@ -156,7 +160,7 @@ fn cast(r: *Ref, cls: Cls, l: *Loc) void {
 
 inline fn mask(cls: Cls, r: *Ref, msk: bits, l: *Loc) void {
     cast(r, cls, l);
-    r.* = iins(cls, .@"and", r.*, getcon(@bitCast(msk), curf), l);
+    r.* = iins(cls, .@"and", r.*, getcon(@bitCast(msk), st.curf), l);
 }
 
 fn load(sl: Slice, msk: bits, l: *Loc) Ref {
@@ -181,12 +185,12 @@ fn load(sl: Slice, msk: bits, l: *Loc) Ref {
     // but its alias base ref will be
     // (see killsl() below)
     if (rtype(r) == RTmp) {
-        const a = &curf.tmp[r.val].alias;
+        const a = &st.curf.tmp[r.val].alias;
         switch (a.type) {
             ALoc, AEsc, AUnk => {
                 r = tmpRef(a.base);
                 if (a.offset != 0) {
-                    const r1 = getcon(a.offset, curf);
+                    const r1 = getcon(a.offset, st.curf);
                     r = iins(.l, .add, r, r1, l);
                 }
             },
@@ -195,7 +199,7 @@ fn load(sl: Slice, msk: bits, l: *Loc) Ref {
                 c.type = CAddr;
                 c.sym = a.u.sym;
                 c.bits.i = a.offset;
-                r = newcon(&c, curf);
+                r = newcon(&c, st.curf);
             },
             else => die("unreachable", .{}),
         }
@@ -209,7 +213,7 @@ fn load(sl: Slice, msk: bits, l: *Loc) Ref {
 fn rebase(sl: *Slice) void {
     if (rtype(sl.ref) != RTmp)
         return;
-    const a = &curf.tmp[sl.ref.val].alias;
+    const a = &st.curf.tmp[sl.ref.val].alias;
     if (a.offset == @as(i16, @truncate(a.offset)))
         if (a.type == ALoc or a.type == AEsc or a.type == AUnk) {
             sl.ref = tmpRef(a.base);
@@ -220,7 +224,7 @@ fn rebase(sl: *Slice) void {
 fn killsl(r: Ref, sl: Slice) bool {
     if (rtype(sl.ref) != RTmp)
         return false;
-    const a = &curf.tmp[sl.ref.val].alias;
+    const a = &st.curf.tmp[sl.ref.val].alias;
     switch (a.type) {
         ALoc, AEsc, AUnk => return req(tmpRef(a.base), r),
         ACon, ASym => return false,
@@ -248,13 +252,13 @@ fn def(sl: Slice, msk: bits, b: *Blk, i: ?uint, il: *Loc) Ref {
     //     postdominates il->blk (and by 2, the
     //     original load)
     assert(dom(b, il.blk));
-    const oldl = nlog;
-    const oldt = curf.ntmp;
+    const oldl = st.nlog;
+    const oldt = st.curf.ntmp;
     if (defBody(sl, msk, b, i, il)) |r|
         return r;
     // Load:
-    curf.ntmp = oldt;
-    nlog = oldl;
+    st.curf.ntmp = oldt;
+    st.nlog = oldl;
     if (il.type != LLoad)
         return R;
     return load(sl, msk, il);
@@ -278,7 +282,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
     while (idx > 0) {
         idx -= 1;
         var i = &b.ins[idx];
-        if (killsl(i.to, sl) or (i.op == .call and escapes(sl.ref, curf)))
+        if (killsl(i.to, sl) or (i.op == .call and escapes(sl.ref, st.curf)))
             return null;
         const ld = isload(i.op);
         if (ld) {
@@ -298,7 +302,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
             assert(i.op == .blit0);
             r1 = i.arg[1];
         } else continue;
-        switch (alias(sl.ref, sl.off, sl.sz, r1, sz, &off, curf)) {
+        switch (alias(sl.ref, sl.off, sl.sz, r1, sz, &off, st.curf)) {
             MustAlias => {
                 if (i.op == .blit0) {
                     sl1 = sl;
@@ -337,7 +341,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
                     if (op == .shr and off + sl.sz > 4)
                         cls1 = .l;
                     cast(&r, cls1, il);
-                    r1 = getcon(8 * off, curf);
+                    r1 = getcon(8 * off, st.curf);
                     r = iins(cls1, op, r, r1, il);
                 }
                 if ((msk1 & msk) != msk1 or off + sz < sl.sz)
@@ -362,7 +366,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
         }
     }
 
-    for (ilog[0..nlog]) |*ist|
+    for (st.ilog[0..st.nlog]) |*ist|
         if (ist.isphi != 0 and ist.bid == b.id)
             if (req(ist.new.phi.m.ref, sl.ref))
                 if (ist.new.phi.m.off == sl.off)
@@ -396,11 +400,11 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
         return r1;
     }
 
-    r = newtmp("ld", sl.cls, curf);
+    r = newtmp("ld", sl.cls, st.curf);
     const p = pnew(Phi);
-    nlog += 1;
-    vgrow(&ilog, nlog);
-    const ist = &ilog[nlog - 1];
+    st.nlog += 1;
+    vgrow(&st.ilog, st.nlog);
+    const ist = &st.ilog[st.nlog - 1];
     ist.isphi = 1;
     ist.bid = b.id;
     ist.new.phi.m = sl;
@@ -448,10 +452,10 @@ fn icmp(a: Insert, b: Insert) std.math.Order {
 
 /// require rpo ssa alias
 pub fn loadopt(f: *Fn) void {
-    curf = f;
-    ilog = vnewT(Insert, 0, PHeap);
-    nlog = 0;
-    inum = 0;
+    st.curf = f;
+    st.ilog = vnewT(Insert, 0, PHeap);
+    st.nlog = 0;
+    st.inum = 0;
     var b_it = f.start;
     while (b_it) |b| : (b_it = b.link) {
         for (b.insns(), 0..) |*i, n| {
@@ -464,11 +468,11 @@ pub fn loadopt(f: *Fn) void {
             i.arg[1] = def(sl, lowMask(sz), b, @intCast(n), &l);
         }
     }
-    sort(Insert, ilog, nlog, icmp);
-    vgrow(&ilog, nlog + 1);
-    ilog[nlog].bid = f.nblk; // add a sentinel
+    sort(Insert, st.ilog, st.nlog, icmp);
+    vgrow(&st.ilog, st.nlog + 1);
+    st.ilog[st.nlog].bid = f.nblk; // add a sentinel
     var ib = vnewT(Ins, 0, PHeap);
-    var ist: [*]Insert = ilog;
+    var ist: [*]Insert = st.ilog;
     for (f.blks(), 0..) |b, n| {
         while (ist[0].bid == n and ist[0].isphi != 0) : (ist += 1) {
             ist[0].new.phi.p.link = b.phi;
@@ -509,7 +513,7 @@ pub fn loadopt(f: *Fn) void {
         idup(b, ib, nt);
     }
     vfree(ib);
-    vfree(ilog);
+    vfree(st.ilog);
     if (all.debug['M'] != 0) {
         dprint("\n> After load elimination:\n", .{});
         printfn(f, all.dbg) catch {};

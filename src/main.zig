@@ -166,7 +166,10 @@ pub fn func(f: *Fn) all.Error!void {
         } else f.rpo[n].link = f.rpo[n + 1];
     }
     if (!dbg) {
-        all.T.emitfn(f, outf) catch writeFailed();
+        all.T.emitfn(f, outf) catch |e| switch (e) {
+            error.WriteFailed => writeFailed(),
+            error.InvalidInput => return error.InvalidInput,
+        };
         outf.print("/* end function {s} */\n\n", .{cs(f.name)}) catch writeFailed();
     } else {
         dprint("\n", .{});

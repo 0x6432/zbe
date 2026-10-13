@@ -237,7 +237,7 @@ fn slot(r: Ref, e: *E) u64 {
     } else return 16 + @as(u64, e.padding +% 4 *% @as(u32, @bitCast(s)));
 }
 
-fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
+fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) (Writer.Error || all.Error)!void {
     var s = s_;
     var r: Ref = undefined;
     var c: u8 = undefined;
@@ -336,7 +336,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
     }
 }
 
-fn loadaddr(c: *Con, rn: [*:0]const u8, e: *E) Writer.Error!void {
+fn loadaddr(c: *Con, rn: [*:0]const u8, e: *E) (Writer.Error || all.Error)!void {
     var s: [*:0]const u8 = undefined;
 
     switch (c.sym.type) {
@@ -351,7 +351,7 @@ fn loadaddr(c: *Con, rn: [*:0]const u8, e: *E) Writer.Error!void {
         },
         SExtThr, SThr => {
             if (c.sym.type == SExtThr and all.T.apple == 0)
-                die("extern thread unavailable on arm64", .{});
+                return all.failInput("extern thread unavailable on arm64", .{});
             if (all.T.apple != 0)
                 s = "\tadrp\tR, S@tlvppage\n" ++
                     "\tldr\tR, [R, S@tlvppageoff]\n"
@@ -390,7 +390,7 @@ fn loadaddr(c: *Con, rn: [*:0]const u8, e: *E) Writer.Error!void {
     }
 }
 
-fn loadcon(c: *Con, r: i32, k: i32, e: *E) Writer.Error!void {
+fn loadcon(c: *Con, r: i32, k: i32, e: *E) (Writer.Error || all.Error)!void {
     const w = clsWide(k);
     var rn = rname(r, k);
     var n = c.bits.i;
@@ -417,7 +417,7 @@ fn loadcon(c: *Con, r: i32, k: i32, e: *E) Writer.Error!void {
     }
 }
 
-fn fixarg(pr: *Ref, sz: i32, t: i32, e: *E) Writer.Error!bool {
+fn fixarg(pr: *Ref, sz: i32, t: i32, e: *E) (Writer.Error || all.Error)!bool {
     const r = pr.*;
     if (rtype(r) == RSlot) {
         const s = slot(r, e);
@@ -432,7 +432,7 @@ fn fixarg(pr: *Ref, sz: i32, t: i32, e: *E) Writer.Error!bool {
     return false;
 }
 
-fn emitins(i: *Ins, e: *E) Writer.Error!void {
+fn emitins(i: *Ins, e: *E) (Writer.Error || all.Error)!void {
     switch (i.op) {
         else => {
             if (isload(i.op))
@@ -520,7 +520,7 @@ fn emitins(i: *Ins, e: *E) Writer.Error!void {
 /// Table: most instructions are just pulled out of
 /// the table omap[], some special cases are
 /// detailed in emitins
-fn table(i: *Ins, e: *E) Writer.Error!void {
+fn table(i: *Ins, e: *E) (Writer.Error || all.Error)!void {
     var o: usize = 0;
     while (true) : (o += 1) {
         // this linear search should really be a binary
@@ -579,7 +579,7 @@ const ctoa = blk: {
 };
 
 
-pub fn arm64_emitfn(f: *Fn, out: *Writer) Writer.Error!void {
+pub fn arm64_emitfn(f: *Fn, out: *Writer) (Writer.Error || all.Error)!void {
     var e_ = E{ .f = out, .@"fn" = f, .frame = 0, .padding = 0 };
     const e = &e_;
     if (all.T.apple != 0)

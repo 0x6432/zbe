@@ -318,7 +318,7 @@ fn getarg(c: u8, i: *Ins) Ref {
     }
 }
 
-fn emitcopy(r1: Ref, r2: Ref, k: Cls, e: *E) Writer.Error!void {
+fn emitcopy(r1: Ref, r2: Ref, k: Cls, e: *E) (Writer.Error || all.Error)!void {
     var icp: Ins = undefined;
 
     icp.op = .copy;
@@ -351,7 +351,7 @@ fn emitmem(ref: Ref, e: *E) Writer.Error!void {
     try e.f.writeByte(')');
 }
 
-fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) Writer.Error!void {
+fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) (Writer.Error || all.Error)!void {
     var s = s_;
     var c: u8 = undefined;
     var sz: i32 = undefined;
@@ -468,7 +468,7 @@ const negmask = blk: {
 /// Table: most instructions are just pulled out of
 /// the table omap[], some special cases are
 /// detailed in emitins()
-fn emittable(i: *Ins, e: *E) Writer.Error!void {
+fn emittable(i: *Ins, e: *E) (Writer.Error || all.Error)!void {
     var o: usize = 0;
     while (true) : (o += 1) {
         // this linear search should really be a binary
@@ -484,7 +484,7 @@ fn emittable(i: *Ins, e: *E) Writer.Error!void {
     try emitf(omap[o].fmt.?, i, e);
 }
 
-fn emitins(i_: Ins, e: *E) Writer.Error!void {
+fn emitins(i_: Ins, e: *E) (Writer.Error || all.Error)!void {
     var i = i_;
 
     switch (i.op) {
@@ -614,7 +614,7 @@ fn emitins(i_: Ins, e: *E) Writer.Error!void {
                 return;
             }
             if (all.T.windows != 0 and con.sym.type != SGlo)
-                die("extern/thread unsupported on amd64_win", .{});
+                return all.failInput("extern/thread unsupported on amd64_win", .{});
             switch (con.sym.type) {
                 SThr => {
                     // derive the symbol address from the TCB
@@ -702,7 +702,7 @@ fn sysv_framesz(e: *E) void {
 }
 
 
-pub fn amd64_sysv_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
+pub fn amd64_sysv_emitfn(f: *Fn, fp: *Writer) (Writer.Error || all.Error)!void {
     var itmp: Ins = undefined;
     var e_ = E{ .f = fp, .@"fn" = f, .fp = 0, .fsz = 0, .nclob = 0 };
     const e = &e_;
@@ -822,7 +822,7 @@ fn winabi_framesz(e: *E) void {
 }
 
 
-pub fn amd64_winabi_emitfn(f: *Fn, fp: *Writer) Writer.Error!void {
+pub fn amd64_winabi_emitfn(f: *Fn, fp: *Writer) (Writer.Error || all.Error)!void {
     var itmp: Ins = undefined;
     var e_ = E{ .f = fp, .@"fn" = f, .fp = 0, .fsz = 0, .nclob = 0 };
     const e = &e_;

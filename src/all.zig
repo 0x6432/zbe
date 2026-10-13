@@ -31,7 +31,7 @@ pub const Target = struct {
     abi0: *const fn (*Fn) Error!void,
     abi1: *const fn (*Fn) Error!void,
     isel: *const fn (*Fn) Error!void,
-    emitfn: *const fn (*Fn, *Writer) Writer.Error!void,
+    emitfn: *const fn (*Fn, *Writer) (Writer.Error || Error)!void,
     emitfin: *const fn (*Writer) Writer.Error!void,
     asloc: [4]u8,
     assym: [4]u8,
@@ -601,6 +601,7 @@ pub inline fn insbHead() usize {
 }
 pub const hash = util.hash;
 pub const die = util.die;
+pub const failInput = util.failInput;
 pub const Writer = util.Writer;
 pub const cs = util.cs;
 pub const dprint = util.dprint;

@@ -5,9 +5,8 @@
 //! C:    see include/qbe.h (qbe_compile / qbe_free / qbe_targets).
 //!
 //! Limitations (inherited from qbe's design): not thread-safe (global
-//! state), and malformed input is a fatal error: the message goes to stderr
-//! and the process exits with status 1, exactly as the qbe command does.
-//! Validate untrusted input with the command-line tool first.
+//! state). Input errors are printed to stderr and returned as InvalidInput
+//! (qbe_compile returns 3); internal invariant failures still abort.
 const std = @import("std");
 const all = @import("all.zig");
 const drv = @import("main.zig");

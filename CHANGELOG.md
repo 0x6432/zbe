@@ -8,6 +8,11 @@
   instead of `div`.
 
 ### Fixes
+- Input-driven backend failures (unsupported extern/thread, extern offsets,
+  allocation overflow, invalid constants, env with varargs, and initialized
+  common data) now return `InvalidInput` instead of aborting. Diagnostics
+  retain the C-compatible text; the CLI exits 1 and `qbe_compile` returns 3.
+
 - rv64: shift-by-immediate counts are masked to the operand width (fixed in
   the C reference patch too).
 - rv64: float-flattened struct arguments are no longer passed on the stack

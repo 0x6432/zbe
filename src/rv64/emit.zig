@@ -178,20 +178,20 @@ fn slot(r: Ref, f: *Fn) i64 {
         return -4 * @as(i64, f.slot - s);
 }
 
-fn emitaddr(c: *Con, f: *Writer) Writer.Error!void {
+fn emitaddr(c: *Con, f: *Writer) (Writer.Error || all.Error)!void {
     assert((c.sym.type & ~@as(i32, SExt)) == SGlo);
     try f.writeAll(cs(str(c.sym.id)));
     if (c.bits.i != 0) {
         // TODO: fix isel to ensure no offset for SGlo
         if ((c.sym.type & SExt) != 0)
-            die("extern with offset is not supported", .{});
+            return all.failInput("extern with offset is not supported", .{});
         try f.print("+{d}", .{c.bits.i});
     }
 }
 
 const clschr = [_]u8{ 'w', 'l', 's', 'd' };
 
-fn emitf(s_: [*:0]const u8, i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
+fn emitf(s_: [*:0]const u8, i: *Ins, fn_: *Fn, f: *Writer) (Writer.Error || all.Error)!void {
     var s = s_;
     var r: Ref = undefined;
     var c: u8 = undefined;
@@ -276,7 +276,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
     }
 }
 
-fn loadaddr(c: *Con, rn: ?[*:0]const u8, f: *Writer) Writer.Error!void {
+fn loadaddr(c: *Con, rn: ?[*:0]const u8, f: *Writer) (Writer.Error || all.Error)!void {
     var off: [32]u8 = undefined;
 
     switch (c.sym.type) {
@@ -294,12 +294,12 @@ fn loadaddr(c: *Con, rn: ?[*:0]const u8, f: *Writer) Writer.Error!void {
             try f.print("\tadd {s}, {s}, tp, %tprel_add({s}){s}\n", .{cs(rn), cs(rn), cs(str(c.sym.id)), cs(&off)});
             try f.print("\taddi {s}, {s}, %tprel_lo({s}){s}\n", .{cs(rn), cs(rn), cs(str(c.sym.id)), cs(&off)});
         },
-        SExtThr => die("extern thread unavailable on rv64", .{}),
+        SExtThr => return all.failInput("extern thread unavailable on rv64", .{}),
         else => {},
     }
 }
 
-fn loadcon(c: *Con, r: i32, k: i32, f: *Writer) Writer.Error!void {
+fn loadcon(c: *Con, r: i32, k: i32, f: *Writer) (Writer.Error || all.Error)!void {
     const rn = rname[@intCast(r)];
     switch (c.type) {
         CAddr => try loadaddr(c, rn, f),
@@ -309,11 +309,11 @@ fn loadcon(c: *Con, r: i32, k: i32, f: *Writer) Writer.Error!void {
                 n = @as(i32, @truncate(n));
             try f.print("\tli {s}, {d}\n", .{cs(rn), n});
         },
-        else => die("invalid constant", .{}),
+        else => return all.failInput("invalid constant", .{}),
     }
 }
 
-fn fixmem(pr: *Ref, fn_: *Fn, f: *Writer) Writer.Error!void {
+fn fixmem(pr: *Ref, fn_: *Fn, f: *Writer) (Writer.Error || all.Error)!void {
     const r = pr.*;
     if (rtype(r) == RCon) {
         const c = &fn_.con[r.val];
@@ -335,7 +335,7 @@ fn fixmem(pr: *Ref, fn_: *Fn, f: *Writer) Writer.Error!void {
 /// Table: most instructions are just pulled out of
 /// the table omap[], some special cases are
 /// detailed in emitins
-fn table(i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
+fn table(i: *Ins, fn_: *Fn, f: *Writer) (Writer.Error || all.Error)!void {
     var o: usize = 0;
     while (true) : (o += 1) {
         // this linear search should really be a binary
@@ -350,7 +350,7 @@ fn table(i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
     try emitf(omap[o].fmt.?, i, fn_, f);
 }
 
-fn emitins(i: *Ins, fn_: *Fn, f: *Writer) Writer.Error!void {
+fn emitins(i: *Ins, fn_: *Fn, f: *Writer) (Writer.Error || all.Error)!void {
     switch (i.op) {
         else => {
             if (isload(i.op))
@@ -459,7 +459,7 @@ const State = struct {
 };
 var st: State = .{};
 
-pub fn rv64_emitfn(fn_: *Fn, f: *Writer) Writer.Error!void {
+pub fn rv64_emitfn(fn_: *Fn, f: *Writer) (Writer.Error || all.Error)!void {
     try emitfnlnk(fn_.name.?, &fn_.lnk, f);
 
     if (fn_.vararg != 0) {
@@ -553,4 +553,16 @@ pub fn rv64_emitfn(fn_: *Fn, f: *Writer) Writer.Error!void {
     }
     st.id0 += @intCast(fn_.nblk);
     try elf_emitfnfin(fn_.name.?, f);
+}
+
+test "loadcon returns InvalidInput for an invalid constant" {
+    var buf: [128]u8 = undefined;
+    var dbg = std.Io.Writer.fixed(&buf);
+    all.dbg = &dbg;
+    defer all.dbg = undefined;
+    var outbuf: [128]u8 = undefined;
+    var out = std.Io.Writer.fixed(&outbuf);
+    var con = std.mem.zeroes(Con);
+    try std.testing.expectError(error.InvalidInput, loadcon(&con, A0, Cls.l.int(), &out));
+    try std.testing.expectEqualStrings("qbe: dying: invalid constant\n", dbg.buffered());
 }

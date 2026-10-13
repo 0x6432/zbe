@@ -434,9 +434,20 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   returns `error.InvalidInput` (`qbe_compile` -> 3). The exiting `err()` is gone.
 - `die()` stays for internal invariant failures: tools/lib.sh treats rc>=128
   without `dying:` as a crash and tools/corpus.sh compares `dying:` lines with C.
-  Some `die` sites are really input-driven (unsupported extern/thread on a
-  target, alloc too large, env with varargs); converting them is optional and
-  must keep the C-compatible message text.
+- Ten input-driven `die` sites now return `all.failInput()` (InvalidInput):
+  unsupported extern/thread on arm64/rv64/amd64_win, rv64 extern offsets,
+  amd64/rv64 alloc overflow and invalid constants, winabi env with varargs,
+  and initialized common data. Unlike parser `fail`, `failInput` preserves
+  the exact `qbe: dying:` diagnostic, without aborting. CLI exits 1; the C
+  library returns 3. The emitter vtable and helper chains propagate the
+  error as `(Writer.Error || all.Error)`, and the driver distinguishes it
+  from WriteFailed. Internal invariant and resource-exhaustion aborts stay.
+- `tools/input-errors.py` compares the input diagnostics against C, verifies
+  CLI exit 1 at every optimization level, and checks repeated bad->good
+  compilations in one library process. Two unit tests cover invalid constants
+  at the private helper boundary. The CI core/native suites run the script.
+  `tools/cmp.sh` and `tools/corpus.sh` permit C abort versus zbe exit 1 only
+  for the enumerated input diagnostics through `tools/input-error-compat.sh`; their normalized stderr must still match exactly.
 - Per-pass mutable state lives in one documented `const State = struct {...}`
   per file with an instance `var st: State = .{}` (spill, rega, load, emit,
   ssa, gvn, parse, arm64/abi, the three emitters, util, lib). It is not reset

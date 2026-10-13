@@ -99,7 +99,7 @@ const vgrow = all.vgrow;
 //            is not so trivial, maybe the
 //            dce should be moved out...
 
-fn noimm(r: Ref, f: *Fn) bool {
+fn noimm(r: Ref, f: *Fn) all.Error!bool {
     if (rtype(r) != RCon)
         return false;
     switch (f.con[r.val].type) {
@@ -114,7 +114,7 @@ fn noimm(r: Ref, f: *Fn) bool {
             const val = f.con[r.val].bits.i;
             return (val < std.math.minInt(i32) or val > std.math.maxInt(i32));
         },
-        else => die("invalid constant", .{}),
+        else => return all.failInput("invalid constant", .{}),
     }
 }
 
@@ -139,7 +139,7 @@ fn hascon(r: Ref, pc: **Con, f: *Fn) bool {
 }
 
 /// i is the instruction r belongs to (null for phi arguments)
-fn fixarg(r: *Ref, k: Cls, i: ?*Ins, f: *Fn) void {
+fn fixarg(r: *Ref, k: Cls, i: ?*Ins, f: *Fn) all.Error!void {
     var buf: [32]u8 = undefined;
     var a: Addr = undefined;
     var cc: Con = undefined;
@@ -172,7 +172,7 @@ fn fixarg(r: *Ref, k: Cls, i: ?*Ins, f: *Fn) void {
         // produce an indirect call
         r1 = newtmp("isel", .l, f);
         emit(.copy, .l, r1, r0, R);
-    } else if (op != .copy and k == .l and noimm(r0, f)) {
+    } else if (op != .copy and k == .l and (try noimm(r0, f))) {
         // load constants that do not fit in
         // a 32bit signed integer into a
         // long temporary
@@ -284,7 +284,7 @@ fn cmpswap(arg: *const [2]Ref, op: i32) bool {
     return rtype(arg[0]) == RCon;
 }
 
-fn selcmp(arg: *[2]Ref, k: Cls, swap: bool, f: *Fn) void {
+fn selcmp(arg: *[2]Ref, k: Cls, swap: bool, f: *Fn) all.Error!void {
     if (swap) {
         const r = arg[1];
         arg[1] = arg[0];
@@ -296,10 +296,10 @@ fn selcmp(arg: *[2]Ref, k: Cls, swap: bool, f: *Fn) void {
         assert(k != .w);
         icmp.arg[1] = newtmp("isel", k, f);
         emit(.copy, k, icmp.arg[1], arg[0], R);
-        fixarg(&all.curi[0].arg[0], k, &all.curi[0], f);
+        try fixarg(&all.curi[0].arg[0], k, &all.curi[0], f);
     }
-    fixarg(&icmp.arg[0], k, icmp, f);
-    fixarg(&icmp.arg[1], k, icmp, f);
+    try fixarg(&icmp.arg[0], k, icmp, f);
+    try fixarg(&icmp.arg[1], k, icmp, f);
 }
 
 fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) all.Error!void {
@@ -348,7 +348,7 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) all.Error!void {
                 emit(.copy, k, tmpRef(RDX), CON_Z, R);
             }
             emit(.copy, k, tmpRef(RAX), i.arg[0], R);
-            fixarg(&all.curi[0].arg[0], k, &all.curi[0], f);
+            try fixarg(&all.curi[0].arg[0], k, &all.curi[0], f);
             if (rtype(i.arg[1]) == RCon)
                 emit(.copy, k, r0, i.arg[1], R);
         },
@@ -371,13 +371,13 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) all.Error!void {
             emiti(i);
             i_1 = &all.curi[0];
             emit(.copy, .w, tmpRef(RCX), r0, R);
-            fixarg(&i_1.arg[0], argcls(&i, 0), i_1, f);
+            try fixarg(&i_1.arg[0], argcls(&i, 0), i_1, f);
         },
         .uwtof => {
             r0 = newtmp("utof", .l, f);
             emit(.sltof, k, i.to, r0, R);
             emit(.extuw, .l, r0, i.arg[0], R);
-            fixarg(&all.curi[0].arg[0], k, &all.curi[0], f);
+            try fixarg(&all.curi[0].arg[0], k, &all.curi[0], f);
         },
         .ultof => {
             // %mask =l and %arg.0, 1
@@ -414,9 +414,9 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) all.Error!void {
             all.curi += 1;
             try sel(ci.*, null, f);
             emit(.shr, .l, tmp[1], i.arg[0], getcon(63, f));
-            fixarg(&all.curi[0].arg[0], .l, &all.curi[0], f);
+            try fixarg(&all.curi[0].arg[0], .l, &all.curi[0], f);
             emit(.@"and", .l, tmp[0], i.arg[0], getcon(1, f));
-            fixarg(&all.curi[0].arg[0], .l, &all.curi[0], f);
+            try fixarg(&all.curi[0].arg[0], .l, &all.curi[0], f);
         },
         .stoui, .dtoui => {
             if (i.op == .stoui) {
@@ -456,11 +456,11 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) all.Error!void {
             emit(i.op, .l, tmp[2], r0, R);
             emit(.add, kc, r0, tmp[4], i.arg[0]);
             i_1 = &all.curi[0]; // fixarg() can change curi
-            fixarg(&i_1.arg[0], kc, i_1, f);
-            fixarg(&i_1.arg[1], kc, i_1, f);
+            try fixarg(&i_1.arg[0], kc, i_1, f);
+            try fixarg(&i_1.arg[1], kc, i_1, f);
             emit(.sar, .l, tmp[1], tmp[0], getcon(63, f));
             emit(i.op, .l, tmp[0], i.arg[0], R);
-            fixarg(&all.curi[0].arg[0], .l, &all.curi[0], f);
+            try fixarg(&all.curi[0].arg[0], .l, &all.curi[0], f);
         },
         .nop => {},
         .stored, .stores, .storel, .storew, .storeh, .storeb => {
@@ -477,8 +477,8 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) all.Error!void {
             // Emit:
             emiti(i);
             i_1 = &all.curi[0]; // fixarg() can change curi
-            fixarg(&i_1.arg[0], argcls(&i, 0), i_1, f);
-            fixarg(&i_1.arg[1], argcls(&i, 1), i_1, f);
+            try fixarg(&i_1.arg[0], argcls(&i, 0), i_1, f);
+            try fixarg(&i_1.arg[1], argcls(&i, 1), i_1, f);
         },
         .alloc4, .alloc8, .alloc16 => try salloc(i.to, i.arg[0], f),
         else => {
@@ -516,7 +516,7 @@ fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) all.Error!void {
                 if (swap)
                     x = cmpop(x);
                 emit(Opc.flag_first.offset(x), k, i.to, R, R);
-                selcmp(&i.arg, kc, swap, f);
+                try selcmp(&i.arg, kc, swap, f);
                 break :sw;
             }
             die("unknown instruction {s}", .{cs(all.optab[i.op.int()].name)});
@@ -628,14 +628,14 @@ fn selsel(f: *Fn, b: *Blk, n1: uint, tn: [*]Num) all.Error!uint {
     }
     assert(!gencmp or !gencpy);
     if (gencmp)
-        selcmp(&cr, k, swap, f);
+        try selcmp(&cr, k, swap, f);
     if (gencpy)
         emit(.copy, .w, R, r, R);
     isel0.* = insOp(.nop);
     return n0;
 }
 
-fn seljmp(b: *Blk, f: *Fn) void {
+fn seljmp(b: *Blk, f: *Fn) all.Error!void {
     var k: Cls = undefined;
     var c: i32 = undefined;
 
@@ -657,7 +657,7 @@ fn seljmp(b: *Blk, f: *Fn) void {
     const fi_ = flagi(b.insns());
     if (fi_ == null or !req(fi_.?.to, r)) {
         var cr = [2]Ref{ r, CON_Z };
-        selcmp(&cr, .w, false, f);
+        try selcmp(&cr, .w, false, f);
         b.jmp.type = J.jf_first.add(Cine);
         return;
     }
@@ -670,7 +670,7 @@ fn seljmp(b: *Blk, f: *Fn) void {
         if (swap)
             c = cmpop(c);
         if (t.nuse == 1) {
-            selcmp(&fi.arg, k, swap, f);
+            try selcmp(&fi.arg, k, swap, f);
             fi.* = insOp(.nop);
         }
         b.jmp.type = J.jf_first.add(c);
@@ -932,7 +932,7 @@ pub fn amd64_isel(f: *Fn) all.Error!void {
                 sz = (sz + n - 1) & -@as(i64, n);
                 sz = @divTrunc(sz, 4);
                 if (sz > std.math.maxInt(i32) - f.slot)
-                    die("alloc too large", .{});
+                    return all.failInput("alloc too large", .{});
                 f.tmp[i.to.val].slot = f.slot;
                 f.slot += @intCast(sz);
                 f.salign = 2 + al;
@@ -954,12 +954,12 @@ pub fn amd64_isel(f: *Fn) all.Error!void {
                 var a: uint = 0;
                 while (p.blk[a] != b) : (a += 1)
                     assert(a + 1 < p.narg);
-                fixarg(&p.arg[a], p.cls, null, f);
+                try fixarg(&p.arg[a], p.cls, null, f);
             }
         }
         if (n != 0) @memset(num[0..@intCast(n)], std.mem.zeroes(Num));
         anumber(num, b, f.con);
-        seljmp(b, f);
+        try seljmp(b, f);
         var k = b.nins;
         while (k != 0) {
             k -= 1;
@@ -977,4 +977,16 @@ pub fn amd64_isel(f: *Fn) all.Error!void {
         dprint("\n> After instruction selection:\n", .{});
         printfn(f, all.dbg) catch {};
     }
+}
+
+test "noimm returns InvalidInput for an invalid constant" {
+    var buf: [128]u8 = undefined;
+    var dbg = std.Io.Writer.fixed(&buf);
+    all.dbg = &dbg;
+    defer all.dbg = undefined;
+    var con = [_]Con{std.mem.zeroes(Con)};
+    var f = std.mem.zeroes(Fn);
+    f.con = &con;
+    try std.testing.expectError(error.InvalidInput, noimm(all.conRef(0), &f));
+    try std.testing.expectEqualStrings("qbe: dying: invalid constant\n", dbg.buffered());
 }

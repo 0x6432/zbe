@@ -242,6 +242,14 @@ pub fn bufPrintZ(buf: []u8, comptime fmt: []const u8, args: anytype) void {
     _ = std.fmt.bufPrintSentinel(buf, fmt, args, 0) catch unreachable;
 }
 
+/// Input-driven failures formerly reported by die(). Keep the C-compatible
+/// diagnostic, but let the CLI/library caller decide how to recover.
+pub fn failInput(comptime fmt: []const u8, args: anytype) all.Error {
+    dprint("qbe: dying: " ++ fmt ++ "\n", args);
+    all.dbg.flush() catch {};
+    return error.InvalidInput;
+}
+
 pub fn die(comptime fmt: []const u8, args: anytype) noreturn {
     dprint("qbe: dying: " ++ fmt ++ "\n", args);
     all.dbg.flush() catch {};

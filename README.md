@@ -55,7 +55,8 @@ if (qbe_compile(text, len, "rv64", 2, &as, &n) == 0) { fwrite(as, 1, n, stdout);
 ```
 
 The library has the same limitations as qbe itself: it is not thread-safe, and
-malformed IL is fatal (the error goes to stderr and the process exits with 1).
+input errors are printed to stderr and returned as `InvalidInput`
+(`qbe_compile` returns 3). Internal invariant failures still abort.
 
 ## Tests
 

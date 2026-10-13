@@ -93,7 +93,7 @@ pub fn emitdat(d: *Dat, f: *Writer) (Writer.Error || all.Error)!void {
         DEnd => {
             if (d.lnk.?.common != 0) {
                 if (st.emitdat_zero == -1)
-                    die("invalid common data definition", .{});
+                    return all.failInput("invalid common data definition", .{});
                 const p: [*:0]const u8 = if (d.name.?[0] == '"') "" else @ptrCast(&all.T.assym);
                 try f.print(".comm {s}{s},{d}", .{cs(p), cs(d.name), st.emitdat_zero});
                 if (d.lnk.?.@"align" != 0)

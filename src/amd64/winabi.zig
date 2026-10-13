@@ -259,7 +259,7 @@ fn type_is_by_copy(@"type": *const Typ) bool {
 // This function is used for both arguments and parameters.
 // instrs should be the Oarg instructions of a call, or the Opar instructions
 // at the start of the function.
-fn classify_arguments(reg_usage: *RegisterUsage, instrs: []const Ins, arg_classes: []ArgClass, env: *Ref) void {
+fn classify_arguments(reg_usage: *RegisterUsage, instrs: []const Ins, arg_classes: []ArgClass, env: *Ref) all.Error!void {
     // For each argument, determine how it will be passed (int, float, stack)
     // and update the `reg_usage` counts. Additionally, fill out arg_classes for
     // each argument.
@@ -302,7 +302,7 @@ fn classify_arguments(reg_usage: *RegisterUsage, instrs: []const Ins, arg_classe
     }
 
     if (reg_usage.has_env and reg_usage.is_varargs_call) {
-        die("can't use env with varargs", .{});
+        return all.failInput("can't use env with varargs", .{});
     }
 
     // During a varargs call, float arguments have to be duplicated to their
@@ -362,7 +362,7 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
         ret_arg_class.size = @intCast(ret_type.size);
     }
     var env = R;
-    classify_arguments(&reg_usage, args, arg_classes, &env);
+    try classify_arguments(&reg_usage, args, arg_classes, &env);
 
     // We now know which arguments are on the stack and which are in registers, so
     // we can allocate the correct amount of space to stash the stack-located ones
@@ -657,7 +657,7 @@ fn find_end_of_func_parameters(start_block: *Blk) uint {
 }
 
 // Copy from registers/stack into values.
-fn lower_func_parameters(func: *Fn) RegisterUsage {
+fn lower_func_parameters(func: *Fn) all.Error!RegisterUsage {
     const start_block = func.start.?;
     const num_params = find_end_of_func_parameters(start_block);
     const params = start_block.ins[0..num_params];
@@ -681,7 +681,7 @@ fn lower_func_parameters(func: *Fn) RegisterUsage {
         }
     }
     var env = R;
-    classify_arguments(&reg_usage, params, arg_classes, &env);
+    try classify_arguments(&reg_usage, params, arg_classes, &env);
     func.reg = amd64_winabi_argregs(callRef(register_usage_to_call_arg_value(reg_usage)), null);
 
     // Copy from the registers or stack slots into the named parameters. Depending
@@ -755,7 +755,7 @@ fn lower_func_parameters(func: *Fn) RegisterUsage {
 // (see winabi.c for the full description of differences from SysV)
 pub fn amd64_winabi_abi(func: *Fn) all.Error!void {
     // The first thing to do is lower incoming parameters to this function.
-    var param_reg_usage = lower_func_parameters(func);
+    var param_reg_usage = try lower_func_parameters(func);
 
     // This is the second larger part of the job. We walk all blocks, and rewrite
     // instructions returns, calls, and handling of varargs into their win x64

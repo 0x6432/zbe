@@ -286,7 +286,7 @@ pub fn rv64_isel(f: *Fn) all.Error!void {
                 sz = (sz + n - 1) & -@as(i64, n);
                 sz = @divTrunc(sz, 4);
                 if (sz > std.math.maxInt(i32) - f.slot)
-                    die("alloc too large", .{});
+                    return all.failInput("alloc too large", .{});
                 f.tmp[i.to.val].slot = f.slot;
                 f.slot += @intCast(sz);
                 i.* = insOp(.nop);

@@ -5,6 +5,7 @@ QBEC=${QBEC:-${QBEREF:-/data/qbe-cfix/qbe}}
 QBEZ=${QBEZ:-$(dirname "$0")/../zig-out/bin/qbe}
 targets=${TARGETS:-"amd64_sysv amd64_apple amd64_win arm64 arm64_apple rv64"}
 n=0; fail=0; skip=0
+. "$(dirname "$0")/input-error-compat.sh"
 for f in "$@"; do
   for t in $targets; do
     n=$((n+1))
@@ -12,7 +13,9 @@ for f in "$@"; do
     "$QBEZ" -t $t "$f" > /tmp/corp.z.s 2>/tmp/corp.z.err; rz=$?
     # when both fail (abort), stdout holds an arbitrary unflushed prefix:
     # compare the diagnostics instead
-    if [ $rc != 0 ] && [ $rc = $rz ]; then
+    input_failure=0
+    input_error_matches "$rc" "$rz" /tmp/corp.c.err /tmp/corp.z.err && input_failure=1
+    if [ $rc != 0 ] && { [ $rc = $rz ] || [ $input_failure = 1 ]; }; then
       # C prints __FILE__ before "dying:", zig prints "qbe"
       sed -i 's/^[^ ]*: dying:/dying:/' /tmp/corp.c.err /tmp/corp.z.err
       grep -q "Assertion" /tmp/corp.c.err && grep -q "panic" /tmp/corp.z.err && { skip=$((skip+1)); continue; }

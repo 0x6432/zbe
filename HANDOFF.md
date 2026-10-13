@@ -530,3 +530,11 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   block copy growth/shrinkage and independence, equal-key stable ordering,
   and active head/tail buffer ranges. All 11 optimizer mutation patterns
   were checked unchanged; compiler diagnostic strings were not edited.
+
+### Bounded slice helper verification (2026-10-13)
+- Build OK; unit suite 27/27, including seven new slice regressions.
+- Assembly and debug dumps: 0/76 differ on each of all six targets.
+- Input-error cases 51/0; strict comparison cases 42/0; bugs 110/0.
+- lib 1442/0; cproc corpus 1212 runs, 0 differ, 52 both-failed.
+- Native behavior suite: All is fine; ABI fuzz: 20/20 iterations OK.
+- edge 271/20; complete FAIL list is identical to the sandbox baseline.

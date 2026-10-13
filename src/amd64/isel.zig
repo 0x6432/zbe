@@ -1027,26 +1027,26 @@ test "refn slices: constants and cached temporary classifications" {
 }
 
 test "anumber slices: classifies original instructions within fixed bounds" {
-    var storage = std.mem.zeroes([5]Num);
+    var storage = std.mem.zeroes([6]Num);
     storage[0].n = 99;
-    storage[4].n = 100;
-    const numbers = storage[1..4];
+    storage[5].n = 100;
+    const numbers = storage[1..5];
     var constants = [_]Con{std.mem.zeroes(Con)};
     constants[0].type = CBits;
     constants[0].bits.i = 8;
     var instructions = [_]Ins{
-        all.mkIns(.add, .l, all.tmpRef(1), all.conRef(0), all.tmpRef(0)),
-        all.mkIns(.mul, .l, all.tmpRef(2), all.tmpRef(1), all.conRef(0)),
+        all.mkIns(.add, .l, all.tmpRef(2), all.conRef(0), all.tmpRef(1)),
+        all.mkIns(.mul, .l, all.tmpRef(3), all.tmpRef(2), all.conRef(0)),
     };
     var block = std.mem.zeroes(Blk);
     block.ins = &instructions;
     block.nins = instructions.len;
     anumber(numbers, &block, &constants);
-    try std.testing.expectEqual(@as(u8, 2), numbers[0].n);
-    try std.testing.expectEqual(@as(u8, 4), numbers[1].n);
-    try std.testing.expectEqual(@as(u8, 0), numbers[1].nl);
-    try std.testing.expectEqual(@as(u8, 2), numbers[1].nr);
-    try std.testing.expectEqual(@as(u8, 3), numbers[2].n);
+    try std.testing.expectEqual(@as(u8, 2), numbers[1].n);
+    try std.testing.expectEqual(@as(u8, 4), numbers[2].n);
+    try std.testing.expectEqual(@as(u8, 0), numbers[2].nl);
+    try std.testing.expectEqual(@as(u8, 2), numbers[2].nr);
+    try std.testing.expectEqual(@as(u8, 3), numbers[3].n);
     try std.testing.expectEqual(@as(u8, 99), storage[0].n);
-    try std.testing.expectEqual(@as(u8, 100), storage[4].n);
+    try std.testing.expectEqual(@as(u8, 100), storage[5].n);
 }

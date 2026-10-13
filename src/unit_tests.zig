@@ -443,44 +443,44 @@ test "dumpts slices: empty set accepts an empty temporary array" {
 // ---- bounded address-matcher tables ---------------------------------------
 
 test "runmatch slices: pushsym orders children by pattern number" {
-    var numbers = std.mem.zeroes([1]all.Num);
-    numbers[0].l = all.tmpRef(11);
-    numbers[0].r = all.tmpRef(12);
-    numbers[0].nl = 5;
-    numbers[0].nr = 2;
+    var numbers = std.mem.zeroes([2]all.Num);
+    numbers[1].l = all.tmpRef(11);
+    numbers[1].r = all.tmpRef(12);
+    numbers[1].nl = 5;
+    numbers[1].nr = 2;
     const view: []const all.Num = &numbers;
     var vars: [2]all.Ref = undefined;
-    u.runmatch(&.{ 1, 3, 0, 3, 1, 0 }, view, all.tmpRef(0), &vars);
+    u.runmatch(&.{ 1, 3, 0, 3, 1, 0 }, view, all.tmpRef(1), &vars);
     try t.expect(all.req(vars[0], all.tmpRef(12)));
     try t.expect(all.req(vars[1], all.tmpRef(11)));
-    numbers[0].nl = 2;
-    u.runmatch(&.{ 1, 3, 0, 3, 1, 0 }, view, all.tmpRef(0), &vars);
+    numbers[1].nl = 2;
+    u.runmatch(&.{ 1, 3, 0, 3, 1, 0 }, view, all.tmpRef(1), &vars);
     try t.expect(all.req(vars[0], all.tmpRef(11)));
     try t.expect(all.req(vars[1], all.tmpRef(12)));
 }
 
 test "runmatch slices: push preserves left-right order" {
-    var numbers = std.mem.zeroes([1]all.Num);
-    numbers[0].l = all.tmpRef(11);
-    numbers[0].r = all.tmpRef(12);
-    numbers[0].nl = 5;
-    numbers[0].nr = 2;
+    var numbers = std.mem.zeroes([2]all.Num);
+    numbers[1].l = all.tmpRef(11);
+    numbers[1].r = all.tmpRef(12);
+    numbers[1].nl = 5;
+    numbers[1].nr = 2;
     var vars: [2]all.Ref = undefined;
-    u.runmatch(&.{ 2, 3, 0, 3, 1, 0 }, &numbers, all.tmpRef(0), &vars);
+    u.runmatch(&.{ 2, 3, 0, 3, 1, 0 }, &numbers, all.tmpRef(1), &vars);
     try t.expect(all.req(vars[0], all.tmpRef(11)));
     try t.expect(all.req(vars[1], all.tmpRef(12)));
 }
 
 test "runmatch slices: dispatch handles cases and the default branch" {
     const code = [_]u8{ 5, 2, 4, 7, 8, 10, 13, 3, 0, 0, 3, 1, 0, 3, 2, 0 };
-    var numbers = std.mem.zeroes([1]all.Num);
+    var numbers = std.mem.zeroes([2]all.Num);
     for ([_]u8{ 4, 8, 1 }, 0..) |number, selected| {
-        numbers[0].n = number;
+        numbers[1].n = number;
         var vars: [3]all.Ref = @splat(all.conRef(99));
-        u.runmatch(&code, &numbers, all.tmpRef(0), &vars);
+        u.runmatch(&code, &numbers, all.tmpRef(1), &vars);
         for (vars, 0..) |value, index|
-            try t.expect(all.req(value, if (index == selected) all.tmpRef(0) else all.conRef(99)));
-        try t.expectEqual(number, numbers[0].n);
+            try t.expect(all.req(value, if (index == selected) all.tmpRef(1) else all.conRef(99)));
+        try t.expectEqual(number, numbers[1].n);
     }
 }
 

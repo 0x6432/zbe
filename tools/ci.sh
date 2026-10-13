@@ -46,6 +46,7 @@ core)
   chk optsweep ', 0 failed' sh tools/optsweep.sh test/*.ssa
   chk lib ', 0 failed' sh tools/lib.sh
   chk input-errors ', 0 failed' python3 tools/input-errors.py
+  chk input-error-compat ', 0 failed' python3 tools/input-error-compat-test.py
   chk cli ', 0 failed' sh tools/cli.sh
   chk jnz ', 0 failed' sh tools/jnz.sh
   chk opttable '0 failures' python3 tests/opttable.py
@@ -66,6 +67,7 @@ native)
   chk optfuzz 'iterations ok' python3 tests/optfuzz.py -n 20 -s 1 -k 20
   chk lib ', 0 failed' sh tools/lib.sh
   chk input-errors ', 0 failed' python3 tools/input-errors.py
+  chk input-error-compat ', 0 failed' python3 tools/input-error-compat-test.py
   chk cli ', 0 failed' sh tools/cli.sh
   chk "zig package" 'bytes' sh -c 'cd tests/pkg && zig build && ./zig-out/bin/cons'
   ;;

@@ -475,3 +475,19 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - edge: 271/20; the complete FAIL list is identical to the pre-change baseline.
 - Comparison exception helper: positive match and five negative checks passed
   (wrong statuses, invariant failure, extra stderr, extra trailing newline).
+
+
+### CI follow-up: dash abort trailer (2026-10-13)
+- CI at 5fc472a passed 7/9 jobs. Core and cproc comparisons failed because
+  Ubuntu's /bin/sh (dash) appends `Aborted` or `Aborted (core dumped)` to the
+  redirected C-reference stderr, unlike this sandbox's Bash /bin/sh.
+- Reproduced locally with dash 0.5.12: amd64_win tls was 1/76 different.
+- The input-error exception now requires exactly C rc=134 and zbe rc=1,
+  an approved input diagnostic, and otherwise byte-identical normalized
+  stderr. It removes only ONE final shell-generated C abort trailer.
+  The corpus comparator accepts the helper's already-verified match directly.
+- tools/input-error-compat-test.py covers all approved messages with both
+  trailer variants and checks that wrong statuses, invariant diagnostics,
+  extra output/newlines and unexpected/duplicate abort lines remain rejected.
+  Core/native CI run it through their native /bin/sh; TEST_SHELL allows a
+  dash or Bash override locally. No compiler diagnostic text was changed.

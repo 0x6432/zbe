@@ -553,3 +553,12 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   compile context are intentionally untouched. State buffers remain cached.
 - Added tests for phi-chain compression in a subslice with neighbor guards,
   const/empty temporary debug dumps, and liveness deduplication/class counts.
+
+### Temporary-array slice verification (2026-10-13)
+- Build OK; unit suite 31/31, including four new temporary-array tests.
+- Assembly and debug dumps: 0/76 differ on each of all six targets.
+- Input-error cases 51/0; strict comparison cases 42/0; bugs 110/0.
+- lib 1442/0; cproc corpus 1212 runs, 0 differ, 52 both-failed.
+- Native behavior suite: All is fine; ABI fuzz: 20/20 iterations OK.
+- edge 271/20; complete FAIL list is unchanged from the sandbox baseline.
+- Compiler diagnostics and all 11 optimizer mutation patterns remain intact.

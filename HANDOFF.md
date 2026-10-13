@@ -538,3 +538,18 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - lib 1442/0; cproc corpus 1212 runs, 0 differ, 52 both-failed.
 - Native behavior suite: All is fine; ABI fuzz: 20/20 iterations OK.
 - edge 271/20; complete FAIL list is identical to the sandbox baseline.
+
+
+### Temporary-array slices (2026-10-13)
+- 3c6c6df passed all nine CI jobs before this follow-up.
+- phicls takes []Tmp; dumpts takes []const Tmp; liveness bset takes
+  []const Tmp. filluse/filllive capture f.tmps() while those arrays are stable.
+- Spill and register-allocation State.tmp are []Tmp. The spiller's separate
+  ntmp field is removed; bitsets and traversal use the slice length.
+- Audited that filluse/filllive/spill/rega do not grow the temporary vector
+  while these slices are in use. SSA-renaming functions that call newtmp are
+  separate and continue to fetch the current vector when required.
+- Register counts, ABI class fields, matcher-number arrays and the shared
+  compile context are intentionally untouched. State buffers remain cached.
+- Added tests for phi-chain compression in a subslice with neighbor guards,
+  const/empty temporary debug dumps, and liveness deduplication/class counts.

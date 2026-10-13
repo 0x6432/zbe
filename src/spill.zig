@@ -92,7 +92,7 @@ pub fn fillcost(f: *Fn) void {
                 dprint("\t{s:<10}", .{cs(b.name)});
                 dprint(" ({f} ", .{cint(b.nlive[0], 3)});
                 dprint("{f}) ", .{cint(b.nlive[1], 3)});
-                dumpts(&b.gen, f.tmp, all.dbg) catch {};
+                dumpts(&b.gen, f.tmps(), all.dbg) catch {};
             }
         }
     }
@@ -132,8 +132,7 @@ pub fn fillcost(f: *Fn) void {
 /// Spiller state for the function being processed (set by fillcost/spill).
 const State = struct {
     fst: ?*BSet = null, // temps to prioritize in registers (for tcmp1)
-    tmp: [*]Tmp = undefined, // current temporaries (for tcmpX), set by spill()
-    ntmp: i32 = 0, // current # of temps (for limit)
+    tmp: []Tmp = undefined, // current temporaries (for tcmpX), set by spill()
     locs: i32 = 0, // stack size used by locals
     slot4: i32 = 0, // next slot of 4 bytes
     slot8: i32 = 0, // ditto, 8 bytes
@@ -229,7 +228,7 @@ fn limit(b: *BSet, k: i32, f: ?*BSet) void {
 fn limit2(b1: *BSet, k1: i32, k2: i32, f: ?*BSet) void {
     var b2: BSet = undefined;
 
-    bsinit(&b2, @intCast(st.ntmp)); // todo, free those
+    bsinit(&b2, @intCast(st.tmp.len)); // todo, free those
     bscopy(&b2, b1);
     bsinter(b1, &st.mask[0]);
     bsinter(&b2, &st.mask[1]);
@@ -269,7 +268,7 @@ fn dopm(b: *Blk, last: uint, v: *BSet) uint {
     var u: BSet = undefined;
     var r: bits = undefined;
 
-    bsinit(&u, @intCast(st.ntmp)); // todo, free those
+    bsinit(&u, @intCast(st.tmp.len)); // todo, free those
     // consecutive copies from
     // registers need to be handled
     // as one large instruction
@@ -345,18 +344,17 @@ pub fn spill(f: *Fn) void {
     var v: BSet = undefined;
     var w: BSet = undefined;
 
-    st.tmp = f.tmp;
-    st.ntmp = f.ntmp;
-    bsinit(&u, @intCast(st.ntmp));
-    bsinit(&v, @intCast(st.ntmp));
-    bsinit(&w, @intCast(st.ntmp));
-    bsinit(&st.mask[0], @intCast(st.ntmp));
-    bsinit(&st.mask[1], @intCast(st.ntmp));
+    st.tmp = f.tmps();
+    bsinit(&u, @intCast(st.tmp.len));
+    bsinit(&v, @intCast(st.tmp.len));
+    bsinit(&w, @intCast(st.tmp.len));
+    bsinit(&st.mask[0], @intCast(st.tmp.len));
+    bsinit(&st.mask[1], @intCast(st.tmp.len));
     st.locs = f.slot;
     st.slot4 = 0;
     st.slot8 = 0;
     var t: i32 = 0;
-    while (t < st.ntmp) : (t += 1) {
+    while (t < @as(i32, @intCast(st.tmp.len))) : (t += 1) {
         var k: i32 = 0;
         if (t >= all.T.fpr0 and t < all.T.fpr0 + all.T.nfpr)
             k = 1;
@@ -550,7 +548,7 @@ pub fn spill(f: *Fn) void {
         var b_it: ?*Blk = f.start;
         while (b_it) |b| : (b_it = b.link) {
             dprint("\t{s:<10} ({f}) ", .{ cs(b.name), cint(b.loop, 5) });
-            dumpts(&b.out, f.tmp, all.dbg) catch {};
+            dumpts(&b.out, f.tmps(), all.dbg) catch {};
         }
         dprint("\n> After spilling:\n", .{});
         printfn(f, all.dbg) catch {};

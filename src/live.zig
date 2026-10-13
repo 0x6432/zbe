@@ -47,7 +47,7 @@ pub fn liveon(v: *BSet, b: *Blk, s: *Blk) void {
     }
 }
 
-fn bset(r: Ref, b: *Blk, nlv: *[2]i32, tmp: [*]const Tmp) void {
+fn bset(r: Ref, b: *Blk, nlv: *[2]i32, tmp: []const Tmp) void {
     if (rtype(r) != RTmp)
         return;
     bsset(&b.gen, r.val);
@@ -60,6 +60,7 @@ fn bset(r: Ref, b: *Blk, nlv: *[2]i32, tmp: [*]const Tmp) void {
 /// liveness analysis
 /// requires rpo computation
 pub fn filllive(f: *Fn) void {
+    const tmp = f.tmps();
     var m: [2]i32 = undefined;
     var nlv: [2]i32 = undefined;
     var u: BSet = undefined;
@@ -93,12 +94,12 @@ pub fn filllive(f: *Fn) void {
             bscopy(&b.in, &b.out);
             var t: i32 = 0;
             while (bsiter(&b.in, &t)) : (t += 1)
-                nlv[@intCast(clsBase(f.tmp[@intCast(t)].cls))] += 1;
+                nlv[@intCast(clsBase(tmp[@intCast(t)].cls))] += 1;
             if (rtype(b.jmp.arg) == RCall) {
                 assert(@as(i32, @intCast(bscount(&b.in))) == all.T.nrglob and
                     b.in.t[0] == all.T.rglob);
                 b.in.t[0] |= all.T.retregs(b.jmp.arg, &nlv);
-            } else bset(b.jmp.arg, b, &nlv, f.tmp);
+            } else bset(b.jmp.arg, b, &nlv, tmp);
             b.nlive = nlv;
             var i_n = b.nins;
             while (i_n > 0) {
@@ -125,7 +126,7 @@ pub fn filllive(f: *Fn) void {
                     assert(rtype(i.to) == RTmp);
                     const tt = i.to.val;
                     if (bshas(&b.in, tt))
-                        nlv[@intCast(clsBase(f.tmp[tt].cls))] -= 1;
+                        nlv[@intCast(clsBase(tmp[tt].cls))] -= 1;
                     bsset(&b.gen, tt);
                     bsclr(&b.in, tt);
                 }
@@ -133,10 +134,10 @@ pub fn filllive(f: *Fn) void {
                     switch (rtype(a)) {
                         RMem => {
                             const ma = &f.mem[a.val];
-                            bset(ma.base, b, &nlv, f.tmp);
-                            bset(ma.index, b, &nlv, f.tmp);
+                            bset(ma.base, b, &nlv, tmp);
+                            bset(ma.index, b, &nlv, tmp);
                         },
-                        else => bset(a, b, &nlv, f.tmp),
+                        else => bset(a, b, &nlv, tmp),
                     }
                 }
                 for (0..2) |k|
@@ -152,13 +153,36 @@ pub fn filllive(f: *Fn) void {
         b_it = f.start;
         while (b_it) |b| : (b_it = b.link) {
             dprint("\t{s:<10}in:   ", .{cs(b.name)});
-            dumpts(&b.in, f.tmp, all.dbg) catch {};
+            dumpts(&b.in, tmp, all.dbg) catch {};
             dprint("\t          out:  ", .{});
-            dumpts(&b.out, f.tmp, all.dbg) catch {};
+            dumpts(&b.out, tmp, all.dbg) catch {};
             dprint("\t          gen:  ", .{});
-            dumpts(&b.gen, f.tmp, all.dbg) catch {};
+            dumpts(&b.gen, tmp, all.dbg) catch {};
             dprint("\t          live: ", .{});
             dprint("{d} {d}\n", .{ b.nlive[0], b.nlive[1] });
         }
     }
+}
+
+test "bset slices: counts integer and float temps once and ignores constants" {
+    var temps = std.mem.zeroes([all.Tmp0 + 2]Tmp);
+    temps[all.Tmp0].cls = .l;
+    temps[all.Tmp0 + 1].cls = .d;
+    const view: []const Tmp = &temps;
+    var block = std.mem.zeroes(Blk);
+    bsinit(&block.in, temps.len);
+    bsinit(&block.gen, temps.len);
+    defer all.freeall();
+    all.bszero(&block.in);
+    all.bszero(&block.gen);
+    var count = [2]i32{ 0, 0 };
+    bset(all.conRef(1), &block, &count, &.{});
+    try std.testing.expectEqual([2]i32{ 0, 0 }, count);
+    bset(all.tmpRef(all.Tmp0), &block, &count, view);
+    bset(all.tmpRef(all.Tmp0 + 1), &block, &count, view);
+    bset(all.tmpRef(all.Tmp0), &block, &count, view);
+    bset(all.tmpRef(all.Tmp0 + 1), &block, &count, view);
+    try std.testing.expectEqual([2]i32{ 1, 1 }, count);
+    try std.testing.expect(bshas(&block.in, all.Tmp0));
+    try std.testing.expect(bshas(&block.gen, all.Tmp0 + 1));
 }

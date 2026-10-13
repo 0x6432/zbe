@@ -583,7 +583,7 @@ pub fn clsmerge(pk: *all.Cls, k: all.Cls) bool {
     return k1 != k;
 }
 
-pub fn phicls(t: i32, tmp: [*]Tmp) i32 {
+pub fn phicls(t: i32, tmp: []Tmp) i32 {
     var t1 = tmp[@intCast(t)].phi;
     if (t1 == 0)
         return t;
@@ -839,7 +839,7 @@ pub fn bsiter(bs: *BSet, elt: *i32) bool {
     return true;
 }
 
-pub fn dumpts(bs: *BSet, tmp: [*]Tmp, f: *Writer) Writer.Error!void {
+pub fn dumpts(bs: *BSet, tmp: []const Tmp, f: *Writer) Writer.Error!void {
     try f.writeAll("[");
     var t: i32 = Tmp0;
     while (bsiter(bs, &t)) : (t += 1)

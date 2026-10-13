@@ -64,7 +64,7 @@ const NPm = 64; // max copies in a parallel move
 /// Register allocator state for the function being processed.
 const State = struct {
     regu: bits = 0, // registers used
-    tmp: [*]Tmp = undefined, // function temporaries
+    tmp: []Tmp = undefined, // function temporaries
     mem: [*]Mem = undefined, // function mem references
     pm: [NPm]PMove = undefined, // parallel move constructed
     npm: i32 = 0, // size of pm
@@ -506,7 +506,7 @@ pub fn rega(f: *Fn) void {
     st.stmov = 0;
     st.stblk = 0;
     st.regu = 0;
-    st.tmp = f.tmp;
+    st.tmp = f.tmps();
     st.mem = f.mem;
     const blk = palloc(*Blk, f.nblk)[0..f.nblk];
     const end: [*]RMap = palloc(RMap, f.nblk);

@@ -21,6 +21,9 @@
   leaves stale va register counts (BUGS.md #7, also in the C patch).
 
 ### Code quality
+- SSA phi-class lookup, temporary debug dumps, liveness inputs, and spill/
+  register-allocation temporary state use bounded slices. The spiller uses
+  the slice length instead of a duplicate cached temporary count.
 - Instruction duplication/copying and stable sorting take bounded slices
   instead of pointer/count pairs. Instruction copies preserve overlapping
   ranges and return the unused destination slice for safe chaining.

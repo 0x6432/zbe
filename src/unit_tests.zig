@@ -278,6 +278,7 @@ test "igroup: lone sel0 and blit pairs" {
 test {
     std.testing.refAllDecls(@import("amd64/isel.zig"));
     std.testing.refAllDecls(@import("rv64/emit.zig"));
+    std.testing.refAllDecls(@import("live.zig"));
 }
 
 // ---- bounded instruction copies ------------------------------------------
@@ -384,4 +385,57 @@ test "instruction-buffer slices expose the active head and tail" {
     try t.expectEqual(@as(usize, 0), all.insbTailSlice().len);
     all.curi = &all.insb;
     try t.expectEqual(@as(usize, 0), all.insbHeadSlice().len);
+}
+
+// ---- bounded temporary arrays --------------------------------------------
+
+test "phicls slices: compresses chains without modifying neighboring storage" {
+    var storage = std.mem.zeroes([8]all.Tmp);
+    storage[0].phi = 99;
+    storage[7].phi = 100;
+    const temps = storage[1..7];
+    temps[5].phi = 4;
+    temps[4].phi = 2;
+    temps[2].phi = 1;
+    temps[4].cost = 123;
+    try t.expectEqual(@as(i32, 1), u.phicls(5, temps));
+    for ([_]usize{ 2, 4, 5 }) |index|
+        try t.expectEqual(@as(i32, 1), temps[index].phi);
+    try t.expectEqual(@as(i32, 0), temps[1].phi);
+    try t.expectEqual(@as(i32, 3), u.phicls(3, temps));
+    try t.expectEqual(@as(i32, 0), u.phicls(0, temps));
+    try t.expectEqual(@as(all.uint, 123), temps[4].cost);
+    try t.expectEqual(@as(i32, 99), storage[0].phi);
+    try t.expectEqual(@as(i32, 100), storage[7].phi);
+}
+
+test "dumpts slices: reads const temporaries and preserves debug output" {
+    var temps = std.mem.zeroes([all.Tmp0 + 4]all.Tmp);
+    var first: [5:0]u8 = "alpha".*;
+    var last: [5:0]u8 = "gamma".*;
+    temps[all.Tmp0].name = &first;
+    temps[all.Tmp0 + 2].name = &last;
+    const view: []const all.Tmp = &temps;
+    var set: all.BSet = undefined;
+    u.bsinit(&set, temps.len);
+    defer u.freeall();
+    u.bszero(&set);
+    u.bsset(&set, all.Tmp0 + 2);
+    u.bsset(&set, all.Tmp0);
+    u.bsset(&set, 0); // machine-register bits are intentionally omitted
+    var buffer: [64]u8 = undefined;
+    var output = std.Io.Writer.fixed(&buffer);
+    try u.dumpts(&set, view, &output);
+    try t.expectEqualStrings("[ alpha gamma ]\n", output.buffered());
+}
+
+test "dumpts slices: empty set accepts an empty temporary array" {
+    var set: all.BSet = undefined;
+    u.bsinit(&set, all.Tmp0 + 1);
+    defer u.freeall();
+    u.bszero(&set);
+    var buffer: [16]u8 = undefined;
+    var output = std.Io.Writer.fixed(&buffer);
+    try u.dumpts(&set, &.{}, &output);
+    try t.expectEqualStrings("[ ]\n", output.buffered());
 }

@@ -89,7 +89,7 @@ pub fn filluse(f: *Fn) void {
     var x: i32 = undefined;
     var xk: Cls = undefined;
 
-    const tmp = f.tmp;
+    const tmp = f.tmps();
     t = Tmp0;
     while (t < f.ntmp) : (t += 1) {
         const tt = &tmp[@intCast(t)];
@@ -112,12 +112,12 @@ pub fn filluse(f: *Fn) void {
             tmp[@intCast(tp)].bid = b.id;
             tmp[@intCast(tp)].ndef += 1;
             tmp[@intCast(tp)].cls = p.cls;
-            tp = phicls(tp, f.tmp);
+            tp = phicls(tp, tmp);
             for (p.args()) |a|
                 if (rtype(a) == RTmp) {
                     t = a.val;
                     adduse(&tmp[@intCast(t)], .phi, b, @ptrCast(p));
-                    t = phicls(t, f.tmp);
+                    t = phicls(t, tmp);
                     if (t != tp)
                         tmp[@intCast(t)].phi = tp;
                 };

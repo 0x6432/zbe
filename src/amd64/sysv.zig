@@ -236,7 +236,7 @@ fn selret(b: *Blk, f: *Fn) void {
     b.jmp.arg = callRef(ca);
 }
 
-fn argsclass(ins: []const Ins, ac: []AClass, op: i32, aret: ?*const AClass, env: *Ref) all.Error!i32 {
+fn argsclass(ins: []const Ins, ac: []AClass, op: Opc, aret: ?*const AClass, env: *Ref) all.Error!i32 {
     var nint: i32 = undefined;
     if (aret != null and aret.?.inmem != 0)
         nint = 5 // hidden argument
@@ -246,8 +246,8 @@ fn argsclass(ins: []const Ins, ac: []AClass, op: i32, aret: ?*const AClass, env:
     var varc: i32 = 0;
     var envc: i32 = 0;
     for (ins, ac) |*i, *a| {
-        switch (all.ops.num(i.op) - op + all.ops.num(.arg)) {
-            all.ops.num(.arg) => {
+        switch (Opc.arg.offset(i.op.diff(op))) {
+            .arg => {
                 const pn: *i32 = if (clsBase(i.cls) == 0) &nint else &nsse;
                 if (pn.* > 0) {
                     pn.* -= 1;
@@ -257,7 +257,7 @@ fn argsclass(ins: []const Ins, ac: []AClass, op: i32, aret: ?*const AClass, env:
                 a.size = 8;
                 a.cls[0] = i.cls;
             },
-            all.ops.num(.argc) => {
+            .argc => {
                 const n0 = i.arg[0].val;
                 typclass(a, &all.typ[n0]);
                 if (a.inmem != 0)
@@ -276,14 +276,14 @@ fn argsclass(ins: []const Ins, ac: []AClass, op: i32, aret: ?*const AClass, env:
                     nsse -= ns;
                 } else a.inmem = 1;
             },
-            all.ops.num(.arge) => {
+            .arge => {
                 envc = 1;
-                if (op == Opc.par.int())
+                if (op == .par)
                     env.* = i.to
                 else
                     env.* = i.arg[0];
             },
-            all.ops.num(.argv) => varc = 1,
+            .argv => varc = 1,
             else => die("unreachable", .{}),
         }
     }
@@ -379,8 +379,8 @@ fn selcall(f: *Fn, ins: []Ins, i_1: *Ins, rap: *?*RAlloc) all.Error!void {
     if (!req(i_1.arg[1], R)) {
         assert(rtype(i_1.arg[1]) == RType);
         typclass(&aret, &all.typ[i_1.arg[1].val]);
-        ca = try argsclass(ins, ac, all.ops.num(.arg), &aret, &env);
-    } else ca = try argsclass(ins, ac, all.ops.num(.arg), null, &env);
+        ca = try argsclass(ins, ac, .arg, &aret, &env);
+    } else ca = try argsclass(ins, ac, .arg, null, &env);
 
     var stk: uint = 0;
     var k = ac.len;
@@ -506,8 +506,8 @@ fn selpar(f: *Fn, ins: []Ins) all.Error!i32 {
 
     if (f.retty >= 0) {
         typclass(&aret, &all.typ[@intCast(f.retty)]);
-        fa = try argsclass(ins, ac, all.ops.num(.par), &aret, &env);
-    } else fa = try argsclass(ins, ac, all.ops.num(.par), null, &env);
+        fa = try argsclass(ins, ac, .par, &aret, &env);
+    } else fa = try argsclass(ins, ac, .par, null, &env);
     f.reg = amd64_sysv_argregs(callRef(fa), null);
 
     for (ins, ac) |*i, *a| {

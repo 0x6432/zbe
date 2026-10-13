@@ -731,7 +731,7 @@ const add_table = [91]uchar{
     7,  7,  5,  8,  9,  5,  12, 9,  5,  5,  5,  9,  5,
 };
 
-fn opn(op: i32, l_: i32, r_: i32) i32 {
+fn opn(op: Opc, l_: i32, r_: i32) i32 {
     var l = l_;
     var r = r_;
     if (l < r) {
@@ -740,14 +740,14 @@ fn opn(op: i32, l_: i32, r_: i32) i32 {
         r = t;
     }
     switch (op) {
-        all.ops.num(.mul) => {
+        .mul => {
             if (2 <= l)
                 if (r == 0) {
                     return 3;
                 };
             return 2;
         },
-        all.ops.num(.add) => return add_table[@intCast(@divTrunc(l + l * l, 2) + r)],
+        .add => return add_table[@intCast(@divTrunc(l + l * l, 2) + r)],
         else => return 2,
     }
 }
@@ -825,7 +825,7 @@ fn anumber(tn: [*]Num, b: *Blk, con: [*]Con) void {
         n.r = i.arg[1];
         n.nl = @truncate(@as(u32, @bitCast(refn(n.l, tn, con))));
         n.nr = @truncate(@as(u32, @bitCast(refn(n.r, tn, con))));
-        n.n = @truncate(@as(u32, @bitCast(opn(all.ops.num(i.op), n.nl, n.nr))));
+        n.n = @truncate(@as(u32, @bitCast(opn(i.op, n.nl, n.nr))));
     }
 }
 
@@ -989,4 +989,20 @@ test "noimm returns InvalidInput for an invalid constant" {
     f.con = &con;
     try std.testing.expectError(error.InvalidInput, noimm(all.conRef(0), &f));
     try std.testing.expectEqualStrings("qbe: dying: invalid constant\n", dbg.buffered());
+}
+
+test "opn enum preserves address-pattern numbering" {
+    for (0..13) |lhs| {
+        for (0..13) |rhs| {
+            const l: i32 = @intCast(lhs);
+            const r: i32 = @intCast(rhs);
+            const hi = @max(l, r);
+            const lo = @min(l, r);
+            const expected_add: i32 = add_table[@intCast(@divTrunc(hi + hi * hi, 2) + lo)];
+            const expected_mul: i32 = if (hi >= 2 and lo == 0) 3 else 2;
+            try std.testing.expectEqual(expected_add, opn(.add, l, r));
+            try std.testing.expectEqual(expected_mul, opn(.mul, l, r));
+            try std.testing.expectEqual(@as(i32, 2), opn(.copy, l, r));
+        }
+    }
 }

@@ -21,6 +21,9 @@
   leaves stale va register counts (BUGS.md #7, also in the C patch).
 
 ### Code quality
+- AMD64 address-pattern numbering and SysV argument classification take
+  typed `Opc` parameters instead of integer opcodes; their switches use enum
+  literals and ABI opcode normalization uses `offset`/`diff`.
 - Use kinds, alias results and alias kinds are Zig enums (old names kept as
   aliases); switches over them are now checked for missing cases.
 - Instruction, temp and phi classes share one type (`i16`); 22 redundant

@@ -423,8 +423,14 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   `K0`, `Ke = -2`, `Km`) since they never reach `Ins.cls`; `optab` `argcls`
   entries (`[2][4]i16`, include `Ke`/`Km`/`Kx`); ABI helper class fields in
   amd64/winabi and arm64 HFA (`i32`/`i8`).
-- Next step if wanted: move the remaining `i32` op/class locals in isel/abi
-  code to the enums to drop the `num`/`knum` conversions.
+- AMD64 isel `opn` and SysV `argsclass` take `Opc` rather than `i32`;
+  address-pattern switches use enum literals and argument/parameter opcode
+  normalization uses `Opc.arg.offset(i.op.diff(op))`. No `ops.num` calls
+  remain in the isel/ABI files. A unit regression exercises every pair of
+  address-pattern states for add/mul and the default opcode path.
+- Remaining numeric parameters such as amd64 `cmpswap` and rv64 `selcmp`
+  are comparison-kind offsets, not opcodes; they stay numeric intentionally.
+  ABI helper numeric fields and class boundaries described above stay as-is.
 
 ## Decisions: errors and state (Phase 5)
 - Input errors are `all.Error` (`error{InvalidInput}`), returned by `fail()`
@@ -495,3 +501,8 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   bundled and cproc corpora concurrently exposed their previously shared
   /tmp/corp.* outputs; those raced and produced false differences. The asm,
   debug and corpus comparators all isolate and clean up their scratch files.
+
+
+### CI checkpoint (2026-10-13)
+- ac95e80: all nine CI jobs passed, including core and cproc; the dash
+  comparison follow-up is confirmed green before the next opcode cleanup.

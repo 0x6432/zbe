@@ -273,3 +273,9 @@ test "igroup: lone sel0 and blit pairs" {
     try t.expectEqual(@as(all.uint, 1), g[0]);
     try t.expectEqual(@as(all.uint, 3), g[1]);
 }
+
+// Include private backend-boundary regression tests in the unit test root.
+test {
+    std.testing.refAllDecls(@import("amd64/isel.zig"));
+    std.testing.refAllDecls(@import("rv64/emit.zig"));
+}

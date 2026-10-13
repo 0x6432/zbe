@@ -464,3 +464,14 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   and handle `..name` ranges; c03cb09 rewrote `in` -> `st.in` inside 13 error
   messages (fixed in 3d3dfbc, caught only by tools/edge.sh). Run edge.sh and
   compare its FAIL list with the local baseline (20 sandbox-only mismatches).
+
+### Input-error conversion verification (2026-10-13)
+- Zig 0.18.0-dev.35+5e754304d: build OK; unit suite 19/19.
+- tools/input-errors.py: 51/51 cases (all optimization levels), including
+  repeated library error->success recovery; C diagnostic text unchanged.
+- Compat assembly and debug dumps: 0/76 differ on each of all six targets.
+- Corpus over bundled test/*.ssa: 456 runs, 0 differ, 1 both-failed.
+- bugs: 110/0; lib: 1442/0.
+- edge: 271/20; the complete FAIL list is identical to the pre-change baseline.
+- Comparison exception helper: positive match and five negative checks passed
+  (wrong statuses, invariant failure, extra stderr, extra trailing newline).

@@ -451,12 +451,12 @@ test "runmatch slices: pushsym orders children by pattern number" {
     const view: []const all.Num = &numbers;
     var vars: [2]all.Ref = undefined;
     u.runmatch(&.{ 1, 3, 0, 3, 1, 0 }, view, all.tmpRef(0), &vars);
-    try t.expect(u.req(vars[0], all.tmpRef(12)));
-    try t.expect(u.req(vars[1], all.tmpRef(11)));
+    try t.expect(all.req(vars[0], all.tmpRef(12)));
+    try t.expect(all.req(vars[1], all.tmpRef(11)));
     numbers[0].nl = 2;
     u.runmatch(&.{ 1, 3, 0, 3, 1, 0 }, view, all.tmpRef(0), &vars);
-    try t.expect(u.req(vars[0], all.tmpRef(11)));
-    try t.expect(u.req(vars[1], all.tmpRef(12)));
+    try t.expect(all.req(vars[0], all.tmpRef(11)));
+    try t.expect(all.req(vars[1], all.tmpRef(12)));
 }
 
 test "runmatch slices: push preserves left-right order" {
@@ -467,8 +467,8 @@ test "runmatch slices: push preserves left-right order" {
     numbers[0].nr = 2;
     var vars: [2]all.Ref = undefined;
     u.runmatch(&.{ 2, 3, 0, 3, 1, 0 }, &numbers, all.tmpRef(0), &vars);
-    try t.expect(u.req(vars[0], all.tmpRef(11)));
-    try t.expect(u.req(vars[1], all.tmpRef(12)));
+    try t.expect(all.req(vars[0], all.tmpRef(11)));
+    try t.expect(all.req(vars[1], all.tmpRef(12)));
 }
 
 test "runmatch slices: dispatch handles cases and the default branch" {
@@ -479,7 +479,7 @@ test "runmatch slices: dispatch handles cases and the default branch" {
         var vars: [3]all.Ref = @splat(all.conRef(99));
         u.runmatch(&code, &numbers, all.tmpRef(0), &vars);
         for (vars, 0..) |value, index|
-            try t.expect(u.req(value, if (index == selected) all.tmpRef(0) else all.conRef(99)));
+            try t.expect(all.req(value, if (index == selected) all.tmpRef(0) else all.conRef(99)));
         try t.expectEqual(number, numbers[0].n);
     }
 }
@@ -487,7 +487,7 @@ test "runmatch slices: dispatch handles cases and the default branch" {
 test "runmatch slices: jump and termination do not access number storage" {
     var vars = [_]all.Ref{all.conRef(99)};
     u.runmatch(&.{ 12, 0, 3, 0, 0 }, &.{}, all.tmpRef(7), &vars);
-    try t.expect(u.req(vars[0], all.tmpRef(7)));
+    try t.expect(all.req(vars[0], all.tmpRef(7)));
     u.runmatch(&.{0}, &.{}, all.tmpRef(8), &vars);
-    try t.expect(u.req(vars[0], all.tmpRef(7)));
+    try t.expect(all.req(vars[0], all.tmpRef(7)));
 }

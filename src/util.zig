@@ -849,7 +849,7 @@ pub fn dumpts(bs: *BSet, tmp: []const Tmp, f: *Writer) Writer.Error!void {
 
 /// runs the matcher bytecode code on the tree rooted at
 /// ref, storing matched references into vars
-pub fn runmatch(code: []const uchar, tn: [*]const Num, ref_: Ref, vars: []Ref) void {
+pub fn runmatch(code: []const uchar, tn: []const Num, ref_: Ref, vars: []Ref) void {
     var ref = ref_;
     var stk: [20]Ref = undefined;
     var nstk: usize = 0;

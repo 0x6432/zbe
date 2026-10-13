@@ -562,3 +562,19 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - Native behavior suite: All is fine; ABI fuzz: 20/20 iterations OK.
 - edge 271/20; complete FAIL list is unchanged from the sandbox baseline.
 - Compiler diagnostics and all 11 optimizer mutation patterns remain intact.
+
+
+### Address-matcher slices (2026-10-13)
+- cdb5751 passed all nine CI jobs before this follow-up.
+- util.runmatch takes []const Num. AMD64 selector helpers pass []Num or
+  ?[]Num, preserving null for recursive selection paths without matching.
+- The number table uses eallocSlice and retains its allocation-time length;
+  instruction selection can grow f.tmp, but original matchable temps keep
+  their initial indices. Each block clears only that independent table.
+- refn/anumber take []const Con. Address helpers fetch f.cons() at each
+  call rather than retaining a stale view across constant-vector growth.
+- No matcher bytecode, address-pattern tables, diagnostic strings, or
+  compile-wide globals were changed. Numeric comparison offsets stay intact.
+- Added tests for ordered/raw child traversal, dispatch/default/jump/stop,
+  constant/cache classification, and instruction numbering in a guarded
+  number-table subslice. Register-allocator memory state is untouched.

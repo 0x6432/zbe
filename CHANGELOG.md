@@ -21,6 +21,9 @@
   leaves stale va register counts (BUGS.md #7, also in the C patch).
 
 ### Code quality
+- AMD64 address-matcher number tables and constant views are bounded slices,
+  including the matcher bytecode interpreter. The number table retains its
+  original allocation length even when instruction selection creates temps.
 - SSA phi-class lookup, temporary debug dumps, liveness inputs, and spill/
   register-allocation temporary state use bounded slices. The spiller uses
   the slice length instead of a duplicate cached temporary count.

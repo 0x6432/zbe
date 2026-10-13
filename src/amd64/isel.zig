@@ -55,7 +55,6 @@ const cmpop = all.cmpop;
 const cs = all.cs;
 const die = all.die;
 const dprint = all.dprint;
-const ealloc = all.ealloc;
 const efree = all.efree;
 const emit = all.emit;
 const emiti = all.emiti;
@@ -243,7 +242,7 @@ fn fixarg(r: *Ref, k: Cls, i: ?*Ins, f: *Fn) all.Error!void {
     r.* = r1;
 }
 
-fn seladdr(r: *Ref, tn: [*]Num, f: *Fn) void {
+fn seladdr(r: *Ref, tn: []Num, f: *Fn) void {
     var a: Addr = undefined;
 
     const r0 = r.*;
@@ -302,7 +301,7 @@ fn selcmp(arg: *[2]Ref, k: Cls, swap: bool, f: *Fn) all.Error!void {
     try fixarg(&icmp.arg[1], k, icmp, f);
 }
 
-fn sel(i_: Ins, tn: ?[*]Num, f: *Fn) all.Error!void {
+fn sel(i_: Ins, tn: ?[]Num, f: *Fn) all.Error!void {
     var i = i_;
     var r0: Ref = undefined;
     var r1: Ref = undefined;
@@ -547,7 +546,7 @@ fn flagi(ins: []Ins) ?*Ins {
 
 /// selects the sel0/sel1 group ending at b.ins[n1];
 /// returns the index of its sel0
-fn selsel(f: *Fn, b: *Blk, n1: uint, tn: [*]Num) all.Error!uint {
+fn selsel(f: *Fn, b: *Blk, n1: uint, tn: []Num) all.Error!uint {
     var cr: [2]Ref = undefined;
 
     assert(b.ins[n1].op == .sel1);
@@ -752,7 +751,7 @@ fn opn(op: Opc, l_: i32, r_: i32) i32 {
     }
 }
 
-fn refn(r: Ref, tn: [*]Num, con: [*]const Con) i32 {
+fn refn(r: Ref, tn: []Num, con: []const Con) i32 {
     switch (rtype(r)) {
         RTmp => {
             if (tn[r.val].n == 0)
@@ -816,7 +815,7 @@ const matcher = blk: {
 
 // end of generated code
 
-fn anumber(tn: [*]Num, b: *Blk, con: [*]Con) void {
+fn anumber(tn: []Num, b: *Blk, con: []const Con) void {
     for (b.insns()) |*i| {
         if (rtype(i.to) != RTmp)
             continue;
@@ -829,13 +828,13 @@ fn anumber(tn: [*]Num, b: *Blk, con: [*]Con) void {
     }
 }
 
-fn adisp(c: *Con, tn: [*]Num, r_: Ref, f: *Fn, s: i32) Ref {
+fn adisp(c: *Con, tn: []Num, r_: Ref, f: *Fn, s: i32) Ref {
     var v: [2]Ref = undefined;
     var r = r_;
 
     while (!req(r, R)) {
         assert(rtype(r) == RTmp);
-        const n = refn(r, tn, f.con);
+        const n = refn(r, tn, f.cons());
         if ((match[@intCast(n)] & bitAt(Pob)) == 0)
             break;
         runmatch(matcher[Pob], tn, r, &v);
@@ -848,14 +847,14 @@ fn adisp(c: *Con, tn: [*]Num, r_: Ref, f: *Fn, s: i32) Ref {
 
 const pat = [_]i32{ Pobis, Pobi1, Pbis, Pois, Pbi1, -1 };
 
-fn amatch(a: ?*Addr, tn: [*]Num, r: Ref, f: *Fn) bool {
+fn amatch(a: ?*Addr, tn: []Num, r: Ref, f: *Fn) bool {
     var v: [4]Ref = undefined;
     var co: Con = undefined;
 
     if (rtype(r) != RTmp)
         return false;
 
-    const n = refn(r, tn, f.con);
+    const n = refn(r, tn, f.cons());
     v = @splat(std.mem.zeroes(Ref));
     var p: usize = 0;
     while (pat[p] >= 0) : (p += 1) {
@@ -942,8 +941,9 @@ pub fn amd64_isel(f: *Fn) all.Error!void {
     }
 
     // process basic blocks
-    n = f.ntmp;
-    const num = ealloc(Num, n);
+    // The matcher describes original temporaries only; instruction selection
+    // may grow f.tmp, but this independent table keeps its allocation length.
+    const num = all.eallocSlice(Num, f.ntmp);
     var b_it = f.start;
     while (b_it) |b| : (b_it = b.link) {
         all.curi = all.insbEnd();
@@ -957,8 +957,8 @@ pub fn amd64_isel(f: *Fn) all.Error!void {
                 try fixarg(&p.arg[a], p.cls, null, f);
             }
         }
-        if (n != 0) @memset(num[0..@intCast(n)], std.mem.zeroes(Num));
-        anumber(num, b, f.con);
+        @memset(num, std.mem.zeroes(Num));
+        anumber(num, b, f.cons());
         try seljmp(b, f);
         var k = b.nins;
         while (k != 0) {
@@ -971,7 +971,7 @@ pub fn amd64_isel(f: *Fn) all.Error!void {
         }
         idup(b, all.insbTailSlice());
     }
-    efree((num));
+    efree(num.ptr);
 
     if (all.debug['I'] != 0) {
         dprint("\n> After instruction selection:\n", .{});
@@ -1005,4 +1005,48 @@ test "opn enum preserves address-pattern numbering" {
             try std.testing.expectEqual(@as(i32, 2), opn(.copy, l, r));
         }
     }
+}
+
+test "refn slices: constants and cached temporary classifications" {
+    var numbers = std.mem.zeroes([3]Num);
+    var constants = std.mem.zeroes([8]Con);
+    const values = [_]i64{ 1, 2, 4, 8, 0, 16, -4 };
+    for (values, 0..) |value, index| {
+        constants[index].type = CBits;
+        constants[index].bits.i = value;
+        const expected: i32 = if (value == 1 or value == 2 or value == 4 or value == 8) 0 else 1;
+        try std.testing.expectEqual(expected, refn(all.conRef(index), &numbers, &constants));
+    }
+    constants[7].type = CAddr;
+    try std.testing.expectEqual(@as(i32, 1), refn(all.conRef(7), &numbers, &constants));
+    try std.testing.expectEqual(@as(i32, 2), refn(all.tmpRef(1), &numbers, &constants));
+    try std.testing.expectEqual(@as(u8, 2), numbers[1].n);
+    numbers[1].n = 8;
+    try std.testing.expectEqual(@as(i32, 8), refn(all.tmpRef(1), &numbers, &constants));
+    try std.testing.expectEqual(@as(i32, std.math.minInt(i32)), refn(all.slotRef(0), &numbers, &.{}));
+}
+
+test "anumber slices: classifies original instructions within fixed bounds" {
+    var storage = std.mem.zeroes([5]Num);
+    storage[0].n = 99;
+    storage[4].n = 100;
+    const numbers = storage[1..4];
+    var constants = [_]Con{std.mem.zeroes(Con)};
+    constants[0].type = CBits;
+    constants[0].bits.i = 8;
+    var instructions = [_]Ins{
+        all.mkIns(.add, .l, all.tmpRef(1), all.conRef(0), all.tmpRef(0)),
+        all.mkIns(.mul, .l, all.tmpRef(2), all.tmpRef(1), all.conRef(0)),
+    };
+    var block = std.mem.zeroes(Blk);
+    block.ins = &instructions;
+    block.nins = instructions.len;
+    anumber(numbers, &block, &constants);
+    try std.testing.expectEqual(@as(u8, 2), numbers[0].n);
+    try std.testing.expectEqual(@as(u8, 4), numbers[1].n);
+    try std.testing.expectEqual(@as(u8, 0), numbers[1].nl);
+    try std.testing.expectEqual(@as(u8, 2), numbers[1].nr);
+    try std.testing.expectEqual(@as(u8, 3), numbers[2].n);
+    try std.testing.expectEqual(@as(u8, 99), storage[0].n);
+    try std.testing.expectEqual(@as(u8, 100), storage[4].n);
 }

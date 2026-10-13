@@ -468,7 +468,7 @@ pub fn loadopt(f: *Fn) void {
             i.arg[1] = def(sl, lowMask(sz), b, @intCast(n), &l);
         }
     }
-    sort(Insert, st.ilog, st.nlog, icmp);
+    sort(Insert, st.ilog[0..st.nlog], icmp);
     vgrow(&st.ilog, st.nlog + 1);
     st.ilog[st.nlog].bid = f.nblk; // add a sentinel
     var ib = vnewT(Ins, 0, PHeap);
@@ -510,7 +510,7 @@ pub fn loadopt(f: *Fn) void {
             vgrow(&ib, nt);
             ib[nt - 1] = i.*;
         }
-        idup(b, ib, nt);
+        idup(b, ib[0..nt]);
     }
     vfree(ib);
     vfree(st.ilog);

@@ -348,7 +348,7 @@ pub fn arm64_isel(f: *Fn) all.Error!void {
             i_n -= 1;
             try sel(b.ins[i_n], f);
         }
-        idup(b, all.curi, (all.insbTail()));
+        idup(b, all.insbTailSlice());
     }
 
     if (all.debug['I'] != 0) {

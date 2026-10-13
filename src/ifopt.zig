@@ -89,7 +89,7 @@ fn convert(ifb: *Blk, thenb: *Blk, elseb: *Blk, joinb: *Blk) void {
         sel.arg[1] = phiarg(p, elseb);
         addins(&ins, &nins, &sel);
     }
-    idup(ifb, ins, nins);
+    idup(ifb, ins[0..nins]);
     ifb.jmp.type = .jmp;
     ifb.jmp.arg = R;
     ifb.s1 = joinb;

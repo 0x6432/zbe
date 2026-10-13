@@ -468,7 +468,7 @@ fn doblk(b: *Blk, cur: *RMap) void {
                 };
         }
     }
-    idup(b, all.curi, (all.insbTail()));
+    idup(b, all.insbTailSlice());
 }
 
 /// qsort() comparison function to peel
@@ -659,7 +659,7 @@ pub fn rega(f: *Fn) void {
         st.stmov += jj;
         s.nins += jj;
         const i = palloc(Ins, s.nins);
-        _ = icpy(icpy(i, all.curi, jj), s.ins, s.nins - jj);
+        _ = icpy(icpy(i[0..s.nins], all.insbTailSlice()), s.ins[0 .. s.nins - jj]);
         s.ins = i;
     }
 
@@ -720,7 +720,7 @@ pub fn rega(f: *Fn) void {
             b1.name = strf(PFn, "{s}_{s}", .{ cs(b.name), cs(s.name) });
             st.stmov += @intCast(all.insbTail());
             st.stblk += 1;
-            idup(b1, all.curi, (all.insbTail()));
+            idup(b1, all.insbTailSlice());
             b1.jmp.type = .jmp;
             b1.s1 = s;
             psa[pi].* = b1;

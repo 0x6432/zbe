@@ -969,7 +969,7 @@ pub fn amd64_isel(f: *Fn) all.Error!void {
             else
                 try sel(b.ins[k], num, f);
         }
-        idup(b, all.curi, (all.insbTail()));
+        idup(b, all.insbTailSlice());
     }
     efree((num));
 

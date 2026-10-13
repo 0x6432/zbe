@@ -513,3 +513,20 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - Input-error cases 51/0; strict comparison regression cases 42/0.
 - bugs 110/0; lib 1442/0; cproc corpus 1212 runs, 0 differ, 52 both-failed.
 - edge 271/20; its full FAIL list matches the pre-change sandbox baseline.
+
+
+### Bounded instruction helper slices (2026-10-13)
+- Previous checkpoint 2c3e001 passed all nine CI jobs before this change.
+- util.idup takes []const Ins; util.icpy takes []Ins and []const Ins and
+  returns the unused destination tail. The copy retains forward/backward
+  overlap handling, checks destination capacity, and handles empty slices.
+- util.sort takes []T, preserving stable ordering. All affected call sites
+  in the parser, passes, selectors and ABI lowering supply bounded slices.
+- all.insbHeadSlice()/insbTailSlice() expose active shared-buffer ranges;
+  the intentional global cursor and fixed buffer design are unchanged.
+- idup sources remain independent of their destination block vectors;
+  growth may relocate b.ins, so aliasing that vector is not supported.
+- Added regressions for chained/overlapping/empty/self instruction copies,
+  block copy growth/shrinkage and independence, equal-key stable ordering,
+  and active head/tail buffer ranges. All 11 optimizer mutation patterns
+  were checked unchanged; compiler diagnostic strings were not edited.

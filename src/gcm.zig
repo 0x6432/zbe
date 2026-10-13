@@ -299,7 +299,7 @@ fn schedblk(f: *Fn) void {
         var n: uint = 0;
         while (n < b.nins)
             n = schedins(f, b, n, &vins, &nins);
-        idup(b, vins, nins);
+        idup(b, vins[0..nins]);
     }
     vfree(vins);
 }

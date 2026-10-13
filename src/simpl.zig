@@ -156,7 +156,7 @@ fn startnew(new: *bool, b: *Blk, k: uint) void {
         all.curi = all.insbEnd();
         const ni: ulong = b.nins - (k + 1);
         all.curi -= ni;
-        _ = icpy(all.curi, b.ins + k + 1, ni);
+        _ = icpy(all.insbTailSlice(), b.insns()[k + 1 ..]);
         new.* = true;
     }
 }
@@ -287,7 +287,7 @@ fn ins(pk: *uint, new: *bool, b: *Blk, f: *Fn) void {
                 all.curi = all.insbEnd();
                 const ni: ulong = b.nins - (k + 1);
                 all.curi -= ni;
-                _ = icpy(all.curi, b.ins + k + 1, ni);
+                _ = icpy(all.insbTailSlice(), b.insns()[k + 1 ..]);
                 new.* = true;
             }
             blit(&b.ins[k - 1].arg, rsval(i.arg[0]), f);
@@ -338,6 +338,6 @@ pub fn simpl(f: *Fn) void {
             ins(&k, &new, b, f);
         }
         if (new)
-            idup(b, all.curi, (all.insbTail()));
+            idup(b, all.insbTailSlice());
     }
 }

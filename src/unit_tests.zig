@@ -221,9 +221,9 @@ test "sort: matches qsort ordering for ints" {
             return std.math.order(x, y);
         }
     }.f;
-    u.sort(i32, &a, a.len, ord);
+    u.sort(i32, &a, ord);
     try t.expectEqualSlices(i32, &.{ -7, -1, 0, 3, 3, 5, 9 }, &a);
-    u.sort(i32, &a, 0, ord); // empty is fine
+    u.sort(i32, a[0..0], ord); // empty is fine
 }
 
 test "ptrdiff" {
@@ -278,4 +278,110 @@ test "igroup: lone sel0 and blit pairs" {
 test {
     std.testing.refAllDecls(@import("amd64/isel.zig"));
     std.testing.refAllDecls(@import("rv64/emit.zig"));
+}
+
+// ---- bounded instruction copies ------------------------------------------
+
+fn numberedIns(comptime n: usize) [n]all.Ins {
+    var items: [n]all.Ins = undefined;
+    for (&items, 0..) |*i, index| {
+        i.* = all.insOp(.copy);
+        i.to = all.tmpRef(index);
+    }
+    return items;
+}
+
+fn expectInsNumbers(items: []const all.Ins, expected: []const u32) !void {
+    try t.expectEqual(expected.len, items.len);
+    for (items, expected) |i, number| {
+        try t.expectEqual(Opc.copy, i.op);
+        try t.expectEqual(number, i.to.val);
+    }
+}
+
+test "icpy slices: disjoint copy returns bounded tail for chaining" {
+    const source = numberedIns(4);
+    var destination = numberedIns(6);
+    const tail = u.icpy(&destination, &source);
+    try t.expectEqual(@as(usize, 2), tail.len);
+    try t.expectEqual(@intFromPtr(&destination[4]), @intFromPtr(tail.ptr));
+    const more = [_]all.Ins{
+        all.mkIns(.copy, .w, all.tmpRef(8), all.R, all.R),
+        all.mkIns(.copy, .w, all.tmpRef(9), all.R, all.R),
+    };
+    try t.expectEqual(@as(usize, 0), u.icpy(tail, &more).len);
+    try expectInsNumbers(&destination, &.{ 0, 1, 2, 3, 8, 9 });
+}
+
+test "icpy slices: overlapping copy toward the start" {
+    var items = numberedIns(6);
+    _ = u.icpy(items[0..4], items[1..5]);
+    try expectInsNumbers(&items, &.{ 1, 2, 3, 4, 4, 5 });
+}
+
+test "icpy slices: overlapping copy toward the end" {
+    var items = numberedIns(6);
+    _ = u.icpy(items[1..5], items[0..4]);
+    try expectInsNumbers(&items, &.{ 0, 0, 1, 2, 3, 5 });
+}
+
+test "icpy slices: empty and identical copies" {
+    var items = numberedIns(3);
+    const tail = u.icpy(&items, &.{});
+    try t.expectEqual(items.len, tail.len);
+    try t.expectEqual(@intFromPtr(&items), @intFromPtr(tail.ptr));
+    try t.expectEqual(@as(usize, 0), u.icpy(items[0..0], &.{}).len);
+    try t.expectEqual(@as(usize, 0), u.icpy(&items, &items).len);
+    try expectInsNumbers(&items, &.{ 0, 1, 2 });
+}
+
+test "idup slices: growth, independent storage, shrinking and empty input" {
+    var block = std.mem.zeroes(all.Blk);
+    block.ins = u.vnewT(all.Ins, 0, PHeap);
+    defer u.vfree(block.ins);
+    var source = numberedIns(5);
+    u.idup(&block, &source);
+    try t.expectEqual(@as(all.uint, 5), block.nins);
+    source[0].to = all.tmpRef(99);
+    try expectInsNumbers(block.insns(), &.{ 0, 1, 2, 3, 4 });
+    u.idup(&block, source[1..3]);
+    try t.expectEqual(@as(all.uint, 2), block.nins);
+    try expectInsNumbers(block.insns(), &.{ 1, 2 });
+    u.idup(&block, &.{});
+    try t.expectEqual(@as(all.uint, 0), block.nins);
+    try t.expectEqual(@as(usize, 0), block.insns().len);
+}
+
+test "sort slices: equal keys retain their input order" {
+    const Item = struct { key: i32, original: u32 };
+    var items = [_]Item{
+        .{ .key = 1, .original = 0 },
+        .{ .key = 2, .original = 1 },
+        .{ .key = 1, .original = 2 },
+        .{ .key = 2, .original = 3 },
+        .{ .key = 0, .original = 4 },
+    };
+    const order = struct {
+        fn compare(a: Item, b: Item) std.math.Order {
+            return std.math.order(a.key, b.key);
+        }
+    }.compare;
+    u.sort(Item, &items, order);
+    for (items, [_]u32{ 4, 0, 2, 1, 3 }) |i, original|
+        try t.expectEqual(original, i.original);
+}
+
+test "instruction-buffer slices expose the active head and tail" {
+    const saved = all.curi;
+    defer all.curi = saved;
+    all.curi = @as([*]all.Ins, &all.insb) + 3;
+    try t.expectEqual(@as(usize, 3), all.insbHeadSlice().len);
+    try t.expectEqual(@intFromPtr(&all.insb), @intFromPtr(all.insbHeadSlice().ptr));
+    all.curi = all.insbEnd() - 2;
+    try t.expectEqual(@as(usize, 2), all.insbTailSlice().len);
+    try t.expectEqual(@intFromPtr(all.curi), @intFromPtr(all.insbTailSlice().ptr));
+    all.curi = all.insbEnd();
+    try t.expectEqual(@as(usize, 0), all.insbTailSlice().len);
+    all.curi = &all.insb;
+    try t.expectEqual(@as(usize, 0), all.insbHeadSlice().len);
 }

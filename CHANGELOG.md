@@ -21,6 +21,9 @@
   leaves stale va register counts (BUGS.md #7, also in the C patch).
 
 ### Code quality
+- Instruction duplication/copying and stable sorting take bounded slices
+  instead of pointer/count pairs. Instruction copies preserve overlapping
+  ranges and return the unused destination slice for safe chaining.
 - AMD64 address-pattern numbering and SysV argument classification take
   typed `Opc` parameters instead of integer opcodes; their switches use enum
   literals and ABI opcode normalization uses `offset`/`diff`.

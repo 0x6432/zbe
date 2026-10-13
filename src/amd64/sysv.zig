@@ -572,7 +572,7 @@ fn selpar(f: *Fn, ins: []Ins) all.Error!i32 {
 fn split(f: *Fn, b: *Blk) *Blk {
     f.nblk += 1;
     const bn = newblk();
-    idup(bn, all.curi, (all.insbTail()));
+    idup(bn, all.insbTailSlice());
     all.curi = all.insbEnd();
     b.visit += 1;
     bn.visit = b.visit;
@@ -717,8 +717,8 @@ pub fn amd64_sysv_abi(f: *Fn) all.Error!void {
     const n0: uint = @intCast(all.insbTail());
     const n1: uint = start.nins - np;
     vgrow(&start.ins, n0 + n1);
-    _ = icpy(start.ins + n0, start.ins + np, n1);
-    _ = icpy(start.ins, all.curi, n0);
+    _ = icpy(start.ins[n0 .. n0 + n1], start.ins[np .. np + n1]);
+    _ = icpy(start.ins[0..n0], all.insbTailSlice());
     start.nins = n0 + n1;
 
     // lower calls, returns, and vararg instructions
@@ -751,7 +751,7 @@ pub fn amd64_sysv_abi(f: *Fn) all.Error!void {
                 while (ral) |l| : (ral = l.link)
                     emiti(l.i);
             }
-            idup(b, all.curi, (all.insbTail()));
+            idup(b, all.insbTailSlice());
         }
         if (b == start) break;
     }

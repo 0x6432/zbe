@@ -645,7 +645,7 @@ fn lower_args_for_block(func: *Fn, block: *Blk, param_reg_usage: *RegisterUsage,
     // emit/emiti add instructions from the end to the beginning of the temporary
     // global buffer. dup the final version into the final block storage.
     block.nins = @intCast(all.insbTail());
-    idup(block, all.curi, block.nins);
+    idup(block, all.insbTailSlice());
 }
 
 /// returns the number of Opar instructions at the start of start_block
@@ -739,8 +739,8 @@ fn lower_func_parameters(func: *Fn) all.Error!RegisterUsage {
     const num_other_after_instrs: uint = (start_block.nins - num_params);
     const new_total_instrs = num_other_after_instrs + num_created_instrs;
     const new_instrs = vnewT(Ins, new_total_instrs, PFn);
-    const instr_p = icpy(new_instrs, all.curi, num_created_instrs);
-    _ = icpy(instr_p, start_block.ins + num_params, num_other_after_instrs);
+    const instr_p = icpy(new_instrs[0..new_total_instrs], all.insbTailSlice());
+    _ = icpy(instr_p, start_block.insns()[num_params..]);
     start_block.nins = new_total_instrs;
     start_block.ins = new_instrs;
 

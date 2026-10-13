@@ -255,8 +255,8 @@ pub fn narrowpars(f: *Fn) void {
     // make room for one (possibly nop) extension per par
     const nins = b.nins + npar;
     const ins = vnewT(Ins, nins, PFn);
-    _ = icpy(ins, b.ins, npar);
-    _ = icpy(ins + 2 * npar, b.ins + npar, b.nins - npar);
+    _ = icpy(ins[0..nins], b.insns()[0..npar]);
+    _ = icpy(ins[2 * npar .. nins], b.insns()[npar..]);
     b.ins = ins;
     b.nins = nins;
 

@@ -599,6 +599,14 @@ pub inline fn insbTail() usize {
 pub inline fn insbHead() usize {
     return curi - @as([*]Ins, &insb);
 }
+/// Instructions emitted backwards from the end of the shared buffer.
+pub inline fn insbTailSlice() []Ins {
+    return curi[0..insbTail()];
+}
+/// Instructions parsed forwards from the start of the shared buffer.
+pub inline fn insbHeadSlice() []Ins {
+    return insb[0..insbHead()];
+}
 pub const hash = util.hash;
 pub const die = util.die;
 pub const failInput = util.failInput;

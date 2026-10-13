@@ -208,10 +208,10 @@ fn limit(b: *BSet, k: i32, f: ?*BSet) void {
     }
     if (nt > 1) {
         if (f == null) {
-            sort(i32, tarr, @intCast(nt), tcmp0);
+            sort(i32, tarr[0..@intCast(nt)], tcmp0);
         } else {
             st.fst = f;
-            sort(i32, tarr, @intCast(nt), tcmp1);
+            sort(i32, tarr[0..@intCast(nt)], tcmp1);
         }
     }
     i = 0;
@@ -537,7 +537,7 @@ pub fn spill(f: *Fn) void {
                 p.to = slot((p.to.val));
         }
         bscopy(&b.in, &v);
-        idup(b, all.curi, (all.insbTail()));
+        idup(b, all.insbTailSlice());
     }
 
     // align the locals to a 16 byte boundary

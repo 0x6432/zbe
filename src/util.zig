@@ -220,13 +220,13 @@ pub fn cfloat(x: anytype) CFloat {
 
 /// qsort replacement: stable sort (glibc's qsort is a stable merge
 /// sort, so ties keep the same order as with the C version)
-pub fn sort(comptime T: type, p: [*]T, n: usize, comptime order: fn (T, T) std.math.Order) void {
+pub fn sort(comptime T: type, items: []T, comptime order: fn (T, T) std.math.Order) void {
     const S = struct {
         fn lt(_: void, a: T, b: T) bool {
             return order(a, b) == .lt;
         }
     };
-    if (n != 0) std.sort.block(T, p[0..n], {}, S.lt);
+    if (items.len != 0) std.sort.block(T, items, {}, S.lt);
 }
 
 /// strcmp(a, b) == 0
@@ -512,19 +512,24 @@ pub fn emiti(i: Ins) void {
     emit(i.op, i.cls, i.to, i.arg[0], i.arg[1]);
 }
 
-pub fn idup(b: *Blk, s: [*]const Ins, n: ulong) void {
-    vgrow(&b.ins, n);
-    _ = icpy(b.ins, s, n);
-    b.nins = @intCast(n);
+/// Replace a block's instructions with an independent copy of source.
+/// source must not alias b.ins, which vgrow may relocate.
+pub fn idup(b: *Blk, source: []const Ins) void {
+    vgrow(&b.ins, source.len);
+    _ = icpy(b.ins[0..source.len], source);
+    b.nins = @intCast(source.len);
 }
 
-pub fn icpy(d: [*]Ins, s: [*]const Ins, n: ulong) [*]Ins {
-    if (n != 0)
-        if (@intFromPtr(d) <= @intFromPtr(s))
-            std.mem.copyForwards(Ins, d[0..n], s[0..n])
+/// Overlap-safe instruction copy; return the unused destination tail.
+pub fn icpy(destination: []Ins, source: []const Ins) []Ins {
+    assert(destination.len >= source.len);
+    const copied = destination[0..source.len];
+    if (source.len != 0)
+        if (@intFromPtr(destination.ptr) <= @intFromPtr(source.ptr))
+            std.mem.copyForwards(Ins, copied, source)
         else
-            std.mem.copyBackwards(Ins, d[0..n], s[0..n]);
-    return d + n;
+            std.mem.copyBackwards(Ins, copied, source);
+    return destination[source.len..];
 }
 
 const cmptab: [NCmp][2]i32 = blk: {

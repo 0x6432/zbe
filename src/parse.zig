@@ -795,7 +795,7 @@ fn findblk() *Blk {
 }
 
 fn closeblk() void {
-    idup(st.curb.?, &all.insb, (all.insbHead()));
+    idup(st.curb.?, all.insbHeadSlice());
     st.blink = &st.curb.?.link;
     all.curi = &all.insb;
 }

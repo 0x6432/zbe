@@ -5,25 +5,27 @@ QBEC=${QBEC:-${QBEREF:-/data/qbe-cfix/qbe}}
 QBEZ=${QBEZ:-$(dirname "$0")/../zig-out/bin/qbe}
 targets=${TARGETS:-"amd64_sysv amd64_apple amd64_win arm64 arm64_apple rv64"}
 n=0; fail=0; skip=0
+work=$(mktemp -d) || exit 1
+trap 'rm -rf "$work"' EXIT
 . "$(dirname "$0")/input-error-compat.sh"
 for f in "$@"; do
   for t in $targets; do
     n=$((n+1))
-    "$QBEC" -t $t "$f" > /tmp/corp.c.s 2>/tmp/corp.c.err; rc=$?
-    "$QBEZ" -t $t "$f" > /tmp/corp.z.s 2>/tmp/corp.z.err; rz=$?
+    "$QBEC" -t $t "$f" > "$work/c.s" 2>"$work/c.err"; rc=$?
+    "$QBEZ" -t $t "$f" > "$work/z.s" 2>"$work/z.err"; rz=$?
     # when both fail (abort), stdout holds an arbitrary unflushed prefix:
     # compare the diagnostics instead
-    if input_error_matches "$rc" "$rz" /tmp/corp.c.err /tmp/corp.z.err; then
+    if input_error_matches "$rc" "$rz" "$work/c.err" "$work/z.err"; then
       skip=$((skip+1)); continue
     fi
     if [ $rc != 0 ] && [ $rc = $rz ]; then
       # C prints __FILE__ before "dying:", zig prints "qbe"
-      sed -i 's/^[^ ]*: dying:/dying:/' /tmp/corp.c.err /tmp/corp.z.err
-      grep -q "Assertion" /tmp/corp.c.err && grep -q "panic" /tmp/corp.z.err && { skip=$((skip+1)); continue; }
-      cmp -s /tmp/corp.c.err /tmp/corp.z.err && { skip=$((skip+1)); continue; }
+      sed -i 's/^[^ ]*: dying:/dying:/' "$work/c.err" "$work/z.err"
+      grep -q "Assertion" "$work/c.err" && grep -q "panic" "$work/z.err" && { skip=$((skip+1)); continue; }
+      cmp -s "$work/c.err" "$work/z.err" && { skip=$((skip+1)); continue; }
       echo "DIFF(stderr) $t $f ($rc/$rz)"; fail=$((fail+1)); continue
     fi
-    if [ $rc != $rz ] || ! cmp -s /tmp/corp.c.s /tmp/corp.z.s; then
+    if [ $rc != $rz ] || ! cmp -s "$work/c.s" "$work/z.s"; then
       echo "DIFF $t $f ($rc/$rz)"; fail=$((fail+1))
     elif [ $rc != 0 ]; then skip=$((skip+1)); fi
   done

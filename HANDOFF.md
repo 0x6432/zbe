@@ -491,3 +491,7 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   extra output/newlines and unexpected/duplicate abort lines remain rejected.
   Core/native CI run it through their native /bin/sh; TEST_SHELL allows a
   dash or Bash override locally. No compiler diagnostic text was changed.
+- Comparison scripts now use per-invocation temporary directories. Running
+  bundled and cproc corpora concurrently exposed their previously shared
+  /tmp/corp.* outputs; those raced and produced false differences. The asm,
+  debug and corpus comparators all isolate and clean up their scratch files.

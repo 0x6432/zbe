@@ -506,3 +506,10 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 ### CI checkpoint (2026-10-13)
 - ac95e80: all nine CI jobs passed, including core and cproc; the dash
   comparison follow-up is confirmed green before the next opcode cleanup.
+
+### Typed opcode helper verification (2026-10-13)
+- Build OK; unit suite 20/20, including the exhaustive address-pattern test.
+- Assembly and debug dumps: 0/76 differ on each of all six targets.
+- Input-error cases 51/0; strict comparison regression cases 42/0.
+- bugs 110/0; lib 1442/0; cproc corpus 1212 runs, 0 differ, 52 both-failed.
+- edge 271/20; its full FAIL list matches the pre-change sandbox baseline.

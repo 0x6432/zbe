@@ -447,7 +447,8 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   compilations in one library process. Two unit tests cover invalid constants
   at the private helper boundary. The CI core/native suites run the script.
   `tools/cmp.sh` and `tools/corpus.sh` permit C abort versus zbe exit 1 only
-  for the enumerated input diagnostics through `tools/input-error-compat.sh`; their normalized stderr must still match exactly.
+  for the enumerated input diagnostics through `tools/input-error-compat.sh`;
+  their normalized stderr must still match exactly.
 - Per-pass mutable state lives in one documented `const State = struct {...}`
   per file with an instance `var st: State = .{}` (spill, rega, load, emit,
   ssa, gvn, parse, arm64/abi, the three emitters, util, lib). It is not reset

@@ -578,3 +578,14 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - Added tests for ordered/raw child traversal, dispatch/default/jump/stop,
   constant/cache classification, and instruction numbering in a guarded
   number-table subslice. Register-allocator memory state is untouched.
+
+### Address-matcher slice verification (2026-10-14)
+- Final checkpoint builds successfully; unit suite 37/37, including six new
+  matcher/classification tests. Fixtures use nonzero temporary references:
+  tmpRef(0) is the sentinel R and is not a valid matcher root.
+- Assembly and debug dumps: 0/76 differ on each of all six targets.
+- Input-error cases 51/0; strict comparison cases 42/0; bugs 110/0.
+- lib 1442/0; cproc corpus 1212 runs, 0 differ, 52 both-failed.
+- Native behavior suite: All is fine; ABI fuzz: 20/20 iterations OK.
+- edge 271/20; the complete FAIL list remains identical to the sandbox baseline.
+- Compiler diagnostic strings and all 11 optimizer mutation patterns are intact.

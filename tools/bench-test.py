@@ -17,6 +17,12 @@ spec.loader.exec_module(bench)
 
 
 class BenchmarkSafety(unittest.TestCase):
+    def test_timing_uses_completion_pipe_not_timeout_sleep_polling(self):
+        with patch.object(bench.subprocess, 'run') as run:
+            bench.timed(['compiler', 'fixture.ssa'])
+        self.assertEqual(subprocess.PIPE, run.call_args.kwargs['stderr'])
+        self.assertTrue(run.call_args.kwargs['check'])
+
     def test_checked_rejects_nonzero_exit_even_with_empty_stdout(self):
         with self.assertRaises(subprocess.CalledProcessError):
             bench.checked([sys.executable, '-c', 'raise SystemExit(7)'])

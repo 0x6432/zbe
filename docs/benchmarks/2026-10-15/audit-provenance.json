@@ -1,0 +1,210 @@
+{
+  "question": "Did the audit/hardening introduce a performance regression, and where is existing -O2 useful?",
+  "host": "Linux-6.18.49-x86_64-with-glibc2.34",
+  "machine": "x86_64",
+  "affinity": [
+    0
+  ],
+  "clock": "time.perf_counter_ns",
+  "zig": "0.18.0-dev.35+5e754304d",
+  "build_mode": "ReleaseFast, -Dcpu=baseline for both Zig snapshots",
+  "baseline_revision": "eeee52c114c32410d82122ce66c15e69ea2b8eac",
+  "candidate_revision": "f728f27a82f4c106a87609fcecc80d286cff821a",
+  "cproc_revision": "d1c53ddf56571573a7025324c8dd5c6d547a4d1f",
+  "current_repository_revision": "6f4eea436907fa6ad73784b0805e8a5e10579b08",
+  "reference_patch_sha256": "8698e15f33521d92191194430aa9bd118d26a913a1776fdeeb25246ddbd6a5ce",
+  "compiler_binaries": {
+    "C reference": {
+      "path": "/data/qbe-cfix/qbe",
+      "sha256": "41eb208a062fbc214487d179db91d7dc69e582e977bb04a687f49b3a69588123"
+    },
+    "Baseline -O0": {
+      "path": "/data/zbe-baseline/zig-out/bin/qbe",
+      "sha256": "8de9cc65471a94db0cb02e9ba60ded9c6e9bcc76375227b2762ebb32edc56d2d"
+    },
+    "Candidate -O0": {
+      "path": "/data/zbe-audit-perf/zig-out/bin/qbe",
+      "sha256": "559aef5a9ec1999f63bfb00da6d8b63c66004fa37bfb32a2c8d3603de5ffde83"
+    },
+    "Baseline -O2": {
+      "path": "/data/zbe-baseline/zig-out/bin/qbe",
+      "sha256": "8de9cc65471a94db0cb02e9ba60ded9c6e9bcc76375227b2762ebb32edc56d2d"
+    },
+    "Candidate -O2": {
+      "path": "/data/zbe-audit-perf/zig-out/bin/qbe",
+      "sha256": "559aef5a9ec1999f63bfb00da6d8b63c66004fa37bfb32a2c8d3603de5ffde83"
+    }
+  },
+  "compiler_commands": {
+    "C reference": [
+      "/data/qbe-cfix/qbe"
+    ],
+    "Baseline -O0": [
+      "/data/zbe-baseline/zig-out/bin/qbe",
+      "-O0"
+    ],
+    "Candidate -O0": [
+      "/data/zbe-audit-perf/zig-out/bin/qbe",
+      "-O0"
+    ],
+    "Baseline -O2": [
+      "/data/zbe-baseline/zig-out/bin/qbe",
+      "-O2"
+    ],
+    "Candidate -O2": [
+      "/data/zbe-audit-perf/zig-out/bin/qbe",
+      "-O2"
+    ]
+  },
+  "cc_version": "cc (GCC) 11.5.0 20240719 (Red Hat 11.5.0-5)",
+  "compile_files": 82,
+  "compile_file_hashes": {
+    "/data/zbe/test/_alt.ssa": "5bd52cf1e30b1f0bc038c20ae80ffc605c520a635a693923fea47b817e6ab1af",
+    "/data/zbe/test/_bf99.ssa": "72ae5fb8887972c6887d9149395fe62cbbe621ed89f26e08149bb1998af14ef1",
+    "/data/zbe/test/_bfmandel.ssa": "440f49a38c02728f333fa846969623c14448dc9407984817da2322552aa13990",
+    "/data/zbe/test/_chacha20.ssa": "ae28c1dd2c17034380868967e213d48eb2d544e3b2365c20951c2e463cb03b22",
+    "/data/zbe/test/_dragon.ssa": "153f712b8de8d0f57a617467c2cf68e844818cd383d7f59fb1210384d6ed3165",
+    "/data/zbe/test/_fix1.ssa": "581dae6814d060cd7ec4eab55ac37fde0a0a00d343626a09800361afb2c03dae",
+    "/data/zbe/test/_fix2.ssa": "86c5a15198cd32f26ef54b558de5f720dfea6865c809f22a1cc505935432a13a",
+    "/data/zbe/test/_fix3.ssa": "8095ac2ba5201ff17d36fa8e8622f404dafb618735d1cba34511719b3380454b",
+    "/data/zbe/test/_fix4.ssa": "4bb26d7fe5319b7ea298536d85fbb8b13c89252ea8dc6068eb49c611bb69de39",
+    "/data/zbe/test/_gcm1.ssa": "503831eea2347e94e7ac7e0bd2fbed40d1cc63ceca92ee92c15485d766fc7139",
+    "/data/zbe/test/_gcm2.ssa": "53ad71740fa485b3ebdec3bce0d1079b7ff2123e8e6d903104890d34be182302",
+    "/data/zbe/test/_live.ssa": "64ec49c87978cd05beeb2d7ff8bb071e19e9161a1dd3970c07542bb3ada59b40",
+    "/data/zbe/test/_load-elim.ssa": "df6984f9b32a4295df19296517ef87b20215685d68282337bf928e513d4ef0d9",
+    "/data/zbe/test/_rpo.ssa": "63d5c64304f006b51f4e54f044cd30aeeaece8e521109ff5ab8d887b216c043a",
+    "/data/zbe/test/_spill1.ssa": "1bd406055470f450c7416419941b2d38c67c2674d525ac7ec9a0aff00ce2f2c7",
+    "/data/zbe/test/_spill2.ssa": "74ac81e0f6de3b2ffd9b110121e461da1e6e84003ca28938601353598b199b27",
+    "/data/zbe/test/_spill3.ssa": "fa68a2000e7a5940c33e45b5d2456367250959d66e15bfc425962cf0ee594836",
+    "/data/zbe/test/abi1.ssa": "8bfcc7af87a8cb45bde00461a73e1008e871f2a3879f778ab43b453bf1090159",
+    "/data/zbe/test/abi2.ssa": "7164037f72c213a348f5ab580e63f3f6924f92f179d9b5f647691dda0e00dc30",
+    "/data/zbe/test/abi3.ssa": "38f94339a421efb68258e6fa4f64e4fd7909617dbc848e338884db6b524e8f9f",
+    "/data/zbe/test/abi4.ssa": "055db9a58500e1fc371c46f53a4d92ed369746a8f098411dbaffb2bc912af60b",
+    "/data/zbe/test/abi5.ssa": "38fb92ec37f473dc2ea64d150004c18e45ec2f1b79e9a3c5c260750ba84055ff",
+    "/data/zbe/test/abi6.ssa": "5f5584de651fbea79de0ccb3e71223825716acad41e16e4958396c0fbb93f947",
+    "/data/zbe/test/abi7.ssa": "db0978ea0dd926ea37d69ca26e76f3b96b163e574eab07388132b13cdd4ea1cb",
+    "/data/zbe/test/abi8.ssa": "e471e0a30c39bc6105953d5ad2b501cf9bbb8113d0bd34cad4dbb7c23b6a2877",
+    "/data/zbe/test/abi9.ssa": "e3e092f679adf015f7829940f29cf2cac7255ca64ffb94d9782c0a6f33476824",
+    "/data/zbe/test/alias1.ssa": "c58146da60a5e157fac5c5636ee1747851660b643aa1212d907f96cec37f4c1f",
+    "/data/zbe/test/align.ssa": "55fdab6dc709d040abc9eca6f2484f7b624e98057c865c60b1d13b3ebf31cb61",
+    "/data/zbe/test/cmp1.ssa": "24e123980be560396e3323cfa7ca889585c3c9d44f5fc5021d67f4a52fead544",
+    "/data/zbe/test/collatz.ssa": "8b9b7aa9b409c8e5b63bc9b0d237baccbd992a81cfc2d93fb522589c1746b445",
+    "/data/zbe/test/conaddr.ssa": "49941972ad1ca03a76ff6c4bf8e85f9c2e91517b1e3b4e414234d35cee8c43f1",
+    "/data/zbe/test/copy.ssa": "4e404dc9d755109de053dab761327167ddc817bb47c824140722b2d05bd8416c",
+    "/data/zbe/test/cprime.ssa": "d426a9173ec74932fd1a78b257654f26e20d71f8dcd532ca7ddc6bc37709106c",
+    "/data/zbe/test/cup.ssa": "ecc28fe5adb5cb44918e5474f2d9a9a19f9324eadd3bf03fc68f5e802aeaf775",
+    "/data/zbe/test/dark.ssa": "6a03914f4ea621f16fd4d866507f34a78ebb33d7f93978a1c5b1912aca64bcb0",
+    "/data/zbe/test/double.ssa": "8658801b2a3dacd115582b05c4ed2ea69fe4b91e5fa4a2c91f56dd5bf461df18",
+    "/data/zbe/test/dynalloc.ssa": "53578be74882aee600e6a00997be24712d2650b8debdda86b75f859ab4fca6c8",
+    "/data/zbe/test/echo.ssa": "a2c7f1c4f967d5b61f9271e0e839371d161423b2ce122753ce8bc20a069735d7",
+    "/data/zbe/test/env.ssa": "ea28b83be22662df7f03c7aa339dd10647c97b0c9bf4a87cdf6fe8957d0df4df",
+    "/data/zbe/test/eucl.ssa": "9ed32b05ba1e20f5a7aa589e754a8b8cc9fb51419a1a473f7c180f3975a88e3a",
+    "/data/zbe/test/euclc.ssa": "29ad0153e8eb60a20e7d449bc43faede8d4323f2d66ffbb092297bd2e2fde72f",
+    "/data/zbe/test/fixarg.ssa": "dd59861481ee51c7b43cd4f4014141aaa07062e4893170bd5e845bb79f934df1",
+    "/data/zbe/test/fold1.ssa": "cf5c6213aa87b06b867abd393befdbaf6b1299ffda5613fbd241583e3f36534b",
+    "/data/zbe/test/fpcnv.ssa": "c21291e8622c582f988326bb227c82664d3832b00d6a5b021ad2c07d8ed1dc9f",
+    "/data/zbe/test/gvn1.ssa": "b348d145f28297d843863cadfe6cbc4a2a9ab146f215fb3ca48be82eed4da7a1",
+    "/data/zbe/test/gvn2.ssa": "7b9f291de76d3a2927cb2615608427985697aec86c3ad593748aaecda513d248",
+    "/data/zbe/test/ifc.ssa": "71372a2da4188349ffc50922ede4a20a29c9f5d3be0adec6412797a7667c40d2",
+    "/data/zbe/test/isel1.ssa": "32a5f1c2ff32bf22d92bc0e543084a7e96b5172ad5f6a988e818c813e3687ef5",
+    "/data/zbe/test/isel2.ssa": "ffdbdbfba74b85eee8f9c69539f72d329bab213d86f9fda7030135562593f186",
+    "/data/zbe/test/isel3.ssa": "a199aaecd4176b32eed30daaf6e92a293b50f17813168efc53a6a6632c9aee2a",
+    "/data/zbe/test/isel4.ssa": "bf521030b22117e54daf66afc3c67877e2ad699f0fcd6743c5700629d105c111",
+    "/data/zbe/test/isel5.ssa": "6382c7d98a92c78717c585e90be6d62e13c762be4ec48e458ba50979ae693b11",
+    "/data/zbe/test/isel6.ssa": "6316bf3bb1b0398f67b08101727e20bf1c6da4fea760385cea677c820e9a9058",
+    "/data/zbe/test/ldbits.ssa": "43756455d2e58a8b1e7b0d7b0c0030b2008c62a88d017a216ba655583e075ec1",
+    "/data/zbe/test/ldhoist.ssa": "69eb55e3af26a5caf3043cb4701a6788590a60e12dc2dfb738823f84c1a69376",
+    "/data/zbe/test/load1.ssa": "070cbd2ac1ab3d8565bec32225a84e3eb440283963ca733180a7eb64e73a3843",
+    "/data/zbe/test/load2.ssa": "49215dded4b09d5f8d6c976c985068a1a97acab8125dfea373d784f4b5827b44",
+    "/data/zbe/test/load3.ssa": "459f073e9883a3f9cebd5276220ead848b6e4ccb673bdfbe00080277523e353d",
+    "/data/zbe/test/loop.ssa": "0c013790c40e20ade3ab5ede4fa450196e82a56811b32ffb19e06cd4c9ba8ff1",
+    "/data/zbe/test/mandel.ssa": "5f6ddb545e276d159570ea7ec3f91aa374acf449eb2759cfe77d373fc72e8c7b",
+    "/data/zbe/test/max.ssa": "b2c524eea0cbe94594036e579ee41ce363d82ecf9a6c645200b2ef5c36167df3",
+    "/data/zbe/test/mem1.ssa": "b3b5545b9054d5f96f29ae692a7ad128b6559ff9c645bb94b114164c35f067e3",
+    "/data/zbe/test/mem2.ssa": "95e7b786aa8205555700b7003a1c0e2cfcd9774cc2560df80ddb47e4abd5d3e4",
+    "/data/zbe/test/mem3.ssa": "952465f9f3d79f78a1c2576fdb4134d2ab15c61f9128be0e6d398aaf150be27c",
+    "/data/zbe/test/philv.ssa": "c952c8ee18c78c7b0372da1abbaf6237119828361d0adbe61b2341bd8792b12f",
+    "/data/zbe/test/prime.ssa": "bb8cbff468347a4cae7b8bb42a70c1a8642b1bb83bbd31af442f3071d54521cf",
+    "/data/zbe/test/puts10.ssa": "7ec69098b239e124724d3e678ecb291800ff3e004c1b19022b9b1a4f5fc5b7a2",
+    "/data/zbe/test/queen.ssa": "414170ef76a28aa2a6e87841bba8a93f8959fe2ebaae3c01a8ab6a015155b90d",
+    "/data/zbe/test/rega1.ssa": "7f6222cec0042e10c6d1a6251ac6e75554370b2f8d0a8d6cad06b5ce8cebf224",
+    "/data/zbe/test/spill1.ssa": "7d3300e5a50b700bac4f583c0d9aad897b76340673c89c67a565e3444ea836e6",
+    "/data/zbe/test/strcmp.ssa": "971f58decd24599f4834d0bf808bf60f929998cec0988bcb18c4be9ad68d3a55",
+    "/data/zbe/test/strspn.ssa": "3657178e2a2bc77cdea75d659b440d05f533ee190679d002fc9e17d171d8aefc",
+    "/data/zbe/test/sum.ssa": "b1580fe79ba46691fd9145fb89a3cbec105865c9e3053f34ff3b8ee2c17ad2f2",
+    "/data/zbe/test/tls.ssa": "b97fc2c8d39cfda18e1ae928584ae9b7c6debf3fbba62c9bb2a16841df2abea8",
+    "/data/zbe/test/vararg1.ssa": "8e881b4105fc95deecf57c7d1b5339611225dfd9a8a39422288527617b342dd2",
+    "/data/zbe/test/vararg2.ssa": "02f27e1d3a5d1001def434d94d79bd5bd1d8cab7947b4298ae6b1c524269b5b4",
+    "/data/perf-work/collatz.qbe": "07c636f08b271866d655d66fa729ece5c2253a2d0ed8eb048828406614f3effa",
+    "/data/perf-work/divs.qbe": "fe3129c12d4d994a9edec046bf9ea2068628690003450a5ccc22abb66f25c364",
+    "/data/perf-work/hash.qbe": "f96199a8861eb99e1630b00fe73a84dac31de7cf5616dc6bc5548aabb38c79ce",
+    "/data/perf-work/matmul.qbe": "3cc02ef2c765f8ecf4fc37f0e4150f23c34e0d068011173595df279e2c6508b2",
+    "/data/perf-work/sieve.qbe": "98a649fc39e5c5471eb217a97d5509a5f2f1cb12f2fc9f2d36a786cd86663bdc",
+    "/data/perf-work/sort.qbe": "ddbdc928d115f5d2e87280bb524c5794aa58513d489a3c820a3fa26d391c86a1"
+  },
+  "benchmark_source_hashes": {
+    "/data/zbe/bench/collatz.c": "a10218aa9da857a0f9c77e9ded28c2bf39014276309b9d4b102bd945533b443a",
+    "/data/zbe/bench/divs.c": "53946f4e7f2102f7044f095dd84fc9e0fb73a5c3c80507bf89d243cb5c3ac015",
+    "/data/zbe/bench/hash.c": "fa888f377240a5910b99e939ca6fa66a2623127f44aab4691ddcf2e2c9f8e236",
+    "/data/zbe/bench/matmul.c": "45678cae4572ee2584f0a4c245c140392fc550049df7eb2cd2c729ea60565f7e",
+    "/data/zbe/bench/sieve.c": "024ce3da323e1dec7429db491c681ae4cc182c25625746c0f52962c9814038b6",
+    "/data/zbe/bench/sort.c": "0de95b8303c9e0a5123c3d4b199d1b85dd5948cdb70fdeadf53c58af4aed183e"
+  },
+  "benchmark_source_note": "divs.c uses corrected, defined wrapping arithmetic for EVERY compiler snapshot",
+  "assembly_hashes": {
+    "collatz": {
+      "C reference": "31525a56e33da5322b87aad2a6cac3e665d0f8a1b944eb323e6b950a353e6a90",
+      "Baseline -O0": "31525a56e33da5322b87aad2a6cac3e665d0f8a1b944eb323e6b950a353e6a90",
+      "Candidate -O0": "31525a56e33da5322b87aad2a6cac3e665d0f8a1b944eb323e6b950a353e6a90",
+      "Baseline -O2": "3f4341bc058e0b2b6b00cdc2b2e092e3f6041b36ef6cb115f191a352b54935e7",
+      "Candidate -O2": "3f4341bc058e0b2b6b00cdc2b2e092e3f6041b36ef6cb115f191a352b54935e7"
+    },
+    "divs": {
+      "C reference": "d6ae7511c8941f3e2fabc96243adf306f899966b00ee8d35c5496c44a4bf03ff",
+      "Baseline -O0": "d6ae7511c8941f3e2fabc96243adf306f899966b00ee8d35c5496c44a4bf03ff",
+      "Candidate -O0": "d6ae7511c8941f3e2fabc96243adf306f899966b00ee8d35c5496c44a4bf03ff",
+      "Baseline -O2": "491b1533396492efdc7a9132f6abb8955e764e598d04e57593c9acb907205c44",
+      "Candidate -O2": "491b1533396492efdc7a9132f6abb8955e764e598d04e57593c9acb907205c44"
+    },
+    "hash": {
+      "C reference": "746375bf58bbd88f7e75b17071e058a2c6c92a4cb6fbb9777984a4f1195b174c",
+      "Baseline -O0": "746375bf58bbd88f7e75b17071e058a2c6c92a4cb6fbb9777984a4f1195b174c",
+      "Candidate -O0": "746375bf58bbd88f7e75b17071e058a2c6c92a4cb6fbb9777984a4f1195b174c",
+      "Baseline -O2": "f82686e7a287b5e4d3194bd5528e2a54be328c4229e63b04ba58a627debf27b5",
+      "Candidate -O2": "f82686e7a287b5e4d3194bd5528e2a54be328c4229e63b04ba58a627debf27b5"
+    },
+    "matmul": {
+      "C reference": "3cbf9779f57280003566ccff20720513fba7ea55201662f99df35765130c735d",
+      "Baseline -O0": "3cbf9779f57280003566ccff20720513fba7ea55201662f99df35765130c735d",
+      "Candidate -O0": "3cbf9779f57280003566ccff20720513fba7ea55201662f99df35765130c735d",
+      "Baseline -O2": "c45a4e8eabf8394d1e2975e1a51a41ba3887dc4dc2f98c5bd9a01439972a3ae9",
+      "Candidate -O2": "c45a4e8eabf8394d1e2975e1a51a41ba3887dc4dc2f98c5bd9a01439972a3ae9"
+    },
+    "sieve": {
+      "C reference": "cc0367034d2fcd7a99a2bc0f53a8ab04595c528fbe744e172a6c7aa99a6119ae",
+      "Baseline -O0": "cc0367034d2fcd7a99a2bc0f53a8ab04595c528fbe744e172a6c7aa99a6119ae",
+      "Candidate -O0": "cc0367034d2fcd7a99a2bc0f53a8ab04595c528fbe744e172a6c7aa99a6119ae",
+      "Baseline -O2": "cc0367034d2fcd7a99a2bc0f53a8ab04595c528fbe744e172a6c7aa99a6119ae",
+      "Candidate -O2": "cc0367034d2fcd7a99a2bc0f53a8ab04595c528fbe744e172a6c7aa99a6119ae"
+    },
+    "sort": {
+      "C reference": "ceaaa51846f4797e79de2321145e7b58f92c9090bf46b74b9073ac448cd94703",
+      "Baseline -O0": "ceaaa51846f4797e79de2321145e7b58f92c9090bf46b74b9073ac448cd94703",
+      "Candidate -O0": "ceaaa51846f4797e79de2321145e7b58f92c9090bf46b74b9073ac448cd94703",
+      "Baseline -O2": "244341b8519dd281c887a2b2084c44359bc9c855ed0125e35917d3394f3dbbda",
+      "Candidate -O2": "244341b8519dd281c887a2b2084c44359bc9c855ed0125e35917d3394f3dbbda"
+    }
+  },
+  "validated_stdout": {
+    "collatz": "1117065 527\n",
+    "divs": "726734895612 327238350\n",
+    "hash": "129557618972\n",
+    "matmul": "72013\n",
+    "sieve": "1787196\n",
+    "sort": "8397169\n"
+  },
+  "repetitions": 7,
+  "order": "Fixed-seed shuffle across compiler groups and across all executable groups each round",
+  "random_seed": 6432,
+  "limits": "Single native sandbox, process startup included, no statistical or cross-machine generalization"
+}

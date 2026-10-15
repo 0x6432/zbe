@@ -1,0 +1,197 @@
+phase,program,compiler,round,order,repeats,seconds
+runtime,divs,C reference,1,0,1,1.112998934
+runtime,hash,After -O2,1,1,10,0.355896626
+runtime,divs,Before -O2,1,2,1,0.260402406
+runtime,collatz,C reference,1,3,1,3.916126036
+compile,82-file batch,After -O0,1,4,1,0.235554807
+runtime,sieve,C reference,1,5,1,0.105857579
+runtime,sieve,Before -O2,1,6,1,0.104841111
+runtime,sort,C reference,1,7,1,0.293764201
+runtime,matmul,Before -O2,1,8,1,0.067126439
+runtime,matmul,C reference,1,9,1,0.067463366
+compile,82-file batch,Before -O0,1,10,1,0.231777735
+compile,82-file batch,Before -O2,1,11,1,0.236616805
+runtime,matmul,After -O2,1,12,1,0.069168044
+runtime,sort,Before -O2,1,13,1,0.2746978
+runtime,collatz,Before -O2,1,14,1,0.903851041
+runtime,sieve,After -O2,1,15,1,0.107437357
+runtime,sort,After -O2,1,16,1,0.245929034
+runtime,collatz,After -O2,1,17,1,0.968821208
+runtime,divs,After -O2,1,18,1,0.300054332
+runtime,hash,C reference,1,19,10,0.353430213
+runtime,hash,Before -O2,1,20,10,0.370739463
+compile,82-file batch,After -O2,1,21,1,0.241958457
+runtime,sieve,Before -O2,2,0,1,0.129300434
+runtime,collatz,After -O2,2,1,1,0.936422872
+runtime,sieve,After -O2,2,2,1,0.109794583
+runtime,sort,C reference,2,3,1,0.302998985
+runtime,divs,C reference,2,4,1,1.114209739
+compile,82-file batch,After -O0,2,5,1,0.236557302
+runtime,hash,Before -O2,2,6,10,0.362145444
+runtime,collatz,Before -O2,2,7,1,0.89157701
+runtime,sieve,C reference,2,8,1,0.105034367
+runtime,divs,Before -O2,2,9,1,0.255194752
+runtime,sort,After -O2,2,10,1,0.244604965
+runtime,divs,After -O2,2,11,1,0.259910356
+compile,82-file batch,After -O2,2,12,1,0.240081356
+runtime,hash,C reference,2,13,10,0.342458899
+compile,82-file batch,Before -O2,2,14,1,0.229827354
+runtime,collatz,C reference,2,15,1,3.947399883
+runtime,sort,Before -O2,2,16,1,0.276024626
+compile,82-file batch,Before -O0,2,17,1,0.235514326
+runtime,matmul,Before -O2,2,18,1,0.067416893
+runtime,matmul,C reference,2,19,1,0.067137047
+runtime,matmul,After -O2,2,20,1,0.066429447
+runtime,hash,After -O2,2,21,10,0.352909644
+runtime,collatz,C reference,3,0,1,3.936226173
+compile,82-file batch,Before -O2,3,1,1,0.234342227
+runtime,sieve,After -O2,3,2,1,0.106207121
+runtime,sort,C reference,3,3,1,0.297374232
+runtime,sort,After -O2,3,4,1,0.25086785
+runtime,matmul,After -O2,3,5,1,0.066706989
+runtime,sieve,C reference,3,6,1,0.110345763
+runtime,divs,After -O2,3,7,1,0.260923058
+runtime,hash,Before -O2,3,8,10,0.364359953
+compile,82-file batch,Before -O0,3,9,1,0.235113743
+runtime,sieve,Before -O2,3,10,1,0.106724336
+runtime,divs,Before -O2,3,11,1,0.259268039
+compile,82-file batch,After -O0,3,12,1,0.232829091
+runtime,hash,After -O2,3,13,10,0.351028595
+runtime,sort,Before -O2,3,14,1,0.273482037
+runtime,matmul,Before -O2,3,15,1,0.066506044
+runtime,divs,C reference,3,16,1,1.11113467
+runtime,collatz,Before -O2,3,17,1,0.902910174
+compile,82-file batch,After -O2,3,18,1,0.238825211
+runtime,matmul,C reference,3,19,1,0.07801572
+runtime,collatz,After -O2,3,20,1,0.942666606
+runtime,hash,C reference,3,21,10,0.380625581
+runtime,collatz,After -O2,4,0,1,0.920024164
+compile,82-file batch,Before -O0,4,1,1,0.236841644
+runtime,hash,After -O2,4,2,10,0.356967742
+compile,82-file batch,Before -O2,4,3,1,0.235253804
+runtime,matmul,After -O2,4,4,1,0.066747929
+runtime,sort,After -O2,4,5,1,0.248159565
+runtime,collatz,Before -O2,4,6,1,0.911048228
+runtime,sieve,Before -O2,4,7,1,0.119910744
+runtime,sieve,After -O2,4,8,1,0.106483087
+compile,82-file batch,After -O0,4,9,1,0.236483089
+runtime,matmul,Before -O2,4,10,1,0.066423179
+compile,82-file batch,After -O2,4,11,1,0.233132061
+runtime,collatz,C reference,4,12,1,4.049595753
+runtime,hash,Before -O2,4,13,10,0.396733592
+runtime,sort,Before -O2,4,14,1,0.320928853
+runtime,divs,C reference,4,15,1,1.192136905
+runtime,divs,After -O2,4,16,1,0.2948256
+runtime,hash,C reference,4,17,10,0.362116431
+runtime,matmul,C reference,4,18,1,0.069143785
+runtime,sort,C reference,4,19,1,0.306198758
+runtime,sieve,C reference,4,20,1,0.111904616
+runtime,divs,Before -O2,4,21,1,0.271558736
+runtime,matmul,C reference,5,0,1,0.068839546
+runtime,sieve,Before -O2,5,1,1,0.10859711
+compile,82-file batch,Before -O2,5,2,1,0.242866977
+runtime,sort,After -O2,5,3,1,0.252818818
+runtime,matmul,Before -O2,5,4,1,0.068359659
+runtime,sieve,C reference,5,5,1,0.108069579
+runtime,hash,After -O2,5,6,10,0.360543026
+runtime,collatz,Before -O2,5,7,1,0.912550923
+runtime,hash,Before -O2,5,8,10,0.373350627
+runtime,divs,Before -O2,5,9,1,0.264155631
+runtime,collatz,C reference,5,10,1,4.066902249
+runtime,divs,C reference,5,11,1,1.122529842
+compile,82-file batch,After -O2,5,12,1,0.246114435
+runtime,hash,C reference,5,13,10,0.349572532
+compile,82-file batch,After -O0,5,14,1,0.239908723
+runtime,sort,Before -O2,5,15,1,0.282907672
+runtime,sieve,After -O2,5,16,1,0.108718621
+compile,82-file batch,Before -O0,5,17,1,0.248447404
+runtime,matmul,After -O2,5,18,1,0.068618161
+runtime,sort,C reference,5,19,1,0.303761347
+runtime,divs,After -O2,5,20,1,0.264877032
+runtime,collatz,After -O2,5,21,1,0.906198098
+runtime,divs,Before -O2,6,0,1,0.261832177
+compile,82-file batch,Before -O0,6,1,1,0.23895652
+runtime,sieve,C reference,6,2,1,0.106693266
+runtime,sort,After -O2,6,3,1,0.250736951
+runtime,collatz,C reference,6,4,1,3.963068598
+runtime,hash,C reference,6,5,10,0.349275393
+runtime,matmul,After -O2,6,6,1,0.066927332
+compile,82-file batch,After -O0,6,7,1,0.232131412
+compile,82-file batch,Before -O2,6,8,1,0.233102819
+compile,82-file batch,After -O2,6,9,1,0.235335822
+runtime,hash,After -O2,6,10,10,0.351612086
+runtime,hash,Before -O2,6,11,10,0.36757338
+runtime,matmul,C reference,6,12,1,0.068189237
+runtime,sieve,After -O2,6,13,1,0.10438195
+runtime,sort,C reference,6,14,1,0.299095509
+runtime,matmul,Before -O2,6,15,1,0.067986653
+runtime,collatz,After -O2,6,16,1,0.911649025
+runtime,divs,After -O2,6,17,1,0.259094332
+runtime,divs,C reference,6,18,1,1.107846895
+runtime,collatz,Before -O2,6,19,1,0.922320879
+runtime,sieve,Before -O2,6,20,1,0.11011279
+runtime,sort,Before -O2,6,21,1,0.293565621
+runtime,hash,Before -O2,7,0,10,0.370361918
+runtime,collatz,After -O2,7,1,1,0.910715406
+runtime,collatz,Before -O2,7,2,1,0.901113012
+runtime,divs,Before -O2,7,3,1,0.26090419
+runtime,sieve,Before -O2,7,4,1,0.105978753
+compile,82-file batch,After -O2,7,5,1,0.240246057
+runtime,divs,After -O2,7,6,1,0.270523788
+runtime,sieve,After -O2,7,7,1,0.108492066
+runtime,divs,C reference,7,8,1,1.114876307
+runtime,collatz,C reference,7,9,1,3.984035688
+runtime,matmul,After -O2,7,10,1,0.066367742
+compile,82-file batch,After -O0,7,11,1,0.239439255
+compile,82-file batch,Before -O0,7,12,1,0.240085261
+runtime,sort,Before -O2,7,13,1,0.277654399
+runtime,sort,After -O2,7,14,1,0.249707427
+runtime,matmul,C reference,7,15,1,0.067467949
+runtime,matmul,Before -O2,7,16,1,0.067121679
+runtime,hash,After -O2,7,17,10,0.378897163
+runtime,hash,C reference,7,18,10,0.354946924
+runtime,sieve,C reference,7,19,1,0.105986919
+runtime,sort,C reference,7,20,1,0.297488351
+compile,82-file batch,Before -O2,7,21,1,0.240865479
+runtime,hash,Before -O2,8,0,10,0.367064446
+runtime,hash,C reference,8,1,10,0.348389506
+runtime,hash,After -O2,8,2,10,0.384376497
+runtime,hash,After -O2,9,0,10,0.361178825
+runtime,hash,Before -O2,9,1,10,0.37362359
+runtime,hash,C reference,9,2,10,0.363470233
+runtime,hash,Before -O2,10,0,10,0.368252984
+runtime,hash,After -O2,10,1,10,0.359617169
+runtime,hash,C reference,10,2,10,0.348461299
+runtime,hash,After -O2,11,0,10,0.358914039
+runtime,hash,C reference,11,1,10,0.347889382
+runtime,hash,Before -O2,11,2,10,0.366119765
+runtime,hash,Before -O2,12,0,10,0.366518639
+runtime,hash,C reference,12,1,10,0.345598357
+runtime,hash,After -O2,12,2,10,0.354915062
+runtime,hash,Before -O2,13,0,10,0.364581079
+runtime,hash,After -O2,13,1,10,0.356319514
+runtime,hash,C reference,13,2,10,0.344380144
+runtime,hash,After -O2,14,0,10,0.353696095
+runtime,hash,C reference,14,1,10,0.346246261
+runtime,hash,Before -O2,14,2,10,0.364894179
+runtime,hash,C reference,15,0,10,0.343951763
+runtime,hash,Before -O2,15,1,10,0.366882318
+runtime,hash,After -O2,15,2,10,0.354162551
+runtime,hash,After -O2,16,0,10,0.358249627
+runtime,hash,C reference,16,1,10,0.348242006
+runtime,hash,Before -O2,16,2,10,0.370542096
+runtime,hash,Before -O2,17,0,10,0.371469697
+runtime,hash,C reference,17,1,10,0.348851489
+runtime,hash,After -O2,17,2,10,0.362074993
+runtime,hash,C reference,18,0,10,0.346025264
+runtime,hash,After -O2,18,1,10,0.358992599
+runtime,hash,Before -O2,18,2,10,0.364916777
+runtime,hash,After -O2,19,0,10,0.359368816
+runtime,hash,C reference,19,1,10,0.348001473
+runtime,hash,Before -O2,19,2,10,0.366045325
+runtime,hash,Before -O2,20,0,10,0.367870412
+runtime,hash,C reference,20,1,10,0.35989235
+runtime,hash,After -O2,20,2,10,0.366115626
+runtime,hash,Before -O2,21,0,10,0.36913082
+runtime,hash,After -O2,21,1,10,0.3564266
+runtime,hash,C reference,21,2,10,0.345419766

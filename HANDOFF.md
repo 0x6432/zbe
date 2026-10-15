@@ -1152,3 +1152,70 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   or version change has been authorized or created.
 - This publication-status-only follow-up uses [skip ci]; compiler/test sources
   remain exactly those in the fresh run above. No duplicate source run needed.
+
+### Prior audit CI confirmed; measured follow-up in progress
+- Live GitHub API inspection confirmed run 38778895988 completed SUCCESS:
+  all nine verification jobs passed, release job skipped. It covers 705f6b8;
+  documentation checkpoint 6f4eea4 did not change that compiler source.
+- The broader source audit does not certify "100% idiomatic Zig". Remaining
+  explicit low-level representations are intentional; see SOURCE-AUDIT.md.
+- Measurements uncovered actual signed overflow in bench/divs.c. Its corrected
+  unsigned-wrap fixture is used for ALL compared compiler snapshots, with UBSan
+  validation of all six benchmark sources. The oracle/reference are unchanged.
+- Both persisted native-CPU ReleaseFast binaries trapped after a sandbox CPU
+  change. Rebuilt baseline and candidate with the pinned Zig and -Dcpu=baseline;
+  release packaging now uses that portable CPU policy. No tag/version bump.
+- Initial seven-round measurements found existing -O2 gains for Collatz and
+  division-heavy code, but hash was slower than the C reference. Audit baseline
+  and candidate emitted identical benchmark assembly at -O0/-O2, so those
+  runtime differences are not a new audit optimization. Raw measurements and
+  provenance are retained under /data/raw/zbe-perf-20261015*.
+- The hash hot loop exposed a bounded AMD64 matcher opportunity: recognize long
+  shifts 1..3 as scales 2/4/8 only in optimized modes. This changes the matcher
+  view, not IR, and reacquires constants after possible insertion/growth.
+  Word, variable, non-bit and out-of-range shifts remain outside this path.
+- Targeted checks passed: Debug/ReleaseSafe units 75/75, optimizer 46/0,
+  six-target optsweep 910/0, initial address harness 39/0 (375 memory cases per
+  optimization level), including twelve six-target reference-identity checks.
+  Expanded randomized cases, a wrong-scale semantic mutant, fresh measurements,
+  immutable full core and release previews remain to be completed below.
+
+### Adversarial review caught a displacement regression before publication
+- The first immutable full gate passed, including 11 simpl mutants, the first
+  wrong-scale mutant, optimized IR fuzz 150/150 at each level and the 231-file
+  corpus. This was NOT sufficient evidence for the final candidate.
+- A subsequent explicit `(index + 1073741824) << 2` memory probe exposed a new
+  unassemblable 4294967296 displacement. The original compiler assembled it;
+  the initial matcher candidate did not. No affected candidate was published.
+- Added an optimized-mode-only fallback for matched displacements outside the
+  signed 32-bit encoding range. Keep the original register arithmetic instead
+  of widening x86's displacement field. Compatibility mode stays unchanged.
+- Expanded the memory oracle to 2247 cases per level, covering displacement
+  bounds just inside/outside the signed range at all three scales. The
+  corrected targeted harness passes 39/0. Added a second mutant that disables
+  the bound and must fail assembly (not the compiler build).
+- Stopped the obsolete release preview after its first build began and set its
+  partial output aside. It is NOT a successful six-target preview.
+- Preliminary scale timings remain immutable as zbe-address-perf-20261015*.
+  Fresh final-candidate acquisition uses zbe-address-perf-final-20261015*;
+  a NEW immutable full gate /data/verify-address-final-v2.log must finish after
+  those measurements. Do not transfer the first gate's green status to v2.
+
+### Corrected candidate measured; full v2 gate running
+- Fresh final acquisition completed: 196 rows, all outputs/return codes
+  checked; no rows discarded. Independent csv/statistics checks reproduce all
+  pandas medians. Nested JSON is provenance, validated explicitly rather than
+  misinterpreted as a flat measurement table. All six benchmark assemblies are
+  unchanged by the displacement fallback, but compiler costs were remeasured.
+- Final paired runtime medians: sort -10.6%, hash -3.1%; single native host,
+  seven paired rounds (hash 21 rounds, ten processes per observation). Hash
+  remains 2.8% slower than the C reference by duration medians. This is not a
+  general speed guarantee, statistical-significance claim or complete fix for
+  that benchmark's reference gap. Other workloads include opposing noisy
+  changes; all six and the compilation costs remain in docs/PERFORMANCE.md.
+- Evidence, raw CSV/provenance and scripts are preserved in
+  docs/benchmarks/2026-10-15; preliminary candidate files are labeled separately.
+- Save this local checkpoint before parallel package preview in an ISOLATED
+  worktree. The root verification worktree runs source-mutating tests, so a
+  release build must never consume that live source concurrently. No main
+  publication until the corrected immutable v2 gate finishes successfully.

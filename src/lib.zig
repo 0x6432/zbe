@@ -16,9 +16,9 @@ const Writer = std.Io.Writer;
 pub const version = drv.version;
 
 pub const Options = struct {
-    /// target name (see targets()); null = default target (amd64_sysv)
+    /// Target name (see targets()); null selects the compiler build's default target.
     target: ?[]const u8 = null,
-    /// optimization level 0..2; 0 = byte-identical to upstream qbe
+    /// Optimization level 0..2; 0 = byte-identical to the patched C reference.
     opt: u8 = 2,
     /// file name used in diagnostics
     name: []const u8 = "<input>",
@@ -45,7 +45,7 @@ fn init() void {
     st.inited = true;
 }
 
-/// Names of all supported targets; the first one is the default.
+/// Names of all supported targets; the default follows the build platform, not list order.
 pub fn targets() []const []const u8 {
     init();
     return st.names[0..st.nnames];

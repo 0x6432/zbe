@@ -218,8 +218,8 @@ jobs:
         run: |
           mkdir -p dist
           for t in x86_64-linux-musl aarch64-linux-musl riscv64-linux-musl x86_64-macos aarch64-macos x86_64-windows; do
-            zig build -Doptimize=ReleaseFast -Dtarget=$t -p out/$t
-            mkdir -p pkg/zbe-$t && cp -r out/$t/* include README.md pkg/zbe-$t/
+            zig build -Doptimize=ReleaseFast -Dcpu=baseline -Dtarget=$t -p out/$t
+            mkdir -p pkg/zbe-$t && cp -r out/$t/* include README.md CHANGELOG.md BUGS.md pkg/zbe-$t/
             [ -f LICENSE ] && cp LICENSE pkg/zbe-$t/
             case $t in
             *windows*) (cd pkg && zip -qr ../dist/zbe-$t.zip zbe-$t) ;;
@@ -241,7 +241,7 @@ jobs:
             # this version's CHANGELOG.md section
             awk -v v="${GITHUB_REF_NAME#v}" '/^## /{p = index($0, v) > 0; next} p' CHANGELOG.md
             echo
-            echo "Usage: \`qbe [-O0|-O1|-O2] [-t target] [-o out.s] file.ssa\`; \`QBE_COMPAT=1\` = byte-identical to upstream qbe."
+            echo "Usage: \`qbe [-O0|-O1|-O2] [-t target] [-o out.s] file.ssa\`; \`QBE_COMPAT=1\` = byte-identical to the patched C reference."
             echo
             cat bench.md
             echo

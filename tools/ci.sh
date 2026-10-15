@@ -49,8 +49,11 @@ core)
   chk input-error-compat ', 0 failed' python3 tools/input-error-compat-test.py
   chk cli ', 0 failed' sh tools/cli.sh
   chk benchmark-safety 'OK' python3 tools/bench-test.py
+  chk benchmark-fixtures ', 0 failed' sh tools/bench-fixtures.sh
   chk memcheck-harness 'OK' python3 tools/memcheck-test.py
+  chk full-suite-entrypoint 'OK' python3 tools/all-test.py
   chk jnz ', 0 failed' sh tools/jnz.sh
+  chk address-scales ', 0 failed' python3 tools/address-scales.py
   chk parser-caches ', 0 failed' python3 tools/parser-caches.py
   chk parser-ref-kinds ', 0 failed' python3 tools/parser-ref-kinds.py
   chk opttable '0 failures' python3 tests/opttable.py
@@ -59,6 +62,7 @@ core)
   chk "irfuzz compat" 'iterations ok' C python3 tests/irfuzz.py -n 15 -s 5000 -k 60
   chk abifuzz 'iterations ok' C python3 tests/abifuzz.py -n 15 -s 1000 -k 60
   chk mutation 'mutate: [0-9]+ killed, 0 survived' python3 tools/mutate.py
+  chk address-mutation 'address mutation: 2 killed, 0 survived' python3 tools/address-scales-mutate.py
   chk "zig package" 'amd64_sysv: [0-9]+ bytes' sh -c 'cd tests/pkg && zig build && ./zig-out/bin/cons'
   ;;
 native)
@@ -67,6 +71,7 @@ native)
   chk "behaviour compat (test.sh)" 'All is fine!' C env bin=$ZQBE sh tools/test.sh all
   chk "compat asm vs C (default target)" ' 0/[0-9]+ differ' C sh tools/cmp.sh "$($ZQBE -t?)"
   chk jnz ', 0 failed' sh tools/jnz.sh
+  chk address-scales ', 0 failed' python3 tools/address-scales.py
   chk parser-caches ', 0 failed' python3 tools/parser-caches.py
   chk parser-ref-kinds ', 0 failed' python3 tools/parser-ref-kinds.py
   chk opttable '0 failures' python3 tests/opttable.py
@@ -76,7 +81,9 @@ native)
   chk input-error-compat ', 0 failed' python3 tools/input-error-compat-test.py
   chk cli ', 0 failed' sh tools/cli.sh
   chk benchmark-safety 'OK' python3 tools/bench-test.py
+  chk benchmark-fixtures ', 0 failed' sh tools/bench-fixtures.sh
   chk memcheck-harness 'OK' python3 tools/memcheck-test.py
+  chk full-suite-entrypoint 'OK' python3 tools/all-test.py
   chk "zig package" 'bytes' sh -c 'cd tests/pkg && zig build && ./zig-out/bin/cons'
   ;;
 cross)
@@ -91,6 +98,7 @@ cross)
     chk "behaviour compat $t (test.sh)" 'All is fine!' C env TARGET=$t bin=$ZQBE sh tools/test.sh all
   fi
   chk "jnz $t" ', 0 failed' sh tools/jnz.sh
+  chk "address-scales $t" ', 0 failed' python3 tools/address-scales.py
   chk "opttable $t" '0 failures' python3 tests/opttable.py
   chk "optfuzz $t" 'iterations ok' python3 tests/optfuzz.py -n 20 -s 1 -k 10
   chk "irfuzz -O2 $t" 'iterations ok' env -u QBEREF python3 tests/irfuzz.py -n 15 -s 9000 -k 20

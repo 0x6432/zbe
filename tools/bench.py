@@ -32,8 +32,10 @@ def checked(cmd, **kw):
     return run(cmd, check=True, **kw)
 
 def timed(cmd):
+    # A pipe makes communicate() wait on child completion without the coarse
+    # timeout wait()/sleep polling used when both streams are DEVNULL.
     subprocess.run(cmd, env=ENV, stdout=subprocess.DEVNULL,
-                   stderr=subprocess.DEVNULL, check=True, timeout=TIMEOUT)
+                   stderr=subprocess.PIPE, check=True, timeout=TIMEOUT)
 
 def best(f):
     ts = []

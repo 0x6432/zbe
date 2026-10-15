@@ -12,7 +12,9 @@ This follow-up reviews the current IR/util interfaces, parser and allocator
 ownership, pass scratch lifetimes, target instruction selection, CLI/library
 error propagation, and the reliability of verification/benchmark tools.
 It is not a formal proof or an exhaustive search for compiler defects.
-The previous nine-job CI result covers ac2e336, not the changes below.
+The follow-up audit source checkpoint 705f6b8 passed all nine verification
+jobs in GitHub run 38778895988. Further changes below still require a fresh
+source-specific run; historical green is not transferred to a new checkpoint.
 
 ## Findings and disposition
 
@@ -21,8 +23,11 @@ The previous nine-job CI result covers ac2e336, not the changes below.
 | Comparison decoding returns a bool and writes two output parameters, requiring undefined locals even when callers only need a predicate | Idiomatic API | Implemented optional Comparison values; numeric condition codes retained; SSA/copy/GCM and all three target selectors updated |
 | GVN allocates its per-function hash table before fallible folding, but frees it only on success | Correctness / ownership | Implemented deferred release/reset; direct regression alternates failed floating-address folding, successful and zero-instruction functions |
 | Shared driver emission callbacks exit the process on writer failure, despite the Zig library exposing WriteFailed | Correctness / embedding | Implemented separate callback error propagation and library output-unit cleanup; 162 recovery checks pass; CLI wording/exit preserved |
-| Benchmark timing ignores subprocess failures in several paths, and successful-output checks ignore executable return codes | Verification reliability | Implemented checked builds/runs, finite timeouts and temporary cleanup; 9 fail-closed harness tests pass |
+| Benchmark timing ignores subprocess failures in several paths, and successful-output checks ignore executable return codes | Verification reliability | Implemented checked builds/runs, finite timeouts and temporary cleanup; 10 fail-closed harness tests pass |
 | Memcheck describes six targets but runs five, shares a fixed temporary path, and counts non-99 failures as success | Verification reliability | Fixed six-target coverage, temporary isolation and nonzero-exit classification; 4 stub tests pass; Valgrind itself unavailable locally |
+| Benchmark divs.c relies on signed overflow, invalidating timing interpretation | Measurement reliability | Replaced accumulator and input construction with defined unsigned wrapping; six native benchmark fixtures checked with UBSan |
+| Local full-suite entry point hides failures behind tail/sed pipelines | Verification reliability | Replaced with fail-fast core/corpus orchestration; four isolated failure/success tests |
+| -O2 power-of-two multiplication becomes a shift that AMD64's address matcher does not recognize | Measured performance candidate | Matcher-only normalization of long shifts 1..3 to scales 2/4/8 at -O1/-O2; rejects word/nonconstant/out-of-range cases; optimized measurements and full gate required |
 | Repository-wide zig fmt --check reports pre-existing differences | Style / lower priority | Do not conceal this or reformat unrelated compiler code in a semantic patch |
 
 ## Boundaries to keep

@@ -3,6 +3,9 @@
 ## 1.4.1 (unreleased)
 
 ### Optimizations
+- -O1/-O2 AMD64: recognize long constant shifts by 1..3 as scaled memory
+  indexes, including multiplication lowered to shifts. Word shifts are not
+  widened; -O0 and compatibility-mode instruction selection are unchanged.
 - -O2: unsigned 32-bit division/remainder by constants that need a 33-bit
   magic number (e.g. /7, /19, 0xffffffff) now uses multiply + add + shift
   instead of `div`.
@@ -30,6 +33,9 @@
 ### Code quality
 - Comparison decoding returns an optional class/condition value instead of a
   boolean plus output parameters; all target selectors use the typed result.
+- Native benchmark fixtures use defined wrapping arithmetic and undergo UBSan
+  checks; the full-suite entry point propagates build and suite failures.
+- Release package builds select baseline CPUs rather than the build host CPU.
 - Benchmark and memory-check harnesses reject failed executions rather than
   timing/counting them as successes, with dedicated harness regressions.
 - Parser operand validation checks the reference kind before indexing temporary

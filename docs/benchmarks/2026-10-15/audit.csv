@@ -1,0 +1,330 @@
+phase,program,compiler,round,order,seconds
+compile,82-file batch,Baseline -O0,1,0,0.240659022
+runtime,sieve,Baseline -O0,1,1,0.106759302
+runtime,divs,Candidate -O2,1,2,0.266780334
+runtime,collatz,GCC -O2,1,3,0.43916349
+runtime,collatz,Baseline -O0,1,4,4.054002217
+runtime,sieve,Candidate -O0,1,5,0.108414506
+runtime,collatz,Candidate -O0,1,6,4.003460503
+runtime,sort,GCC -O0,1,7,0.378225034
+runtime,sort,Candidate -O0,1,8,0.299517543
+runtime,matmul,Candidate -O2,1,9,0.067504231
+compile,82-file batch,Candidate -O0,1,10,0.240239655
+runtime,collatz,C reference,1,11,3.989802306
+runtime,sieve,Candidate -O2,1,12,0.106175937
+runtime,sort,C reference,1,13,0.298432156
+runtime,hash,GCC -O2,1,14,0.031335066
+runtime,hash,C reference,1,15,0.03475481
+runtime,sieve,GCC -O0,1,16,0.21261052
+runtime,matmul,Baseline -O2,1,17,0.067571158
+runtime,sort,Candidate -O2,1,18,0.278843626
+runtime,hash,Baseline -O2,1,19,0.0385136
+runtime,sort,Baseline -O0,1,20,0.299604652
+runtime,collatz,Candidate -O2,1,21,0.911831333
+runtime,matmul,GCC -O2,1,22,0.038698604
+runtime,sieve,C reference,1,23,0.106076623
+runtime,matmul,GCC -O0,1,24,0.154355199
+runtime,divs,Baseline -O0,1,25,1.115182679
+runtime,divs,Baseline -O2,1,26,0.26846085
+runtime,sieve,Baseline -O2,1,27,0.105768395
+runtime,divs,GCC -O2,1,28,0.186312119
+runtime,hash,Baseline -O0,1,29,0.034477094
+runtime,collatz,Baseline -O2,1,30,0.903720313
+runtime,matmul,C reference,1,31,0.070279
+compile,82-file batch,Candidate -O2,1,32,0.262178134
+compile,82-file batch,C reference,1,33,0.375796553
+runtime,hash,Candidate -O0,1,34,0.050760994
+runtime,hash,Candidate -O2,1,35,0.037952754
+compile,82-file batch,Baseline -O2,1,36,0.246965955
+runtime,divs,Candidate -O0,1,37,1.144107916
+runtime,collatz,GCC -O0,1,38,0.863254245
+runtime,sort,GCC -O2,1,39,0.214950342
+runtime,divs,C reference,1,40,1.119682816
+runtime,sieve,GCC -O2,1,41,0.1010914
+runtime,matmul,Candidate -O0,1,42,0.067670027
+runtime,divs,GCC -O0,1,43,0.509144531
+runtime,matmul,Baseline -O0,1,44,0.068735303
+runtime,sort,Baseline -O2,1,45,0.277734477
+runtime,hash,GCC -O0,1,46,0.085739808
+runtime,hash,Candidate -O2,2,0,0.036398601
+compile,82-file batch,Candidate -O0,2,1,0.260801881
+runtime,hash,GCC -O2,2,2,0.030867826
+runtime,divs,Candidate -O0,2,3,1.142838516
+compile,82-file batch,Baseline -O0,2,4,0.238045415
+runtime,sort,Candidate -O0,2,5,0.295943072
+runtime,collatz,Baseline -O2,2,6,0.906687875
+runtime,hash,GCC -O0,2,7,0.086601521
+runtime,sieve,Candidate -O2,2,8,0.107086927
+runtime,sieve,C reference,2,9,0.107559613
+runtime,sort,Baseline -O2,2,10,0.278455063
+runtime,divs,GCC -O0,2,11,0.501343054
+runtime,collatz,C reference,2,12,3.958409004
+runtime,collatz,Candidate -O2,2,13,0.91533404
+runtime,sieve,Baseline -O0,2,14,0.108223259
+compile,82-file batch,C reference,2,15,0.38216337
+runtime,sort,GCC -O2,2,16,0.220220614
+runtime,matmul,C reference,2,17,0.073316103
+compile,82-file batch,Candidate -O2,2,18,0.249583528
+runtime,hash,Candidate -O0,2,19,0.034735253
+runtime,hash,Baseline -O0,2,20,0.034886407
+runtime,matmul,Candidate -O2,2,21,0.069255553
+runtime,sort,C reference,2,22,0.309557271
+runtime,sieve,Candidate -O0,2,23,0.110680217
+runtime,matmul,Baseline -O0,2,24,0.070654737
+runtime,matmul,GCC -O0,2,25,0.157712359
+runtime,sieve,GCC -O2,2,26,0.104581944
+runtime,sieve,GCC -O0,2,27,0.218060041
+runtime,collatz,GCC -O2,2,28,0.401001342
+runtime,collatz,Candidate -O0,2,29,3.967399888
+runtime,matmul,GCC -O2,2,30,0.038570418
+compile,82-file batch,Baseline -O2,2,31,0.237568608
+runtime,hash,Baseline -O2,2,32,0.037373643
+runtime,hash,C reference,2,33,0.035156039
+runtime,matmul,Baseline -O2,2,34,0.067989852
+runtime,divs,Baseline -O2,2,35,0.262009364
+runtime,sort,GCC -O0,2,36,0.380840184
+runtime,sort,Candidate -O2,2,37,0.277430966
+runtime,matmul,Candidate -O0,2,38,0.067977004
+runtime,sort,Baseline -O0,2,39,0.299699151
+runtime,sieve,Baseline -O2,2,40,0.106997292
+runtime,divs,Baseline -O0,2,41,1.117545242
+runtime,divs,Candidate -O2,2,42,0.261836596
+runtime,collatz,Baseline -O0,2,43,3.954705732
+runtime,collatz,GCC -O0,2,44,0.854489293
+runtime,divs,GCC -O2,2,45,0.185982953
+runtime,divs,C reference,2,46,1.11792724
+runtime,sieve,GCC -O0,3,0,0.211639692
+compile,82-file batch,Baseline -O0,3,1,0.243258958
+runtime,divs,GCC -O0,3,2,0.528236504
+runtime,divs,Candidate -O0,3,3,1.164934979
+compile,82-file batch,Candidate -O0,3,4,0.257227289
+runtime,divs,Baseline -O0,3,5,1.155075679
+runtime,matmul,C reference,3,6,0.069051839
+runtime,hash,C reference,3,7,0.035175848
+runtime,matmul,GCC -O0,3,8,0.157063778
+runtime,sieve,Baseline -O0,3,9,0.114531636
+runtime,hash,Baseline -O2,3,10,0.04247432
+runtime,sort,Candidate -O0,3,11,0.319932678
+runtime,collatz,GCC -O2,3,12,0.401423677
+runtime,collatz,Candidate -O2,3,13,0.898884279
+runtime,divs,Baseline -O2,3,14,0.257089818
+runtime,sort,C reference,3,15,0.295494488
+runtime,hash,Baseline -O0,3,16,0.034433642
+runtime,sieve,Candidate -O0,3,17,0.105709362
+runtime,sieve,Candidate -O2,3,18,0.10708474
+runtime,collatz,GCC -O0,3,19,0.850337861
+runtime,sort,GCC -O0,3,20,0.381590082
+compile,82-file batch,Candidate -O2,3,21,0.242016954
+runtime,sort,Candidate -O2,3,22,0.28435665
+runtime,sort,Baseline -O0,3,23,0.301604431
+runtime,collatz,Baseline -O2,3,24,0.912801788
+compile,82-file batch,Baseline -O2,3,25,0.234642514
+runtime,sieve,GCC -O2,3,26,0.101609481
+runtime,hash,Candidate -O0,3,27,0.035502942
+runtime,sort,GCC -O2,3,28,0.203708874
+runtime,matmul,Candidate -O2,3,29,0.067499027
+runtime,divs,C reference,3,30,1.266175503
+runtime,collatz,Baseline -O0,3,31,4.048134237
+runtime,divs,GCC -O2,3,32,0.186903296
+runtime,hash,GCC -O0,3,33,0.085961481
+runtime,collatz,Candidate -O0,3,34,4.008336334
+runtime,matmul,Baseline -O2,3,35,0.06964916
+runtime,sieve,Baseline -O2,3,36,0.108380246
+runtime,divs,Candidate -O2,3,37,0.282758079
+runtime,hash,Candidate -O2,3,38,0.037088091
+runtime,sort,Baseline -O2,3,39,0.294127883
+compile,82-file batch,C reference,3,40,0.337746341
+runtime,collatz,C reference,3,41,4.05713106
+runtime,matmul,Candidate -O0,3,42,0.06876828
+runtime,matmul,Baseline -O0,3,43,0.068010591
+runtime,sieve,C reference,3,44,0.105195681
+runtime,hash,GCC -O2,3,45,0.030609027
+runtime,matmul,GCC -O2,3,46,0.038176656
+compile,82-file batch,Candidate -O0,4,0,0.236704179
+runtime,sort,GCC -O0,4,1,0.377945567
+runtime,sieve,Candidate -O0,4,2,0.104643943
+runtime,hash,C reference,4,3,0.035169673
+runtime,sieve,Candidate -O2,4,4,0.105637845
+runtime,collatz,C reference,4,5,3.952825806
+runtime,hash,GCC -O0,4,6,0.086037802
+runtime,sort,Baseline -O0,4,7,0.298061512
+runtime,sieve,C reference,4,8,0.105503422
+compile,82-file batch,Candidate -O2,4,9,0.238438232
+runtime,sort,Baseline -O2,4,10,0.273861282
+runtime,matmul,Baseline -O0,4,11,0.067186603
+runtime,sieve,GCC -O2,4,12,0.098948977
+runtime,hash,Candidate -O0,4,13,0.035285324
+runtime,hash,Candidate -O2,4,14,0.036851885
+compile,82-file batch,Baseline -O2,4,15,0.237404683
+compile,82-file batch,C reference,4,16,0.326812061
+runtime,divs,GCC -O2,4,17,0.185704547
+runtime,sort,Candidate -O0,4,18,0.297905358
+runtime,divs,Candidate -O0,4,19,1.109626984
+runtime,sieve,GCC -O0,4,20,0.209401338
+runtime,sort,Candidate -O2,4,21,0.275686056
+runtime,matmul,GCC -O0,4,22,0.154574234
+compile,82-file batch,Baseline -O0,4,23,0.238230971
+runtime,matmul,Candidate -O0,4,24,0.06928539
+runtime,divs,Candidate -O2,4,25,0.270537034
+runtime,matmul,Candidate -O2,4,26,0.068610684
+runtime,matmul,C reference,4,27,0.068152686
+runtime,divs,Baseline -O2,4,28,0.259919638
+runtime,collatz,Baseline -O2,4,29,0.915312176
+runtime,hash,Baseline -O0,4,30,0.035507347
+runtime,collatz,GCC -O0,4,31,0.863177398
+runtime,sieve,Baseline -O2,4,32,0.108162209
+runtime,collatz,Baseline -O0,4,33,4.002473437
+runtime,sort,C reference,4,34,0.298603062
+runtime,collatz,Candidate -O2,4,35,0.916242337
+runtime,sort,GCC -O2,4,36,0.209755128
+runtime,collatz,Candidate -O0,4,37,3.986977199
+runtime,collatz,GCC -O2,4,38,0.405551295
+runtime,matmul,Baseline -O2,4,39,0.068118811
+runtime,matmul,GCC -O2,4,40,0.038347908
+runtime,divs,C reference,4,41,1.11998205
+runtime,sieve,Baseline -O0,4,42,0.107104897
+runtime,hash,GCC -O2,4,43,0.030471969
+runtime,divs,GCC -O0,4,44,0.504687211
+runtime,divs,Baseline -O0,4,45,1.118990154
+runtime,hash,Baseline -O2,4,46,0.036904241
+runtime,matmul,Candidate -O2,5,0,0.067546268
+runtime,divs,Candidate -O0,5,1,1.118766888
+compile,82-file batch,Candidate -O0,5,2,0.265244443
+runtime,matmul,C reference,5,3,0.068077484
+runtime,divs,Baseline -O2,5,4,0.25925075
+runtime,sort,Candidate -O2,5,5,0.274038037
+compile,82-file batch,C reference,5,6,0.34400805
+runtime,sieve,Candidate -O0,5,7,0.109871967
+runtime,sieve,Baseline -O2,5,8,0.114654625
+runtime,divs,Candidate -O2,5,9,0.265273091
+compile,82-file batch,Baseline -O0,5,10,0.247713094
+runtime,sort,GCC -O0,5,11,0.397777673
+runtime,hash,Candidate -O0,5,12,0.036954605
+runtime,sieve,GCC -O0,5,13,0.21683042
+runtime,divs,C reference,5,14,1.121333525
+runtime,hash,Baseline -O0,5,15,0.034805646
+runtime,divs,Baseline -O0,5,16,1.120347849
+runtime,sort,GCC -O2,5,17,0.204958422
+runtime,hash,GCC -O2,5,18,0.031154622
+runtime,hash,C reference,5,19,0.035113779
+runtime,sort,C reference,5,20,0.299591983
+runtime,collatz,Candidate -O2,5,21,0.906514215
+runtime,collatz,GCC -O2,5,22,0.403765676
+runtime,hash,GCC -O0,5,23,0.086319635
+runtime,collatz,Baseline -O2,5,24,0.902655449
+runtime,sieve,C reference,5,25,0.106858876
+runtime,collatz,Baseline -O0,5,26,3.956455772
+runtime,sort,Candidate -O0,5,27,0.300057743
+compile,82-file batch,Candidate -O2,5,28,0.247949124
+runtime,sort,Baseline -O2,5,29,0.354173045
+runtime,divs,GCC -O0,5,30,0.538518395
+runtime,collatz,C reference,5,31,3.971380855
+compile,82-file batch,Baseline -O2,5,32,0.241820534
+runtime,collatz,GCC -O0,5,33,0.865149536
+runtime,matmul,GCC -O2,5,34,0.03834149
+runtime,sieve,GCC -O2,5,35,0.10213603
+runtime,collatz,Candidate -O0,5,36,3.952635381
+runtime,hash,Candidate -O2,5,37,0.037491874
+runtime,matmul,Baseline -O0,5,38,0.068373364
+runtime,divs,GCC -O2,5,39,0.186107287
+runtime,hash,Baseline -O2,5,40,0.037267675
+runtime,matmul,Candidate -O0,5,41,0.068489515
+runtime,sieve,Candidate -O2,5,42,0.108974811
+runtime,matmul,Baseline -O2,5,43,0.067987922
+runtime,sort,Baseline -O0,5,44,0.300400489
+runtime,matmul,GCC -O0,5,45,0.155440468
+runtime,sieve,Baseline -O0,5,46,0.108702142
+runtime,sieve,GCC -O2,6,0,0.10224685
+compile,82-file batch,Baseline -O0,6,1,0.26293459
+runtime,sort,C reference,6,2,0.358599112
+runtime,collatz,Baseline -O0,6,3,4.333388969
+runtime,collatz,C reference,6,4,3.963066436
+runtime,matmul,C reference,6,5,0.068329253
+runtime,sieve,Candidate -O2,6,6,0.10665519
+compile,82-file batch,Candidate -O0,6,7,0.245680464
+runtime,matmul,Baseline -O2,6,8,0.069809324
+compile,82-file batch,Candidate -O2,6,9,0.252725599
+runtime,divs,Candidate -O2,6,10,0.282690277
+runtime,sieve,C reference,6,11,0.107628009
+compile,82-file batch,C reference,6,12,0.333248495
+runtime,hash,Candidate -O0,6,13,0.035364765
+runtime,divs,Baseline -O2,6,14,0.269001005
+runtime,matmul,GCC -O2,6,15,0.047741561
+runtime,hash,Candidate -O2,6,16,0.038130287
+runtime,sieve,GCC -O0,6,17,0.231564453
+runtime,sort,Candidate -O2,6,18,0.30109638
+runtime,collatz,GCC -O0,6,19,0.853957422
+runtime,matmul,GCC -O0,6,20,0.15498992
+runtime,collatz,Baseline -O2,6,21,0.905570985
+runtime,sort,GCC -O2,6,22,0.20426782
+runtime,sort,Candidate -O0,6,23,0.299986669
+runtime,divs,Candidate -O0,6,24,1.115439601
+compile,82-file batch,Baseline -O2,6,25,0.241744222
+runtime,hash,Baseline -O0,6,26,0.036847828
+runtime,sieve,Candidate -O0,6,27,0.110766482
+runtime,divs,C reference,6,28,1.146958792
+runtime,sieve,Baseline -O0,6,29,0.108985072
+runtime,hash,GCC -O0,6,30,0.087041134
+runtime,matmul,Candidate -O2,6,31,0.067329131
+runtime,collatz,Candidate -O0,6,32,4.122494556
+runtime,matmul,Baseline -O0,6,33,0.068347738
+runtime,matmul,Candidate -O0,6,34,0.068284726
+runtime,sort,GCC -O0,6,35,0.381265253
+runtime,sort,Baseline -O0,6,36,0.298524073
+runtime,divs,GCC -O2,6,37,0.186153654
+runtime,divs,Baseline -O0,6,38,1.118842279
+runtime,hash,C reference,6,39,0.035420409
+runtime,collatz,Candidate -O2,6,40,0.904390505
+runtime,sieve,Baseline -O2,6,41,0.105700377
+runtime,collatz,GCC -O2,6,42,0.402343806
+runtime,hash,GCC -O2,6,43,0.030325021
+runtime,sort,Baseline -O2,6,44,0.277624686
+runtime,hash,Baseline -O2,6,45,0.036710014
+runtime,divs,GCC -O0,6,46,0.504388388
+runtime,sort,C reference,7,0,0.300202268
+runtime,divs,Candidate -O0,7,1,1.123615425
+runtime,sieve,C reference,7,2,0.106919539
+runtime,collatz,GCC -O0,7,3,0.854174495
+runtime,divs,GCC -O0,7,4,0.504613786
+runtime,hash,Baseline -O2,7,5,0.037326804
+runtime,sieve,Baseline -O2,7,6,0.105552981
+runtime,matmul,GCC -O2,7,7,0.038490711
+runtime,hash,C reference,7,8,0.034934056
+runtime,sort,Baseline -O2,7,9,0.277483703
+runtime,matmul,GCC -O0,7,10,0.154798188
+runtime,collatz,GCC -O2,7,11,0.402954658
+runtime,hash,GCC -O0,7,12,0.085456618
+runtime,collatz,Candidate -O0,7,13,3.952104909
+runtime,sort,Candidate -O0,7,14,0.3013863
+runtime,hash,Candidate -O2,7,15,0.037721347
+runtime,matmul,Candidate -O2,7,16,0.067614398
+runtime,sort,GCC -O0,7,17,0.377489262
+runtime,divs,Candidate -O2,7,18,0.259227965
+runtime,matmul,C reference,7,19,0.068339886
+runtime,hash,GCC -O2,7,20,0.031586231
+runtime,sieve,Candidate -O0,7,21,0.10570145
+runtime,divs,Baseline -O2,7,22,0.261225207
+compile,82-file batch,C reference,7,23,0.329833304
+runtime,sort,Candidate -O2,7,24,0.281860941
+runtime,collatz,Candidate -O2,7,25,0.955986826
+runtime,matmul,Baseline -O0,7,26,0.069489921
+runtime,hash,Baseline -O0,7,27,0.035123458
+compile,82-file batch,Candidate -O0,7,28,0.24119941
+runtime,matmul,Baseline -O2,7,29,0.069387937
+runtime,matmul,Candidate -O0,7,30,0.069096248
+runtime,collatz,Baseline -O2,7,31,0.963887255
+runtime,sort,Baseline -O0,7,32,0.308058544
+runtime,divs,Baseline -O0,7,33,1.147601608
+runtime,divs,C reference,7,34,1.121074004
+runtime,sort,GCC -O2,7,35,0.219418824
+compile,82-file batch,Candidate -O2,7,36,0.240840706
+runtime,sieve,GCC -O2,7,37,0.103417694
+runtime,sieve,Baseline -O0,7,38,0.110941027
+runtime,collatz,C reference,7,39,3.997345091
+runtime,sieve,Candidate -O2,7,40,0.106858261
+runtime,sieve,GCC -O0,7,41,0.215508201
+runtime,divs,GCC -O2,7,42,0.186746452
+runtime,collatz,Baseline -O0,7,43,3.972939832
+runtime,hash,Candidate -O0,7,44,0.035051228
+compile,82-file batch,Baseline -O0,7,45,0.239444941
+compile,82-file batch,Baseline -O2,7,46,0.252838701

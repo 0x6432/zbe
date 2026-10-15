@@ -244,6 +244,13 @@ fn seladdr(r: *Ref, tn: []Num, f: *Fn) void {
         a = std.mem.zeroes(Addr);
         if (!amatch(&a, tn, r0, f))
             return;
+        // Scaled displacement arithmetic wraps at 64 bits, but AMD64 memory
+        // operands encode only signed 32-bit displacements. Keep the original
+        // register arithmetic when the optimized match cannot be encoded.
+        if (all.optlevel > 0 and a.offset.type != CUndef and
+            (a.offset.bits.i < std.math.minInt(i32) or
+                a.offset.bits.i > std.math.maxInt(i32)))
+            return;
         if (!req(a.base, R))
             if (a.offset.type == CAddr) {
                 // apple as does not support
@@ -810,16 +817,35 @@ const matcher = blk: {
 
 // end of generated code
 
-fn anumber(tn: []Num, b: *Blk, con: []const Con) void {
+/// Only long shifts can be interpreted as 64-bit address multiplication.
+/// Word results have undefined upper bits; do not fold their wrapping arithmetic.
+fn addressScale(i: Ins, con: []const Con, level: i32) ?i64 {
+    if (level == 0 or i.op != .shl or i.cls != .l or
+        rtype(i.arg[0]) != RTmp or rtype(i.arg[1]) != RCon)
+        return null;
+    const c = con[i.arg[1].val];
+    if (c.type != CBits or c.bits.i < 1 or c.bits.i > 3)
+        return null;
+    return @as(i64, 1) << @intCast(c.bits.i);
+}
+
+fn anumber(tn: []Num, b: *Blk, f: *Fn) void {
     for (b.insns()) |*i| {
         if (rtype(i.to) != RTmp)
             continue;
         const n = &tn[i.to.val];
         n.l = i.arg[0];
         n.r = i.arg[1];
-        n.nl = @truncate(@as(u32, @bitCast(refn(n.l, tn, con))));
-        n.nr = @truncate(@as(u32, @bitCast(refn(n.r, tn, con))));
-        n.n = @truncate(@as(u32, @bitCast(opn(i.op, n.nl, n.nr))));
+        var op = i.op;
+        if (addressScale(i.*, f.cons(), all.optlevel)) |scale| {
+            // Normalize the matcher view, not the IR instruction. getcon may
+            // grow the constant table: acquire its slice only after insertion.
+            n.r = getcon(scale, f);
+            op = .mul;
+        }
+        n.nl = @truncate(@as(u32, @bitCast(refn(n.l, tn, f.cons()))));
+        n.nr = @truncate(@as(u32, @bitCast(refn(n.r, tn, f.cons()))));
+        n.n = @truncate(@as(u32, @bitCast(opn(op, n.nl, n.nr))));
     }
 }
 
@@ -953,7 +979,7 @@ pub fn amd64_isel(f: *Fn) all.Error!void {
             }
         }
         @memset(num, std.mem.zeroes(Num));
-        anumber(num, b, f.cons());
+        anumber(num, b, f);
         try seljmp(b, f);
         var k = b.nins;
         while (k != 0) {
@@ -1037,7 +1063,10 @@ test "anumber slices: classifies original instructions within fixed bounds" {
     var block = std.mem.zeroes(Blk);
     block.ins = &instructions;
     block.nins = instructions.len;
-    anumber(numbers, &block, &constants);
+    var f = std.mem.zeroes(Fn);
+    f.con = &constants;
+    f.ncon = constants.len;
+    anumber(numbers, &block, &f);
     try std.testing.expectEqual(@as(u8, 2), numbers[1].n);
     try std.testing.expectEqual(@as(u8, 4), numbers[2].n);
     try std.testing.expectEqual(@as(u8, 0), numbers[2].nl);
@@ -1076,4 +1105,67 @@ test "external constant snapshots: table growth and target classification" {
     const from_memory = externalConstant(all.memRef(0), &f, false).?;
     memory[0].offset.bits.i = -1;
     try std.testing.expectEqual(@as(i64, 64), from_memory.bits.i);
+}
+
+test "address scales: optimized long shifts only" {
+    var constants = [_]Con{std.mem.zeroes(Con)};
+    constants[0].type = CBits;
+    var i = all.mkIns(.shl, .l, tmpRef(2), tmpRef(1), all.conRef(0));
+    for ([_]i64{ -1, 0, 1, 2, 3, 4, 63, 64, 65 }) |count| {
+        constants[0].bits.i = count;
+        for (0..3) |level| {
+            const expected: ?i64 = if (level > 0 and count >= 1 and count <= 3)
+                @as(i64, 1) << @intCast(count)
+            else
+                null;
+            try std.testing.expectEqual(expected, addressScale(i, &constants, @intCast(level)));
+        }
+    }
+    constants[0].bits.i = 2;
+    i.cls = .w;
+    try std.testing.expectEqual(@as(?i64, null), addressScale(i, &constants, 2));
+    i.cls = .l;
+    constants[0].type = CAddr;
+    try std.testing.expectEqual(@as(?i64, null), addressScale(i, &constants, 2));
+    constants[0].type = CBits;
+    i.arg[1] = tmpRef(3);
+    try std.testing.expectEqual(@as(?i64, null), addressScale(i, &constants, 2));
+    i.arg[1] = all.conRef(0);
+    i.arg[0] = all.conRef(0);
+    try std.testing.expectEqual(@as(?i64, null), addressScale(i, &constants, 2));
+}
+
+test "address numbering: shift view survives constant growth without changing IR" {
+    const saved_level = all.optlevel;
+    defer all.optlevel = saved_level;
+    all.optlevel = 2;
+    var f = std.mem.zeroes(Fn);
+    f.con = all.vnewT(Con, 1, all.PHeap);
+    defer all.vfree(f.con);
+    f.ncon = 1;
+    f.cons()[0] = std.mem.zeroes(Con);
+    f.cons()[0].type = CBits;
+    f.cons()[0].bits.i = 3;
+    var instructions = [_]Ins{
+        all.mkIns(.shl, .l, tmpRef(2), tmpRef(1), all.conRef(0)),
+        all.mkIns(.add, .l, tmpRef(4), tmpRef(3), tmpRef(2)),
+    };
+    const original = instructions;
+    var block = std.mem.zeroes(Blk);
+    block.ins = &instructions;
+    block.nins = instructions.len;
+    var temps = std.mem.zeroes([5]all.Tmp);
+    for (&temps) |*temp| temp.slot = -1;
+    f.tmp = &temps;
+    f.ntmp = temps.len;
+    var numbers = std.mem.zeroes([5]Num);
+    anumber(&numbers, &block, &f);
+    try std.testing.expectEqual(@as(u8, 3), numbers[2].n);
+    try std.testing.expectEqual(@as(i64, 8), f.cons()[numbers[2].r.val].bits.i);
+    var address = std.mem.zeroes(Addr);
+    try std.testing.expect(amatch(&address, &numbers, tmpRef(4), &f));
+    try std.testing.expectEqual(@as(i32, 8), address.scale);
+    try std.testing.expect(req(address.base, tmpRef(3)));
+    try std.testing.expect(req(address.index, tmpRef(1)));
+    try std.testing.expectEqualDeep(original, instructions);
 }

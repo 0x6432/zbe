@@ -97,3 +97,33 @@ fewer `mov`s on amd64 and `sxtw`/`uxtw` on arm64.
 These are deliberately left out of the -O2 set: they change control flow or
 ABI-level behaviour and would need much larger test suites (including
 hare/cproc bootstraps on every target) before being trusted.
+
+## AMD64 shift-based address scales — measured candidate (unreleased)
+
+Power-of-two multiplication is already lowered to shifts by the generic
+optimizer. AMD64's matcher historically recognized only the multiplication
+view, so `base + (index << k)` could require a separate shift and scale-1
+memory operand even for k = 1, 2, 3.
+
+At -O1/-O2, instruction selection normalizes only its private numbering view:
+long `shl index, k` becomes the existing multiply-by-2/4/8 pattern. The IR is
+not rewritten. For all 64-bit bit patterns, shifting left by these counts is
+multiplication by 2^k modulo 2^64, exactly the arithmetic of the machine's
+64-bit effective address. Word shifts are excluded because they wrap at 32
+bits and their upper bits are not defined. Variable counts, non-bit constants
+and counts outside 1..3 are excluded. A matched address with a displacement
+outside signed 32-bit range falls back to the original register arithmetic:
+64-bit wrapping arithmetic does not widen x86's encoded displacement field.
+-O0/QBE_COMPAT behavior is unchanged.
+
+This is target address selection, not a new scalar arithmetic rewrite, so
+scalar-only opttable/optfuzz cannot detect its essential memory-access or
+shape failures. `tools/address-scales.py` supplies a seeded memory oracle
+(loads AND stores, wraparound/high-bit indexes, shared shift values, word
+shifts, multiplication, scale and non-scale counts), optimized AMD64 assembly
+checks and six-target compatibility comparisons. It runs alongside the
+unchanged scalar suites, including cross-target execution in CI.
+`tools/address-scales-mutate.py` requires that a wrong scale is killed by an
+actual memory-oracle mismatch, not a build failure. The existing eleven
+simpl.zig mutation patterns remain intact. Full core, all-target optsweep and
+source-specific CI remain required before treating the candidate as verified.

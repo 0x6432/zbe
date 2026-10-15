@@ -29,7 +29,7 @@ const Wuw = all.Wuw;
 const argcls = all.argcls;
 const bits = all.bits;
 const icpy = all.icpy;
-const iscmp = all.iscmp;
+const comparison = all.comparison;
 const isconbits = all.isconbits;
 const isext = all.isext;
 const ispar = all.ispar;
@@ -145,8 +145,6 @@ fn dwl(f: *Fn, r: Ref, w_: i32) bool {
     var w = w_;
     var e: Ext = undefined;
     var v: i64 = undefined;
-    var x: i32 = undefined;
-    var xk: Cls = undefined;
 
     if (isconbits(f, r, &v) and bitwidth(@bitCast(v)) <= w)
         return true;
@@ -190,7 +188,7 @@ fn dwl(f: *Fn, r: Ref, w_: i32) bool {
             };
         return dwl(f, i.arg[0], w);
     }
-    if (iscmp(i.op, &xk, &x))
+    if (comparison(i.op) != null)
         return w >= 1;
     if (i.op == .@"and") {
         if (dwl(f, i.arg[0], w) or dwl(f, i.arg[1], w))

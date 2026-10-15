@@ -28,7 +28,7 @@ const idup = all.idup;
 const igroup = all.igroup;
 const insidx = all.insidx;
 const isalloc = all.isalloc;
-const iscmp = all.iscmp;
+const comparison = all.comparison;
 const isload = all.isload;
 const isstore = all.isstore;
 const lca = all.lca;
@@ -305,14 +305,11 @@ fn schedblk(f: *Fn) void {
 }
 
 fn cheap(i: *Ins) bool {
-    var x: i32 = undefined;
-    var xk: all.Cls = undefined;
-
     if (clsBase(i.cls) != 0)
         return false;
     return switch (i.op) {
         .neg, .add, .sub, .mul, .@"and", .@"or", .xor, .sar, .shr, .shl => true,
-        else => iscmp(i.op, &xk, &x),
+        else => comparison(i.op) != null,
     };
 }
 

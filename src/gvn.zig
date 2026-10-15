@@ -428,6 +428,10 @@ pub fn gvn(f: *Fn) all.Error!void {
 
     const n = nins + nins / 2;
     st.gvntbl = eallocSlice(?*Ins, n);
+    defer {
+        efree(@ptrCast(st.gvntbl.ptr));
+        st.gvntbl = &.{};
+    }
     @memset(st.gvntbl, null);
     for (f.blks()) |b| {
         dedupphi(f, b);
@@ -436,8 +440,6 @@ pub fn gvn(f: *Fn) all.Error!void {
         dedupjmp(f, b);
     }
     rebuildcfg(f);
-    efree(@ptrCast(st.gvntbl.ptr));
-    st.gvntbl = &.{};
 
     if (all.debug['G'] != 0) {
         dprint("\n> After GVN:\n", .{});
@@ -473,5 +475,46 @@ test "dedupjmp: folded constants use word semantics except in upstream mode" {
             try std.testing.expectEqual(all.J.jmp, b.jmp.type);
             try std.testing.expect(req(b.jmp.arg, R));
         }
+    }
+}
+
+test "GVN scratch ownership: fold errors and repeated calls clear the table" {
+    const driver = @import("main.zig");
+    driver.inittargets();
+    const saved_target = all.T;
+    const saved_diagnostics = all.dbg;
+    const saved_constants = all.con01;
+    var buffer: [1024]u8 = undefined;
+    var diagnostics = all.Writer.fixed(&buffer);
+    all.T = driver.Deftgt().*;
+    all.dbg = &diagnostics;
+    defer {
+        all.T = saved_target;
+        all.dbg = saved_diagnostics;
+        all.con01 = saved_constants;
+        all.freeall();
+    }
+    const Callbacks = struct {
+        fn debugfile(_: [*:0]const u8) void {}
+        fn data(_: *all.Dat) all.Error!void {}
+        fn function(f: *Fn) all.Error!void {
+            defer all.freeall();
+            fillcfg(f);
+            all.filldom(f);
+            try gvn(f);
+        }
+    };
+    const bad = "function d $bad() {\n@start\n%x =d add $address, d_1\nret %x\n}\n";
+    const good = "function w $good() {\n@start\n%x =w add 2, 3\nret %x\n}\n";
+    const empty = "function $empty() {\n@start\nret\n}\n";
+    for (0..3) |_| {
+        try std.testing.expectError(error.InvalidInput, all.parse(bad, "<gvn-error>", Callbacks.debugfile, Callbacks.data, Callbacks.function));
+        try std.testing.expectEqual(@as(usize, 0), st.gvntbl.len);
+        try std.testing.expect(std.mem.indexOf(u8, diagnostics.buffered(), "invalid address operand for 'add'") != null);
+        diagnostics.end = 0;
+        try all.parse(good, "<gvn-good>", Callbacks.debugfile, Callbacks.data, Callbacks.function);
+        try std.testing.expectEqual(@as(usize, 0), st.gvntbl.len);
+        try all.parse(empty, "<gvn-empty>", Callbacks.debugfile, Callbacks.data, Callbacks.function);
+        try std.testing.expectEqual(@as(usize, 0), st.gvntbl.len);
     }
 }

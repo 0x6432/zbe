@@ -43,7 +43,7 @@ const fail = all.fail;
 const filldom = all.filldom;
 const fillfron = all.fillfron;
 const filllive = all.filllive;
-const iscmp = all.iscmp;
+const comparison = all.comparison;
 const isext = all.isext;
 const isload = all.isload;
 const isparbh = all.isparbh;
@@ -97,8 +97,6 @@ pub fn filluse(f: *Fn) void {
     var t: i32 = undefined;
     var tp: i32 = undefined;
     var w: i32 = undefined;
-    var x: i32 = undefined;
-    var xk: Cls = undefined;
 
     const tmp = f.tmps();
     t = Tmp0;
@@ -143,7 +141,7 @@ pub fn filluse(f: *Fn) void {
                     w = @intCast(Wsb + i.op.diff(.loadsb));
                 if (isext(i.op))
                     w = @intCast(Wsb + i.op.diff(.extsb));
-                if (iscmp(i.op, &xk, &x))
+                if (comparison(i.op) != null)
                     w = Wub;
                 if (w == Wsw or w == Wuw)
                     if (i.cls == .w) {

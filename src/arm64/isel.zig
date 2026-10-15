@@ -41,7 +41,7 @@ const fail = all.fail;
 const getcon = all.getcon;
 const idup = all.idup;
 const intern = all.intern;
-const iscmp = all.iscmp;
+const comparison = all.comparison;
 const newcon = all.newcon;
 const newtmp = all.newtmp;
 const printfn = all.printfn;
@@ -237,8 +237,6 @@ fn callable(r: Ref, f: *Fn) bool {
 
 fn sel(i_: Ins, f: *Fn) all.Error!void {
     var i = i_;
-    var ck: Cls = undefined;
-    var cc: i32 = undefined;
 
     if (inRange(i.op, Opc.alloc_first, Opc.alloc_last)) {
         const i_0 = &(all.curi - 1)[0];
@@ -246,13 +244,13 @@ fn sel(i_: Ins, f: *Fn) all.Error!void {
         fixarg(&i_0.arg[0], .l, false, f);
         return;
     }
-    if (iscmp(i.op, &ck, &cc)) {
+    if (comparison(i.op)) |cmp| {
         emit(Opc.flag_first, i.cls, i.to, R, R);
         const i_0 = &all.curi[0];
-        if (selcmp(&i.arg, ck, f))
-            i_0.op = i_0.op.offset(cmpop(cc))
+        if (selcmp(&i.arg, cmp.cls, f))
+            i_0.op = i_0.op.offset(cmpop(cmp.condition))
         else
-            i_0.op = i_0.op.offset(cc);
+            i_0.op = i_0.op.offset(cmp.condition);
         return;
     }
     if (i.op == .call and callable(i.arg[0], f)) {
@@ -268,9 +266,6 @@ fn sel(i_: Ins, f: *Fn) all.Error!void {
 }
 
 fn seljmp(b: *Blk, f: *Fn) void {
-    var ck: Cls = undefined;
-    var cc: i32 = undefined;
-
     if (b.jmp.type == .ret0 or
         b.jmp.type == .jmp or
         b.jmp.type == .hlt)
@@ -289,10 +284,10 @@ fn seljmp(b: *Blk, f: *Fn) void {
             break;
         }
     }
-    if (ir_ != null and use == 1 and iscmp(ir_.?.op, &ck, &cc)) {
+    const cmp = if (ir_ != null and use == 1) comparison(ir_.?.op) else null;
+    if (cmp) |decoded| {
         const ir = ir_.?;
-        if (selcmp(&ir.arg, ck, f))
-            cc = cmpop(cc);
+        const cc = if (selcmp(&ir.arg, decoded.cls, f)) cmpop(decoded.condition) else decoded.condition;
         b.jmp.type = J.jf_first.add(cc);
         ir.* = insOp(.nop);
     } else {

@@ -62,7 +62,7 @@ const fail = all.fail;
 const getcon = all.getcon;
 const idup = all.idup;
 const intern = all.intern;
-const iscmp = all.iscmp;
+const comparison = all.comparison;
 const isext = all.isext;
 const isload = all.isload;
 const isreg = all.isreg;
@@ -300,7 +300,6 @@ fn sel(i_: Ins, tn: ?[]Num, f: *Fn) all.Error!void {
     var r0: Ref = undefined;
     var r1: Ref = undefined;
     var tmp: [7]Ref = undefined;
-    var x: i32 = undefined;
     var kc: Cls = undefined;
     var i_1: *Ins = undefined;
 
@@ -484,7 +483,8 @@ fn sel(i_: Ins, tn: ?[]Num, f: *Fn) all.Error!void {
                 seladdr(&i.arg[0], tn.?, f);
                 continue :sw .copy; // goto Emit
             }
-            if (iscmp(i.op, &kc, &x)) {
+            if (comparison(i.op)) |cmp| {
+                var x = cmp.condition;
                 switch (x) {
                     NCmpI + Cfeq => {
                         // zf is set when operands are
@@ -509,7 +509,7 @@ fn sel(i_: Ins, tn: ?[]Num, f: *Fn) all.Error!void {
                 if (swap)
                     x = cmpop(x);
                 emit(Opc.flag_first.offset(x), k, i.to, R, R);
-                try selcmp(&i.arg, kc, swap, f);
+                try selcmp(&i.arg, cmp.cls, swap, f);
                 break :sw;
             }
             die("unknown instruction {s}", .{cs(all.optab[i.op.int()].name)});
@@ -570,7 +570,9 @@ fn selsel(f: *Fn, b: *Blk, n1: uint, tn: []Num) all.Error!uint {
         cr[1] = CON_Z;
     } else {
         const fi = fi_.?;
-        if (iscmp(fi.op, &k, &c)) {
+        if (comparison(fi.op)) |cmp| {
+            k = cmp.cls;
+            c = cmp.condition;
             if (c == NCmpI + Cfeq or
                 c == NCmpI + Cfne)
             {
@@ -629,9 +631,6 @@ fn selsel(f: *Fn, b: *Blk, n1: uint, tn: []Num) all.Error!uint {
 }
 
 fn seljmp(b: *Blk, f: *Fn) all.Error!void {
-    var k: Cls = undefined;
-    var c: i32 = undefined;
-
     if (b.jmp.type == .ret0 or
         b.jmp.type == .jmp or
         b.jmp.type == .hlt)
@@ -655,15 +654,17 @@ fn seljmp(b: *Blk, f: *Fn) all.Error!void {
         return;
     }
     const fi = fi_.?;
-    if (iscmp(fi.op, &k, &c) and
-        c != NCmpI + Cfeq and // see sel(), selsel()
-        c != NCmpI + Cfne)
+    const cmp = comparison(fi.op);
+    if (cmp != null and
+        cmp.?.condition != NCmpI + Cfeq and // see sel(), selsel()
+        cmp.?.condition != NCmpI + Cfne)
     {
+        var c = cmp.?.condition;
         const swap = cmpswap(&fi.arg, c);
         if (swap)
             c = cmpop(c);
         if (t.nuse == 1) {
-            try selcmp(&fi.arg, k, swap, f);
+            try selcmp(&fi.arg, cmp.?.cls, swap, f);
             fi.* = insOp(.nop);
         }
         b.jmp.type = J.jf_first.add(c);

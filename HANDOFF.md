@@ -1022,3 +1022,19 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   exactly those verified by the successful run; both branches receive the same
   update by fast-forward. No force-push, credential commit, tag or release.
 - Do not add optimizer features or cut a release without the user's next decision.
+
+### Follow-up audit: value-returning comparisons and GVN ownership
+- Re-audited beyond the completed representation/interface plan. A claim of
+  "100% idiomatic Zig" would overstate the evidence; docs/SOURCE-AUDIT.md
+  records concrete remaining API, ownership and verification-tool findings.
+- Comparison decoding now returns an optional value (class and numeric condition)
+  instead of a boolean plus two output parameters. Updated SSA/copy/GCM and
+  amd64/arm64/rv64 selectors; ABI/layouts and condition numbering unchanged.
+- GVN's per-function hash table now has deferred cleanup/reset, including a
+  failed floating-address fold. This is not a cached pass buffer. Regression
+  alternates failure, success and zero-instruction functions three times.
+- Pinned Zig build passed; direct tests 73/73 in BOTH Debug and ReleaseSafe.
+  This is a local focused checkpoint, NOT a fresh full-core or CI-green claim.
+- Repository-wide fmt --check detects pre-existing differences; no unrelated
+  whole-tree reformat was applied. Library writer recovery and trustworthy
+  benchmarks are next. No tag/release/version change.

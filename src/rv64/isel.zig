@@ -54,7 +54,7 @@ const fail = all.fail;
 const getcon = all.getcon;
 const idup = all.idup;
 const intern = all.intern;
-const iscmp = all.iscmp;
+const comparison = all.comparison;
 const isload = all.isload;
 const isreg = all.isreg;
 const isstore = all.isstore;
@@ -228,8 +228,6 @@ fn selcmp(i_: Ins, k: Cls, op_: i32, f: *Fn) void {
 
 fn sel(i_: Ins, f: *Fn) all.Error!void {
     var i = i_;
-    var ck: Cls = undefined;
-    var cc: i32 = undefined;
 
     if (inRange(i.op, Opc.alloc_first, Opc.alloc_last)) {
         const i_0 = &(all.curi - 1)[0];
@@ -237,8 +235,8 @@ fn sel(i_: Ins, f: *Fn) all.Error!void {
         fixarg(&i_0.arg[0], .l, i_0, f);
         return;
     }
-    if (iscmp(i.op, &ck, &cc)) {
-        selcmp(i, ck, cc, f);
+    if (comparison(i.op)) |cmp| {
+        selcmp(i, cmp.cls, cmp.condition, f);
         return;
     }
     if ((i.op == .sar or i.op == .shr or i.op == .shl) and rtype(i.arg[1]) == RCon) {

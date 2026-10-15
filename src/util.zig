@@ -472,21 +472,22 @@ pub fn isreg(r: Ref) bool {
     return rtype(r) == RTmp and r.val < Tmp0;
 }
 
-pub fn iscmp(op: Opc, pk: *Cls, pc: *i32) bool {
-    if (op.within(Opc.cmpw_first, Opc.cmpw_last)) {
-        pc.* = op.diff(Opc.cmpw_first);
-        pk.* = .w;
-    } else if (op.within(Opc.cmpl_first, Opc.cmpl_last)) {
-        pc.* = op.diff(Opc.cmpl_first);
-        pk.* = .l;
-    } else if (op.within(Opc.cmps_first, Opc.cmps_last)) {
-        pc.* = NCmpI + op.diff(Opc.cmps_first);
-        pk.* = .s;
-    } else if (op.within(Opc.cmpd_first, Opc.cmpd_last)) {
-        pc.* = NCmpI + op.diff(Opc.cmpd_first);
-        pk.* = .d;
-    } else return false;
-    return true;
+/// Decoded comparison operands; condition numbering matches the target ABI.
+pub const Comparison = struct {
+    cls: Cls,
+    condition: i32,
+};
+
+pub fn comparison(op: Opc) ?Comparison {
+    if (op.within(Opc.cmpw_first, Opc.cmpw_last))
+        return .{ .cls = .w, .condition = op.diff(Opc.cmpw_first) };
+    if (op.within(Opc.cmpl_first, Opc.cmpl_last))
+        return .{ .cls = .l, .condition = op.diff(Opc.cmpl_first) };
+    if (op.within(Opc.cmps_first, Opc.cmps_last))
+        return .{ .cls = .s, .condition = NCmpI + op.diff(Opc.cmps_first) };
+    if (op.within(Opc.cmpd_first, Opc.cmpd_last))
+        return .{ .cls = .d, .condition = NCmpI + op.diff(Opc.cmpd_first) };
+    return null;
 }
 
 /// index of instruction i within b.ins

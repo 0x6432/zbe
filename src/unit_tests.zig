@@ -776,3 +776,21 @@ test "aggregate field views: active alternatives and empty unowned storage" {
     try t.expectEqual(all.Fw, fields[1][0].type);
     try t.expectEqual(all.FEnd, fields[2][0].type);
 }
+
+test "comparison decoding: every opcode has the expected optional value" {
+    const ranges = .{
+        .{ Opc.cmpw_first, Opc.cmpw_last, all.Cls.w, @as(i32, 0) },
+        .{ Opc.cmpl_first, Opc.cmpl_last, all.Cls.l, @as(i32, 0) },
+        .{ Opc.cmps_first, Opc.cmps_last, all.Cls.s, all.NCmpI },
+        .{ Opc.cmpd_first, Opc.cmpd_last, all.Cls.d, all.NCmpI },
+    };
+    for (0..all.NOp) |number| {
+        const op = all.ops.of(number);
+        var expected: ?u.Comparison = null;
+        inline for (ranges) |range| {
+            if (op.within(range[0], range[1]))
+                expected = .{ .cls = range[2], .condition = range[3] + op.diff(range[0]) };
+        }
+        try t.expectEqualDeep(expected, u.comparison(op));
+    }
+}

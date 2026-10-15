@@ -781,3 +781,15 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   and blit-pair/singleton removal with guarded neighboring instructions.
 - Aggregate direct unit suite: 51/51 passed. Full aggregate compatibility,
   behavior, mutation and optimized-fuzz verification is required next.
+
+### Rewrite scope and current audit (2026-10-15)
+- docs/IDIOMATIC-ZIG.md is the current ordered work tracker. The rewrite is
+  still in progress; this storage milestone is not a claim of full completion.
+- The next interface batch is typed SSA/GVN use-registration payloads, followed
+  by bounded bitset views, local instruction-vector builders, parser states,
+  and a final module-by-module audit. Preserve the deliberate designs listed
+  in the tracker rather than changing extern layouts or compile-wide globals.
+- Regenerated cproc at pinned d1c53dd: bootstrap and make check succeeded.
+  Its 202-file real-world corpus compared over all six targets: 1212 runs,
+  zero differ, 52 both-failed. The corpus used an immutable compiler snapshot
+  so the concurrent optimizer mutation test could not contaminate the result.

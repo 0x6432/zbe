@@ -82,6 +82,15 @@ jobs:
       - uses: mlugg/setup-zig@v2
         with:
           version: ${{ env.ZIG_VERSION }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/qbe-cfix
+          key: qbe-ref-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/qbe-cfix.patch', 'tools/ci-ref.sh', 'tools/qbe-ref.tar.gz') }}
+      - name: C reference qbe
+        run: |
+          ref=$(sh tools/ci-ref.sh "$HOME/qbe-cfix")
+          test -x "$ref"
+          echo "QBEREF=$ref" >> "$GITHUB_ENV"
       - name: toolchains
         run: |
           sudo apt-get update -qq

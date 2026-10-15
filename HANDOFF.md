@@ -1255,3 +1255,21 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   check its final result before any future release work. No tag/release made.
 - Remote remains credential-free. Revoke the previously exposed credential;
   authentication here was transient process input, not repository files/logs.
+
+### Continued solely to repair the milestone's cross-job CI setup
+- Fresh run 38791061549 finished FAILURE: core, both native jobs, cproc and
+  both Hare jobs passed. All three cross jobs failed only the address-scales
+  check because QBEREF was unset and /data/qbe-cfix/qbe does not exist on CI.
+  Their memory-oracle execution and assembly-shape checks had already passed;
+  remaining cross behavior/fuzz suites passed too. Do not call this run green.
+- Added the same cached, patched HOST C reference setup used by core/native to
+  the cross matrix. Export QBEREF through GITHUB_ENV before the suite, require
+  an executable reference, and propagate setup failures. No check was skipped,
+  no oracle weakened, and no compiler/reference source changed.
+- Focused verification built a fresh vendored patched reference in a temporary
+  directory, rebuilt zbe and passed address scales 39/0 (2247 cases per level)
+  and jumps 21/0. Workflow parsing confirms reference setup precedes each
+  relevant suite and the new cross setup fails closed. The sandbox lacks patch;
+  ci-ref.sh's existing git-apply fallback succeeded. No new workaround added.
+- Publish this CI-only repair, check the new source-specific run, then STOP.
+  No additional refactor/optimization, version bump, release or tag authorized.

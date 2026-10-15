@@ -601,9 +601,9 @@ fn chpred(b: *Blk, bp: ?*Blk, bp1: *Blk) void {
     var p_it: ?*Phi = b.phi;
     while (p_it) |p| : (p_it = p.link) {
         var a: uint = 0;
-        while (p.blk[a] != bp) : (a += 1)
+        while (p.blks()[a] != bp) : (a += 1)
             assert(a + 1 < p.narg);
-        p.blk[a] = bp1;
+        p.blks()[a] = bp1;
     }
 }
 
@@ -691,10 +691,10 @@ fn arm64_selvaarg(f: *Fn, b: *Blk, i: *Ins) void {
     p.narg = 2;
     p.blk = vnewT(*Blk, 2, PFn);
     p.arg = vnewT(Ref, 2, PFn);
-    p.blk[0] = bstk;
-    p.blk[1] = breg;
-    p.arg[0] = lstk;
-    p.arg[1] = lreg;
+    p.blks()[0] = bstk;
+    p.blks()[1] = breg;
+    p.args()[0] = lstk;
+    p.args()[1] = lreg;
     b0.phi = p;
     r0 = newtmp("abi", .l, f);
     r1 = newtmp("abi", .w, f);
@@ -755,15 +755,10 @@ pub fn arm64_abi(f: *Fn) all.Error!void {
     // lower parameters
     const start = f.start.?;
     var np: uint = 0;
-    while (np < start.nins and ispar(start.ins[np].op))
+    while (np < start.nins and ispar(start.insns()[np].op))
         np += 1;
-    const p = try selpar(f, start.ins[0..np]);
-    const n0: uint = @intCast(all.insbTail());
-    const n1: uint = start.nins - np;
-    vgrow(&start.ins, n0 + n1);
-    _ = icpy(start.ins[n0 .. n0 + n1], start.ins[np .. np + n1]);
-    _ = icpy(start.ins[0..n0], all.insbTailSlice());
-    start.nins = n0 + n1;
+    const p = try selpar(f, start.insns()[0..np]);
+    all.replaceInsPrefix(start, np, all.insbTailSlice());
 
     // lower calls, returns, and vararg instructions
     var il: ?*Insl = null;
@@ -776,14 +771,14 @@ pub fn arm64_abi(f: *Fn) all.Error!void {
             var n = b.nins;
             while (n != 0) {
                 n -= 1;
-                const i = &b.ins[n];
+                const i = &b.insns()[n];
                 switch (i.op) {
                     else => emiti(i.*),
                     .call => {
                         var n0_ = n;
-                        while (n0_ > 0 and isarg(b.ins[n0_ - 1].op))
+                        while (n0_ > 0 and isarg(b.insns()[n0_ - 1].op))
                             n0_ -= 1;
-                        try selcall(f, b.ins[n0_..n], i, &il);
+                        try selcall(f, b.insns()[n0_..n], i, &il);
                         n = n0_;
                     },
                     .vastart => {
@@ -834,14 +829,14 @@ pub fn apple_extsb(f: *Fn) all.Error!void {
         var n = b.nins;
         while (n > 0) {
             n -= 1;
-            emiti(b.ins[n]);
-            if (b.ins[n].op != .call)
+            emiti(b.insns()[n]);
+            if (b.insns()[n].op != .call)
                 continue;
             const n1 = n;
             var n0 = n;
-            while (n0 > 0 and isarg(b.ins[n0 - 1].op))
+            while (n0 > 0 and isarg(b.insns()[n0 - 1].op))
                 n0 -= 1;
-            const args = b.ins[n0..n1];
+            const args = b.insns()[n0..n1];
             var k = args.len;
             while (k > 0) {
                 k -= 1;

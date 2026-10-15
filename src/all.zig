@@ -317,9 +317,11 @@ pub const Phi = extern struct {
     link: ?*Phi,
 
     pub fn args(p: *const Phi) []Ref {
+        if (p.narg == 0) return &.{};
         return p.arg[0..p.narg];
     }
     pub fn blks(p: *const Phi) []*Blk {
+        if (p.narg == 0) return &.{};
         return p.blk[0..p.narg];
     }
 };
@@ -356,12 +358,15 @@ pub const Blk = extern struct {
     name: ?[*:0]u8,
 
     pub fn insns(b: *const Blk) []Ins {
+        if (b.nins == 0) return &.{};
         return b.ins[0..b.nins];
     }
     pub fn preds(b: *const Blk) []*Blk {
+        if (b.npred == 0) return &.{};
         return b.pred[0..b.npred];
     }
     pub fn frons(b: *const Blk) []*Blk {
+        if (b.nfron == 0) return &.{};
         return b.fron[0..b.nfron];
     }
 };
@@ -535,7 +540,9 @@ pub const Fn = extern struct {
         if (f.nmem == 0) return &.{};
         return f.mem[0..@intCast(f.nmem)];
     }
+    /// Materialized reverse-postorder table; rebuild CFG after linking new blocks.
     pub fn blks(f: *const Fn) []*Blk {
+        if (f.nblk == 0) return &.{};
         return f.rpo[0..f.nblk];
     }
 };
@@ -663,6 +670,7 @@ pub const appendIns = util.appendIns;
 pub const appendInsSlice = util.appendInsSlice;
 pub const appendBlockIns = util.appendBlockIns;
 pub const appendBlockInsSlice = util.appendBlockInsSlice;
+pub const replaceInsPrefix = util.replaceInsPrefix;
 pub const strf = util.strf;
 pub const intern = util.intern;
 pub const str = util.str;

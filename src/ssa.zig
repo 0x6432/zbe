@@ -76,7 +76,7 @@ pub fn adduse(tmp: *Tmp, b: *Blk, target: UseTarget) void {
     const n = tmp.nuse;
     tmp.nuse += 1;
     vgrow(&tmp.use, tmp.nuse);
-    const u = &tmp.use.?[n];
+    const u = &tmp.uses()[n];
     u.bid = b.id;
     switch (target) {
         .phi => |p| {
@@ -334,8 +334,8 @@ fn renblk(b: *Blk, stk: []?*Name, f: *Fn) void {
                 p.narg += 1;
                 vgrow(&p.arg, p.narg);
                 vgrow(&p.blk, p.narg);
-                p.arg[m] = getstk(t, b, stk);
-                p.blk[m] = b;
+                p.args()[m] = getstk(t, b, stk);
+                p.blks()[m] = b;
             }
         }
     }
@@ -402,7 +402,7 @@ pub fn ssacheck(f: *Fn) all.Error!void {
             if (t.ndef > 1)
                 return fail("ssa temporary %{s} defined more than once", .{cs(t.name)});
             if (t.nuse > 0 and t.ndef == 0) {
-                bu = f.rpo[t.use.?[0].bid];
+                bu = f.blks()[t.uses()[0].bid];
                 break :errblk;
             }
         }
@@ -413,7 +413,7 @@ pub fn ssacheck(f: *Fn) all.Error!void {
                 r = p.to;
                 t = &f.tmps()[r.val];
                 for (t.uses()) |*u| {
-                    bu = f.rpo[u.bid];
+                    bu = f.blks()[u.bid];
                     if (u.type == .phi) {
                         if (phicheck(u.u.phi, b, r))
                             break :errblk;
@@ -427,7 +427,7 @@ pub fn ssacheck(f: *Fn) all.Error!void {
                 r = i.to;
                 t = &f.tmps()[r.val];
                 for (t.uses()) |*u| {
-                    bu = f.rpo[u.bid];
+                    bu = f.blks()[u.bid];
                     if (u.type == .phi) {
                         if (phicheck(u.u.phi, b, r))
                             break :errblk;

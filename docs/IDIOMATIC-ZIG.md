@@ -57,14 +57,23 @@ legacy interfaces, and raw core-field consumers remain.
 - Constant insertion takes a value, and AMD64 external/TLS lowering snapshots
   constants before allocation-sensitive rewrites. Stored fields are unchanged.
 
+## Block and phi consumers completed
+
+- Active instruction, predecessor/frontier, phi and materialized RPO indexing
+  uses bounded views. A prefix-replacement helper handles capacity-only writes,
+  overlap-safe tail movement, and atomic publication of the new active extent.
+- Zero-count core views do not inspect unowned storage. Vector mutation APIs
+  deliberately retain owned empty allocation pointers at their boundary.
+
 ## Remaining audit
 
 Current audit checks covered CFG/SSA use boundaries, allocator/vector
 ownership, driver error propagation, and the target ABI/isel/emitter pointer
 categories. Remaining raw pointers are predominantly stored core IR fields,
 sentinel strings, vector allocation boundaries and the shared instruction
-buffer. Direct indexed core-field consumers still merit a follow-up bounded-view
-audit; do not declare every module fully idiomatic from this scan alone.
+buffer. The active Fn/Blk/Phi consumers are now bounded. Aggregate type-table and
+union-field storage still needs its own lifetime/count audit, followed by a
+final review of allocator, sentinel, ABI and shared-buffer exceptions.
 
 Continue checking mutating-loop bounds, optionality, ownership/error paths,
 and raw core-field consumers. Avoid cosmetic churn, bulk textual renames, or

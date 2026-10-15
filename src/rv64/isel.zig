@@ -302,16 +302,16 @@ pub fn rv64_isel(f: *Fn) all.Error!void {
             var p_it = sb.phi;
             while (p_it) |p| : (p_it = p.link) {
                 var a: uint = 0;
-                while (p.blk[a] != b) : (a += 1)
+                while (p.blks()[a] != b) : (a += 1)
                     assert(a + 1 < p.narg);
-                fixarg(&p.arg[a], p.cls, null, f);
+                fixarg(&p.args()[a], p.cls, null, f);
             }
         }
         seljmp(b, f);
         var i_n = b.nins;
         while (i_n > 0) {
             i_n -= 1;
-            try sel(b.ins[i_n], f);
+            try sel(b.insns()[i_n], f);
         }
         idup(b, all.insbTailSlice());
     }

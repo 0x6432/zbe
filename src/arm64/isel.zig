@@ -283,9 +283,9 @@ fn seljmp(b: *Blk, f: *Fn) void {
     var i_n = b.nins;
     while (i_n > 0) {
         i_n -= 1;
-        if (req(b.ins[i_n].to, r)) {
+        if (req(b.insns()[i_n].to, r)) {
             use = @intCast(f.tmps()[r.val].nuse);
-            ir_ = &b.ins[i_n];
+            ir_ = &b.insns()[i_n];
             break;
         }
     }
@@ -337,16 +337,16 @@ pub fn arm64_isel(f: *Fn) all.Error!void {
             var p_it = sb.phi;
             while (p_it) |p| : (p_it = p.link) {
                 var a: uint = 0;
-                while (p.blk[a] != b) : (a += 1)
+                while (p.blks()[a] != b) : (a += 1)
                     assert(a + 1 < p.narg);
-                fixarg(&p.arg[a], p.cls, true, f);
+                fixarg(&p.args()[a], p.cls, true, f);
             }
         }
         seljmp(b, f);
         var i_n = b.nins;
         while (i_n > 0) {
             i_n -= 1;
-            try sel(b.ins[i_n], f);
+            try sel(b.insns()[i_n], f);
         }
         idup(b, all.insbTailSlice());
     }

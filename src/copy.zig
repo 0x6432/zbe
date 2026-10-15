@@ -160,7 +160,7 @@ fn dwl(f: *Fn, r: Ref, w_: i32) bool {
 
     if (t.def == null) {
         // phi def
-        var p_it = f.rpo[t.bid].phi;
+        var p_it = f.blks()[t.bid].phi;
         const p = while (p_it) |p| : (p_it = p.link) {
             if (req(p.to, r)) break p;
         } else unreachable;
@@ -260,7 +260,7 @@ pub fn narrowpars(f: *Fn) void {
     b.ins = ins;
     b.nins = nins;
 
-    for (b.ins[0..npar], b.ins[npar .. 2 * npar]) |*i, *ext_slot| {
+    for (b.insns()[0..npar], b.insns()[npar .. 2 * npar]) |*i, *ext_slot| {
         e = insOp(.nop);
         if (i.cls == .w)
             if (usewidthle(f, i.to, 16)) {
@@ -354,8 +354,8 @@ pub fn copyref(f: *Fn, b: *Blk, i: *Ins) Ref {
 fn phieq(pa: *Phi, pb: *Phi) bool {
     assert(pa.narg == pb.narg);
     for (0..pa.narg) |n| {
-        const r = phiarg(pb, pa.blk[n]);
-        if (!req(pa.arg[n], r))
+        const r = phiarg(pb, pa.blks()[n]);
+        if (!req(pa.args()[n], r))
             return false;
     }
     return true;
@@ -387,7 +387,7 @@ pub fn phicopyref(f: *Fn, b: *Blk, p: *Phi) Ref {
         return R;
 
     var s = [2]?*Blk{ null, null };
-    for (p.arg[0..2], p.blk[0..2]) |a, pb| {
+    for (p.args()[0..2], p.blks()[0..2]) |a, pb| {
         for (0..2) |c| {
             if (req(a, all.con01[c]))
                 s[c] = pb;

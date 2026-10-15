@@ -292,7 +292,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
 
     while (idx > 0) {
         idx -= 1;
-        var i = &b.ins[idx];
+        var i = &b.insns()[idx];
         if (killsl(i.to, sl) or (i.op == .call and escapes(sl.ref, st.curf)))
             return null;
         const ld = isload(i.op);
@@ -309,7 +309,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
             sz = @intCast(@abs(rsval(i.arg[0])));
             assert(idx > 0);
             idx -= 1;
-            i = &b.ins[idx];
+            i = &b.insns()[idx];
             assert(i.op == .blit0);
             r1 = i.arg[1];
         } else continue;
@@ -400,7 +400,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
     if (b.npred == 0)
         return null;
     if (b.npred == 1) {
-        const bp = b.pred[0];
+        const bp = b.preds()[0];
         assert(bp.loop >= il.blk.loop);
         l = il.*;
         if (bp.s2 != null)
@@ -424,7 +424,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
     p.arg = vnewT(Ref, p.narg, PFn);
     p.blk = vnewT(*Blk, p.narg, PFn);
     for (0..b.npred) |np| {
-        const bp = b.pred[np];
+        const bp = b.preds()[np];
         if (bp.s2 == null and il.type != LNoLoad and bp.loop < il.blk.loop)
             l.type = LLoad
         else
@@ -434,8 +434,8 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
         r1 = def(sl, msks, bp, null, &l);
         if (req(r1, R))
             return null;
-        p.arg[np] = r1;
-        p.blk[np] = bp;
+        p.args()[np] = r1;
+        p.blks()[np] = bp;
         // XXX - multiplicity in predecessors!!!
     }
     if (msk != msks)
@@ -495,7 +495,7 @@ pub fn loadopt(f: *Fn) void {
             } else {
                 if (ni == b.nins)
                     break;
-                i = &b.ins[ni];
+                i = &b.insns()[ni];
                 ni += 1;
                 if (isload(i.op) and !req(i.arg[1], R)) {
                     const ext = Opc.extsb.offset(i.op.diff(.loadsb));

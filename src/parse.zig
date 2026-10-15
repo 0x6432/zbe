@@ -967,10 +967,10 @@ fn parseline(ps: PState) Error!PState {
                 phi.to = r;
                 phi.cls = all.kof(k);
                 phi.arg = vnewT(Ref, i, PFn);
-                @memcpy(phi.arg[0..i], arg[0..i]);
                 phi.blk = vnewT(*Blk, i, PFn);
-                @memcpy(phi.blk[0..i], blk[0..i]);
                 phi.narg = @intCast(i);
+                @memcpy(phi.args(), arg[0..i]);
+                @memcpy(phi.blks(), blk[0..i]);
                 st.plink.* = phi;
                 st.plink = &phi.link;
                 return .phi;
@@ -1043,7 +1043,7 @@ fn typecheck(f: *Fn) Error!void {
         bszero(&pb);
         var n: uint = 0;
         while (n < b.npred) : (n += 1)
-            bsset(&pb, b.pred[n].id);
+            bsset(&pb, b.preds()[n].id);
         var p_it: ?*Phi = b.phi;
         while (p_it) |p| : (p_it = p.link) {
             bszero(&ppb);
@@ -1051,11 +1051,11 @@ fn typecheck(f: *Fn) Error!void {
             n = 0;
             while (n < p.narg) : (n += 1) {
                 k = t.?.cls.int();
-                if (bshas(&ppb, p.blk[n].id))
-                    return fail("multiple entries for @{s} in phi %{s}", .{cs(p.blk[n].name), cs(t.?.name)});
-                if (!usecheck(p.arg[n], k, f))
-                    return fail("invalid type for operand %{s} in phi %{s}", .{cs(f.tmps()[p.arg[n].val].name), cs(t.?.name)});
-                bsset(&ppb, p.blk[n].id);
+                if (bshas(&ppb, p.blks()[n].id))
+                    return fail("multiple entries for @{s} in phi %{s}", .{cs(p.blks()[n].name), cs(t.?.name)});
+                if (!usecheck(p.args()[n], k, f))
+                    return fail("invalid type for operand %{s} in phi %{s}", .{cs(f.tmps()[p.args()[n].val].name), cs(t.?.name)});
+                bsset(&ppb, p.blks()[n].id);
             }
             if (!bsequal(&pb, &ppb))
                 return fail("predecessors not matched in phi %{s}", .{cs(t.?.name)});
@@ -1552,8 +1552,8 @@ pub fn printfn(f: *Fn, fp: *Writer) Writer.Error!void {
             assert(p.narg != 0);
             var n: uint = 0;
             while (true) : (n += 1) {
-                try fp.print("@{s} ", .{cs(p.blk[n].name)});
-                try printref(p.arg[n], f, fp);
+                try fp.print("@{s} ", .{cs(p.blks()[n].name)});
+                try printref(p.args()[n], f, fp);
                 if (n == p.narg - 1) {
                     try fp.print("\n", .{});
                     break;

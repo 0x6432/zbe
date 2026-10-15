@@ -396,7 +396,8 @@ pub fn appendInsSlice(items: *[]Ins, source: []const Ins) void {
 
 pub fn appendBlockIns(block: *Blk, instruction: Ins) void {
     if (instruction.op == .nop) return;
-    var items = block.insns();
+    // This boundary needs owned vector storage even at zero active length.
+    var items = block.ins[0..block.nins];
     appendIns(&items, instruction);
     block.ins = items.ptr;
     block.nins = @intCast(items.len);
@@ -404,10 +405,28 @@ pub fn appendBlockIns(block: *Blk, instruction: Ins) void {
 
 pub fn appendBlockInsSlice(block: *Blk, source: []const Ins) void {
     if (source.len == 0) return;
-    var items = block.insns();
+    // This boundary needs owned vector storage even at zero active length.
+    var items = block.ins[0..block.nins];
     appendInsSlice(&items, source);
     block.ins = items.ptr;
     block.nins = @intCast(items.len);
+}
+
+/// Replace a block prefix while retaining its vector capacity. The source
+/// must not alias block storage: growth can relocate it. Tail movement may
+/// overlap in either direction, so copy it before overwriting the new prefix.
+pub fn replaceInsPrefix(block: *Blk, prefix_len: usize, source: []const Ins) void {
+    const old_len: usize = block.nins;
+    assert(prefix_len <= old_len);
+    if (prefix_len == 0 and source.len == 0) return;
+    const length = source.len + old_len - prefix_len;
+    var storage = block.ins;
+    vgrow(&storage, length);
+    const allocated = storage[0..@max(old_len, length)];
+    _ = icpy(allocated[source.len..length], allocated[prefix_len..old_len]);
+    _ = icpy(allocated[0..source.len], source);
+    block.ins = storage;
+    block.nins = @intCast(length);
 }
 
 /// allocate a NUL-terminated formatted string in pool pl
@@ -624,7 +643,7 @@ pub fn phiargn(p: ?*Phi, b: ?*Blk) uint {
     if (p != null) {
         var n: uint = 0;
         while (n < p.?.narg) : (n += 1)
-            if (p.?.blk[n] == b)
+            if (p.?.blks()[n] == b)
                 return n;
     }
     return std.math.maxInt(uint);
@@ -633,7 +652,7 @@ pub fn phiargn(p: ?*Phi, b: ?*Blk) uint {
 pub fn phiarg(p: *Phi, b: *Blk) Ref {
     const n = phiargn(p, b);
     assert(n != std.math.maxInt(uint)); // block not found
-    return p.arg[n];
+    return p.args()[n];
 }
 
 /// Counter for fresh temporary names.

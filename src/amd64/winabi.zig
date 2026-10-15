@@ -334,11 +334,11 @@ fn lower_call(func: *Fn, block: *Blk, call_idx: uint, pextra_alloc: *?*ExtraAllo
     // Call arguments are instructions. Walk through them to find the start of
     // the call+args that we need to process (and return its index, the number
     // of instructions before it, for continuing processing).
-    const call_instr = &block.ins[call_idx];
+    const call_instr = &block.insns()[call_idx];
     var earliest_arg = call_idx;
-    while (earliest_arg > 0 and isarg(block.ins[earliest_arg - 1].op))
+    while (earliest_arg > 0 and isarg(block.insns()[earliest_arg - 1].op))
         earliest_arg -= 1;
-    const args = block.ins[earliest_arg..call_idx];
+    const args = block.insns()[earliest_arg..call_idx];
 
     // Don't need an ArgClass for the call itself, so one less than the total
     // number of instructions we're dealing with.
@@ -613,7 +613,7 @@ fn lower_args_for_block(func: *Fn, block: *Blk, param_reg_usage: *RegisterUsage,
     // or modifying as necessary. n is the number of instructions left.
     var n = block.nins;
     while (n > 0) {
-        const instr = &block.ins[n - 1];
+        const instr = &block.insns()[n - 1];
         switch (instr.op) {
             .call => n = try lower_call(func, block, n - 1, pextra_alloc),
             .vastart => {
@@ -651,7 +651,7 @@ fn lower_args_for_block(func: *Fn, block: *Blk, param_reg_usage: *RegisterUsage,
 /// returns the number of Opar instructions at the start of start_block
 fn find_end_of_func_parameters(start_block: *Blk) uint {
     var i: uint = 0;
-    while (i < start_block.nins and ispar(start_block.ins[i].op))
+    while (i < start_block.nins and ispar(start_block.insns()[i].op))
         i += 1;
     return i;
 }
@@ -660,7 +660,7 @@ fn find_end_of_func_parameters(start_block: *Blk) uint {
 fn lower_func_parameters(func: *Fn) all.Error!RegisterUsage {
     const start_block = func.start.?;
     const num_params = find_end_of_func_parameters(start_block);
-    const params = start_block.ins[0..num_params];
+    const params = start_block.insns()[0..num_params];
     const arg_classes = palloc(ArgClass, num_params)[0..num_params];
     var arg_ret = std.mem.zeroes(ArgClass);
 

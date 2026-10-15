@@ -94,7 +94,7 @@ fn convert(ifb: *Blk, thenb: *Blk, elseb: *Blk, joinb: *Blk) void {
     ifb.s1 = joinb;
     ifb.s2 = null;
     joinb.npred = 1;
-    joinb.pred[0] = ifb;
+    joinb.preds()[0] = ifb;
     joinb.phi = null;
     vfree(ins.ptr);
 }

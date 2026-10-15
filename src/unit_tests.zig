@@ -671,3 +671,95 @@ test "constant insertion: value input survives growth and preserves deduplicatio
     try t.expectEqual(@as(i32, 26), f.ncon);
     try t.expect(all.req(copied, u.newcon(f.cons()[0], &f)));
 }
+
+test "block prefix replacement: growth, shrinking overlap, and retained capacity" {
+    var block = std.mem.zeroes(all.Blk);
+    block.ins = u.vnewT(all.Ins, 2, PHeap);
+    defer u.vfree(block.ins);
+    block.nins = 2;
+    const original = numberedIns(2);
+    @memcpy(block.insns(), &original);
+    var replacement = numberedIns(4);
+    for (&replacement) |*instruction| instruction.to.val += 10;
+    const old_storage = @intFromPtr(block.ins);
+    u.replaceInsPrefix(&block, 1, &replacement);
+    try t.expect(old_storage != @intFromPtr(block.ins));
+    try t.expectEqual(@as(all.uint, 5), block.nins);
+    for (block.insns(), [_]u29{ 10, 11, 12, 13, 1 }) |instruction, expected|
+        try t.expectEqual(expected, instruction.to.val);
+    const retained = block.ins;
+    var shorter = numberedIns(1);
+    shorter[0].to.val = 20;
+    u.replaceInsPrefix(&block, 4, &shorter);
+    try t.expectEqual(retained, block.ins);
+    try t.expectEqual(@as(all.uint, 2), block.nins);
+    try t.expectEqual(@as(u29, 20), block.insns()[0].to.val);
+    try t.expectEqual(@as(u29, 1), block.insns()[1].to.val);
+    u.replaceInsPrefix(&block, 0, replacement[0..2]);
+    for (block.insns(), [_]u29{ 10, 11, 20, 1 }) |instruction, expected|
+        try t.expectEqual(expected, instruction.to.val);
+    u.replaceInsPrefix(&block, 2, replacement[2..]);
+    for (block.insns(), [_]u29{ 12, 13, 20, 1 }) |instruction, expected|
+        try t.expectEqual(expected, instruction.to.val);
+    u.replaceInsPrefix(&block, block.nins, &.{});
+    try t.expectEqual(@as(all.uint, 0), block.nins);
+    try t.expectEqual(retained, block.ins);
+    u.replaceInsPrefix(&block, 0, &replacement);
+    try t.expectEqual(retained, block.ins);
+    try t.expectEqualSlices(all.Ins, &replacement, block.insns());
+}
+
+test "block prefix replacement: nops preserved and empty unowned input untouched" {
+    var empty: all.Blk = undefined;
+    empty.nins = 0;
+    u.replaceInsPrefix(&empty, 0, &.{});
+    try t.expectEqual(@as(all.uint, 0), empty.nins);
+    var block = std.mem.zeroes(all.Blk);
+    block.ins = u.vnewT(all.Ins, 0, PHeap);
+    defer u.vfree(block.ins);
+    const source = [_]all.Ins{ all.insOp(.nop), all.insOp(.copy) };
+    u.replaceInsPrefix(&block, 0, &source);
+    try t.expectEqual(@as(all.uint, 2), block.nins);
+    try t.expectEqual(all.Opc.nop, block.insns()[0].op);
+    try t.expectEqual(all.Opc.copy, block.insns()[1].op);
+}
+
+test "core views: empty unowned block, phi, and reverse-postorder storage" {
+    var block: all.Blk = undefined;
+    block.nins = 0;
+    block.npred = 0;
+    block.nfron = 0;
+    try t.expectEqual(@as(usize, 0), block.insns().len);
+    try t.expectEqual(@as(usize, 0), block.preds().len);
+    try t.expectEqual(@as(usize, 0), block.frons().len);
+    var phi: all.Phi = undefined;
+    phi.narg = 0;
+    try t.expectEqual(@as(usize, 0), phi.args().len);
+    try t.expectEqual(@as(usize, 0), phi.blks().len);
+    var f: all.Fn = undefined;
+    f.nblk = 0;
+    try t.expectEqual(@as(usize, 0), f.blks().len);
+    var instructions = numberedIns(3);
+    var blocks = [_]*all.Blk{ &block, &block, &block };
+    var refs = [_]all.Ref{ all.tmpRef(1), all.tmpRef(2), all.tmpRef(3) };
+    block.ins = &instructions;
+    block.pred = &blocks;
+    block.fron = &blocks;
+    block.nins = 2;
+    block.npred = 2;
+    block.nfron = 2;
+    phi.arg = &refs;
+    phi.blk = &blocks;
+    phi.narg = 2;
+    f.rpo = &blocks;
+    f.nblk = 2;
+    try t.expectEqual(@as(usize, 2), block.insns().len);
+    try t.expectEqual(@as(usize, 2), block.preds().len);
+    try t.expectEqual(@as(usize, 2), block.frons().len);
+    try t.expectEqual(@as(usize, 2), phi.args().len);
+    try t.expectEqual(@as(usize, 2), phi.blks().len);
+    try t.expectEqual(@as(usize, 2), f.blks().len);
+    phi.args()[1] = all.tmpRef(7);
+    try t.expect(all.req(all.tmpRef(7), refs[1]));
+    try t.expect(all.req(all.tmpRef(3), refs[2]));
+}

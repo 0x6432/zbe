@@ -168,7 +168,7 @@ pub fn fillalias(f: *Fn) void {
         }
         var k: uint = 0;
         while (k < b.nins) : (k += 1) {
-            var i = &b.ins[k];
+            var i = &b.insns()[k];
             var a: ?*Alias = null;
             if (!req(i.to, R)) {
                 assert(rtype(i.to) == RTmp);
@@ -214,7 +214,7 @@ pub fn fillalias(f: *Fn) void {
             if (i.op == .blit0) {
                 const blit0 = i;
                 k += 1;
-                i = &b.ins[k];
+                i = &b.insns()[k];
                 assert(i.op == .blit1);
                 assert(rtype(i.arg[0]) == RInt);
                 const sz: i32 = @intCast(@abs(rsval(i.arg[0])));

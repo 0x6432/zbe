@@ -79,7 +79,7 @@ pub fn filllive(f: *Fn) void {
         var n = f.nblk;
         while (n > 0) {
             n -= 1;
-            const b = f.rpo[n];
+            const b = f.blks()[n];
 
             bscopy(&u, &b.out);
             for ([2]?*Blk{ b.s1, b.s2 }) |s_| {
@@ -104,7 +104,7 @@ pub fn filllive(f: *Fn) void {
             var i_n = b.nins;
             while (i_n > 0) {
                 i_n -= 1;
-                const i = &b.ins[i_n];
+                const i = &b.insns()[i_n];
                 if (i.op == .call and rtype(i.arg[1]) == RCall) {
                     b.in.words()[0] &= ~all.T.retregs(i.arg[1], &m);
                     for (0..2) |k| {

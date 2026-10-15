@@ -279,7 +279,7 @@ pub fn coalesce(f: *Fn) void {
     while (bn > 0) {
         bn -= 1;
         const n: i32 = @intCast(bn);
-        const b = f.rpo[bn];
+        const b = f.blks()[bn];
         const succ = [2]?*Blk{ b.s1, b.s2 };
         br[bn].b = ip;
         ip -= 1;
@@ -393,7 +393,7 @@ pub fn coalesce(f: *Fn) void {
         i.* = insOp(.nop);
         for (t.uses()) |*u| {
             if (u.type == .jmp) {
-                const b = f.rpo[u.bid];
+                const b = f.blks()[u.bid];
                 assert(isret(b.jmp.type));
                 b.jmp.type = .ret0;
                 b.jmp.arg = R;
@@ -410,7 +410,7 @@ pub fn coalesce(f: *Fn) void {
                 assert(ui.op == .argc);
                 ui.arg[1] = CON_Z; // crash
             } else {
-                const b = f.rpo[u.bid];
+                const b = f.blks()[u.bid];
                 killins(b.insns()[all.insidx(b, ui)..]);
             }
         }
@@ -467,7 +467,7 @@ pub fn coalesce(f: *Fn) void {
         }
         for (t.uses()) |*u| {
             if (u.type == .jmp) {
-                f.rpo[u.bid].jmp.arg = tmpRef(ss.t);
+                f.blks()[u.bid].jmp.arg = tmpRef(ss.t);
                 continue;
             }
             assert(u.type == .ins);

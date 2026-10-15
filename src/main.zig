@@ -157,14 +157,10 @@ pub fn func(f: *Fn) all.Error!void {
     fillcfg(f);
     simpljmp(f);
     fillcfg(f);
-    assert(f.rpo[0] == f.start);
-    var n: uint = 0;
-    while (true) : (n += 1) {
-        if (n == f.nblk - 1) {
-            f.rpo[n].link = null;
-            break;
-        } else f.rpo[n].link = f.rpo[n + 1];
-    }
+    const blocks = f.blks();
+    assert(blocks[0] == f.start);
+    for (blocks, 0..) |block, n|
+        block.link = if (n + 1 < blocks.len) blocks[n + 1] else null;
     if (!dbg) {
         all.T.emitfn(f, outf) catch |e| switch (e) {
             error.WriteFailed => writeFailed(),

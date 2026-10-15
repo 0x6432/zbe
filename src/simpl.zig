@@ -275,14 +275,14 @@ fn udivconst(i: *Ins, b: *Blk, k: uint, new: *bool, f: *Fn) bool {
 
 fn ins(pk: *uint, new: *bool, b: *Blk, f: *Fn) void {
     const k = pk.*;
-    const i = &b.ins[k];
+    const i = &b.insns()[k];
     // simplify more instructions here;
     // copy 0 into xor, bit rotations,
     // etc.
     switch (i.op) {
         .blit1 => {
             assert(k > 0);
-            assert(b.ins[k - 1].op == .blit0);
+            assert(b.insns()[k - 1].op == .blit0);
             if (!new.*) {
                 all.curi = all.insbEnd();
                 const ni: ulong = b.nins - (k + 1);
@@ -290,7 +290,7 @@ fn ins(pk: *uint, new: *bool, b: *Blk, f: *Fn) void {
                 _ = icpy(all.insbTailSlice(), b.insns()[k + 1 ..]);
                 new.* = true;
             }
-            blit(&b.ins[k - 1].arg, rsval(i.arg[0]), f);
+            blit(&b.insns()[k - 1].arg, rsval(i.arg[0]), f);
             pk.* = k - 1;
             return;
         },

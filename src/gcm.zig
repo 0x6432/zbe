@@ -67,7 +67,7 @@ fn schedearly(f: *Fn, r: Ref) uint {
     if (t.gcmbid != NOBID)
         return t.gcmbid;
 
-    const b = f.rpo[t.bid];
+    const b = f.blks()[t.bid];
     if (t.def != null) {
         assert(@intFromPtr(b.ins) <= @intFromPtr(t.def) and @intFromPtr(t.def) < @intFromPtr(b.ins + b.nins));
         t.gcmbid = 0; // mark as visiting
@@ -85,15 +85,15 @@ fn earlyins(f: *Fn, b: *Blk, i: *Ins) uint {
     assert(b0 != NOBID);
     const b1 = schedearly(f, i.arg[1]);
     assert(b1 != NOBID);
-    if (f.rpo[b0].depth < f.rpo[b1].depth) {
-        assert(dom(f.rpo[b0], f.rpo[b1]));
+    if (f.blks()[b0].depth < f.blks()[b1].depth) {
+        assert(dom(f.blks()[b0], f.blks()[b1]));
         b0 = b1;
     }
     return if (pinned(i)) b.id else b0;
 }
 
 fn earlyblk(f: *Fn, bid: uint) void {
-    const b = f.rpo[bid];
+    const b = f.blks()[bid];
     var p_it: ?*Phi = b.phi;
     while (p_it) |p| : (p_it = p.link) {
         for (p.args()) |a|
@@ -115,7 +115,7 @@ fn lcabid(f: *Fn, bid1: uint, bid2: uint) uint {
     if (bid2 == NOBID)
         return bid1;
 
-    const b = lca(f.rpo[bid1], f.rpo[bid2]);
+    const b = lca(f.blks()[bid1], f.blks()[bid2]);
     assert(b != null);
     return b.?.id;
 }
@@ -126,8 +126,8 @@ fn bestbid(f: *Fn, earlybid: uint, latebid: uint) uint {
 
     assert(earlybid != NOBID);
 
-    const earlyb = f.rpo[earlybid];
-    var curb = f.rpo[latebid];
+    const earlyb = f.blks()[earlybid];
+    var curb = f.blks()[latebid];
     var bestb = curb;
     assert(dom(earlyb, curb));
 
@@ -158,7 +158,7 @@ fn schedlate(f: *Fn, r: Ref) uint {
     var latebid: uint = NOBID;
     for (t.uses()) |*u| {
         assert(u.bid < f.nblk);
-        const b = f.rpo[u.bid];
+        const b = f.blks()[u.bid];
         var uselatebid: uint = undefined;
         switch (u.type) {
             .xxx => die("unreachable", .{}),
@@ -203,8 +203,8 @@ fn latephi(f: *Fn, p: *Phi, r: Ref) uint {
 
     var latebid: uint = NOBID;
     for (0..p.narg) |n| {
-        if (req(p.arg[n], r))
-            latebid = lcabid(f, latebid, p.blk[n].id);
+        if (req(p.args()[n], r))
+            latebid = lcabid(f, latebid, p.blks()[n].id);
     }
 
     assert(latebid != NOBID);
@@ -221,7 +221,7 @@ fn latejmp(b: *Blk, r: Ref) uint {
 }
 
 fn lateblk(f: *Fn, bid: uint) void {
-    const b = f.rpo[bid];
+    const b = f.blks()[bid];
     var pp: *?*Phi = &b.phi;
     while (pp.*) |p| {
         if (schedlate(f, p.to) == NOBID) {
@@ -240,7 +240,7 @@ fn addgcmins(f: *Fn, vins: []Ins) void {
     for (vins) |*i| {
         assert(rtype(i.to) == RTmp);
         const t = &f.tmps()[i.to.val];
-        const b = f.rpo[t.gcmbid];
+        const b = f.blks()[t.gcmbid];
         appendBlockIns(b, i.*);
     }
 }
@@ -273,7 +273,7 @@ fn gcmmove(f: *Fn) void {
 /// b.ins[n], returns the index past that group
 fn schedins(f: *Fn, b: *Blk, n: uint, instructions: *[]Ins) uint {
     const lo, const hi = igroup(b, n);
-    for (b.ins[lo..hi]) |*i| {
+    for (b.insns()[lo..hi]) |*i| {
         for (0..2) |k| {
             if (rtype(i.arg[k]) != RTmp)
                 continue;
@@ -283,7 +283,7 @@ fn schedins(f: *Fn, b: *Blk, n: uint, instructions: *[]Ins) uint {
             _ = schedins(f, b, insidx(b, t.def.?), instructions);
         }
     }
-    for (b.ins[lo..hi]) |*i| {
+    for (b.insns()[lo..hi]) |*i| {
         appendIns(instructions, i.*);
         i.* = insOp(.nop);
     }

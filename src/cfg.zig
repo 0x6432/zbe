@@ -45,11 +45,11 @@ fn fixphis(f: *Fn) void {
             var n: uint = 0;
             var n0: uint = 0;
             while (n < p.narg) : (n += 1) {
-                const bp = p.blk[n];
+                const bp = p.blks()[n];
                 if (bp.id != NOID)
                     if (bp.s1 == b or bp.s2 == b) {
-                        p.blk[n0] = bp;
-                        p.arg[n0] = p.arg[n];
+                        p.blks()[n0] = bp;
+                        p.args()[n0] = p.args()[n];
                         n0 += 1;
                     };
             }
@@ -62,7 +62,7 @@ fn fixphis(f: *Fn) void {
 fn addpred(bp: *Blk, b: *Blk) void {
     b.npred += 1;
     vgrow(&b.pred, b.npred);
-    b.pred[b.npred - 1] = bp;
+    b.preds()[b.npred - 1] = bp;
 }
 
 pub fn fillpreds(f: *Fn) void {
@@ -107,7 +107,7 @@ fn fillrpo(f: *Fn) void {
             p.* = b.link;
         } else {
             b.id = f.nblk - b.id - 1;
-            f.rpo[b.id] = b;
+            f.blks()[b.id] = b;
             p = &b.link;
         }
     }
@@ -146,7 +146,7 @@ pub fn filldom(f: *Fn) void {
     while (true) {
         var changed = false;
         for (1..f.nblk) |n| {
-            const b = f.rpo[n];
+            const b = f.blks()[n];
             var d: ?*Blk = null;
             for (b.preds()) |p|
                 if (p.idom != null or p == f.start) {
@@ -191,7 +191,7 @@ fn addfron(a: *Blk, b: *Blk) void {
         a.fron = vnewT(*Blk, a.nfron, PFn)
     else
         vgrow(&a.fron, a.nfron);
-    a.fron[a.nfron - 1] = b;
+    a.frons()[a.nfron - 1] = b;
 }
 
 /// fill the dominance frontier
@@ -429,7 +429,7 @@ pub fn simplcfg(f: *Fn) void {
     var b_it = f.start;
     while (b_it) |b| : (b_it = b.link)
         if (b.npred == 1) {
-            const bb = b.pred[0];
+            const bb = b.preds()[0];
             var p_it = b.phi;
             while (p_it) |p| : (p_it = p.link) {
                 cpy.cls = p.cls;
@@ -470,7 +470,7 @@ pub fn simplcfg(f: *Fn) void {
                     const bb = bb_ orelse break;
                     var p_it = bb.phi;
                     while (p_it) |p| : (p_it = p.link)
-                        p.blk[phiargn(p, s)] = b;
+                        p.blks()[phiargn(p, s)] = b;
                 }
                 s.id = NOID;
                 j.* = jj.*;

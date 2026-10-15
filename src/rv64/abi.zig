@@ -624,15 +624,10 @@ pub fn rv64_abi(f: *Fn) all.Error!void {
     // lower parameters
     const start = f.start.?;
     var np: uint = 0;
-    while (np < start.nins and ispar(start.ins[np].op))
+    while (np < start.nins and ispar(start.insns()[np].op))
         np += 1;
-    const p = try selpar(f, start.ins[0..np]);
-    const n0: uint = @intCast(all.insbTail());
-    const n1: uint = start.nins - np;
-    vgrow(&start.ins, n0 + n1);
-    _ = icpy(start.ins[n0 .. n0 + n1], start.ins[np .. np + n1]);
-    _ = icpy(start.ins[0..n0], all.insbTailSlice());
-    start.nins = n0 + n1;
+    const p = try selpar(f, start.insns()[0..np]);
+    all.replaceInsPrefix(start, np, all.insbTailSlice());
 
     // lower calls, returns, and vararg instructions
     var il: ?*Insl = null;
@@ -645,14 +640,14 @@ pub fn rv64_abi(f: *Fn) all.Error!void {
             var n = b.nins;
             while (n != 0) {
                 n -= 1;
-                const i = &b.ins[n];
+                const i = &b.insns()[n];
                 switch (i.op) {
                     else => emiti(i.*),
                     .call => {
                         var n0_ = n;
-                        while (n0_ > 0 and isarg(b.ins[n0_ - 1].op))
+                        while (n0_ > 0 and isarg(b.insns()[n0_ - 1].op))
                             n0_ -= 1;
-                        try selcall(f, b.ins[n0_..n], i, &il);
+                        try selcall(f, b.insns()[n0_..n], i, &il);
                         n = n0_;
                     },
                     .vastart => selvastart(f, p, i.arg[0]),

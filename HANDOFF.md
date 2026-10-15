@@ -901,3 +901,20 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - A first test build caught an unqualified vnewT helper in the new fixture; the
   qualification was corrected and the complete direct rerun passed. All 11
   optimizer mutation anchors remain intact. Full aggregate verification is pending.
+
+### Block/phi views and capacity-aware instruction prefixes (2026-10-15)
+- Active instruction, predecessor, frontier, phi and materialized RPO indexing
+  now uses bounded accessors across passes and targets. Zero-count views do not
+  inspect unowned storage. RPO views remain invalid during CFG growth until rebuilt.
+- A shared prefix replacement helper distinguishes vector capacity from active
+  length, moves overlapping tails safely, and publishes pointer/count together.
+  AMD64 SysV, arm64 and rv64 parameter lowering and rega copy prefixes use it.
+  Prefixes retain nops and vector capacity; stored IR fields/layout are unchanged.
+- Append helpers explicitly retain owned empty vector pointers at the allocator
+  boundary. A direct test caught accidental use of an unowned empty view there;
+  the boundary was restored, and the complete direct rerun passed 67/67.
+- New regressions cover expanding/shrinking/equal/prepend/full replacement,
+  retained capacity after clearing, nop preservation and all guarded core views.
+- Remaining representation audit: aggregate type-table/union-field storage and
+  the final intentional allocator, sentinel, ABI and shared-buffer exceptions.
+  Full aggregate verification remains required before publication.

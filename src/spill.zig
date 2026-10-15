@@ -107,9 +107,9 @@ pub fn fillcost(f: *Fn) void {
             const t = &f.tmps()[p.to.val];
             tmpuse(p.to, false, 0, f);
             for (0..p.narg) |a| {
-                const n = p.blk[a].loop;
+                const n = p.blks()[a].loop;
                 t.cost +%= @bitCast(n);
-                tmpuse(p.arg[a], true, n, f);
+                tmpuse(p.args()[a], true, n, f);
             }
         }
         const n = b.loop;
@@ -279,7 +279,7 @@ fn dopm(b: *Blk, last: uint, v: *BSet) uint {
     var n = last + 1;
     while (true) {
         n -= 1;
-        const i = &b.ins[n];
+        const i = &b.insns()[n];
         const t = i.to.val;
         if (!req(i.to, R))
             if (bshas(v, t)) {
@@ -287,11 +287,11 @@ fn dopm(b: *Blk, last: uint, v: *BSet) uint {
                 store(i.to, st.tmp[t].slot);
             };
         bsset(v, i.arg[0].val);
-        if (!(n != 0 and regcpy(&b.ins[n - 1]))) break;
+        if (!(n != 0 and regcpy(&b.insns()[n - 1]))) break;
     }
     bscopy(&u, v);
-    if (n != 0 and b.ins[n - 1].op == .call) {
-        const call = &b.ins[n - 1];
+    if (n != 0 and b.insns()[n - 1].op == .call) {
+        const call = &b.insns()[n - 1];
         v.words()[0] &= ~all.T.retregs(call.arg[1], null);
         limit2(v, all.T.nrsave[0], all.T.nrsave[1], null);
         r = 0;
@@ -308,7 +308,7 @@ fn dopm(b: *Blk, last: uint, v: *BSet) uint {
     var k = last + 1;
     while (k > n) {
         k -= 1;
-        emiti(b.ins[k]);
+        emiti(b.insns()[k]);
     }
     return n;
 }
@@ -364,7 +364,7 @@ pub fn spill(f: *Fn) void {
     var bn = f.nblk;
     while (bn > 0) {
         bn -= 1;
-        const b = f.rpo[bn];
+        const b = f.blks()[bn];
         // invariant: all blocks with bigger rpo got
         // their in,out updated.
 
@@ -435,7 +435,7 @@ pub fn spill(f: *Fn) void {
         var i_n = b.nins;
         while (i_n > 0) {
             i_n -= 1;
-            const i = &b.ins[i_n];
+            const i = &b.insns()[i_n];
             if (regcpy(i)) {
                 i_n = dopm(b, i_n, &v);
                 continue;

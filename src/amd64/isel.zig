@@ -543,19 +543,19 @@ fn flagi(ins: []Ins) ?*Ins {
 fn selsel(f: *Fn, b: *Blk, n1: uint, tn: []Num) all.Error!uint {
     var cr: [2]Ref = undefined;
 
-    assert(b.ins[n1].op == .sel1);
+    assert(b.insns()[n1].op == .sel1);
     var n0 = n1;
     while (0 < n0) : (n0 -= 1) {
-        if (b.ins[n0].op == .sel0)
+        if (b.insns()[n0].op == .sel0)
             break;
-        assert(b.ins[n0].op == .sel1);
+        assert(b.insns()[n0].op == .sel1);
     }
-    const isel0 = &b.ins[n0];
+    const isel0 = &b.insns()[n0];
     assert(isel0.op == .sel0);
     var r = isel0.arg[0];
     assert(rtype(r) == RTmp);
     const t = &f.tmps()[r.val];
-    const fi_ = flagi(b.ins[0..n0]);
+    const fi_ = flagi(b.insns()[0..n0]);
     cr[0] = R;
     cr[1] = R;
     var gencmp = false;
@@ -615,7 +615,7 @@ fn selsel(f: *Fn, b: *Blk, n1: uint, tn: []Num) all.Error!uint {
     // generate conditional moves
     var k1 = n1;
     while (n0 < k1) : (k1 -= 1) {
-        const isel1 = &b.ins[k1];
+        const isel1 = &b.insns()[k1];
         isel1.op = Opc.xsel_first.offset(c);
         try sel(isel1.*, tn, f);
     }
@@ -946,9 +946,9 @@ pub fn amd64_isel(f: *Fn) all.Error!void {
             var p_it = sb.phi;
             while (p_it) |p| : (p_it = p.link) {
                 var a: uint = 0;
-                while (p.blk[a] != b) : (a += 1)
+                while (p.blks()[a] != b) : (a += 1)
                     assert(a + 1 < p.narg);
-                try fixarg(&p.arg[a], p.cls, null, f);
+                try fixarg(&p.args()[a], p.cls, null, f);
             }
         }
         @memset(num, std.mem.zeroes(Num));
@@ -957,11 +957,11 @@ pub fn amd64_isel(f: *Fn) all.Error!void {
         var k = b.nins;
         while (k != 0) {
             k -= 1;
-            assert(b.ins[k].op != .sel0);
-            if (b.ins[k].op == .sel1)
+            assert(b.insns()[k].op != .sel0);
+            if (b.insns()[k].op == .sel1)
                 k = try selsel(f, b, k, num)
             else
-                try sel(b.ins[k], num, f);
+                try sel(b.insns()[k], num, f);
         }
         idup(b, all.insbTailSlice());
     }

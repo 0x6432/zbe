@@ -96,7 +96,7 @@ fn gvndup(i: *Ins, insert: bool) ?*Ins {
 
 fn replaceuse(f: *Fn, u: *Use, r1: Ref, r2: Ref) void {
     const t2: ?*Tmp = if (rtype(r2) == RTmp) &f.tmps()[r2.val] else null;
-    const b = f.rpo[u.bid];
+    const b = f.blks()[u.bid];
     switch (u.type) {
         .phi => {
             const p = u.u.phi;
@@ -331,7 +331,7 @@ fn propjnz0(f: *Fn, bif: *Blk, s0: *Blk, snon0: *Blk, r: Ref, cls: Cls) void {
         return;
     const t = &f.tmps()[r.val];
     for (t.uses()) |*u| {
-        const b = f.rpo[u.bid];
+        const b = f.blks()[u.bid];
         // we may compare an l temp with a w
         // comparison; so check that the use
         // does not involve high bits

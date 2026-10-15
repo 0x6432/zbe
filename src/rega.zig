@@ -311,12 +311,12 @@ fn dopm(b: *Blk, last: uint, m: *RMap) uint {
     var i = last + 1;
     while (true) {
         i -= 1;
-        move((b.ins[i].arg[0].val), b.ins[i].to, m);
-        if (!(i != 0 and regcpy(&b.ins[i - 1]))) break;
+        move((b.insns()[i].arg[0].val), b.insns()[i].to, m);
+        if (!(i != 0 and regcpy(&b.insns()[i - 1]))) break;
     }
     assert(m0.n <= m.n);
-    if (i != 0 and b.ins[i - 1].op == .call) {
-        const def = all.T.retregs(b.ins[i - 1].arg[1], null) | all.T.rglob;
+    if (i != 0 and b.insns()[i - 1].op == .call) {
+        const def = all.T.retregs(b.insns()[i - 1].arg[1], null) | all.T.rglob;
         var r: usize = 0;
         while (all.T.rsave[r] >= 0) : (r += 1) {
             if ((bitAt(all.T.rsave[r]) & def) == 0)
@@ -335,7 +335,7 @@ fn dopm(b: *Blk, last: uint, m: *RMap) uint {
         else if (s != -1)
             pmadd(tmpRef(r1), slotRef(s), st.tmp[@intCast(t)].cls);
     }
-    for (b.ins[i .. last + 1]) |*ip| {
+    for (b.insns()[i .. last + 1]) |*ip| {
         if (!req(ip.to, R))
             _ = rfree(m, (ip.to.val));
         const r: i32 = (ip.arg[0].val);
@@ -374,7 +374,7 @@ fn doblk(b: *Blk, cur: *RMap) void {
     var idx = b.nins;
     while (idx != 0) {
         idx -= 1;
-        emiti(b.ins[idx]);
+        emiti(b.insns()[idx]);
         const i = &all.curi[0];
         var rf: i32 = -1;
         sw: switch (i.op) {
@@ -609,10 +609,10 @@ pub fn rega(f: *Fn) void {
             const ru: usize = @intCast(r);
             var u: uint = 0;
             while (u < p.narg) : (u += 1) {
-                const src = p.arg[u];
+                const src = p.args()[u];
                 if (rtype(src) != RTmp)
                     continue;
-                const x = rfind(&end[p.blk[u].id], (src.val));
+                const x = rfind(&end[p.blks()[u].id], (src.val));
                 if (x == -1) // spilled
                     continue;
                 rl[ru] = if (rl[ru] == 0 or rl[ru] == x) x else -1;
@@ -657,10 +657,7 @@ pub fn rega(f: *Fn) void {
         if (jj == 0)
             continue;
         st.stmov += jj;
-        s.nins += jj;
-        const i = palloc(Ins, s.nins);
-        _ = icpy(icpy(i[0..s.nins], all.insbTailSlice()), s.ins[0 .. s.nins - jj]);
-        s.ins = i;
+        all.replaceInsPrefix(s, 0, all.insbTailSlice());
     }
 
     if (all.debug['R'] != 0) {
@@ -695,9 +692,9 @@ pub fn rega(f: *Fn) void {
                     dst = tmpRef(r);
                 }
                 var u: uint = 0;
-                while (p.blk[u] != b) : (u += 1)
+                while (p.blks()[u] != b) : (u += 1)
                     assert(u + 1 < p.narg);
-                var src = p.arg[u];
+                var src = p.args()[u];
                 if (rtype(src) == RTmp)
                     src = rref(&end[b.id], (src.val));
                 pmadd(src, dst, p.cls);

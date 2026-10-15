@@ -767,3 +767,17 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   it was being corrected; all other checks passed, including mutation 11/0.
   The corrected direct unit run is green. A complete fresh aggregate run is
   still required before publishing; no failed run is being called green.
+
+### Private load/store buffer slices (2026-10-15)
+- Load insertion entries use an active []Insert. Rollback truncates the
+  CURRENT allocation after possible growth; it never restores a stale slice.
+  Consumption uses checked indices and no longer requires an out-of-band
+  sentinel. Per-function allocation/free and insertion ordering are preserved.
+- Memory-coalescing store histories use []Store; retained instruction tails
+  and blit references use []Ins. Use-list instruction removal recovers its
+  owning block/index before taking a bounded tail. No IR/extern layout changed.
+- Five direct tests cover log growth/rollback (including empty rollback),
+  stable phi/instruction ordering, empty-log consumption, store-history growth,
+  and blit-pair/singleton removal with guarded neighboring instructions.
+- Aggregate direct unit suite: 51/51 passed. Full aggregate compatibility,
+  behavior, mutation and optimized-fuzz verification is required next.

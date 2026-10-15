@@ -235,7 +235,7 @@ pub fn emitdbgfile(fname: [*:0]const u8, f: *Writer) Writer.Error!void {
     st.file = files[0 .. n + 1];
     st.file[n] = id;
     st.curfile = @intCast(st.file.len);
-    try f.print(".file {d} {s}\n", .{st.curfile, cs(fname)});
+    try f.print(".file {d} {s}\n", .{ st.curfile, cs(fname) });
 }
 
 pub fn emitdbgloc(line: uint, col: uint, f: *Writer) Writer.Error!void {

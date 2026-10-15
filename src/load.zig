@@ -96,10 +96,23 @@ const Insert = extern struct {
 const State = struct {
     curf: *Fn = undefined,
     inum: uint = 0, // current insertion number
-    ilog: [*]Insert = undefined, // global insertion log
-    nlog: uint = 0, // number of entries in the log
+    ilog: []Insert = &.{}, // active entries in the per-function insertion log
 };
 var st: State = .{};
+
+// The log owns a vector allocation even when its active slice is empty.
+fn appendLog() *Insert {
+    const n = st.ilog.len;
+    var log = st.ilog.ptr;
+    vgrow(&log, n + 1);
+    st.ilog = log[0 .. n + 1];
+    return &st.ilog[n];
+}
+
+fn truncateLog(n: usize) void {
+    // Reuse the current allocation: speculative insertion may have grown it.
+    st.ilog = st.ilog[0..n];
+}
 
 pub fn loadsz(l: *Ins) i32 {
     switch (l.op) {
@@ -124,9 +137,7 @@ pub fn storesz(s: *Ins) i32 {
 }
 
 fn iins(cls: Cls, op: Opc, a0: Ref, a1: Ref, l: *Loc) Ref {
-    st.nlog += 1;
-    vgrow(&st.ilog, st.nlog);
-    const ist = &st.ilog[st.nlog - 1];
+    const ist = appendLog();
     ist.isphi = 0;
     ist.num = st.inum;
     st.inum += 1;
@@ -252,13 +263,13 @@ fn def(sl: Slice, msk: bits, b: *Blk, i: ?uint, il: *Loc) Ref {
     //     postdominates il->blk (and by 2, the
     //     original load)
     assert(dom(b, il.blk));
-    const oldl = st.nlog;
+    const oldl = st.ilog.len;
     const oldt = st.curf.ntmp;
     if (defBody(sl, msk, b, i, il)) |r|
         return r;
     // Load:
     st.curf.ntmp = oldt;
-    st.nlog = oldl;
+    truncateLog(oldl);
     if (il.type != LLoad)
         return R;
     return load(sl, msk, il);
@@ -366,7 +377,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
         }
     }
 
-    for (st.ilog[0..st.nlog]) |*ist|
+    for (st.ilog) |*ist|
         if (ist.isphi != 0 and ist.bid == b.id)
             if (req(ist.new.phi.m.ref, sl.ref))
                 if (ist.new.phi.m.off == sl.off)
@@ -402,9 +413,7 @@ fn defBody(sl: Slice, msk: bits, b: *Blk, i_: ?uint, il: *Loc) ?Ref {
 
     r = newtmp("ld", sl.cls, st.curf);
     const p = pnew(Phi);
-    st.nlog += 1;
-    vgrow(&st.ilog, st.nlog);
-    const ist = &st.ilog[st.nlog - 1];
+    const ist = appendLog();
     ist.isphi = 1;
     ist.bid = b.id;
     ist.new.phi.m = sl;
@@ -453,8 +462,7 @@ fn icmp(a: Insert, b: Insert) std.math.Order {
 /// require rpo ssa alias
 pub fn loadopt(f: *Fn) void {
     st.curf = f;
-    st.ilog = vnewT(Insert, 0, PHeap);
-    st.nlog = 0;
+    st.ilog = vnewT(Insert, 0, PHeap)[0..0];
     st.inum = 0;
     var b_it = f.start;
     while (b_it) |b| : (b_it = b.link) {
@@ -468,23 +476,22 @@ pub fn loadopt(f: *Fn) void {
             i.arg[1] = def(sl, lowMask(sz), b, @intCast(n), &l);
         }
     }
-    sort(Insert, st.ilog[0..st.nlog], icmp);
-    vgrow(&st.ilog, st.nlog + 1);
-    st.ilog[st.nlog].bid = f.nblk; // add a sentinel
+    sort(Insert, st.ilog, icmp);
     var ib = vnewT(Ins, 0, PHeap);
-    var ist: [*]Insert = st.ilog;
+    var next: usize = 0;
     for (f.blks(), 0..) |b, n| {
-        while (ist[0].bid == n and ist[0].isphi != 0) : (ist += 1) {
-            ist[0].new.phi.p.link = b.phi;
-            b.phi = ist[0].new.phi.p;
+        while (next < st.ilog.len and st.ilog[next].bid == n and st.ilog[next].isphi != 0) : (next += 1) {
+            const p = st.ilog[next].new.phi.p;
+            p.link = b.phi;
+            b.phi = p;
         }
         var ni: uint = 0;
         var nt: uint = 0;
         while (true) {
             var i: *Ins = undefined;
-            if (ist[0].bid == n and ist[0].off == ni) {
-                i = &ist[0].new.ins;
-                ist += 1;
+            if (next < st.ilog.len and st.ilog[next].bid == n and st.ilog[next].off == ni) {
+                i = &st.ilog[next].new.ins;
+                next += 1;
             } else {
                 if (ni == b.nins)
                     break;
@@ -513,9 +520,71 @@ pub fn loadopt(f: *Fn) void {
         idup(b, ib[0..nt]);
     }
     vfree(ib);
-    vfree(st.ilog);
+    vfree(st.ilog.ptr);
+    st.ilog = &.{};
     if (all.debug['M'] != 0) {
         dprint("\n> After load elimination:\n", .{});
         printfn(f, all.dbg) catch {};
     }
+}
+
+test "insertion log slice: growth and rollback retain the current allocation" {
+    const saved = st;
+    st = .{};
+    st.ilog = vnewT(Insert, 0, PHeap)[0..0];
+    defer {
+        vfree(st.ilog.ptr);
+        st = saved;
+    }
+    appendLog().num = 100;
+    const checkpoint = st.ilog.len;
+    for (1..11) |n| appendLog().num = @intCast(100 + n);
+    try std.testing.expectEqual(@as(usize, 11), st.ilog.len);
+    const current = st.ilog.ptr;
+    truncateLog(checkpoint);
+    try std.testing.expectEqual(current, st.ilog.ptr);
+    try std.testing.expectEqual(@as(usize, 1), st.ilog.len);
+    try std.testing.expectEqual(@as(u32, 100), st.ilog[0].num);
+    appendLog().num = 999;
+    try std.testing.expectEqual(current, st.ilog.ptr);
+    try std.testing.expectEqual(@as(u32, 999), st.ilog[1].num);
+    truncateLog(0);
+    appendLog().num = 123;
+    try std.testing.expectEqual(current, st.ilog.ptr);
+    try std.testing.expectEqual(@as(u32, 123), st.ilog[0].num);
+}
+
+test "insertion log slice: stable phi and instruction ordering" {
+    var log = std.mem.zeroes([6]Insert);
+    log[0].bid = 1;
+    log[0].off = 2;
+    log[0].num = 3;
+    log[1].isphi = 1;
+    log[1].num = 9;
+    log[2].num = 7;
+    log[3].isphi = 1;
+    log[3].num = 8;
+    log[4].num = 2;
+    log[5].bid = 1;
+    log[5].off = 1;
+    log[5].num = 4;
+    sort(Insert, &log, icmp);
+    const expected = [_]u32{ 9, 8, 2, 7, 4, 3 };
+    for (log, expected) |entry, number|
+        try std.testing.expectEqual(number, entry.num);
+}
+
+test "insertion log slice: empty function needs no sentinel" {
+    const saved = st;
+    const saved_debug = all.debug;
+    all.debug = @splat(0);
+    defer {
+        st = saved;
+        all.debug = saved_debug;
+        all.freeall();
+    }
+    var f = std.mem.zeroes(Fn);
+    f.rpo = vnewT(*Blk, 0, PFn);
+    loadopt(&f);
+    try std.testing.expectEqual(@as(usize, 0), st.ilog.len);
 }

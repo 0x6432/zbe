@@ -139,7 +139,7 @@ const Range = extern struct {
 
 const Store = struct {
     ip: i32,
-    i: [*]Ins, // points into a block's ins (blits span two)
+    i: []Ins, // bounded tail of a block's instructions (blits span two)
 };
 
 const Slot = struct {
@@ -149,8 +149,7 @@ const Slot = struct {
     l: bits,
     r: Range,
     s: ?*Slot,
-    st: [*]Store,
-    nst: i32,
+    st: []Store,
 };
 
 inline fn rin(r: Range, n: i32) bool {
@@ -193,16 +192,22 @@ fn load(r: Ref, x: bits, ip: i32, f: *Fn, sl: []Slot) void {
     }
 }
 
-fn store(r: Ref, x: bits, ip: i32, i: [*]Ins, f: *Fn, sl: []Slot) void {
+fn recordStore(s: *Slot, ip: i32, instructions: []Ins) void {
+    const n = s.st.len;
+    var stores = s.st.ptr;
+    vgrow(&stores, n + 1);
+    s.st = stores[0 .. n + 1];
+    s.st[n] = .{ .ip = ip, .i = instructions };
+}
+
+fn store(r: Ref, x: bits, ip: i32, i: []Ins, f: *Fn, sl: []Slot) void {
     var off: i64 = undefined;
     if (slot(&off, r, f, sl)) |s| {
         if (s.l != 0) {
             radd(&s.r, ip);
             s.l &= ~shl64(x, off);
         } else {
-            s.nst += 1;
-            vgrow(&s.st, s.nst);
-            s.st[@intCast(s.nst - 1)] = .{ .ip = ip, .i = i };
+            recordStore(s, ip, i);
         }
     }
 }
@@ -224,7 +229,7 @@ fn maxrpo(hd: *Blk, b: *Blk) void {
 }
 
 /// kills an instruction; blits are killed as a pair
-fn killins(i: [*]Ins) void {
+fn killins(i: []Ins) void {
     if (i[0].op == .blit0)
         i[1] = insOp(.nop);
     i[0] = insOp(.nop);
@@ -255,8 +260,7 @@ pub fn coalesce(f: *Fn) void {
                             .l = 0,
                             .r = .{ .a = 0, .b = 0 },
                             .s = null,
-                            .st = vnewT(Store, 0, PHeap),
-                            .nst = 0,
+                            .st = vnewT(Store, 0, PHeap)[0..0],
                         };
                     };
     }
@@ -268,7 +272,7 @@ pub fn coalesce(f: *Fn) void {
         b.loop = -1;
     loopiter(f, maxrpo);
     var nbl: usize = 0;
-    var bl = vnewT([*]Ins, 0, PHeap);
+    var bl = vnewT([]Ins, 0, PHeap);
     const br = eallocSlice(Range, f.nblk);
     var ip: i32 = std.math.maxInt(c_int) - 1;
     var bn = f.nblk;
@@ -297,7 +301,7 @@ pub fn coalesce(f: *Fn) void {
         var idx = b.nins;
         while (idx != 0) {
             idx -= 1;
-            const ii = b.ins + idx;
+            const ii = b.insns()[idx..];
             const i = &ii[0];
             const arg = &i.arg;
             if (i.op == .argc) {
@@ -341,7 +345,7 @@ pub fn coalesce(f: *Fn) void {
 
     // kill dead stores
     for (sl) |*s|
-        for (s.st[0..@intCast(s.nst)]) |st|
+        for (s.st) |st|
             if (!rin(s.r, st.ip))
                 killins(st.i);
 
@@ -355,7 +359,7 @@ pub fn coalesce(f: *Fn) void {
         for (sl) |*s| {
             total +%= @bitCast(s.sz);
             if (s.r.b == 0) {
-                vfree(s.st);
+                vfree(s.st.ptr);
                 nstk += 1;
                 vgrow(&stk, nstk);
                 stk[nstk - 1] = s.t;
@@ -406,7 +410,8 @@ pub fn coalesce(f: *Fn) void {
                 assert(ui.op == .argc);
                 ui.arg[1] = CON_Z; // crash
             } else {
-                killins(@ptrCast(ui));
+                const b = f.rpo[u.bid];
+                killins(b.insns()[all.insidx(b, ui)..]);
             }
         }
     }
@@ -514,6 +519,36 @@ pub fn coalesce(f: *Fn) void {
     }
 
     for (sl) |*s|
-        vfree(s.st);
+        vfree(s.st.ptr);
     vfree(slv);
+}
+
+test "store history slices: growth preserves bounded instruction spans" {
+    var slot_info = std.mem.zeroes(Slot);
+    slot_info.st = vnewT(Store, 0, PHeap)[0..0];
+    defer vfree(slot_info.st.ptr);
+    var instructions = [_]Ins{ insOp(.storew), insOp(.blit0), insOp(.blit1) };
+    for (0..9) |n|
+        recordStore(&slot_info, @intCast(n), instructions[n % 2 ..]);
+    try std.testing.expectEqual(@as(usize, 9), slot_info.st.len);
+    for (slot_info.st, 0..) |entry, n| {
+        try std.testing.expectEqual(@as(i32, @intCast(n)), entry.ip);
+        try std.testing.expectEqual(instructions.len - n % 2, entry.i.len);
+        try std.testing.expectEqual(@intFromPtr(&instructions[n % 2]), @intFromPtr(entry.i.ptr));
+    }
+    try std.testing.expectEqual(@as(all.ulong, 16), @import("util.zig").vcap(slot_info.st.ptr));
+}
+
+test "bounded instruction kill: blit pair and singleton preserve neighbors" {
+    var instructions = [_]Ins{
+        insOp(.add), insOp(.blit0), insOp(.blit1), insOp(.storew), insOp(.copy),
+    };
+    killins(instructions[1..3]);
+    try std.testing.expectEqual(Opc.add, instructions[0].op);
+    try std.testing.expectEqual(Opc.nop, instructions[1].op);
+    try std.testing.expectEqual(Opc.nop, instructions[2].op);
+    try std.testing.expectEqual(Opc.storew, instructions[3].op);
+    killins(instructions[3..4]);
+    try std.testing.expectEqual(Opc.nop, instructions[3].op);
+    try std.testing.expectEqual(Opc.copy, instructions[4].op);
 }

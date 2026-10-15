@@ -283,6 +283,8 @@ test {
     std.testing.refAllDecls(@import("gvn.zig"));
     std.testing.refAllDecls(@import("parse.zig"));
     std.testing.refAllDecls(@import("emit.zig"));
+    std.testing.refAllDecls(@import("load.zig"));
+    std.testing.refAllDecls(@import("mem.zig"));
 }
 
 // ---- bounded instruction copies ------------------------------------------

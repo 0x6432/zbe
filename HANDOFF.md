@@ -940,3 +940,30 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   operations are deliberate allocator/vector publication boundaries, core layout
   fields, sentinel strings/register lists and the shared instruction buffer.
   The final Debug/ReleaseSafe, full core/corpus/fuzz and online CI gate is pending.
+
+### Full bounded-core/type pass verified locally (2026-10-15)
+- Source checkpoint be0870e completes the planned codebase-wide representation/
+  interface pass: Fn/Blk/Phi/Typ views, allocation-sensitive constant snapshots,
+  instruction-prefix publication and parser/type ownership/error cleanup.
+  Intentional low-level representations are listed in docs/IDIOMATIC-ZIG.md.
+- Pinned Zig build passed; direct units 70/70 in BOTH Debug and ReleaseSafe.
+  The full fresh core suite had zero failed checks. All six targets retained
+  0/76 assembly differences and 0/76 debug-dump differences each vs C at -O0.
+- Native optimized and compatibility behavior passed. Edge 291/0, bugs 110/0,
+  library 1442/0 (including new same-process error recovery), input errors 51/0,
+  strict comparator 42/0, CLI 21/0, jnz 21/0, parser-cache stress 12/0,
+  opt 46/0 and optsweep 910/0. Division matrix 1348 functions x3 levels and
+  opttable 5898 functions x3 levels passed.
+- Core fuzz: optfuzz 40/40; optimized IR 60/60 seeds 9000..9059;
+  compatibility IR 60/60 seeds 5000..5059; ABI 60/60 seeds 1000..1059.
+  Additional IR fuzz: 150/150 at EACH -O1 and -O2, 20 functions/iteration,
+  seeds 1000..1149. All 11 optimizer mutants killed; none survived.
+- Immutable final compiler: pinned cproc d1c53dd bootstrap/make check passed.
+  Its 202-file corpus compared over six targets: 1212 runs, zero differ,
+  52 both-failed (matched reference rejections, not successful compilations).
+- Compiler diagnostic literals, C reference patch, Python oracle and CI workflow
+  are unchanged. Stored extern fields/layouts and the C API are unchanged.
+  No new optimizer feature, forced push, release tag or committed credential.
+- Remote main/wip/idiomatic were fetched and still at 9e92780; both permit a
+  fast-forward. The next step is atomic publication and actual NEW GitHub CI
+  confirmation. Local green alone is not a statement that the new CI is green.

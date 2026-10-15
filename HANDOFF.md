@@ -1087,8 +1087,12 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   outputs or a superseded run as complete-corpus evidence.
 
 ### Follow-up audit and hardening: local publication gate
-- Full core completed its checks successfully, including mutation 11 killed /
-  0 survived and package consumer. Core includes six-target compatibility
+- The first core attempt passed every individual check, including mutation
+  11 killed / 0 survived and package consumer, but the shell runner then failed
+  parsing its remainder after tools/ci.sh was edited while it was executing.
+  This is NOT a successful full-core gate. A fresh immutable runner must pass
+  before publication; the individual results below do not waive that requirement.
+  Those checks included six-target compatibility
   assembly AND debug identity (0/76 differ each), native optimized/compat
   behavior, edge 291/0, bugs 110/0, library 1442/0, input errors 51/0,
   strict diagnostics 42/0, CLI 23/0, jump 21/0, parser cache/ref-kind 12/0 each,

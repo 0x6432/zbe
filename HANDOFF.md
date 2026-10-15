@@ -1038,3 +1038,19 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - Repository-wide fmt --check detects pre-existing differences; no unrelated
   whole-tree reformat was applied. Library writer recovery and trustworthy
   benchmarks are next. No tag/release/version change.
+
+### Library writer recovery and output-unit isolation
+- Parser callback errors now include writer failure separately from compiler
+  input errors. Shared data/function/debug-file callbacks propagate errors;
+  only the CLI boundary prints the existing "qbe: write error" and exits 1.
+  The Zig library now actually returns its advertised WriteFailed error.
+- Each library compile releases its output-unit float stash and debug-file
+  table even on failure. CLI files still share one output unit; cached pass
+  buffers and function-pool reuse remain unchanged.
+- Pinned build passed and units remain 73/73 in Debug and ReleaseSafe.
+  Zig package consumer passed 162 writer failure/recovery checks over all six
+  targets, -O0/-O1/-O2, data/debug-file/floating-function fixtures, and three
+  partial-writer limits. Each failure is followed by byte-equal healthy output.
+  CLI checks: 23/0 on Linux, including /dev/full during a callback and at flush.
+- Full core is currently running; new CI has not yet been triggered. This
+  checkpoint does not claim full verification, a release, or a new tag.

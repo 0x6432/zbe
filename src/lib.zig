@@ -10,6 +10,7 @@
 const std = @import("std");
 const all = @import("all.zig");
 const drv = @import("main.zig");
+const emit = @import("emit.zig");
 const Writer = std.Io.Writer;
 
 pub const version = drv.version;
@@ -51,6 +52,8 @@ pub fn targets() []const []const u8 {
 }
 
 /// Compile IL `text` and write the assembly to `out` (not flushed).
+/// Writer failures return WriteFailed; partial output must be discarded.
+/// A subsequent compile starts a fresh output unit even after an error.
 pub fn compile(text: []const u8, opts: Options, out: *Writer) Error!void {
     init();
     all.T = drv.Deftgt().*;
@@ -63,6 +66,7 @@ pub fn compile(text: []const u8, opts: Options, out: *Writer) Error!void {
             }
         }
     }
+    defer emit.resetCompilation();
     all.compat = false;
     all.optlevel = @min(opts.opt, 2);
     @memset(&all.debug, 0);

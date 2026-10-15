@@ -86,6 +86,18 @@ const State = struct {
 };
 var st: State = .{};
 
+/// Discard output-unit state after an embedding compile, including failed writes.
+/// CLI input files share one output unit and continue to use emitfin instead.
+pub fn resetCompilation() void {
+    while (st.stash) |b| {
+        st.stash = b.link;
+        efree(b);
+    }
+    if (st.file.len != 0) all.vfree(st.file.ptr);
+    st = .{};
+}
+
+
 pub fn emitdat(d: *Dat, f: *Writer) (Writer.Error || all.Error)!void {
     switch (d.type) {
         DStart => st.emitdat_zero = 0,

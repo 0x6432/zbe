@@ -41,5 +41,14 @@ chk compat_long 1 "invalid option -- '-'" env QBE_COMPAT=1 $Z --version
 chk compat_O2 0 'idivl' sh -c "printf '%s\n' '$P' | QBE_COMPAT=1 $Z -O2 -t amd64_sysv"
 chk compat_help 0 'dump debug' env QBE_COMPAT=1 $Z -h
 if QBE_COMPAT=1 $Z -h 2>&1 | grep -q -- '-O<level>'; then fail=$((fail+1)); echo 'FAIL: compat help shows -O'; else pass=$((pass+1)); fi
+# Force an actual write failure, both when flushing and inside a data callback.
+# /dev/full is Linux-specific; native macOS keeps the portable checks above.
+if [ -c /dev/full ]; then
+  chk write_failure 1 '^qbe: write error$' sh -c "printf '%s\n' '$P' | $Z -o /dev/full"
+  large_write() {
+    awk 'BEGIN { printf "data $large = { b \""; for (i=0; i<100000; i++) printf "x"; print "\" }" }' | "$Z" -o /dev/full
+  }
+  chk callback_write_failure 1 '^qbe: write error$' large_write
+fi
 printf 'cli: %d passed, %d failed\n' $pass $fail
 [ $fail -eq 0 ]

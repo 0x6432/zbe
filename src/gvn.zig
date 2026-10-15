@@ -495,7 +495,7 @@ test "GVN scratch ownership: fold errors and repeated calls clear the table" {
         all.freeall();
     }
     const Callbacks = struct {
-        fn debugfile(_: [*:0]const u8) void {}
+        fn debugfile(_: [*:0]const u8) all.Writer.Error!void {}
         fn data(_: *all.Dat) all.Error!void {}
         fn function(f: *Fn) all.Error!void {
             defer all.freeall();

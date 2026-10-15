@@ -92,20 +92,17 @@ fn writeFailed() noreturn {
     std.process.exit(1);
 }
 
-pub fn data(d: *Dat) all.Error!void {
+pub fn data(d: *Dat) (all.Error || Writer.Error)!void {
     if (dbg)
         return;
-    emitdat(d, outf) catch |e| switch (e) {
-        error.WriteFailed => writeFailed(),
-        error.InvalidInput => return error.InvalidInput,
-    };
+    try emitdat(d, outf);
     if (d.type == DEnd) {
-        outf.writeAll("/* end data */\n\n") catch writeFailed();
+        try outf.writeAll("/* end data */\n\n");
         freeall();
     }
 }
 
-pub fn func(f: *Fn) all.Error!void {
+pub fn func(f: *Fn) (all.Error || Writer.Error)!void {
     if (dbg)
         dprint("**** Function {s} ****", .{cs(f.name)});
     if (all.debug['P'] != 0) {
@@ -162,11 +159,8 @@ pub fn func(f: *Fn) all.Error!void {
     for (blocks, 0..) |block, n|
         block.link = if (n + 1 < blocks.len) blocks[n + 1] else null;
     if (!dbg) {
-        all.T.emitfn(f, outf) catch |e| switch (e) {
-            error.WriteFailed => writeFailed(),
-            error.InvalidInput => return error.InvalidInput,
-        };
-        outf.print("/* end function {s} */\n\n", .{cs(f.name)}) catch writeFailed();
+        try all.T.emitfn(f, outf);
+        try outf.print("/* end function {s} */\n\n", .{cs(f.name)});
     } else {
         dprint("\n", .{});
         all.dbg.flush() catch {};
@@ -174,8 +168,8 @@ pub fn func(f: *Fn) all.Error!void {
     freeall();
 }
 
-pub fn dbgfile(f: [*:0]const u8) void {
-    emitdbgfile(f, outf) catch writeFailed();
+pub fn dbgfile(f: [*:0]const u8) Writer.Error!void {
+    try emitdbgfile(f, outf);
 }
 
 fn fail(comptime fmt: []const u8, args: anytype) noreturn {
@@ -315,9 +309,12 @@ pub fn main(init: std.process.Init) u8 {
             text = std.Io.Dir.cwd().readFileAlloc(io, path, arena, .unlimited) catch
                 fail("cannot open '{s}'\n", .{path});
         }
-        parse(text, path, &dbgfile, &data, &func) catch {
-            outf.flush() catch {};
-            std.process.exit(1);
+        parse(text, path, &dbgfile, &data, &func) catch |err| switch (err) {
+            error.WriteFailed => writeFailed(),
+            error.InvalidInput => {
+                outf.flush() catch {};
+                std.process.exit(1);
+            },
         };
     }
 

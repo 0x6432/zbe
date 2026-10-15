@@ -383,6 +383,8 @@ var tokval: struct {
 
 
 pub const Error = error{InvalidInput};
+/// Parsing can also fail when an embedding caller cannot write its output.
+pub const CallbackError = Error || Writer.Error;
 
 /// Reports a syntax or type error at the current input line and returns
 /// `error.InvalidInput`; the caller decides whether to exit or recover.
@@ -1336,7 +1338,7 @@ fn parsedatstr(d: *Dat) void {
     d.u.str = strf(PFn, "{s}", .{cs(tokval.str)});
 }
 
-fn parsedat(cb: *const fn (*Dat) Error!void, lnk: ?*Lnk) Error!void {
+fn parsedat(cb: *const fn (*Dat) CallbackError!void, lnk: ?*Lnk) CallbackError!void {
     var t: i32 = undefined;
     var d: Dat = undefined;
 
@@ -1433,7 +1435,7 @@ fn parselnk(lnk: *Lnk) Error!i32 {
     }
 }
 
-pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*:0]const u8) void, data: *const fn (*Dat) Error!void, func: *const fn (*Fn) Error!void) Error!void {
+pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*:0]const u8) CallbackError!void, data: *const fn (*Dat) CallbackError!void, func: *const fn (*Fn) CallbackError!void) CallbackError!void {
     var lnk: Lnk = undefined;
 
     lexinit();
@@ -1464,7 +1466,7 @@ pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*:0]const 
         switch (try parselnk(&lnk)) {
             Tdbgfile => {
                 try expect(Tstr);
-                dbgfile(tokval.str);
+                try dbgfile(tokval.str);
             },
             Tfunc => {
                 lnk.@"align" = 16;
@@ -1756,7 +1758,7 @@ test "type table slices: growth, nested types, union alternatives, and dark type
         all.freeall();
     }
     const Callbacks = struct {
-        fn debugfile(_: [*:0]const u8) void {}
+        fn debugfile(_: [*:0]const u8) all.Writer.Error!void {}
         fn func(_: *Fn) Error!void {
             return error.InvalidInput;
         }
@@ -1801,7 +1803,7 @@ test "parser cleanup: malformed type definitions then valid input" {
     var debug = Writer.fixed(&buffer);
     all.dbg = &debug;
     const Callbacks = struct {
-        fn debugfile(_: [*:0]const u8) void {}
+        fn debugfile(_: [*:0]const u8) all.Writer.Error!void {}
         fn data(_: *Dat) Error!void {}
         fn func(_: *Fn) Error!void {
             return error.InvalidInput;

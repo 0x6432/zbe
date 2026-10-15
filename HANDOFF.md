@@ -716,3 +716,17 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - Repository remote remains https://github.com/0x6432/zbe.git. The user
   explicitly authorized token authentication; no credential was committed
   to the repository or stored in its remote URL. No release tag was created.
+
+### Confirmed online CI completion (2026-10-15)
+- Publication checkpoint 2df99381c68bdc2885e023ca3680783e37e86fd9:
+  https://github.com/0x6432/zbe/actions/runs/38737049989 — completed SUCCESS.
+- Published handoff checkpoint d07d4a4850adac1a16c63ed00ebce1f72c9cc9e3:
+  https://github.com/0x6432/zbe/actions/runs/38738796441 — completed SUCCESS.
+- BOTH runs passed all nine verification jobs: core; native Linux arm64 and
+  macOS; cross arm64, rv64 and amd64_win; cproc; Hare Linux x86_64 and arm64.
+  The release job was skipped normally because no release tag was pushed.
+- This final HANDOFF-only record uses [skip ci] to avoid launching a third
+  identical suite. Compiler/test/workflow content is unchanged from the
+  confirmed-green checkpoints. Both branches receive the same final record.
+- The original offline commits remain intact. No force push, release tag,
+  oracle weakening, reference-patch change, or credential commit occurred.

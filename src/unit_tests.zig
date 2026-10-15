@@ -279,6 +279,7 @@ test {
     std.testing.refAllDecls(@import("amd64/isel.zig"));
     std.testing.refAllDecls(@import("rv64/emit.zig"));
     std.testing.refAllDecls(@import("live.zig"));
+    std.testing.refAllDecls(@import("spill.zig"));
 }
 
 // ---- bounded instruction copies ------------------------------------------

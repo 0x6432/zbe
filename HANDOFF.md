@@ -589,3 +589,21 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - Native behavior suite: All is fine; ABI fuzz: 20/20 iterations OK.
 - edge 271/20; the complete FAIL list remains identical to the sandbox baseline.
 - Compiler diagnostic strings and all 11 optimizer mutation patterns are intact.
+
+
+### Bounded pass storage (2026-10-15)
+- Based on 049c656. Its CI status could not be rechecked: GitHub DNS failed
+  from the sandbox, and the public run page was unavailable through web tools.
+- Register-allocation State.mem uses f.mems(); beg/end register-map arrays
+  retain the block count at allocation. New edge-copy blocks are appended
+  later and are not indexed through those original-block maps.
+- Spill-limit scratch is a reusable []i32; its length replaces limit_maxt.
+  Each call uses only the active prefix. The buffer still persists across
+  functions and grows only when needed; no production reset was introduced.
+- Empty unowned storage is never passed to efree. Empty/negative limits,
+  stable cost ties, membership preferences, reuse, shrinking, and growth
+  are covered by three new direct spiller tests.
+- Compiler diagnostic strings, matcher tables, register/class numbering,
+  intentional compile-wide globals, and extern-layout structs are unchanged.
+- Network access must be restored before fetching/pushing or confirming CI;
+  main and wip/idiomatic remain at the last pushed checkpoint for now.

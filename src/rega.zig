@@ -65,7 +65,7 @@ const NPm = 64; // max copies in a parallel move
 const State = struct {
     regu: bits = 0, // registers used
     tmp: []Tmp = undefined, // function temporaries
-    mem: [*]Mem = undefined, // function mem references
+    mem: []Mem = undefined, // function mem references
     pm: [NPm]PMove = undefined, // parallel move constructed
     npm: i32 = 0, // size of pm
     loop: i32 = 0, // current loop level
@@ -507,10 +507,10 @@ pub fn rega(f: *Fn) void {
     st.stblk = 0;
     st.regu = 0;
     st.tmp = f.tmps();
-    st.mem = f.mem;
+    st.mem = f.mems();
     const blk = palloc(*Blk, f.nblk)[0..f.nblk];
-    const end: [*]RMap = palloc(RMap, f.nblk);
-    const beg: [*]RMap = palloc(RMap, f.nblk);
+    const end = palloc(RMap, f.nblk)[0..f.nblk];
+    const beg = palloc(RMap, f.nblk)[0..f.nblk];
     var n: uint = 0;
     while (n < f.nblk) : (n += 1) {
         bsinit(&end[n].b, @intCast(f.ntmp));

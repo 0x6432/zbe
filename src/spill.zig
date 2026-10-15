@@ -37,7 +37,6 @@ const cint = all.cint;
 const cs = all.cs;
 const dprint = all.dprint;
 const dumpts = all.dumpts;
-const ealloc = all.ealloc;
 const efree = all.efree;
 const emit = all.emit;
 const emiti = all.emiti;
@@ -137,8 +136,7 @@ const State = struct {
     slot4: i32 = 0, // next slot of 4 bytes
     slot8: i32 = 0, // ditto, 8 bytes
     mask: [2]BSet = undefined, // class masks
-    limit_tarr: ?[*]i32 = null,
-    limit_maxt: i32 = 0,
+    limit_tarr: []i32 = &.{}, // cached capacity; limit() uses only the active prefix
 };
 var st: State = .{};
 
@@ -189,15 +187,15 @@ fn slot(t: i32) Ref {
 /// cost
 fn limit(b: *BSet, k: i32, f: ?*BSet) void {
     const nt: i32 = @intCast(bscount(b));
-    if (nt <= k)
+    if (nt <= k or nt == 0)
         return;
-    if (nt > st.limit_maxt) {
-        efree((st.limit_tarr));
-        st.limit_tarr = ealloc(i32, nt);
-        st.limit_maxt = nt;
+    const needed: usize = @intCast(nt);
+    if (needed > st.limit_tarr.len) {
+        if (st.limit_tarr.len != 0)
+            efree(st.limit_tarr.ptr);
+        st.limit_tarr = all.eallocSlice(i32, nt);
     }
-    // null only while limit_maxt == 0, i.e. nt == 0 (k < 0): nothing to do
-    const tarr = st.limit_tarr orelse return;
+    const tarr = st.limit_tarr[0..needed];
     var i: i32 = 0;
     var t: i32 = 0;
     while (bsiter(b, &t)) : (t += 1) {
@@ -207,10 +205,10 @@ fn limit(b: *BSet, k: i32, f: ?*BSet) void {
     }
     if (nt > 1) {
         if (f == null) {
-            sort(i32, tarr[0..@intCast(nt)], tcmp0);
+            sort(i32, tarr, tcmp0);
         } else {
             st.fst = f;
-            sort(i32, tarr[0..@intCast(nt)], tcmp1);
+            sort(i32, tarr, tcmp1);
         }
     }
     i = 0;
@@ -553,4 +551,119 @@ pub fn spill(f: *Fn) void {
         dprint("\n> After spilling:\n", .{});
         printfn(f, all.dbg) catch {};
     }
+}
+
+// ---- cached scratch regressions -------------------------------------------
+
+test "limit slices: stable cost order, capacity reuse, and growth" {
+    const saved = st;
+    st = .{};
+    defer {
+        if (st.limit_tarr.len != 0) efree(st.limit_tarr.ptr);
+        st = saved;
+        all.freeall();
+    }
+    var temps = std.mem.zeroes([Tmp0 + 6]Tmp);
+    const costs = [_]uint{ 5, 20, 10, 20, 30, 100 };
+    for (temps[Tmp0..], costs) |*temp, cost| {
+        temp.cls = .l;
+        temp.slot = -1;
+        temp.cost = cost;
+    }
+    st.tmp = &temps;
+    var live: BSet = undefined;
+    bsinit(&live, temps.len);
+    bszero(&live);
+    for (Tmp0..Tmp0 + 4) |index| bsset(&live, index);
+    limit(&live, 2, null);
+    try std.testing.expectEqual(@as(uint, 2), bscount(&live));
+    try std.testing.expect(bshas(&live, Tmp0 + 1));
+    try std.testing.expect(bshas(&live, Tmp0 + 3));
+    try std.testing.expect(temps[Tmp0].slot >= 0);
+    try std.testing.expectEqual(@as(i32, -1), temps[Tmp0 + 1].slot);
+    try std.testing.expectEqual(@as(usize, 4), st.limit_tarr.len);
+    const cached = st.limit_tarr.ptr;
+    bszero(&live);
+    for (Tmp0..Tmp0 + 3) |index| bsset(&live, index);
+    limit(&live, 1, null);
+    try std.testing.expectEqual(cached, st.limit_tarr.ptr);
+    try std.testing.expectEqual(@as(usize, 4), st.limit_tarr.len);
+    try std.testing.expectEqual(@as(uint, 1), bscount(&live));
+    try std.testing.expect(bshas(&live, Tmp0 + 1));
+    try std.testing.expect(!bshas(&live, Tmp0 + 3));
+    bszero(&live);
+    for (Tmp0..Tmp0 + 6) |index| bsset(&live, index);
+    limit(&live, 1, null);
+    try std.testing.expectEqual(@as(usize, 6), st.limit_tarr.len);
+    try std.testing.expectEqual(@as(uint, 1), bscount(&live));
+    try std.testing.expect(bshas(&live, Tmp0 + 5));
+}
+
+test "limit slices: preferred temporaries precede more expensive values" {
+    const saved = st;
+    st = .{};
+    defer {
+        if (st.limit_tarr.len != 0) efree(st.limit_tarr.ptr);
+        st = saved;
+        all.freeall();
+    }
+    var temps = std.mem.zeroes([Tmp0 + 4]Tmp);
+    const costs = [_]uint{ 1, 100, 2, 200 };
+    for (temps[Tmp0..], costs) |*temp, cost| {
+        temp.cls = .l;
+        temp.slot = -1;
+        temp.cost = cost;
+    }
+    st.tmp = &temps;
+    var live: BSet = undefined;
+    var preferred: BSet = undefined;
+    bsinit(&live, temps.len);
+    bsinit(&preferred, temps.len);
+    bszero(&live);
+    bszero(&preferred);
+    for (Tmp0..Tmp0 + 4) |index| bsset(&live, index);
+    bsset(&preferred, Tmp0);
+    bsset(&preferred, Tmp0 + 2);
+    limit(&live, 2, &preferred);
+    try std.testing.expectEqual(@as(uint, 2), bscount(&live));
+    try std.testing.expect(bshas(&live, Tmp0));
+    try std.testing.expect(bshas(&live, Tmp0 + 2));
+    try std.testing.expectEqual(@as(i32, -1), temps[Tmp0].slot);
+    try std.testing.expect(temps[Tmp0 + 1].slot >= 0);
+}
+
+test "limit slices: empty, singleton, and negative limits retain cache safely" {
+    const saved = st;
+    st = .{};
+    defer {
+        if (st.limit_tarr.len != 0) efree(st.limit_tarr.ptr);
+        st = saved;
+        all.freeall();
+    }
+    var temps = std.mem.zeroes([Tmp0 + 2]Tmp);
+    for (temps[Tmp0..]) |*temp| temp.slot = -1;
+    st.tmp = &temps;
+    var live: BSet = undefined;
+    bsinit(&live, temps.len);
+    bszero(&live);
+    limit(&live, -1, null);
+    try std.testing.expectEqual(@as(usize, 0), st.limit_tarr.len);
+    bsset(&live, Tmp0);
+    limit(&live, 1, null);
+    try std.testing.expectEqual(@as(usize, 0), st.limit_tarr.len);
+    try std.testing.expectEqual(@as(i32, -1), temps[Tmp0].slot);
+    limit(&live, 0, null);
+    try std.testing.expectEqual(@as(uint, 0), bscount(&live));
+    try std.testing.expect(temps[Tmp0].slot >= 0);
+    try std.testing.expectEqual(@as(usize, 1), st.limit_tarr.len);
+    const cached = st.limit_tarr.ptr;
+    const slots = st.slot8;
+    limit(&live, -1, null);
+    try std.testing.expectEqual(cached, st.limit_tarr.ptr);
+    try std.testing.expectEqual(slots, st.slot8);
+    bsset(&live, Tmp0 + 1);
+    limit(&live, -1, null);
+    try std.testing.expectEqual(@as(uint, 0), bscount(&live));
+    try std.testing.expectEqual(cached, st.limit_tarr.ptr);
+    try std.testing.expect(temps[Tmp0 + 1].slot >= 0);
 }

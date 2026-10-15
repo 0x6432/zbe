@@ -21,6 +21,9 @@
   leaves stale va register counts (BUGS.md #7, also in the C patch).
 
 ### Code quality
+- Register-allocation memory views and per-block register-map arrays use
+  bounded slices. Spill-limit scratch storage carries its cached capacity
+  in a slice, retaining reuse while sorting only the current active prefix.
 - AMD64 address-matcher number tables and constant views are bounded slices,
   including the matcher bytecode interpreter. The number table retains its
   original allocation length even when instruction selection creates temps.

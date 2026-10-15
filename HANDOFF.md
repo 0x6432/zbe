@@ -1117,3 +1117,19 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   38763807465 was rechecked: completed SUCCESS for ac2e336. This is historical
   evidence only. Publish these fast-forward changes, then inspect a FRESH CI
   run; do not label it green before it finishes. No tag, release or version bump.
+
+### Immutable final core rerun passed; ready for fresh CI
+- Re-ran the entire FINAL core from a frozen copy of the shell runner, with no
+  in-place script edits during execution. /data/verify-final-core.log ends with
+  "failed checks: 0" and "FINAL IMMUTABLE CORE PASSED". Both new harness suites,
+  all 11 mutation checks and the Zig package consumer are included. Mutation
+  source was restored and the worktree is clean. This supersedes the earlier
+  individual-checks-only attempt with the runner parse failure.
+- All detailed compiler/corpus/fuzz results above remain applicable; no source
+  changes followed the library fix apart from callback test signatures.
+- Isolated ReleaseFast builds succeeded for baseline eeee52c and candidate
+  f728f27 (same functional compiler source as this checkpoint). Binaries are
+  prepared, not benchmarked: no new performance claim or optimizer change.
+- Next: atomic fast-forward publication to main and wip/idiomatic, followed by
+  actual fresh GitHub CI inspection. After that correctness gate, continue with
+  measured performance work, then release preparation. No tag/release authorized.

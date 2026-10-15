@@ -1273,3 +1273,17 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   ci-ref.sh's existing git-apply fallback succeeded. No new workaround added.
 - Publish this CI-only repair, check the new source-specific run, then STOP.
   No additional refactor/optimization, version bump, release or tag authorized.
+
+### Cross-job repair published; bounded CI check completed
+- Both main and wip/idiomatic contain repair 439f0213c8b4a2671469b5d154dc8eed4161664a.
+- Fresh run: https://github.com/0x6432/zbe/actions/runs/38813379435. All THREE repaired cross jobs pass.
+  Latest uncached API check: 8 verification jobs passed; remaining:
+  core. Run is in_progress, conclusion None.
+  Core remains inside its full-suite step; no failure is reported, but overall
+  CI is NOT confirmed green. Do not substitute the previous source's core pass.
+- Bounded monitor stopped after about twenty minutes. No unattended agent work
+  remains scheduled. GitHub CI itself continues; check its final conclusion
+  before declaring the milestone fully green or doing any release work.
+- Compiler code and benchmark results are unchanged by this CI-only repair.
+  No new optimization/refactor, version bump, tag or release. Stop here to
+  respect the user's token budget. This status-only checkpoint uses [skip ci].

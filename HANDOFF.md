@@ -700,3 +700,19 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   into repository content, remotes, archives, or verification logs.
 - Review logs are /data/recheck-*.log, /data/recheck-summary.log,
   /data/recheck-unit-direct.log and /data/baseline-edge.log.
+
+### Online publication and CI status (2026-10-15)
+- Published the preserved offline chain plus reviewed handoff checkpoint
+  2df99381c68bdc2885e023ca3680783e37e86fd9 to BOTH main and wip/idiomatic
+  using an atomic, non-force fast-forward push. Remote tips were checked
+  immediately before and after publication; no user changes were discarded.
+- Publication CI: https://github.com/0x6432/zbe/actions/runs/38737049989
+- Status checked at 2026-10-15T12:58:18+00:00: in_progress;
+  successful jobs: native (ubuntu-24.04-arm), hare (ubuntu-24.04), native (macos-15), cross (amd64_win), cross (arm64), hare (ubuntu-24.04-arm), cproc, cross (rv64).
+  Still running: core. Overall green is NOT yet confirmed.
+- This follow-up changes HANDOFF.md only; compiler sources remain exactly
+  those verified at c9da5b6. Pushing this documentation checkpoint triggers
+  its own CI run; inspect the newest run separately before claiming green.
+- Repository remote remains https://github.com/0x6432/zbe.git. The user
+  explicitly authorized token authentication; no credential was committed
+  to the repository or stored in its remote URL. No release tag was created.

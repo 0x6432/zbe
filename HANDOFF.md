@@ -1241,3 +1241,17 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - Latest user instruction: finish this milestone, then STOP to conserve tokens.
   Publish verified fast-forwards, inspect fresh GitHub CI, record actual status,
   then stop. Do not start another optimization/refactor or unattended monitor.
+
+### Milestone published; stopped as requested
+- Atomically fast-forwarded both main and wip/idiomatic to 12563d495277ad1fd8cf9450ae081e017c446367.
+- Fresh source CI: https://github.com/0x6432/zbe/actions/runs/38791061549
+  Last inspected state: queued; conclusion: None. NOT confirmed green
+  unless the actual conclusion above is success. Historical green run
+  38778895988 is not substituted for this source run.
+- The following documentation-only stop/status checkpoint uses [skip ci];
+  compiler/test/package sources remain exactly those in the fresh run.
+- User requested STOP after this milestone. No further work or background
+  agent CI monitor is scheduled. GitHub's triggered CI may continue normally;
+  check its final result before any future release work. No tag/release made.
+- Remote remains credential-free. Revoke the previously exposed credential;
+  authentication here was transient process input, not repository files/logs.

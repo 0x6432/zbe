@@ -754,3 +754,16 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   insertion-log rollback/sentinel traversal, and mem slot store histories.
   Keep ABI/extern layouts, numeric ABI fields, sentinel strings, compile-wide
   globals, shared instruction buffers, and cached pass capacities deliberate.
+
+### Intern bucket slices (2026-10-15)
+- String-intern buckets now store an active slice of sentinel string pointers
+  instead of an unbounded vector pointer and duplicate count. The numeric ID
+  encoding, hash/probe order, power-of-two growth policy, overflow diagnostic,
+  owned string copies, and process-wide reuse are unchanged.
+- Added a forced single-bucket collision test spanning four capacity growths,
+  preserving exact IDs, contents, pointer ownership, and duplicate reuse.
+  Direct unit suite: 46/46; parser/debug-file growth comparisons: 12/12.
+- The first full core run picked up the earlier unit-test helper typo while
+  it was being corrected; all other checks passed, including mutation 11/0.
+  The corrected direct unit run is green. A complete fresh aggregate run is
+  still required before publishing; no failed run is being called green.

@@ -68,8 +68,7 @@ const Vec = extern struct {
 };
 
 const Bucket = struct {
-    nstr: uint,
-    str: [*][*:0]u8, // vector, valid once nstr > 0
+    strings: [][*:0]u8 = &.{}, // active names; vector header retains capacity
 };
 
 const VMin = 2;
@@ -88,7 +87,7 @@ const Hdr = extern struct {
     size: usize align(16),
 };
 
-var itbl: [IMask + 1]Bucket = @splat(.{ .nstr = 0, .str = undefined }); // string interning table
+var itbl: [IMask + 1]Bucket = @splat(.{}); // string interning table
 
 /// helper for C pointer subtraction (p - q)
 pub inline fn ptrdiff(p: anytype, q: @TypeOf(p)) isize {
@@ -393,32 +392,31 @@ pub fn strf(pl: Pool, comptime fmt: []const u8, args: anytype) [*:0]u8 {
 pub fn intern(s: [*:0]const u8) u32 {
     const h = hash(s) & IMask;
     const b = &itbl[h];
-    const n = b.nstr;
+    const n: uint = @intCast(b.strings.len);
 
-    var i: uint = 0;
-    while (i < n) : (i += 1)
-        if (streq(s, b.str[i]))
-            return h + (i << IBits);
+    for (b.strings, 0..) |name, i|
+        if (streq(s, name))
+            return h + (@as(uint, @intCast(i)) << IBits);
 
     if (n == 1 << (32 - IBits))
         die("interning table overflow", .{});
-    if (n == 0)
-        b.str = vnewT([*:0]u8, 1, PHeap)
-    else if ((n & (n -% 1)) == 0)
-        vgrow(&b.str, n + n);
+    var strings = if (n == 0) vnewT([*:0]u8, 1, PHeap) else b.strings.ptr;
+    if (n != 0 and (n & (n -% 1)) == 0)
+        vgrow(&strings, n + n);
 
     const ss = std.mem.span(s);
     const d: [*]u8 = @ptrCast(emalloc(ss.len + 1));
     @memcpy(d[0..ss.len], ss);
     d[ss.len] = 0;
-    b.str[n] = d[0..ss.len :0];
-    b.nstr = n + 1;
+    b.strings = strings[0 .. n + 1];
+    b.strings[n] = d[0..ss.len :0];
     return h + (n << IBits);
 }
 
 pub fn str(id: u32) [*:0]u8 {
-    assert(id >> IBits < itbl[id & IMask].nstr);
-    return itbl[id & IMask].str[id >> IBits];
+    const names = itbl[id & IMask].strings;
+    assert(id >> IBits < names.len);
+    return names[id >> IBits];
 }
 
 pub fn isreg(r: Ref) bool {
@@ -910,4 +908,42 @@ pub fn runmatch(code: []const uchar, tn: []const Num, ref_: Ref, vars: []Ref) vo
             },
         }
     }
+}
+
+
+test "intern bucket slice: collision growth preserves IDs and owned strings" {
+    const saved = itbl[0];
+    itbl[0] = .{};
+    defer {
+        for (itbl[0].strings) |name| efree(name);
+        if (itbl[0].strings.len != 0) vfree(itbl[0].strings.ptr);
+        itbl[0] = saved;
+    }
+    try std.testing.expectEqual(@as(u32, 0), intern(""));
+    var ids: [12]u32 = undefined;
+    var names: [12][32]u8 = undefined;
+    var found: usize = 0;
+    for (0..1000000) |n| {
+        var buffer: [32]u8 = undefined;
+        const name = try std.fmt.bufPrintSentinel(&buffer, "bucket{d}", .{n}, 0);
+        if (hash(name.ptr) & IMask != 0) continue;
+        ids[found] = intern(name.ptr);
+        try std.testing.expectEqual(@as(u32, @intCast(found + 1)) << IBits, ids[found]);
+        @memcpy(names[found][0..name.len], name);
+        names[found][name.len] = 0;
+        found += 1;
+        if (found == ids.len) break;
+    }
+    try std.testing.expectEqual(ids.len, found);
+    try std.testing.expectEqual(@as(usize, 13), itbl[0].strings.len);
+    try std.testing.expectEqual(@as(ulong, 16), vcap(itbl[0].strings.ptr));
+    const cached = itbl[0].strings.ptr;
+    for (ids, &names) |id, *name| {
+        const expected: [*:0]const u8 = @ptrCast(name);
+        try std.testing.expectEqualStrings(std.mem.span(expected), std.mem.span(str(id)));
+        try std.testing.expectEqual(id, intern(expected));
+    }
+    try std.testing.expectEqual(cached, itbl[0].strings.ptr);
+    try std.testing.expectEqual(@as(usize, 13), itbl[0].strings.len);
+    try std.testing.expectEqualStrings("", std.mem.span(str(0)));
 }

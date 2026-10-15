@@ -984,3 +984,25 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - Local Hare reproduction/checks and the complete combined suite must pass
   before publishing the correction. No successful local result is being used
   to hide the failed published CI run.
+
+### Operand-kind correction fully verified locally (2026-10-15)
+- Corrected source checkpoint 2d6781d: pinned build and 71/71 direct tests in
+  Debug AND ReleaseSafe. Fresh full core suite: zero failed checks, including
+  both parser stress tools (12/12 each), edge 291/0, library 1442/0, all six
+  assembly/debug comparisons 0/76 each and mutation 11 killed/0 survived.
+  Optimized/compat native behavior, diagnostics, package and other core gates passed.
+- Core optfuzz/IR/ABI fuzz passed. Additional optimized IR fuzz: 150/150 at
+  EACH -O1/-O2, seeds 1000..1149, 20 functions/iteration. Oracle unchanged.
+- Corrected immutable compiler: cproc bootstrap/check passed; 202-file corpus
+  1212 runs, zero differ, 52 matched both-failed, as before.
+- Hare failure reproduced locally with the previous published snapshot.
+  Corrected compiler passed pinned harec fd2a6e3 tests: 39 passed/0 failed.
+  Hare stdlib 87598b23eb23587c3630ca4be9a125e35ffbbe01 (selected exactly
+  as CI by harec timestamp): 626 passed, 0 failed, 11 skipped by its defaults.
+  Generated 87-file Hare corpus: 522 six-target runs, zero differ, zero rejected.
+- The published 38761337334 run remains non-green due to the two documented
+  Hare failures. A corrected atomic branch push and entirely fresh nine-job
+  CI run follow. The known-failed superseded run may be canceled to avoid
+  wasting its remaining core-job time; do not call that old run green.
+- Planned representation/interface work is implemented and locally verified;
+  fresh GitHub CI confirmation is still required. No tag/release authorized.

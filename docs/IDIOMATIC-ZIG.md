@@ -1,7 +1,7 @@
 # Idiomatic Zig rewrite tracker
 
 Status: **planned codebase-wide representation/interface pass implemented;
-CI found an operand-kind regression; correction under verification**. No new optimizer features are part of this
+operand-kind correction locally verified; fresh GitHub CI pending**. No new optimizer features are part of this
 stage. Historical HANDOFF sections record intermediate, not current, completion.
 
 ## Implemented scope

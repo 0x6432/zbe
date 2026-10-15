@@ -8,6 +8,8 @@
   instead of `div`.
 
 ### Fixes
+- -O1/-O2: folded constant `jnz` conditions now test only their low 32 bits,
+  as required by the IL specification. -O0 retains upstream output (BUGS #8).
 - Input-driven backend failures (unsupported extern/thread, extern offsets,
   allocation overflow, invalid constants, env with varargs, and initialized
   common data) now return `InvalidInput` instead of aborting. Diagnostics

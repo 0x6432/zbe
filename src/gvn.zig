@@ -363,7 +363,10 @@ fn dedupjmp(f: *Fn, b: *Blk) void {
     v = 1;
     z = 0;
     if (b.s1 == b.s2 or isconbits(f, b.jmp.arg, &v) or zeroval(f, b, b.jmp.arg, .w, &z)) {
-        if (v == 0 or z != 0)
+        // jnz has word semantics even for a folded long. Keep upstream's
+        // full-width constant test only at -O0 for byte-identical output.
+        const is_zero = if (all.optlevel == 0) v == 0 else (v & 0xffffffff) == 0;
+        if (is_zero or z != 0)
             b.s1 = b.s2;
         // we later move active ins out of dead blks
         b.s2 = null;
@@ -439,5 +442,35 @@ pub fn gvn(f: *Fn) all.Error!void {
     if (all.debug['G'] != 0) {
         dprint("\n> After GVN:\n", .{});
         printfn(f, all.dbg) catch {};
+    }
+}
+
+test "dedupjmp: folded constants use word semantics except in upstream mode" {
+    const saved = all.optlevel;
+    defer all.optlevel = saved;
+    const values = [_]i64{ 0, 1, -1, 0x100000000, 0x10000000000,
+        -0x100000000, std.math.minInt(i64), 0x100000001, 0x80000000 };
+    var constants = [_]Con{std.mem.zeroes(Con)};
+    constants[0].type = CBits;
+    var f: Fn = undefined;
+    f.con = &constants;
+    for ([_]u8{ 0, 1, 2 }) |level| {
+        all.optlevel = level;
+        for (values) |value| {
+            constants[0].bits.i = value;
+            var yes = std.mem.zeroes(Blk);
+            var no = std.mem.zeroes(Blk);
+            var b = std.mem.zeroes(Blk);
+            b.jmp.type = .jnz;
+            b.jmp.arg = all.conRef(0);
+            b.s1 = &yes;
+            b.s2 = &no;
+            dedupjmp(&f, &b);
+            const zero = if (level == 0) value == 0 else (value & 0xffffffff) == 0;
+            try std.testing.expect(b.s1 == (if (zero) &no else &yes));
+            try std.testing.expect(b.s2 == null);
+            try std.testing.expectEqual(all.J.jmp, b.jmp.type);
+            try std.testing.expect(req(b.jmp.arg, R));
+        }
     }
 }

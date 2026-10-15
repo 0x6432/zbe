@@ -627,3 +627,17 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - New work is committed only on wip/pass-storage. Local main/wip/idiomatic
   remain at 049c656; no release tag was created. Restore network access,
   fetch and inspect remote state, then fast-forward/push and check CI.
+
+
+### Constant jnz investigation/fix (2026-10-15)
+- Continues from the unpushed pass-storage checkpoint fdc5d1f. GitHub DNS
+  is still unavailable; local main/wip/idiomatic remain at 049c656.
+- Resolved the seed 1130 mystery: the Python oracle is correct. Upstream
+  gvn.c and port gvn.zig dedupjmp test all 64 constant bits, but jnz has
+  word semantics. The minimized fixture also fails at prior -O1/-O2.
+- Mask folded conditions at -O1/-O2, retaining original -O0 behavior for
+  C-compatible byte output. No oracle weakening or C-reference changes.
+- Added a direct branch-folding unit test and extended tools/jnz.sh with
+  direct, product, negative-high-only, and nonzero-low-word constant cases.
+- The original compat-mode IR-fuzz seed remains a known upstream failure;
+  optimized fuzzing is the correctness check for this fix. See BUGS.md #8.

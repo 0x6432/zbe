@@ -100,3 +100,24 @@ were still free and `vaarg` read stale save-area slots (abifuzz arm64 seed
 1002 wrong value, seed 1003 segfault). Fix: track the consumed counts
 (`8 - ngp`, `8 - nfp`) separately and use them only for the vastart Params;
 call register masks are unchanged. Found with abifuzz under qemu-aarch64.
+
+
+## 8. FIXED at -O1/-O2: constant jnz incorrectly uses all 64 bits
+
+Seed 1130 (`irfuzz.py -n 20 -s 1000 -k 150`, f14) exposed an upstream
+`gvn.c` / port `gvn.zig` branch-folding bug. `dedupjmp` checks `v == 0`
+for a constant condition, without truncating to a word. The IL specification
+requires testing only the low 32 bits, even for a long operand.
+
+Minimal example: `%x =l mul 1048576, 1048576; jnz %x, @T, @F` must
+choose @F because 2^40 has zero low 32 bits. The C reference and previous
+zbe builds choose @T. Direct 2^40 and negative multiples of 2^32 also fail.
+The Python oracle's existing low-word model is correct; it was not relaxed.
+
+The port now masks the folded condition at -O1/-O2. -O0 (including
+QBE_COMPAT=1) deliberately retains the upstream test for byte-identical
+reference output. No C reference patch or diagnostic strings changed.
+
+Regressions: tests/upstream-bug-jnz-constant.ssa, the extended tools/jnz.sh
+(native optimized semantics, six-target -O0 byte comparison and optimized
+compilation), and a unit test of dedupjmp at all three optimization levels.

@@ -1,0 +1,36 @@
+# jnz tests only its argument's low 32 bits, including folded constants.
+export function w $jconstant() {
+@start
+	jnz 1099511627776, @T, @F
+@T
+	ret 1
+@F
+	ret 0
+}
+export function w $jproduct() {
+@start
+	%x =l mul 1048576, 1048576
+	jnz %x, @T, @F
+@T
+	ret 1
+@F
+	ret 0
+}
+export function w $jnegative() {
+@start
+	%x =l copy -4294967296
+	jnz %x, @T, @F
+@T
+	ret 1
+@F
+	ret 0
+}
+export function w $jnonzero() {
+@start
+	%x =l add 1099511627776, 1
+	jnz %x, @T, @F
+@T
+	ret 1
+@F
+	ret 0
+}

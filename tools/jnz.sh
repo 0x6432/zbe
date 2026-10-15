@@ -51,10 +51,12 @@ export function w $jphi(l %a, w %c) {
 	ret 0
 }
 EOF
+cat "$D/tests/upstream-bug-jnz-constant.ssa" >> $W/f.ssa
 cat > $W/m.c <<'EOF'
 #include <stdint.h>
 #include <stdio.h>
 int jl(int64_t), jw(int32_t), jshl(int64_t, int64_t), jphi(int64_t, int32_t);
+int jconstant(void), jproduct(void), jnegative(void), jnonzero(void);
 #define LO(v) ((uint32_t)(uint64_t)(v) != 0)
 int main(void) {
   int64_t v[] = {0, 1, -1, 0x100000000ll, 0xaf25000000000000ll, (int64_t)0x8000000000000000ull,
@@ -68,12 +70,19 @@ int main(void) {
     if (jphi(v[i], 1) != LO((uint64_t)v[i] * 4294967296ull)) { printf("jphi1 %u\n", i); bad++; }
     if (jphi(v[i], 0) != LO(v[i])) { printf("jphi0 %u\n", i); bad++; }
   }
+#if OPT_LEVEL > 0
+  /* -O0 deliberately retains upstream's full-width constant-fold bug. */
+  if (jconstant() != 0) { puts("jconstant"); bad++; }
+  if (jproduct() != 0) { puts("jproduct"); bad++; }
+  if (jnegative() != 0) { puts("jnegative"); bad++; }
+  if (jnonzero() != 1) { puts("jnonzero"); bad++; }
+#endif
   return bad != 0;
 }
 EOF
 pass=0; fail=0
 for o in 0 1 2; do
-  if $Z ${QBET:+-t $QBET} -O$o $W/f.ssa > $W/f.s && ${CC:-gcc} -o $W/t $W/m.c $W/f.s && $RUN $W/t; then pass=$((pass+1))
+  if $Z ${QBET:+-t $QBET} -O$o $W/f.ssa > $W/f.s && ${CC:-gcc} -DOPT_LEVEL=$o -o $W/t $W/m.c $W/f.s && $RUN $W/t; then pass=$((pass+1))
   else fail=$((fail+1)); echo "FAIL: run -O$o"; fi
 done
 for t in amd64_sysv amd64_apple amd64_win arm64 arm64_apple rv64; do

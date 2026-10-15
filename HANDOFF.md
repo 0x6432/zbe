@@ -841,3 +841,34 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - The module audit retains intentional ABI layouts, numeric target fields,
   allocator/vector boundaries and sentinel strings. Direct indexed core-field
   consumers remain a follow-up; the rewrite is not declared complete.
+
+### Combined idiomatic cleanup verification and publication gate (2026-10-15)
+- Verified source checkpoint 957a4d4 includes parser/emitter caches, intern
+  buckets, load/store histories, typed use registration, bounded bitsets,
+  enum parser states, alias-safe instruction builders, typed CFG roots and
+  bounded temporary use readers. No new optimizer feature was added.
+- Pinned Zig build passed. Direct tests: 61/61 in Debug AND ReleaseSafe.
+  Parser/debug-file growth stress: 12/12, including real 8300-temp functions.
+- Fresh full core suite: zero failed checks. All six targets: 0/76 assembly
+  differences and 0/76 debug differences each. Native optimized/compat behavior
+  passed. Edge 291/0, bugs 110/0, library 1442/0, input errors 51/0, strict
+  comparator 42/0, CLI 21/0, jnz 21/0, opt 46/0, optsweep 910/0.
+- Division matrix: 1348 functions x3 levels; opttable: 5898 functions x3 levels.
+  Core optfuzz 40/40; optimized IR fuzz 60/60 seeds 9000..9059;
+  compatibility IR fuzz 60/60 seeds 5000..5059; ABI fuzz 60/60 seeds 1000..1059.
+  All 11 optimizer mutants killed; zero survived. Package consumer passed.
+- Additional optimized IR fuzz: 150/150 at EACH -O1 and -O2, seeds
+  1000..1149, 20 functions per seed (includes original constant-jnz seed 1130).
+- Final immutable compiler snapshot: cproc d1c53dd bootstrap and make check
+  passed. The 202-file real-world corpus: 1212 runs, zero differ, 52
+  both-failed (matched reference errors, not successful compilations).
+- Stored IR/ABI fields, compiler input diagnostic literals, C reference patch,
+  Python oracle and optimizer rewrites remain unchanged. Mutation source was
+  restored and the generated ci-out directory moved outside the repository.
+- Remote main and wip/idiomatic were fetched and both still pointed at
+  8e4311b. Their previous CI runs 38737049989 and 38738796441 are confirmed
+  successful. Fast-forward publication and NEW GitHub CI confirmation follow;
+  local green is not a claim that the newly triggered GitHub run is green.
+- The rewrite remains in progress: docs/IDIOMATIC-ZIG.md tracks the remaining
+  direct indexed core-field consumer audit and intentional representations.
+  No release tag was created or authorized.

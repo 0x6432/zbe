@@ -1133,3 +1133,22 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - Next: atomic fast-forward publication to main and wip/idiomatic, followed by
   actual fresh GitHub CI inspection. After that correctness gate, continue with
   measured performance work, then release preparation. No tag/release authorized.
+
+### Follow-up audit published; fresh CI queued
+- Atomically fast-forwarded BOTH main and wip/idiomatic from eeee52c to
+  705f6b83876e4b19dc94a1858619afab1e13936f. Remote is credential-free.
+- Fresh source run: https://github.com/0x6432/zbe/actions/runs/38778895988
+  Last inspected state: QUEUED, all nine verification jobs queued. This is NOT
+  confirmed green. The prior successful run remains historical only.
+- Bounded monitor: /data/watch-audit-ci.py, PID in /data/audit-ci-watch.pid;
+  current result /data/audit-ci-current.json, log /data/audit-ci-watch.log.
+  It stops on completion or after at most 61 polls, 30 seconds apart.
+  Credentials are transient process input/environment, not repository files,
+  remotes, archives or monitor logs. Revoke the already exposed PAT when the
+  authorized work is complete; prefer a fresh secure credential thereafter.
+- Next first inspect this fresh CI, handle any failures without weakening the
+  oracle, then performance measurements against the prepared isolated
+  ReleaseFast baseline/candidate. Release preparation follows; NO tag/release
+  or version change has been authorized or created.
+- This publication-status-only follow-up uses [skip ci]; compiler/test sources
+  remain exactly those in the fresh run above. No duplicate source run needed.

@@ -37,6 +37,14 @@ This is completion of the planned representation/interface pass, not a promise
 that every possible style improvement has been exhausted or that the compiler
 has no bugs. Full regression and CI results must be recorded before publishing.
 
+## Follow-up audit
+
+See [SOURCE-AUDIT.md](SOURCE-AUDIT.md) for further idiomatic API and ownership
+improvements found after the planned pass: optional comparison values, deferred
+GVN cleanup, recoverable library writer failures and fail-closed verification
+tools. These changes require their own current gates; the historical CI result
+below is not automatically evidence for new source.
+
 ## Deliberate low-level representations
 
 These are not unfinished work merely because they resemble the C reference:

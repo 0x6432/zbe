@@ -1085,3 +1085,31 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   inputs to actual compiler translation units (not non-standalone helper tools),
   and uses explicit immutable compiler paths. Do not count partial/failed C-to-IL
   outputs or a superseded run as complete-corpus evidence.
+
+### Follow-up audit and hardening: local publication gate
+- Full core completed its checks successfully, including mutation 11 killed /
+  0 survived and package consumer. Core includes six-target compatibility
+  assembly AND debug identity (0/76 differ each), native optimized/compat
+  behavior, edge 291/0, bugs 110/0, library 1442/0, input errors 51/0,
+  strict diagnostics 42/0, CLI 23/0, jump 21/0, parser cache/ref-kind 12/0 each,
+  opt 46/0, optsweep 910/0, opt2 1348 functions x 3 and opttable 5898 x 3.
+  Core fuzz: optfuzz 40, IR optimized 60, IR compatibility 60 and ABI 60 passed.
+- Direct Debug and ReleaseSafe units remain 73/73. The package's 162 writer
+  recovery checks also pass. The same consumer FAILS as expected against the
+  original eeee52c library: it exits the process with "qbe: write error".
+- Additional optimized fuzz 150/150 at EACH -O1/-O2, seeds 1000..1149 (n=20).
+  -O0 remains byte-identical and intentionally retains upstream jnz semantics.
+- Pinned cproc bootstrap matched stage2/stage3; check 196/196 passed.
+  Final fail-fast 231-file corpus includes complete QBE compiler translation
+  units generated with explicit host limit macros, cproc/benchmark units and
+  upstream cproc IL fixtures. Six-target compatibility: 1386 runs, 0 differ,
+  100 matched both-failed. Optimized corpus sweep: 2572 passed, 0 failed.
+  The 11 empty files are upstream cproc expected-IL fixtures, not retained failed
+  generated outputs. Earlier exploratory corpus runners are superseded.
+- Benchmark safety 9 tests and memcheck harness 4 tests passed independently;
+  both now run in core/native CI. Valgrind is not installed locally, so no
+  actual memory-scan result is claimed. No performance improvement is claimed.
+- Actual remote main/wip/idiomatic were fetched at eeee52c. Prior source run
+  38763807465 was rechecked: completed SUCCESS for ac2e336. This is historical
+  evidence only. Publish these fast-forward changes, then inspect a FRESH CI
+  run; do not label it green before it finishes. No tag, release or version bump.

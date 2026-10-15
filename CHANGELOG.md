@@ -8,6 +8,11 @@
   instead of `div`.
 
 ### Fixes
+- Zig library output failures now return `WriteFailed` instead of terminating
+  the embedding process. Output-unit floating constants and debug-file state
+  are discarded after failed or successful library compilations.
+- GVN releases its per-function hash table on failed constant folding as well
+  as success; repeated failure/recovery and empty functions are covered.
 - -O1/-O2: folded constant `jnz` conditions now test only their low 32 bits,
   as required by the IL specification. -O0 retains upstream output (BUGS #8).
 - Input-driven backend failures (unsupported extern/thread, extern offsets,
@@ -23,6 +28,10 @@
   leaves stale va register counts (BUGS.md #7, also in the C patch).
 
 ### Code quality
+- Comparison decoding returns an optional class/condition value instead of a
+  boolean plus output parameters; all target selectors use the typed result.
+- Benchmark and memory-check harnesses reject failed executions rather than
+  timing/counting them as successes, with dedicated harness regressions.
 - Parser operand validation checks the reference kind before indexing temporary
   storage; high type/constant IDs are covered by six-target comparison tests.
 - Active Fn/Blk/Phi/type-table consumers across passes and targets use bounded

@@ -18,11 +18,11 @@ The previous nine-job CI result covers ac2e336, not the changes below.
 
 | Finding | Priority | Disposition |
 | --- | --- | --- |
-| Comparison decoding returns a bool and writes two output parameters, requiring undefined locals even when callers only need a predicate | Idiomatic API | Replace with an optional Comparison value; retain numeric condition codes and update SSA/copy/GCM and all three target selectors |
-| GVN allocates its per-function hash table before fallible folding, but frees it only on success | Correctness / ownership | Defer release and reset immediately after allocation; regress failed floating-address folding followed by successful and zero-instruction functions |
-| Shared driver emission callbacks exit the process on writer failure, despite the Zig library exposing WriteFailed | Correctness / embedding | Propagate callback writer errors to the CLI/library boundary; keep the CLI diagnostic and exit behavior |
-| Benchmark timing ignores subprocess failures in several paths, and successful-output checks ignore executable return codes | Verification reliability | Harden before trusting performance results; reject failed/crashed/timed-out commands |
-| Memcheck describes six targets but runs five, shares a fixed temporary path, and counts non-99 failures as success | Verification reliability | Require explicit handling before claiming memory-check coverage |
+| Comparison decoding returns a bool and writes two output parameters, requiring undefined locals even when callers only need a predicate | Idiomatic API | Implemented optional Comparison values; numeric condition codes retained; SSA/copy/GCM and all three target selectors updated |
+| GVN allocates its per-function hash table before fallible folding, but frees it only on success | Correctness / ownership | Implemented deferred release/reset; direct regression alternates failed floating-address folding, successful and zero-instruction functions |
+| Shared driver emission callbacks exit the process on writer failure, despite the Zig library exposing WriteFailed | Correctness / embedding | Implemented separate callback error propagation and library output-unit cleanup; 162 recovery checks pass; CLI wording/exit preserved |
+| Benchmark timing ignores subprocess failures in several paths, and successful-output checks ignore executable return codes | Verification reliability | Implemented checked builds/runs, finite timeouts and temporary cleanup; 9 fail-closed harness tests pass |
+| Memcheck describes six targets but runs five, shares a fixed temporary path, and counts non-99 failures as success | Verification reliability | Fixed six-target coverage, temporary isolation and nonzero-exit classification; 4 stub tests pass; Valgrind itself unavailable locally |
 | Repository-wide zig fmt --check reports pre-existing differences | Style / lower priority | Do not conceal this or reformat unrelated compiler code in a semantic patch |
 
 ## Boundaries to keep

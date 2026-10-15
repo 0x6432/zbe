@@ -660,3 +660,43 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - This branch includes the previous unpushed pass-storage cleanup. Network
   remains unavailable, so it is an offline checkpoint only; main and
   wip/idiomatic still point to 049c656. No release tag was created.
+
+### Imported checkpoint review and online verification (2026-10-15)
+- Imported zbe-jnz-fix.bundle after successful prerequisite verification.
+  The original four-commit chain through c9da5b6 is preserved; no cumulative
+  patch was applied and no completed code change was recreated.
+- Fresh GitHub clone and subsequent fetch both found main and wip/idiomatic
+  at 049c6562318c0c6fc50937fb1951fad6cfc76d01, permitting fast-forward.
+- Confirmed prior run https://github.com/0x6432/zbe/actions/runs/38454908393
+  completed successfully: all nine verification jobs passed (release skipped).
+- Reviewed bounded register maps/memory views, scratch ownership and reuse,
+  active-prefix sorting, and the optimized low-word branch test. No change
+  to the oracle, C-reference patch, diagnostics, or CI workflow was needed.
+- Rebuilt with Zig 0.18.0-dev.35+5e754304d and the vendored patched C reference.
+  Direct unit tests: 41/41. Full tools/ci.sh core: zero failed checks.
+  Six-target compatibility assembly/debug: 0/76 differ per target; jnz 21/0;
+  bugs 110/0; library 1442/0; input errors 51/0; strict comparator 42/0;
+  CLI 21/0; optsweep 910/0; opt 46/0; opt2 and opttable passed;
+  native optimized/compat behavior passed; package consumer passed.
+  Core optfuzz 40/40, optimized IR fuzz 60/60 (9000..9059), compatibility
+  IR fuzz 60/60 (5000..5059), and ABI fuzz 60/60 (1000..1059) passed.
+  Mutation suite killed all 11 mutants; source was restored afterward.
+- Targeted optimized IR fuzz: 150/150 at EACH of -O1 and -O2, 20 functions
+  per iteration, seeds 1000..1149. This includes the original seed 1130.
+- QBE_COMPAT=1 seed 1130 still fails with f14 mismatch, as deliberately
+  retained upstream behavior. Its assembly matches the C reference on all
+  six targets. This is not reported as a semantic compatibility-mode fix.
+- Fresh-sandbox edge suite: 291/291 passed for both c9da5b6 and the original
+  049c656 baseline. The previous sandbox's 20 failures did not reproduce.
+- The prior generated cproc corpus was not present in this sandbox; its
+  archived verification is preserved, not represented as freshly rerun.
+- Local main and wip/idiomatic are fast-forwarded to this reviewed handoff
+  checkpoint. Publishing remains blocked pending fresh GitHub device
+  authorization; no configured authenticated GitHub connection was available.
+  Remote branches remain at 049c656 and no new CI run has been triggered.
+  Re-fetch before publishing, push both branches without force, then check CI
+  and append the actual published checkpoint/run result here.
+- No release tag was created. Exposed credentials were not reused or copied
+  into repository content, remotes, archives, or verification logs.
+- Review logs are /data/recheck-*.log, /data/recheck-summary.log,
+  /data/recheck-unit-direct.log and /data/baseline-edge.log.

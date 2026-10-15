@@ -641,3 +641,22 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   direct, product, negative-high-only, and nonzero-low-word constant cases.
 - The original compat-mode IR-fuzz seed remains a known upstream failure;
   optimized fuzzing is the correctness check for this fix. See BUGS.md #8.
+
+### Constant jnz verification (2026-10-15)
+- Build OK; unit suite 41/41, including direct constant branch-folding checks
+  at -O0/-O1/-O2 for zero, signed/high-only, and nonzero low-word values.
+- Extended jnz harness: 21 passed, 0 failed (native semantics, six-target
+  reference comparison, and optimized compilation across all targets).
+- IR fuzz at both -O1 and -O2: 150/150 iterations OK, seeds 1000..1149,
+  20 functions per iteration. Original seed 1130 now passes in both modes.
+- -O0 still reproduces upstream's seed 1130 failure by design. Oracle and
+  C-reference source remain untouched; compatibility is not presented as
+  a semantic pass for that seed.
+- Six-target assembly/debug comparisons: 0/76 differ on each target.
+- Input errors 51/0; comparator cases 42/0; bugs 110/0; library 1442/0.
+- cproc corpus: 1212 runs, 0 differ, 52 both-failed; behavior OK;
+  ABI fuzz 20/20. Edge 271/20, with the full failure list unchanged.
+- Diagnostic strings and all 11 optimizer mutation patterns remain intact.
+- This branch includes the previous unpushed pass-storage cleanup. Network
+  remains unavailable, so it is an offline checkpoint only; main and
+  wip/idiomatic still point to 049c656. No release tag was created.

@@ -1,7 +1,8 @@
 #!/bin/sh
 # jnz semantics (IL spec): only the low 32 bits of the argument are tested,
 # even for a long. Run natively at every -O level, plus byte comparison with
-# the C reference in compat mode. Regression test for BUGS.md #4.
+# the C reference in compat mode. Regression tests for BUGS.md #4 and #8.
+# Constant-fold correctness is checked at -O1/-O2; -O0 retains upstream output.
 D=$(cd "$(dirname "$0")/.." && pwd)
 Z=${ZQBE:-$D/zig-out/bin/qbe}
 REF=${QBEREF:-/data/qbe-cfix/qbe}

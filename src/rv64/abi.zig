@@ -570,7 +570,7 @@ fn selpar(f: *Fn, ins: []Ins) all.Error!Params {
     for (ins, ca) |*i, *c| {
         if (i.op == .parc and (c.class & Cptr) == 0) {
             if (c.nreg == 0) {
-                f.tmp[i.to.val].slot = -s;
+                f.tmps()[i.to.val].slot = -s;
                 s += if ((c.class & Cstk2) != 0) 2 else 1;
                 continue;
             }

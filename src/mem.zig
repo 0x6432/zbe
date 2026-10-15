@@ -65,7 +65,7 @@ pub fn promote(f: *Fn) all.Error!void {
             continue;
         // specific to NAlign == 3
         assert(rtype(i.to) == RTmp);
-        const t = &f.tmp[i.to.val];
+        const t = &f.tmps()[i.to.val];
         if (t.ndef != 1)
             continue :outer; // goto Skip
         var k: i32 = -1;
@@ -103,7 +103,7 @@ pub fn promote(f: *Fn) all.Error!void {
                 t.ndef += 1;
             } else {
                 if (k == -1)
-                    return fail("slot %{s} is read but never stored to", .{cs(f.tmp[l.arg[0].val].name)});
+                    return fail("slot %{s} is read but never stored to", .{cs(f.tmps()[l.arg[0].val].name)});
                 // try to turn loads into copies so we
                 // can eliminate them later
                 sw: switch (l.op) {
@@ -175,7 +175,7 @@ fn slot(off: *i64, r: Ref, f: *Fn, sl: []Slot) ?*Slot {
     getalias(&a, r, f);
     if (a.type != ALoc)
         return null;
-    const t = &f.tmp[@intCast(a.base)];
+    const t = &f.tmps()[@intCast(a.base)];
     if (t.visit < 0)
         return null;
     off.* = a.offset;
@@ -244,7 +244,7 @@ pub fn coalesce(f: *Fn) void {
     var slv = vnewT(Slot, 0, PHeap);
     var tn: i32 = Tmp0;
     while (tn < f.ntmp) : (tn += 1) {
-        const t = &f.tmp[@intCast(tn)];
+        const t = &f.tmps()[@intCast(tn)];
         t.visit = -1;
         if (t.alias.type == ALoc)
             if (t.alias.slot == &t.alias)
@@ -376,13 +376,13 @@ pub fn coalesce(f: *Fn) void {
         if (nstk != 0) {
             dprint("\tkill [", .{});
             for (stk[0..nstk]) |st|
-                dprint(" %{s}", .{cs(f.tmp[@intCast(st)].name)});
+                dprint(" %{s}", .{cs(f.tmps()[@intCast(st)].name)});
             dprint(" ]\n", .{});
         }
     }
     while (nstk != 0) {
         nstk -= 1;
-        const t = &f.tmp[@intCast(stk[nstk])];
+        const t = &f.tmps()[@intCast(stk[nstk])];
         assert(t.ndef == 1);
         const i = t.def.?;
         if (isload(i.op)) {
@@ -445,7 +445,7 @@ pub fn coalesce(f: *Fn) void {
 
     // substitute fused slots
     for (sl, 0..) |*s, sn| {
-        const t = &f.tmp[@intCast(s.t)];
+        const t = &f.tmps()[@intCast(s.t)];
         // the visit link is stale,
         // reset it before the slot()
         // calls below
@@ -455,7 +455,7 @@ pub fn coalesce(f: *Fn) void {
         if (ss == s)
             continue;
         t.def.?.* = insOp(.nop);
-        const ts = &f.tmp[@intCast(ss.t)];
+        const ts = &f.tmps()[@intCast(ss.t)];
         assert(t.bid == ts.bid);
         if (@intFromPtr(t.def) < @intFromPtr(ts.def)) {
             // make sure the slot we
@@ -506,7 +506,7 @@ pub fn coalesce(f: *Fn) void {
             for (sl[n..]) |*s| {
                 if (s.s != s0)
                     continue;
-                dprint(" %{s}", .{cs(f.tmp[@intCast(s.t)].name)});
+                dprint(" %{s}", .{cs(f.tmps()[@intCast(s.t)].name)});
                 if (s.r.b != 0)
                     dprint("[{d},{d})", .{ s.r.a - ip, s.r.b - ip })
                 else

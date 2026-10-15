@@ -610,13 +610,13 @@ fn tmpref() Ref {
     var i: usize = hash(tokval.str) & @as(u32, @intCast(mask));
     while (st.tmph[i] != 0) : (i = (i + 1) & mask) {
         const t = st.tmph[i];
-        if (streq(st.curf.tmp[@intCast(t)].name, tokval.str))
+        if (streq(st.curf.tmps()[@intCast(t)].name, tokval.str))
             return tmpRef(t);
     }
     const t = st.curf.ntmp;
     st.tmph[i] = t;
     _ = newtmp(null, .x, st.curf);
-    st.curf.tmp[@intCast(t)].name = strf(PFn, "{s}", .{cs(tokval.str)});
+    st.curf.tmps()[@intCast(t)].name = strf(PFn, "{s}", .{cs(tokval.str)});
     return tmpRef(t);
 }
 
@@ -663,7 +663,7 @@ fn parseref() Error!Ref {
             c.sym.id = intern(tokval.str);
         },
     }
-    return newcon(&c, st.curf);
+    return newcon(c, st.curf);
 }
 
 fn findtyp(i_: i32) Error!i32 {
@@ -985,7 +985,7 @@ fn parseline(ps: PState) Error!PState {
                 all.curi += 1;
                 if (rtype(arg[2]) != RCon)
                     return fail("blit size must be constant", .{});
-                const c = &st.curf.con[arg[2].val];
+                const c = &st.curf.cons()[arg[2].val];
                 r = intRef(c.bits.i);
                 if (c.type != CBits or rsval(r) < 0 or rsval(r) != c.bits.i)
                     return fail("invalid blit size", .{});
@@ -1013,7 +1013,7 @@ fn parseline(ps: PState) Error!PState {
 }
 
 fn usecheck(r: Ref, k: i32, f: *Fn) bool {
-    return rtype(r) != RTmp or f.tmp[r.val].cls.int() == k or (f.tmp[r.val].cls == .l and k == Cls.w.int());
+    return rtype(r) != RTmp or f.tmps()[r.val].cls.int() == k or (f.tmps()[r.val].cls == .l and k == Cls.w.int());
 }
 
 fn typecheck(f: *Fn) Error!void {
@@ -1030,10 +1030,10 @@ fn typecheck(f: *Fn) Error!void {
     while (b_it) |b| : (b_it = b.link) {
         var p_it: ?*Phi = b.phi;
         while (p_it) |p| : (p_it = p.link)
-            f.tmp[p.to.val].cls = p.cls;
+            f.tmps()[p.to.val].cls = p.cls;
         for (b.insns()) |*i|
             if (rtype(i.to) == RTmp) {
-                t = &f.tmp[i.to.val];
+                t = &f.tmps()[i.to.val];
                 if (clsmerge(&t.?.cls, i.cls))
                     return fail("temporary %{s} is assigned with multiple types", .{cs(t.?.name)});
             };
@@ -1047,14 +1047,14 @@ fn typecheck(f: *Fn) Error!void {
         var p_it: ?*Phi = b.phi;
         while (p_it) |p| : (p_it = p.link) {
             bszero(&ppb);
-            t = &f.tmp[p.to.val];
+            t = &f.tmps()[p.to.val];
             n = 0;
             while (n < p.narg) : (n += 1) {
                 k = t.?.cls.int();
                 if (bshas(&ppb, p.blk[n].id))
                     return fail("multiple entries for @{s} in phi %{s}", .{cs(p.blk[n].name), cs(t.?.name)});
                 if (!usecheck(p.arg[n], k, f))
-                    return fail("invalid type for operand %{s} in phi %{s}", .{cs(f.tmp[p.arg[n].val].name), cs(t.?.name)});
+                    return fail("invalid type for operand %{s} in phi %{s}", .{cs(f.tmps()[p.arg[n].val].name), cs(t.?.name)});
                 bsset(&ppb, p.blk[n].id);
             }
             if (!bsequal(&pb, &ppb))
@@ -1065,7 +1065,7 @@ fn typecheck(f: *Fn) Error!void {
             while (n < 2) : (n += 1) {
                 k = all.optab[i.op.int()].argcls[n][i.cls.idx()];
                 r = i.arg[n];
-                t = &f.tmp[r.val];
+                t = &f.tmps()[r.val];
                 const which: []const u8 = if (n == 1) "second" else "first";
                 if (k == Ke)
                     return fail("invalid instruction type in {s}", .{cs(all.optab[i.op.int()].name)});
@@ -1092,7 +1092,7 @@ fn typecheck(f: *Fn) Error!void {
                 jerr = true;
         }
         if (jerr or (b.jmp.type == .jnz and !usecheck(r, Cls.w.int(), f)))
-            return fail("invalid type for jump argument %{s} in block @{s}", .{cs(f.tmp[r.val].name), cs(b.name)});
+            return fail("invalid type for jump argument %{s} in block @{s}", .{cs(f.tmps()[r.val].name), cs(b.name)});
         if (b.s1 != null and b.s1.?.jmp.type == .xxx)
             return fail("block @{s} is used undefined", .{cs(b.s1.?.name)});
         if (b.s2 != null and b.s2.?.jmp.type == .xxx)
@@ -1118,9 +1118,9 @@ fn parsefn(lnk: *Lnk) Error!*Fn {
         } else {
             _ = newtmp(null, .l, st.curf);
         };
-    st.curf.con[0].type = CBits;
-    st.curf.con[0].bits.i = 0xdeaddead; // UNDEF
-    st.curf.con[1].type = CBits;
+    st.curf.cons()[0].type = CBits;
+    st.curf.cons()[0].bits.i = 0xdeaddead; // UNDEF
+    st.curf.cons()[1].type = CBits;
     st.curf.lnk = lnk.*;
     st.curf.leaf = 1;
     st.blink = &st.curf.start;
@@ -1497,20 +1497,20 @@ pub fn printref(r: Ref, f: *Fn, fp: *Writer) Writer.Error!void {
             if (r.val < Tmp0)
                 try fp.print("R{d}", .{r.val})
             else
-                try fp.print("%{s}", .{cs(f.tmp[r.val].name)});
+                try fp.print("%{s}", .{cs(f.tmps()[r.val].name)});
         },
         RCon => {
             if (req(r, UNDEF))
                 try fp.print("UNDEF", .{})
             else
-                try printcon(&f.con[r.val], fp);
+                try printcon(&f.cons()[r.val], fp);
         },
         RSlot => try fp.print("S{d}", .{rsval(r)}),
         RCall => try fp.print("{x:0>4}", .{r.val}),
         RType => try fp.print(":{s}", .{cs(all.typ[r.val].name)}),
         RMem => {
             var i = false;
-            const m = &f.mem[r.val];
+            const m = &f.mems()[r.val];
             try fp.writeByte('[');
             if (m.offset.type != CUndef) {
                 try printcon(&m.offset, fp);
@@ -1647,7 +1647,7 @@ test "temporary hash slice: initial allocation, deduplication, and reuse" {
     try std.testing.expect(req(tmpref(), tmpRef(Tmp0)));
     try std.testing.expectEqual(cached, st.tmph.ptr);
     try std.testing.expectEqual(@as(usize, TMask + 1), st.tmph.len);
-    try std.testing.expectEqualStrings("beta", cs(f.tmp[Tmp0].name));
+    try std.testing.expectEqualStrings("beta", cs(f.tmps()[Tmp0].name));
 }
 
 test "temporary hash slice: wrapped collisions and rehash preserve references" {

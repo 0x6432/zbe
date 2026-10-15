@@ -101,7 +101,7 @@ const vgrow = all.vgrow;
 fn noimm(r: Ref, f: *Fn) all.Error!bool {
     if (rtype(r) != RCon)
         return false;
-    switch (f.con[r.val].type) {
+    switch (f.cons()[r.val].type) {
         CAddr => {
             // we only support the 'small'
             // code model of the ABI, this
@@ -110,7 +110,7 @@ fn noimm(r: Ref, f: *Fn) all.Error!bool {
             return false;
         },
         CBits => {
-            const val = f.con[r.val].bits.i;
+            const val = f.cons()[r.val].bits.i;
             return (val < std.math.minInt(i32) or val > std.math.maxInt(i32));
         },
         else => return all.failInput("invalid constant", .{}),
@@ -120,21 +120,19 @@ fn noimm(r: Ref, f: *Fn) all.Error!bool {
 fn rslot(r: Ref, f: *Fn) i32 {
     if (rtype(r) != RTmp)
         return -1;
-    return f.tmp[r.val].slot;
+    return f.tmps()[r.val].slot;
 }
 
-fn hascon(r: Ref, pc: **Con, f: *Fn) bool {
-    switch (rtype(r)) {
-        RCon => {
-            pc.* = &f.con[r.val];
-            return true;
-        },
-        RMem => {
-            pc.* = &f.mem[r.val].offset;
-            return true;
-        },
-        else => return false,
-    }
+/// Snapshot an external/TLS constant before lowering can grow its table.
+fn externalConstant(r: Ref, f: *Fn, apple: bool) ?Con {
+    const c = switch (rtype(r)) {
+        RCon => f.cons()[r.val],
+        RMem => f.mems()[r.val].offset,
+        else => return null,
+    };
+    if (c.type != CAddr or ((c.sym.type & SExt) == 0 and
+        (!apple or c.sym.type != SThr))) return null;
+    return c;
 }
 
 /// i is the instruction r belongs to (null for phi arguments)
@@ -142,12 +140,11 @@ fn fixarg(r: *Ref, k: Cls, i: ?*Ins, f: *Fn) all.Error!void {
     var buf: [32]u8 = undefined;
     var a: Addr = undefined;
     var cc: Con = undefined;
-    var c: *Con = undefined;
-
     var r0 = r.*;
     var r1 = r0;
     const s = rslot(r0, f);
     const op: Opc = if (i) |ii| ii.op else .copy;
+    const external = if (op == .call) null else externalConstant(r0, f, all.T.apple != 0);
     if (clsBase(k) == 1 and rtype(r0) == RCon) {
         // load floating points from memory
         // slots, they can't be used as
@@ -157,15 +154,15 @@ fn fixarg(r: *Ref, k: Cls, i: ?*Ins, f: *Fn) all.Error!void {
         vgrow(&f.mem, f.nmem);
         a = std.mem.zeroes(Addr);
         a.offset.type = CAddr;
-        const n = stashbits(@bitCast(f.con[r0.val].bits.i), if (clsWide(k) != 0) 8 else 4);
+        const n = stashbits(@bitCast(f.cons()[r0.val].bits.i), if (clsWide(k) != 0) 8 else 4);
         // quote the name so that we do not
         // add symbol prefixes on the apple
         // target variant
         bufPrintZ(&buf, "\"{s}fp{d}\"", .{cs(&all.T.asloc), n});
         a.offset.sym.id = intern(@ptrCast(&buf));
-        f.mem[@intCast(f.nmem - 1)] = a;
+        f.mems()[@intCast(f.nmem - 1)] = a;
     } else if (op == .call and r == &i.?.arg[0] and
-        rtype(r0) == RCon and f.con[r0.val].type != CAddr)
+        rtype(r0) == RCon and f.cons()[r0.val].type != CAddr)
     {
         // use a temporary register so that we
         // produce an indirect call
@@ -183,10 +180,7 @@ fn fixarg(r: *Ref, k: Cls, i: ?*Ins, f: *Fn) all.Error!void {
         // instruction
         r1 = newtmp("isel", .l, f);
         emit(.addr, .l, r1, slotRef(s), R);
-    } else if (op != .call and hascon(r0, &c, f) and
-        c.type == CAddr and ((c.sym.type & SExt) != 0 or
-        (all.T.apple != 0 and c.sym.type == SThr)))
-    {
+    } else if (external) |c| {
         r1 = newtmp("isel", .l, f);
         var r2: Ref = undefined;
         var r3: Ref = undefined;
@@ -195,7 +189,7 @@ fn fixarg(r: *Ref, k: Cls, i: ?*Ins, f: *Fn) all.Error!void {
             cc = std.mem.zeroes(Con);
             cc.type = CBits;
             cc.bits.i = c.bits.i;
-            r3 = newcon(&cc, f);
+            r3 = newcon(cc, f);
             emit(.add, .l, r1, r2, r3);
         } else r2 = r1;
         if (all.T.apple != 0 and (c.sym.type & SThr) != 0) {
@@ -206,19 +200,19 @@ fn fixarg(r: *Ref, k: Cls, i: ?*Ins, f: *Fn) all.Error!void {
             emit(.copy, .l, tmpRef(RDI), r2, R);
             emit(.load, .l, r3, r2, R);
         }
-        cc = c.*;
+        cc = c;
         cc.bits.i = 0;
-        r3 = newcon(&cc, f);
+        r3 = newcon(cc, f);
         emit(.addr, .l, r2, r3, R);
         if (rtype(r0) == RMem) {
-            const m = &f.mem[r0.val];
+            const m = &f.mems()[r0.val];
             m.offset.type = CUndef;
             m.base = r1;
             r1 = r0;
         }
     } else if (!(isstore(op) and r == &i.?.arg[1]) and
         !isload(op) and op != .call and rtype(r0) == RCon and
-        f.con[r0.val].type == CAddr)
+        f.cons()[r0.val].type == CAddr)
     {
         // turn address operands into
         // lea/mov instructions
@@ -227,11 +221,11 @@ fn fixarg(r: *Ref, k: Cls, i: ?*Ins, f: *Fn) all.Error!void {
     } else if (rtype(r0) == RMem) {
         // eliminate memory operands of
         // the form $foo(%rip, ...)
-        const m = &f.mem[r0.val];
+        const m = &f.mems()[r0.val];
         if (req(m.base, R))
             if (m.offset.type == CAddr) {
                 r0 = newtmp("isel", .l, f);
-                emit(.addr, .l, r0, newcon(&m.offset, f), R);
+                emit(.addr, .l, r0, newcon(m.offset, f), R);
                 m.offset.type = CUndef;
                 m.base = r0;
             };
@@ -267,7 +261,7 @@ fn seladdr(r: *Ref, tn: []Num, f: *Fn) void {
         chuse(r0, -1, f);
         f.nmem += 1;
         vgrow(&f.mem, f.nmem);
-        f.mem[@intCast(f.nmem - 1)] = a;
+        f.mems()[@intCast(f.nmem - 1)] = a;
         chuse(a.base, 1, f);
         chuse(a.index, 1, f);
         r.* = memRef(f.nmem - 1);
@@ -312,7 +306,7 @@ fn sel(i_: Ins, tn: ?[]Num, f: *Fn) all.Error!void {
 
     if (rtype(i.to) == RTmp)
         if (!isreg(i.to) and !isreg(i.arg[0]) and !isreg(i.arg[1]))
-            if (f.tmp[i.to.val].nuse == 0) {
+            if (f.tmps()[i.to.val].nuse == 0) {
                 chuse(i.arg[0], -1, f);
                 chuse(i.arg[1], -1, f);
                 return;
@@ -337,8 +331,8 @@ fn sel(i_: Ins, tn: ?[]Num, f: *Fn) all.Error!void {
                 // divisions in x86
                 r0 = newtmp("isel", k, f);
             } else r0 = i.arg[1];
-            if (f.tmp[r0.val].slot != -1)
-                return fail("unlikely argument %{s} in {s}", .{cs(f.tmp[r0.val].name), cs(all.optab[i.op.int()].name)});
+            if (f.tmps()[r0.val].slot != -1)
+                return fail("unlikely argument %{s} in {s}", .{cs(f.tmps()[r0.val].name), cs(all.optab[i.op.int()].name)});
             if (i.op == .div or i.op == .rem) {
                 emit(.xidiv, k, R, r0, R);
                 emit(.sign, k, tmpRef(RDX), tmpRef(RAX), R);
@@ -355,7 +349,7 @@ fn sel(i_: Ins, tn: ?[]Num, f: *Fn) all.Error!void {
             r0 = i.arg[1];
             if (rtype(r0) == RCon) {
                 // x86 masks the count; an immediate >= width does not assemble
-                const c = &f.con[r0.val];
+                const c = &f.cons()[r0.val];
                 if (c.type == CBits) {
                     const m: i64 = if (k == .w) 31 else 63;
                     if (c.bits.i & m != c.bits.i)
@@ -363,8 +357,8 @@ fn sel(i_: Ins, tn: ?[]Num, f: *Fn) all.Error!void {
                 }
                 continue :sw .copy; // goto Emit
             }
-            if (f.tmp[r0.val].slot != -1)
-                return fail("unlikely argument %{s} in {s}", .{cs(f.tmp[r0.val].name), cs(all.optab[i.op.int()].name)});
+            if (f.tmps()[r0.val].slot != -1)
+                return fail("unlikely argument %{s} in {s}", .{cs(f.tmps()[r0.val].name), cs(all.optab[i.op.int()].name)});
             i.arg[1] = tmpRef(RCX);
             emit(.copy, .w, R, tmpRef(RCX), R);
             emiti(i);
@@ -560,7 +554,7 @@ fn selsel(f: *Fn, b: *Blk, n1: uint, tn: []Num) all.Error!uint {
     assert(isel0.op == .sel0);
     var r = isel0.arg[0];
     assert(rtype(r) == RTmp);
-    const t = &f.tmp[r.val];
+    const t = &f.tmps()[r.val];
     const fi_ = flagi(b.ins[0..n0]);
     cr[0] = R;
     cr[1] = R;
@@ -644,7 +638,7 @@ fn seljmp(b: *Blk, f: *Fn) all.Error!void {
         return;
     assert(b.jmp.type == .jnz);
     var r = b.jmp.arg;
-    const t = &f.tmp[r.val];
+    const t = &f.tmps()[r.val];
     b.jmp.arg = R;
     assert(rtype(r) == RTmp);
     if (b.s1 == b.s2) {
@@ -839,7 +833,7 @@ fn adisp(c: *Con, tn: []Num, r_: Ref, f: *Fn, s: i32) Ref {
             break;
         runmatch(matcher[Pob], tn, r, &v);
         assert(rtype(v[0]) == RCon);
-        _ = addcon(c, &f.con[v[0].val], s);
+        _ = addcon(c, &f.cons()[v[0].val], s);
         r = v[1];
     }
     return r;
@@ -878,13 +872,13 @@ fn amatch(a: ?*Addr, tn: []Num, r: Ref, f: *Fn) bool {
             return addcon(&a.?.offset, &co, 1);
     if (!req(ro, R)) {
         assert(rtype(ro) == RCon);
-        const c = &f.con[ro.val];
+        const c = &f.cons()[ro.val];
         if (!addcon(&co, c, 1))
             return false;
     }
     if (!req(rs, R)) {
         assert(rtype(rs) == RCon);
-        const c = &f.con[rs.val];
+        const c = &f.cons()[rs.val];
         assert(c.type == CBits);
         s = @truncate(c.bits.i);
     }
@@ -892,16 +886,16 @@ fn amatch(a: ?*Addr, tn: []Num, r: Ref, f: *Fn) bool {
     a.?.* = .{ .offset = co, .base = rb, .index = ri, .scale = s };
 
     if (rtype(ri) == RTmp)
-        if (f.tmp[ri.val].slot != -1) {
+        if (f.tmps()[ri.val].slot != -1) {
             if (a.?.scale != 1 or
-                f.tmp[rb.val].slot != -1)
+                f.tmps()[rb.val].slot != -1)
                 return false;
             a.?.base = ri;
             a.?.index = rb;
         };
     if (!req(a.?.base, R)) {
         assert(rtype(a.?.base) == RTmp);
-        s = f.tmp[a.?.base.val].slot;
+        s = f.tmps()[a.?.base.val].slot;
         if (s != -1)
             a.?.base = slotRef(s);
     }
@@ -925,14 +919,14 @@ pub fn amd64_isel(f: *Fn) all.Error!void {
             if (i.op.diff(Opc.alloc_first) == al) {
                 if (rtype(i.arg[0]) != RCon)
                     break;
-                var sz = f.con[i.arg[0].val].bits.i;
+                var sz = f.cons()[i.arg[0].val].bits.i;
                 if (sz < 0 or sz >= std.math.maxInt(i32) - 15)
                     return fail("invalid alloc size {d}", .{sz});
                 sz = (sz + n - 1) & -@as(i64, n);
                 sz = @divTrunc(sz, 4);
                 if (sz > std.math.maxInt(i32) - f.slot)
                     return all.failInput("alloc too large", .{});
-                f.tmp[i.to.val].slot = f.slot;
+                f.tmps()[i.to.val].slot = f.slot;
                 f.slot += @intCast(sz);
                 f.salign = 2 + al;
                 i.* = insOp(.nop);
@@ -987,6 +981,7 @@ test "noimm returns InvalidInput for an invalid constant" {
     var con = [_]Con{std.mem.zeroes(Con)};
     var f = std.mem.zeroes(Fn);
     f.con = &con;
+    f.ncon = con.len;
     try std.testing.expectError(error.InvalidInput, noimm(all.conRef(0), &f));
     try std.testing.expectEqualStrings("qbe: dying: invalid constant\n", dbg.buffered());
 }
@@ -1049,4 +1044,35 @@ test "anumber slices: classifies original instructions within fixed bounds" {
     try std.testing.expectEqual(@as(u8, 3), numbers[3].n);
     try std.testing.expectEqual(@as(u8, 99), storage[0].n);
     try std.testing.expectEqual(@as(u8, 100), storage[5].n);
+}
+
+test "external constant snapshots: table growth and target classification" {
+    var f = std.mem.zeroes(Fn);
+    f.con = all.vnewT(Con, 2, all.PHeap);
+    defer all.vfree(f.con);
+    f.ncon = 2;
+    f.cons()[0] = std.mem.zeroes(Con);
+    f.cons()[0].type = CAddr;
+    f.cons()[0].sym = .{ .type = SExt, .id = 17 };
+    f.cons()[0].bits.i = 64;
+    f.cons()[1] = std.mem.zeroes(Con);
+    f.cons()[1].type = CBits;
+    const snapshot = externalConstant(all.conRef(0), &f, false).?;
+    const old_storage = @intFromPtr(f.con);
+    _ = getcon(99, &f);
+    try std.testing.expect(old_storage != @intFromPtr(f.con));
+    try std.testing.expectEqual(@as(i64, 64), snapshot.bits.i);
+    try std.testing.expectEqual(@as(u32, 17), snapshot.sym.id);
+    try std.testing.expect(externalConstant(all.conRef(1), &f, false) == null);
+    try std.testing.expect(externalConstant(all.R, &f, false) == null);
+    f.cons()[0].sym.type = SThr;
+    try std.testing.expect(externalConstant(all.conRef(0), &f, false) == null);
+    try std.testing.expect(externalConstant(all.conRef(0), &f, true) != null);
+    var memory = [_]all.Mem{std.mem.zeroes(all.Mem)};
+    memory[0].offset = snapshot;
+    f.mem = &memory;
+    f.nmem = 1;
+    const from_memory = externalConstant(all.memRef(0), &f, false).?;
+    memory[0].offset.bits.i = -1;
+    try std.testing.expectEqual(@as(i64, 64), from_memory.bits.i);
 }

@@ -554,7 +554,7 @@ fn selpar(f: *Fn, pars: []Ins) all.Error!Params {
         if (i.op == .parc and (c.class & Cptr) == 0) {
             if ((c.class & Cstk) != 0) {
                 off = alignu(off, c.@"align");
-                f.tmp[i.to.val].slot = -@as(i32, @intCast(off + 2));
+                f.tmps()[i.to.val].slot = -@as(i32, @intCast(off + 2));
                 off += c.size;
             } else {
                 for (0..c.nreg) |n| {

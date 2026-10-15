@@ -152,7 +152,7 @@ fn cast(r: *Ref, cls: Cls, l: *Loc) void {
     if (rtype(r.*) == RCon)
         return;
     assert(rtype(r.*) == RTmp);
-    const cls0 = st.curf.tmp[r.val].cls;
+    const cls0 = st.curf.tmps()[r.val].cls;
     if (cls0 == cls or (cls == .w and cls0 == .l))
         return;
     if (clsWide(cls0) < clsWide(cls)) {
@@ -196,7 +196,7 @@ fn load(sl: Slice, msk: bits, l: *Loc) Ref {
     // but its alias base ref will be
     // (see killsl() below)
     if (rtype(r) == RTmp) {
-        const a = &st.curf.tmp[r.val].alias;
+        const a = &st.curf.tmps()[r.val].alias;
         switch (a.type) {
             ALoc, AEsc, AUnk => {
                 r = tmpRef(a.base);
@@ -210,7 +210,7 @@ fn load(sl: Slice, msk: bits, l: *Loc) Ref {
                 c.type = CAddr;
                 c.sym = a.u.sym;
                 c.bits.i = a.offset;
-                r = newcon(&c, st.curf);
+                r = newcon(c, st.curf);
             },
             else => die("unreachable", .{}),
         }
@@ -224,7 +224,7 @@ fn load(sl: Slice, msk: bits, l: *Loc) Ref {
 fn rebase(sl: *Slice) void {
     if (rtype(sl.ref) != RTmp)
         return;
-    const a = &st.curf.tmp[sl.ref.val].alias;
+    const a = &st.curf.tmps()[sl.ref.val].alias;
     if (a.offset == @as(i16, @truncate(a.offset)))
         if (a.type == ALoc or a.type == AEsc or a.type == AUnk) {
             sl.ref = tmpRef(a.base);
@@ -235,7 +235,7 @@ fn rebase(sl: *Slice) void {
 fn killsl(r: Ref, sl: Slice) bool {
     if (rtype(sl.ref) != RTmp)
         return false;
-    const a = &st.curf.tmp[sl.ref.val].alias;
+    const a = &st.curf.tmps()[sl.ref.val].alias;
     switch (a.type) {
         ALoc, AEsc, AUnk => return req(tmpRef(a.base), r),
         ACon, ASym => return false,

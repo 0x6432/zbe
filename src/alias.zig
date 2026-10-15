@@ -45,13 +45,13 @@ const uint = all.uint;
 pub fn getalias(a: *Alias, r: Ref, f: *Fn) void {
     switch (rtype(r)) {
         RTmp => {
-            a.* = f.tmp[r.val].alias;
+            a.* = f.tmps()[r.val].alias;
             if (astack(a.type) != 0)
                 a.type = a.slot.?.type;
             assert(a.type != ABot);
         },
         RCon => {
-            const c = &f.con[r.val];
+            const c = &f.cons()[r.val];
             if (c.type == CAddr) {
                 a.type = ASym;
                 a.u.sym = c.sym;
@@ -119,14 +119,14 @@ pub fn alias(p: Ref, op: i32, sp: i32, q: Ref, sq: i32, delta: *i32, f: *Fn) all
 pub fn escapes(r: Ref, f: *Fn) bool {
     if (rtype(r) != RTmp)
         return true;
-    const a = &f.tmp[r.val].alias;
+    const a = &f.tmps()[r.val].alias;
     return astack(a.type) == 0 or a.slot.?.type == AEsc;
 }
 
 fn esc(r: Ref, f: *Fn) void {
     assert(rtype(r) <= RType);
     if (rtype(r) == RTmp) {
-        const a = &f.tmp[r.val].alias;
+        const a = &f.tmps()[r.val].alias;
         if (astack(a.type) != 0)
             a.slot.?.type = AEsc;
     }
@@ -136,7 +136,7 @@ fn store(r: Ref, sz: i32, f: *Fn) void {
     var m: bits = undefined;
 
     if (rtype(r) == RTmp) {
-        const a = &f.tmp[r.val].alias;
+        const a = &f.tmps()[r.val].alias;
         if (a.slot != null) {
             assert(astack(a.type) != 0);
             const off = a.offset;
@@ -159,7 +159,7 @@ pub fn fillalias(f: *Fn) void {
         var p_it = b.phi;
         while (p_it) |p| : (p_it = p.link) {
             assert(rtype(p.to) == RTmp);
-            const a = &f.tmp[p.to.val].alias;
+            const a = &f.tmps()[p.to.val].alias;
             assert(a.type == ABot);
             a.type = AUnk;
             a.base = p.to.val;
@@ -172,7 +172,7 @@ pub fn fillalias(f: *Fn) void {
             var a: ?*Alias = null;
             if (!req(i.to, R)) {
                 assert(rtype(i.to) == RTmp);
-                const ta = &f.tmp[i.to.val].alias;
+                const ta = &f.tmps()[i.to.val].alias;
                 a = ta;
                 assert(ta.type == ABot);
                 if (Opc.alloc_first.int() <= i.op.int() and i.op.int() <= Opc.alloc_last.int()) {
@@ -180,7 +180,7 @@ pub fn fillalias(f: *Fn) void {
                     ta.slot = ta;
                     ta.u.loc.sz = -1;
                     if (rtype(i.arg[0]) == RCon) {
-                        const c = &f.con[i.arg[0].val];
+                        const c = &f.cons()[i.arg[0].val];
                         const x = c.bits.i;
                         if (c.type == CBits and 0 <= x and x <= NBit)
                             ta.u.loc.sz = @intCast(x);

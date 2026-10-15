@@ -63,7 +63,7 @@ fn schedearly(f: *Fn, r: Ref) uint {
     if (rtype(r) != RTmp)
         return 0;
 
-    const t = &f.tmp[r.val];
+    const t = &f.tmps()[r.val];
     if (t.gcmbid != NOBID)
         return t.gcmbid;
 
@@ -144,7 +144,7 @@ fn schedlate(f: *Fn, r: Ref) uint {
     if (rtype(r) != RTmp)
         return NOBID;
 
-    const t = &f.tmp[r.val];
+    const t = &f.tmps()[r.val];
     if (t.visit != 0)
         return t.gcmbid;
 
@@ -239,7 +239,7 @@ fn lateblk(f: *Fn, bid: uint) void {
 fn addgcmins(f: *Fn, vins: []Ins) void {
     for (vins) |*i| {
         assert(rtype(i.to) == RTmp);
-        const t = &f.tmp[i.to.val];
+        const t = &f.tmps()[i.to.val];
         const b = f.rpo[t.gcmbid];
         appendBlockIns(b, i.*);
     }
@@ -261,7 +261,7 @@ fn gcmmove(f: *Fn) void {
         if (pinned(i) and !canelim(i))
             continue;
         assert(rtype(i.to) == RTmp);
-        assert(t == &f.tmp[i.to.val]);
+        assert(t == &f.tmps()[i.to.val]);
         if (t.gcmbid != NOBID)
             appendIns(&vins, i.*);
         i.* = insOp(.nop);
@@ -277,7 +277,7 @@ fn schedins(f: *Fn, b: *Blk, n: uint, instructions: *[]Ins) uint {
         for (0..2) |k| {
             if (rtype(i.arg[k]) != RTmp)
                 continue;
-            const t = &f.tmp[i.arg[k].val];
+            const t = &f.tmps()[i.arg[k].val];
             if (t.bid != b.id or t.def == null)
                 continue;
             _ = schedins(f, b, insidx(b, t.def.?), instructions);
@@ -319,7 +319,7 @@ fn cheap(i: *Ins) bool {
 fn sinkref(f: *Fn, b: *Blk, pr: *Ref) void {
     if (rtype(pr.*) != RTmp)
         return;
-    const t = &f.tmp[pr.val];
+    const t = &f.tmps()[pr.val];
     if (t.def == null or
         t.bid == b.id or
         pinned(t.def.?) or
@@ -332,7 +332,7 @@ fn sinkref(f: *Fn, b: *Blk, pr: *Ref) void {
     // t invalidated
     pr.* = r;
     i.to = r;
-    f.tmp[r.val].gcmbid = b.id;
+    f.tmps()[r.val].gcmbid = b.id;
     emiti(i);
     sinkref(f, b, &i.arg[0]);
     sinkref(f, b, &i.arg[1]);
@@ -362,7 +362,7 @@ pub fn gcm(f: *Fn) void {
     filldepth(f);
     fillloop(f);
 
-    for (f.tmp[0..@as(usize, @intCast(f.ntmp))]) |*t| {
+    for (f.tmps()) |*t| {
         t.visit = 0;
         t.gcmbid = NOBID;
     }

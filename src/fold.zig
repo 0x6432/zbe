@@ -265,7 +265,7 @@ fn opfold(op: i32, cls: i32, cl: *Con, cr: *Con, f: *Fn) all.Error!Ref {
     } else try foldflt(&c, op, cls == Cls.d.int(), cl, cr);
     if (clsWide(cls) == 0)
         c.bits.i &= 0xffffffff;
-    const r = newcon(&c, f);
+    const r = newcon(c, f);
     assert(!(cls == Cls.s.int() or cls == Cls.d.int()) or c.flt != 0);
     return r;
 }
@@ -277,13 +277,13 @@ pub fn foldref(f: *Fn, i: *Ins) all.Error!Ref {
     if (all.optab[i.op.int()].canfold != 0) {
         if (rtype(i.arg[0]) != RCon)
             return R;
-        const cl = &f.con[i.arg[0].val];
+        const cl = &f.cons()[i.arg[0].val];
         var rr = i.arg[1];
         if (req(rr, R))
             rr = CON_Z;
         if (rtype(rr) != RCon)
             return R;
-        const cr = &f.con[rr.val];
+        const cr = &f.cons()[rr.val];
 
         return try opfold(@intCast(i.op.int()), i.cls.int(), cl, cr, f);
     }

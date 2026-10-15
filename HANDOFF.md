@@ -885,3 +885,19 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - Continue the remaining direct-indexed core-field consumer audit recorded in
   docs/IDIOMATIC-ZIG.md before claiming the entire idiomatic rewrite complete.
   Preserve all deliberate representation and compatibility boundaries.
+
+### Active function-table consumers (2026-10-15)
+- Temporary, constant and memory consumers across generic passes and all target
+  ABI/isel/emitter modules index bounded Fn views, reacquired at each access.
+  Register allocator/spiller cached slices remain bounded and intentionally cached.
+- Fn table views return empty slices without inspecting unowned pointers when
+  their active count is zero. Stored fields and vector allocation APIs are unchanged.
+- Constant insertion takes a Con value, avoiding a borrowed input across growth.
+  AMD64 external/TLS lowering snapshots its constant before getcon/newcon can
+  relocate the constant vector; no erased pointer/out-parameter is needed.
+- Three regressions cover guarded empty/active extents, repeated constant growth
+  and deduplication, and external/TLS snapshots from constant and memory tables.
+  Fixtures now explicitly publish their constant counts. Direct tests: 64/64.
+- A first test build caught an unqualified vnewT helper in the new fixture; the
+  qualification was corrected and the complete direct rerun passed. All 11
+  optimizer mutation anchors remain intact. Full aggregate verification is pending.

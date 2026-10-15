@@ -113,7 +113,7 @@ fn algebra(i: *Ins, f: *Fn) void {
     }
     if (rtype(i.arg[1]) != RCon)
         return;
-    const c = &f.con[i.arg[1].val];
+    const c = &f.cons()[i.arg[1].val];
     if (c.type != CBits)
         return;
     const wide = i.cls == .l;
@@ -167,7 +167,7 @@ fn startnew(new: *bool, b: *Blk, k: uint) void {
 fn sdivpow2(i: *Ins, b: *Blk, k: uint, new: *bool, f: *Fn) bool {
     if (clsBase(i.cls) != 0 or rtype(i.arg[0]) != RTmp or rtype(i.arg[1]) != RCon or !allvirt(i))
         return false;
-    const c = &f.con[i.arg[1].val];
+    const c = &f.cons()[i.arg[1].val];
     if (c.type != CBits)
         return false;
     const wide = i.cls == .l;
@@ -235,7 +235,7 @@ fn udivmagicw(d: u32, mbits: u32, m: *u64, s: *u32) bool {
 fn udivconst(i: *Ins, b: *Blk, k: uint, new: *bool, f: *Fn) bool {
     if (i.cls != .w or rtype(i.arg[0]) != RTmp or !allvirt(i))
         return false;
-    const d: u32 = @truncate(@as(u64, @bitCast(f.con[i.arg[1].val].bits.i)));
+    const d: u32 = @truncate(@as(u64, @bitCast(f.cons()[i.arg[1].val].bits.i)));
     var m: u64 = 0;
     var s: u32 = 0;
     const wide = !udivmagic(d, &m, &s);
@@ -305,7 +305,7 @@ fn ins(pk: *uint, new: *bool, b: *Blk, f: *Fn) void {
             const r = i.arg[1];
             if (clsBase(i.cls) == 0)
                 if (rtype(r) == RCon) {
-                    const c = &f.con[r.val];
+                    const c = &f.cons()[r.val];
                     if (c.type == CBits)
                         if (ispow2(@bitCast(c.bits.i))) {
                             const n = ulog2(@bitCast(c.bits.i));

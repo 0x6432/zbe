@@ -133,7 +133,7 @@ pub fn filllive(f: *Fn) void {
                 for (i.arg) |a| {
                     switch (rtype(a)) {
                         RMem => {
-                            const ma = &f.mem[a.val];
+                            const ma = &f.mems()[a.val];
                             bset(ma.base, b, &nlv, tmp);
                             bset(ma.index, b, &nlv, tmp);
                         },

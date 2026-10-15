@@ -540,7 +540,7 @@ fn selpar(f: *Fn, ins: []Ins) all.Error!i32 {
                     return fail("sysv abi requires alignments of 16 or less", .{});
                 if (a.@"align" == 4)
                     s = (s + 3) & -4;
-                f.tmp[i.to.val].slot = -s;
+                f.tmps()[i.to.val].slot = -s;
                 s += @intCast(a.size / 4);
                 continue;
             },

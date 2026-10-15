@@ -645,50 +645,50 @@ pub fn newtmp(prfx: ?[*:0]const u8, k: Cls, f: *Fn) Ref {
     const t: usize = @intCast(f.ntmp);
     f.ntmp += 1;
     vgrow(&f.tmp, f.ntmp);
-    f.tmp[t] = std.mem.zeroes(Tmp);
+    f.tmps()[t] = std.mem.zeroes(Tmp);
     if (prfx != null) {
         st.newtmp_n += 1;
-        f.tmp[t].name = strf(PFn, "{s}.{d}", .{ cs(prfx), st.newtmp_n });
+        f.tmps()[t].name = strf(PFn, "{s}.{d}", .{ cs(prfx), st.newtmp_n });
     }
-    f.tmp[t].cls = k;
-    f.tmp[t].slot = -1;
-    f.tmp[t].nuse = 1;
-    f.tmp[t].ndef = 1;
+    f.tmps()[t].cls = k;
+    f.tmps()[t].slot = -1;
+    f.tmps()[t].nuse = 1;
+    f.tmps()[t].ndef = 1;
     return tmpRef(t);
 }
 
 pub fn chuse(r: Ref, du: i32, f: *Fn) void {
     if (rtype(r) == RTmp)
-        f.tmp[r.val].nuse = @bitCast(@as(i32, @bitCast(f.tmp[r.val].nuse)) +% du);
+        f.tmps()[r.val].nuse = @bitCast(@as(i32, @bitCast(f.tmps()[r.val].nuse)) +% du);
 }
 
 pub fn symeq(s0: Sym, s1: Sym) bool {
     return s0.type == s1.type and s0.id == s1.id;
 }
 
-pub fn newcon(c0: *Con, f: *Fn) Ref {
+pub fn newcon(c0: Con, f: *Fn) Ref {
     var i: i32 = 1;
     while (i < f.ncon) : (i += 1) {
-        const c1 = &f.con[@intCast(i)];
+        const c1 = &f.cons()[@intCast(i)];
         if (c0.type == c1.type and symeq(c0.sym, c1.sym) and c0.bits.i == c1.bits.i)
             return conRef(i);
     }
     f.ncon += 1;
     vgrow(&f.con, f.ncon);
-    f.con[@intCast(i)] = c0.*;
+    f.cons()[@intCast(i)] = c0;
     return conRef(i);
 }
 
 pub fn getcon(val: i64, f: *Fn) Ref {
     var cc: i32 = 1;
     while (cc < f.ncon) : (cc += 1)
-        if (f.con[@intCast(cc)].type == CBits and f.con[@intCast(cc)].bits.i == val)
+        if (f.cons()[@intCast(cc)].type == CBits and f.cons()[@intCast(cc)].bits.i == val)
             return conRef(cc);
     f.ncon += 1;
     vgrow(&f.con, f.ncon);
-    f.con[@intCast(cc)] = std.mem.zeroes(Con);
-    f.con[@intCast(cc)].type = CBits;
-    f.con[@intCast(cc)].bits.i = val;
+    f.cons()[@intCast(cc)] = std.mem.zeroes(Con);
+    f.cons()[@intCast(cc)].type = CBits;
+    f.cons()[@intCast(cc)].bits.i = val;
     return conRef(cc);
 }
 
@@ -712,7 +712,7 @@ pub fn addcon(c0: *Con, c1: *Con, m: i32) bool {
 
 pub fn isconbits(f: *Fn, r: Ref, v: *i64) bool {
     if (rtype(r) == RCon) {
-        const cn = &f.con[r.val];
+        const cn = &f.cons()[r.val];
         if (cn.type == CBits) {
             v.* = cn.bits.i;
             return true;
@@ -727,7 +727,7 @@ pub fn salloc(rt: Ref, rs: Ref, f: *Fn) all.Error!void {
     // (rsp = 0) mod 16
     f.dynalloc = 1;
     if (rtype(rs) == RCon) {
-        var sz = f.con[rs.val].bits.i;
+        var sz = f.cons()[rs.val].bits.i;
         if (sz < 0 or sz >= std.math.maxInt(c_int) - 15)
             return fail("invalid alloc size {d}", .{sz});
         sz = (sz + 15) & -16;
@@ -739,8 +739,8 @@ pub fn salloc(rt: Ref, rs: Ref, f: *Fn) all.Error!void {
         emit(.salloc, .l, rt, r0, R);
         emit(.@"and", .l, r0, r1, getcon(-16, f));
         emit(.add, .l, r1, rs, getcon(15, f));
-        if (f.tmp[rs.val].slot != -1)
-            return fail("unlikely alloc argument %{s} for %{s}", .{cs(f.tmp[rs.val].name), cs(f.tmp[rt.val].name)});
+        if (f.tmps()[rs.val].slot != -1)
+            return fail("unlikely alloc argument %{s} for %{s}", .{cs(f.tmps()[rs.val].name), cs(f.tmps()[rt.val].name)});
     }
 }
 

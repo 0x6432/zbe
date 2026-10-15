@@ -169,7 +169,7 @@ pub fn filluse(f: *Fn) void {
 }
 
 fn refindex(t: i32, f: *Fn) Ref {
-    return newtmp(f.tmp[@intCast(t)].name, f.tmp[@intCast(t)].cls, f);
+    return newtmp(f.tmps()[@intCast(t)].name, f.tmps()[@intCast(t)].cls, f);
 }
 
 fn phiins(f: *Fn) void {
@@ -185,7 +185,7 @@ fn phiins(f: *Fn) void {
     const nt = f.ntmp;
     var t: i32 = Tmp0;
     while (t < nt) : (t += 1) {
-        const tt = &f.tmp[@intCast(t)];
+        const tt = &f.tmps()[@intCast(t)];
         tt.visit = 0;
         if (tt.phi != 0)
             continue;
@@ -230,7 +230,7 @@ fn phiins(f: *Fn) void {
         }
         bscopy(&defs, &u);
         while (nb > 0) {
-            f.tmp[@intCast(t)].visit = t;
+            f.tmps()[@intCast(t)].visit = t;
             nb -= 1;
             const b = blist[nb];
             bsclr(&u, b.id);
@@ -290,10 +290,10 @@ fn nfree(n: *Name) void {
 
 fn rendef(r: *Ref, b: *Blk, stk: []?*Name, f: *Fn) void {
     const t = r.val;
-    if (req(r.*, R) or f.tmp[t].visit == 0)
+    if (req(r.*, R) or f.tmps()[t].visit == 0)
         return;
     const r1 = refindex((t), f);
-    f.tmp[r1.val].visit = t;
+    f.tmps()[r1.val].visit = t;
     stk[t] = nnew(r1, b, stk[t]);
     r.* = r1;
 }
@@ -316,19 +316,19 @@ fn renblk(b: *Blk, stk: []?*Name, f: *Fn) void {
         rendef(&p.to, b, stk, f);
     for (b.insns()) |*i| {
         for (&i.arg) |*a| {
-            if (rtype(a.*) == RTmp and f.tmp[a.val].visit != 0)
+            if (rtype(a.*) == RTmp and f.tmps()[a.val].visit != 0)
                 a.* = getstk(a.val, b, stk);
         }
         rendef(&i.to, b, stk, f);
     }
-    if (rtype(b.jmp.arg) == RTmp and f.tmp[b.jmp.arg.val].visit != 0)
+    if (rtype(b.jmp.arg) == RTmp and f.tmps()[b.jmp.arg.val].visit != 0)
         b.jmp.arg = getstk(b.jmp.arg.val, b, stk);
     const succ = [2]?*Blk{ b.s1, if (b.s2 == b.s1) null else b.s2 };
     for (succ) |s_| {
         const s = s_ orelse break;
         p_it = s.phi;
         while (p_it) |p| : (p_it = p.link) {
-            const t = f.tmp[p.to.val].visit;
+            const t = f.tmps()[p.to.val].visit;
             if (t != 0) {
                 const m = p.narg;
                 p.narg += 1;
@@ -397,7 +397,7 @@ pub fn ssacheck(f: *Fn) all.Error!void {
     var r: Ref = undefined;
 
     errblk: {
-        for (f.tmp[Tmp0..@intCast(f.ntmp)]) |*tt| {
+        for (f.tmps()[Tmp0..]) |*tt| {
             t = tt;
             if (t.ndef > 1)
                 return fail("ssa temporary %{s} defined more than once", .{cs(t.name)});
@@ -411,7 +411,7 @@ pub fn ssacheck(f: *Fn) all.Error!void {
             var p_it: ?*Phi = b.phi;
             while (p_it) |p| : (p_it = p.link) {
                 r = p.to;
-                t = &f.tmp[r.val];
+                t = &f.tmps()[r.val];
                 for (t.uses()) |*u| {
                     bu = f.rpo[u.bid];
                     if (u.type == .phi) {
@@ -425,7 +425,7 @@ pub fn ssacheck(f: *Fn) all.Error!void {
                 if (rtype(i.to) != RTmp)
                     continue;
                 r = i.to;
-                t = &f.tmp[r.val];
+                t = &f.tmps()[r.val];
                 for (t.uses()) |*u| {
                     bu = f.rpo[u.bid];
                     if (u.type == .phi) {

@@ -49,6 +49,14 @@ legacy interfaces, and raw core-field consumers remain.
   storage, while nonempty views require materialized uses. Count-only tracking
   and the stored layout remain unchanged.
 
+## Function-table consumers completed
+
+- Generic passes and all target ABI/isel/emitter modules index temporary,
+  constant and memory tables through active Fn views. Views are reacquired
+  at each use, not cached across table growth; zero counts guard unowned storage.
+- Constant insertion takes a value, and AMD64 external/TLS lowering snapshots
+  constants before allocation-sensitive rewrites. Stored fields are unchanged.
+
 ## Remaining audit
 
 Current audit checks covered CFG/SSA use boundaries, allocator/vector

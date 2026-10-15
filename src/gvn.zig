@@ -95,7 +95,7 @@ fn gvndup(i: *Ins, insert: bool) ?*Ins {
 }
 
 fn replaceuse(f: *Fn, u: *Use, r1: Ref, r2: Ref) void {
-    const t2: ?*Tmp = if (rtype(r2) == RTmp) &f.tmp[r2.val] else null;
+    const t2: ?*Tmp = if (rtype(r2) == RTmp) &f.tmps()[r2.val] else null;
     const b = f.rpo[u.bid];
     switch (u.type) {
         .phi => {
@@ -129,7 +129,7 @@ fn replaceuse(f: *Fn, u: *Use, r1: Ref, r2: Ref) void {
 
 fn replaceuses(f: *Fn, r1: Ref, r2: Ref) void {
     assert(rtype(r1) == RTmp);
-    const t1 = &f.tmp[r1.val];
+    const t1 = &f.tmps()[r1.val];
     for (t1.uses()) |*u|
         replaceuse(f, u, r1, r2);
     t1.nuse = 0;
@@ -190,14 +190,14 @@ fn assoccon(f: *Fn, b: *Blk, i_1: *Ins) void {
 
     if (all.optab[op.int()].assoc == 0 or clsBase(i_1.cls) != 0 or rtype(i_1.arg[0]) != RTmp or rtype(i_1.arg[1]) != RCon)
         return;
-    var c1 = f.con[i_1.arg[1].val];
+    var c1 = f.cons()[i_1.arg[1].val];
 
-    const t2 = &f.tmp[i_1.arg[0].val];
+    const t2 = &f.tmps()[i_1.arg[0].val];
     const i_2 = t2.def orelse return;
 
     if (op != (if (i_2.op == .sub) Opc.add else i_2.op) or rtype(i_2.arg[1]) != RCon)
         return;
-    var c2 = f.con[i_2.arg[1].val];
+    var c2 = f.cons()[i_2.arg[1].val];
 
     assert(clsBase(i_2.cls) == 0);
     assert(clsWide(i_2.cls) >= clsWide(i_1.cls));
@@ -218,8 +218,8 @@ fn assoccon(f: *Fn, b: *Blk, i_1: *Ins) void {
 
     i_1.op = op;
     i_1.arg[0] = i_2.arg[0];
-    i_1.arg[1] = newcon(&c, f);
-    adduse(&f.tmp[i_1.arg[0].val], b, .{ .ins = i_1 });
+    i_1.arg[1] = newcon(c, f);
+    adduse(&f.tmps()[i_1.arg[0].val], b, .{ .ins = i_1 });
 }
 
 fn killins(f: *Fn, i: *Ins, r: Ref) void {
@@ -256,7 +256,7 @@ fn dedupins(f: *Fn, b: *Blk, i: *Ins) all.Error!void {
 pub fn cmpeqz(f: *Fn, r: Ref, arg: *Ref, cls: *Cls, eqval: *i32) bool {
     if (rtype(r) != RTmp)
         return false;
-    const i = f.tmp[r.val].def orelse return false;
+    const i = f.tmps()[r.val].def orelse return false;
     if (all.optab[i.op.int()].cmpeqwl == 0 or !req(i.arg[1], CON_Z))
         return false;
     arg.* = i.arg[0];
@@ -329,7 +329,7 @@ fn usecls(u: *Use, r: Ref, cls: Cls) Cls {
 fn propjnz0(f: *Fn, bif: *Blk, s0: *Blk, snon0: *Blk, r: Ref, cls: Cls) void {
     if (s0.npred != 1 or rtype(r) != RTmp)
         return;
-    const t = &f.tmp[r.val];
+    const t = &f.tmps()[r.val];
     for (t.uses()) |*u| {
         const b = f.rpo[u.bid];
         // we may compare an l temp with a w
@@ -454,6 +454,7 @@ test "dedupjmp: folded constants use word semantics except in upstream mode" {
     constants[0].type = CBits;
     var f: Fn = undefined;
     f.con = &constants;
+    f.ncon = constants.len;
     for ([_]u8{ 0, 1, 2 }) |level| {
         all.optlevel = level;
         for (values) |value| {

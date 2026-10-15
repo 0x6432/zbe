@@ -91,7 +91,7 @@ fn fixarg(r: *Ref, k: Cls, i: ?*Ins, f: *Fn) void {
     const op: Opc = if (i) |ii| ii.op else .copy;
     switch (rtype(r0)) {
         RCon => blk: {
-            var c: *Con = &f.con[r0.val];
+            var c: *Con = &f.cons()[r0.val];
             if (c.type == CAddr and memarg(r, op, i))
                 break :blk;
             if (clsBase(k) == 0 and c.type == CBits and immarg(r, op, i) and
@@ -107,7 +107,7 @@ fn fixarg(r: *Ref, k: Cls, i: ?*Ins, f: *Fn) void {
                 f.ncon += 1;
                 vgrow(&f.con, f.ncon);
                 const ci: usize = @intCast(f.ncon - 1);
-                c = &f.con[ci];
+                c = &f.cons()[ci];
                 bufPrintZ(&buf, "\"{s}fp{d}\"", .{cs(&all.T.asloc), n});
                 c.* = std.mem.zeroes(Con);
                 c.type = CAddr;
@@ -120,7 +120,7 @@ fn fixarg(r: *Ref, k: Cls, i: ?*Ins, f: *Fn) void {
         RTmp => blk: {
             if (isreg(r0))
                 break :blk;
-            const s = f.tmp[r0.val].slot;
+            const s = f.tmps()[r0.val].slot;
             if (s != -1) {
                 // aggregate passed by value on
                 // stack, or fast local address,
@@ -133,13 +133,13 @@ fn fixarg(r: *Ref, k: Cls, i: ?*Ins, f: *Fn) void {
                 emit(.addr, k, r1, slotRef(s), R);
                 break :blk;
             }
-            if (k == .w and f.tmp[r0.val].cls == .l) {
+            if (k == .w and f.tmps()[r0.val].cls == .l) {
                 // TODO: this sign extension isn't needed
                 // for 32-bit arithmetic instructions
                 r1 = newtmp("isel", k, f);
                 emit(.extsw, .l, r1, r0, R);
             } else {
-                assert(k == f.tmp[r0.val].cls);
+                assert(k == f.tmps()[r0.val].cls);
             }
         },
         else => {},
@@ -244,7 +244,7 @@ fn sel(i_: Ins, f: *Fn) all.Error!void {
     if ((i.op == .sar or i.op == .shr or i.op == .shl) and rtype(i.arg[1]) == RCon) {
         // rv64 masks register shift counts to 5 (w) / 6 (l) bits, but an
         // immediate shamt >= width does not assemble: mask it the same way
-        const c = &f.con[i.arg[1].val];
+        const c = &f.cons()[i.arg[1].val];
         if (c.type == CBits) {
             const m: i64 = if (i.cls == .w) 31 else 63;
             if (c.bits.i & m != c.bits.i)
@@ -280,14 +280,14 @@ pub fn rv64_isel(f: *Fn) all.Error!void {
             if (i.op.diff(Opc.alloc_first) == al) {
                 if (rtype(i.arg[0]) != RCon)
                     break;
-                var sz = f.con[i.arg[0].val].bits.i;
+                var sz = f.cons()[i.arg[0].val].bits.i;
                 if (sz < 0 or sz >= std.math.maxInt(i32) - 15)
                     return fail("invalid alloc size {d}", .{sz});
                 sz = (sz + n - 1) & -@as(i64, n);
                 sz = @divTrunc(sz, 4);
                 if (sz > std.math.maxInt(i32) - f.slot)
                     return all.failInput("alloc too large", .{});
-                f.tmp[i.to.val].slot = f.slot;
+                f.tmps()[i.to.val].slot = f.slot;
                 f.slot += @intCast(sz);
                 i.* = insOp(.nop);
             }

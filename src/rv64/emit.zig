@@ -236,7 +236,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, fn_: *Fn, f: *Writer) (Writer.Error || all.
                         try f.writeAll(cs(rname[r.val]));
                     },
                     RCon => {
-                        const pc = &fn_.con[r.val];
+                        const pc = &fn_.cons()[r.val];
                         assert(pc.type == CBits);
                         assert(pc.bits.i >= -2048 and pc.bits.i < 2048);
                         try f.print("{d}", .{pc.bits.i});
@@ -252,7 +252,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, fn_: *Fn, f: *Writer) (Writer.Error || all.
                     else => die("invalid address argument", .{}),
                     RTmp => try f.print("0({s})", .{cs(rname[r.val])}),
                     RCon => {
-                        const pc = &fn_.con[r.val];
+                        const pc = &fn_.cons()[r.val];
                         assert(pc.type == CAddr);
                         try emitaddr(pc, f);
                         if (isstore(i.op) or
@@ -316,7 +316,7 @@ fn loadcon(c: *Con, r: i32, k: i32, f: *Writer) (Writer.Error || all.Error)!void
 fn fixmem(pr: *Ref, fn_: *Fn, f: *Writer) (Writer.Error || all.Error)!void {
     const r = pr.*;
     if (rtype(r) == RCon) {
-        const c = &fn_.con[r.val];
+        const c = &fn_.cons()[r.val];
         if (c.type == CAddr and c.sym.type != SGlo) {
             try loadcon(c, T6, Cls.l.int(), f);
             pr.* = tmpRef(T6);
@@ -384,7 +384,7 @@ fn emitins(i: *Ins, fn_: *Fn, f: *Writer) (Writer.Error || all.Error)!void {
             }
             assert(isreg(i.to));
             switch (rtype(i.arg[0])) {
-                RCon => try loadcon(&fn_.con[i.arg[0].val], @intCast(i.to.val), i.cls.int(), f),
+                RCon => try loadcon(&fn_.cons()[i.arg[0].val], @intCast(i.to.val), i.cls.int(), f),
                 RSlot => {
                     i.op = .load;
                     try fixmem(&i.arg[0], fn_, f);
@@ -410,7 +410,7 @@ fn emitins(i: *Ins, fn_: *Fn, f: *Writer) (Writer.Error || all.Error)!void {
         .call => {
             switch (rtype(i.arg[0])) {
                 RCon => {
-                    const con = &fn_.con[i.arg[0].val];
+                    const con = &fn_.cons()[i.arg[0].val];
                     if (con.type != CAddr or
                         (con.sym.type & SThr) != 0 or
                         con.bits.i != 0)

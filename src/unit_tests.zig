@@ -610,3 +610,64 @@ test "temporary uses: bounded active storage and empty unowned view" {
     try t.expectEqual(@as(all.uint, 7), storage[1].bid);
     try t.expectEqual(@as(all.uint, 2), storage[2].bid);
 }
+
+test "function table views: zero counts do not inspect unowned pointers" {
+    var f: all.Fn = undefined;
+    f.ntmp = 0;
+    f.ncon = 0;
+    f.nmem = 0;
+    try t.expectEqual(@as(usize, 0), f.tmps().len);
+    try t.expectEqual(@as(usize, 0), f.cons().len);
+    try t.expectEqual(@as(usize, 0), f.mems().len);
+    var temps = std.mem.zeroes([3]all.Tmp);
+    var constants = std.mem.zeroes([3]all.Con);
+    var memory = std.mem.zeroes([3]all.Mem);
+    f.tmp = &temps;
+    f.con = &constants;
+    f.mem = &memory;
+    f.ntmp = 2;
+    f.ncon = 2;
+    f.nmem = 2;
+    f.tmps()[1].visit = 7;
+    f.cons()[1].bits.i = 11;
+    f.mems()[1].scale = 4;
+    try t.expectEqual(@as(usize, 2), f.tmps().len);
+    try t.expectEqual(@as(usize, 2), f.cons().len);
+    try t.expectEqual(@as(usize, 2), f.mems().len);
+    try t.expectEqual(@as(i32, 7), temps[1].visit);
+    try t.expectEqual(@as(i64, 11), constants[1].bits.i);
+    try t.expectEqual(@as(i32, 4), memory[1].scale);
+    try t.expectEqual(@as(i32, 0), temps[2].visit);
+    try t.expectEqual(@as(i64, 0), constants[2].bits.i);
+    try t.expectEqual(@as(i32, 0), memory[2].scale);
+}
+
+test "constant insertion: value input survives growth and preserves deduplication" {
+    var f = std.mem.zeroes(all.Fn);
+    f.con = u.vnewT(all.Con, 2, PHeap);
+    defer u.vfree(f.con);
+    f.ncon = 2;
+    f.cons()[0] = std.mem.zeroes(all.Con);
+    f.cons()[0].type = all.CAddr;
+    f.cons()[0].sym = .{ .type = all.SExt, .id = 23 };
+    f.cons()[0].bits.i = 19;
+    f.cons()[1] = std.mem.zeroes(all.Con);
+    f.cons()[1].type = all.CBits;
+    const old_storage = @intFromPtr(f.con);
+    const copied = u.newcon(f.cons()[0], &f);
+    try t.expectEqual(@as(u29, 2), copied.val);
+    try t.expect(old_storage != @intFromPtr(f.con));
+    try t.expectEqual(@as(i64, 19), f.cons()[copied.val].bits.i);
+    try t.expectEqual(@as(u32, 23), f.cons()[copied.val].sym.id);
+    try t.expect(all.req(copied, u.newcon(f.cons()[copied.val], &f)));
+    try t.expectEqual(@as(i32, 3), f.ncon);
+    for (1..24) |n| {
+        const value: i64 = @intCast(n);
+        const r = u.getcon(value, &f);
+        try t.expect(all.req(r, u.getcon(value, &f)));
+        try t.expectEqual(value, f.cons()[r.val].bits.i);
+    }
+    try t.expectEqual(@as(u29, 1), u.getcon(0, &f).val);
+    try t.expectEqual(@as(i32, 26), f.ncon);
+    try t.expect(all.req(copied, u.newcon(f.cons()[0], &f)));
+}

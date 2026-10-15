@@ -122,7 +122,7 @@ fn fixarg(pr: *Ref, k: Cls, phi: bool, f: *Fn) void {
     const r0 = pr.*;
     switch (rtype(r0)) {
         RCon => {
-            var c: *Con = &f.con[r0.val];
+            var c: *Con = &f.cons()[r0.val];
             if (c.type == CAddr and ((c.sym.type & SExt) != 0 or
                 (all.T.apple != 0 and (c.sym.type & SThr) != 0)))
             {
@@ -133,7 +133,7 @@ fn fixarg(pr: *Ref, k: Cls, phi: bool, f: *Fn) void {
                     cc = std.mem.zeroes(Con);
                     cc.type = CBits;
                     cc.bits.i = c.bits.i;
-                    r3 = newcon(&cc, f);
+                    r3 = newcon(cc, f);
                     emit(.add, .l, r1, r2, r3);
                     r1 = r2;
                 }
@@ -148,7 +148,7 @@ fn fixarg(pr: *Ref, k: Cls, phi: bool, f: *Fn) void {
                 }
                 cc = c.*;
                 cc.bits.i = 0;
-                r3 = newcon(&cc, f);
+                r3 = newcon(cc, f);
                 emit(.copy, .l, r1, r3, R);
                 return;
             }
@@ -162,7 +162,7 @@ fn fixarg(pr: *Ref, k: Cls, phi: bool, f: *Fn) void {
                 f.ncon += 1;
                 vgrow(&f.con, f.ncon);
                 const ci: usize = @intCast(f.ncon - 1);
-                c = &f.con[ci];
+                c = &f.cons()[ci];
                 bufPrintZ(&buf, "\"{s}fp{d}\"", .{cs(&all.T.asloc), n});
                 c.* = std.mem.zeroes(Con);
                 c.type = CAddr;
@@ -174,7 +174,7 @@ fn fixarg(pr: *Ref, k: Cls, phi: bool, f: *Fn) void {
             pr.* = r1;
         },
         RTmp => {
-            const s = f.tmp[r0.val].slot;
+            const s = f.tmps()[r0.val].slot;
             if (s == -1)
                 return;
             r1 = newtmp("isel", .l, f);
@@ -205,7 +205,7 @@ fn selcmp(arg: *[2]Ref, k: Cls, f: *Fn) bool {
     var cmp: Opc = .acmp;
     var r = arg[1];
     if (rtype(r) == RCon) {
-        const c = &f.con[r.val];
+        const c = &f.cons()[r.val];
         switch (imm(c, k, &n)) {
             else => {},
             Iplo12, Iphi12 => fix = false,
@@ -228,7 +228,7 @@ fn callable(r: Ref, f: *Fn) bool {
     if (rtype(r) == RTmp)
         return true;
     if (rtype(r) == RCon) {
-        const c = &f.con[r.val];
+        const c = &f.cons()[r.val];
         if (c.type == CAddr and c.bits.i == 0)
             return true;
     }
@@ -284,7 +284,7 @@ fn seljmp(b: *Blk, f: *Fn) void {
     while (i_n > 0) {
         i_n -= 1;
         if (req(b.ins[i_n].to, r)) {
-            use = @intCast(f.tmp[r.val].nuse);
+            use = @intCast(f.tmps()[r.val].nuse);
             ir_ = &b.ins[i_n];
             break;
         }
@@ -317,12 +317,12 @@ pub fn arm64_isel(f: *Fn) all.Error!void {
             if (i.op.diff(Opc.alloc_first) == al) {
                 if (rtype(i.arg[0]) != RCon)
                     break;
-                var sz = f.con[i.arg[0].val].bits.i;
+                var sz = f.cons()[i.arg[0].val].bits.i;
                 if (sz < 0 or sz >= std.math.maxInt(i32) - 15)
                     return fail("invalid alloc size {d}", .{sz});
                 sz = (sz + n - 1) & -@as(i64, n);
                 sz = @divTrunc(sz, 4);
-                f.tmp[i.to.val].slot = f.slot;
+                f.tmps()[i.to.val].slot = f.slot;
                 f.slot += @intCast(sz);
                 i.* = insOp(.nop);
             }

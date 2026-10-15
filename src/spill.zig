@@ -64,11 +64,11 @@ fn aggreg(hd: *Blk, b: *Blk) void {
 
 fn tmpuse(r: Ref, use: bool, loop: i32, f: *Fn) void {
     if (rtype(r) == RMem) {
-        const m = &f.mem[r.val];
+        const m = &f.mems()[r.val];
         tmpuse(m.base, true, loop, f);
         tmpuse(m.index, true, loop, f);
     } else if (rtype(r) == RTmp and r.val >= Tmp0) {
-        const t = &f.tmp[r.val];
+        const t = &f.tmps()[r.val];
         t.nuse += @intFromBool(use);
         t.ndef += @intFromBool(!use);
         t.cost +%= @bitCast(loop);
@@ -104,7 +104,7 @@ pub fn fillcost(f: *Fn) void {
     while (b_it) |b| : (b_it = b.link) {
         var p_it: ?*Phi = b.phi;
         while (p_it) |p| : (p_it = p.link) {
-            const t = &f.tmp[p.to.val];
+            const t = &f.tmps()[p.to.val];
             tmpuse(p.to, false, 0, f);
             for (0..p.narg) |a| {
                 const n = p.blk[a].loop;
@@ -465,7 +465,7 @@ pub fn spill(f: *Fn) void {
                 switch (rtype(i.arg[n])) {
                     RMem => {
                         t = (i.arg[n].val);
-                        const m = &f.mem[@intCast(t)];
+                        const m = &f.mems()[@intCast(t)];
                         if (rtype(m.base) == RTmp) {
                             bsset(&v, m.base.val);
                             bsset(&w, m.base.val);

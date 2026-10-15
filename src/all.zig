@@ -524,12 +524,15 @@ pub const Fn = extern struct {
     lnk: Lnk,
 
     pub fn tmps(f: *const Fn) []Tmp {
+        if (f.ntmp == 0) return &.{};
         return f.tmp[0..@intCast(f.ntmp)];
     }
     pub fn cons(f: *const Fn) []Con {
+        if (f.ncon == 0) return &.{};
         return f.con[0..@intCast(f.ncon)];
     }
     pub fn mems(f: *const Fn) []Mem {
+        if (f.nmem == 0) return &.{};
         return f.mem[0..@intCast(f.nmem)];
     }
     pub fn blks(f: *const Fn) []*Blk {

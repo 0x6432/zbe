@@ -300,7 +300,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) (Writer.Error || all.Error)!void {
                             try e.f.writeAll(cs(rname((r.val), k)));
                         },
                         RCon => {
-                            const pc = &e.@"fn".con[r.val];
+                            const pc = &e.@"fn".cons()[r.val];
                             const n: u64 = @bitCast(pc.bits.i);
                             assert(pc.type == CBits);
                             if ((n >> 24) != 0) {
@@ -470,7 +470,7 @@ fn emitins(i: *Ins, e: *E) (Writer.Error || all.Error)!void {
             assert(isreg(i.to));
             switch (rtype(i.arg[0])) {
                 RCon => {
-                    const c = &e.@"fn".con[i.arg[0].val];
+                    const c = &e.@"fn".cons()[i.arg[0].val];
                     try loadcon(c, @intCast(i.to.val), i.cls.int(), e);
                 },
                 RSlot => {
@@ -499,7 +499,7 @@ fn emitins(i: *Ins, e: *E) (Writer.Error || all.Error)!void {
                 try table(i, e);
                 return;
             }
-            const c = &e.@"fn".con[i.arg[0].val];
+            const c = &e.@"fn".cons()[i.arg[0].val];
             if (c.type != CAddr or
                 (c.sym.type & SThr) != 0 or
                 c.bits.i != 0)

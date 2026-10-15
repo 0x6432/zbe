@@ -86,7 +86,7 @@ fn uwl(f: *Fn, r: Ref, w: i32) bool {
     var v: i64 = undefined;
 
     assert(rtype(r) == RTmp);
-    const t = &f.tmp[r.val];
+    const t = &f.tmps()[r.val];
     for (t.uses()) |*u| {
         switch (u.type) {
             .phi => {
@@ -154,7 +154,7 @@ fn dwl(f: *Fn, r: Ref, w_: i32) bool {
         return false;
     if (rtype(r) != RTmp)
         return false;
-    const t = &f.tmp[r.val];
+    const t = &f.tmps()[r.val];
     if (t.cls != .w)
         return false;
 
@@ -325,7 +325,7 @@ pub fn copyref(f: *Fn, b: *Blk, i: *Ins) Ref {
         return i.arg[0];
 
     if (ext(i, &e) and rtype(i.arg[0]) == RTmp) {
-        const t = &f.tmp[i.arg[0].val];
+        const t = &f.tmps()[i.arg[0].val];
         assert(clsBase(t.cls) == 0);
 
         // do not break typing by returning

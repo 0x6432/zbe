@@ -332,7 +332,7 @@ const clstoa = [_][*:0]const u8{ "l", "q", "ss", "sd" };
 
 fn emitmem(ref: Ref, e: *E) Writer.Error!void {
     var off: Con = undefined;
-    const m = &e.@"fn".mem[ref.val];
+    const m = &e.@"fn".mems()[ref.val];
     if (rtype(m.base) == RSlot) {
         off.type = CBits;
         off.bits.i = slot(m.base, e);
@@ -423,7 +423,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) (Writer.Error || all.Error)!void {
                     RMem => try emitmem(ref, e),
                     RSlot => try e.f.print("{d}(%{s})", .{slot(ref, e), cs(regtoa(e.fp, SLong))}),
                     RCon => {
-                        var off = e.@"fn".con[ref.val];
+                        var off = e.@"fn".cons()[ref.val];
                         try emitcon(&off, e);
                         if (off.type == CAddr and off.sym.type != SThr)
                             try e.f.print("(%rip)", .{});
@@ -450,7 +450,7 @@ fn emitf(s_: [*:0]const u8, i: *Ins, e: *E) (Writer.Error || all.Error)!void {
                 RMem => try emitmem(ref, e),
                 RCon => {
                     try e.f.writeByte('$');
-                    try emitcon(&e.@"fn".con[ref.val], e);
+                    try emitcon(&e.@"fn".cons()[ref.val], e);
                 },
                 else => die("unreachable", .{}),
             }
@@ -565,9 +565,9 @@ fn emitins(i_: Ins, e: *E) (Writer.Error || all.Error)!void {
             const t0 = rtype(i.arg[0]);
             if (i.cls == .l and
                 t0 == RCon and
-                e.@"fn".con[i.arg[0].val].type == CBits)
+                e.@"fn".cons()[i.arg[0].val].type == CBits)
             {
-                const val = e.@"fn".con[i.arg[0].val].bits.i;
+                const val = e.@"fn".cons()[i.arg[0].val].bits.i;
                 if (isreg(i.to))
                     if (val >= 0 and val <= std.math.maxInt(u32)) {
                         try emitf("movl %W0, %W=", &i, e);
@@ -582,7 +582,7 @@ fn emitins(i_: Ins, e: *E) (Writer.Error || all.Error)!void {
             }
             if (isreg(i.to) and
                 t0 == RCon and
-                e.@"fn".con[i.arg[0].val].type == CAddr)
+                e.@"fn".cons()[i.arg[0].val].type == CAddr)
             {
                 try emitf("lea%k %M0, %=", &i, e);
                 return;
@@ -605,7 +605,7 @@ fn emitins(i_: Ins, e: *E) (Writer.Error || all.Error)!void {
                 try emittable(&i, e);
                 return;
             }
-            const con = &e.@"fn".con[i.arg[0].val];
+            const con = &e.@"fn".cons()[i.arg[0].val];
             assert(isreg(i.to) and con.type == CAddr);
             const sym = str(con.sym.id);
             const pfx: [*:0]const u8 = if (sym[0] == '"') "" else @ptrCast(&all.T.assym);
@@ -645,7 +645,7 @@ fn emitins(i_: Ins, e: *E) (Writer.Error || all.Error)!void {
             // assembly...
             switch (rtype(i.arg[0])) {
                 RCon => {
-                    const con = &e.@"fn".con[i.arg[0].val];
+                    const con = &e.@"fn".cons()[i.arg[0].val];
                     try e.f.print("\tcallq ", .{});
                     try emitcon(con, e);
                     if (con.type == CAddr and

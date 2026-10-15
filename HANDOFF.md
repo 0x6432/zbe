@@ -872,3 +872,16 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - The rewrite remains in progress: docs/IDIOMATIC-ZIG.md tracks the remaining
   direct indexed core-field consumer audit and intentional representations.
   No release tag was created or authorized.
+
+### Published cleanup CI confirmed (2026-10-15)
+- Both main and wip/idiomatic were fast-forwarded and atomically pushed to
+  dfa83458ec5268768e67aa4286093a4842675ef2.
+- GitHub run https://github.com/0x6432/zbe/actions/runs/38751793899 completed
+  SUCCESS. All nine verification jobs passed: core, cproc, hare on x86_64 and
+  arm64 Linux, native arm64 Linux and macOS, and arm64/rv64/Windows cross jobs.
+  Release was skipped normally; no tag or release was created.
+- This final handoff-only commit uses [skip ci]; the source and tests verified
+  by that green run are unchanged. Both branches receive the same handoff.
+- Continue the remaining direct-indexed core-field consumer audit recorded in
+  docs/IDIOMATIC-ZIG.md before claiming the entire idiomatic rewrite complete.
+  Preserve all deliberate representation and compatibility boundaries.

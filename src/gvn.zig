@@ -105,7 +105,7 @@ fn replaceuse(f: *Fn, u: *Use, r1: Ref, r2: Ref) void {
                     pr.* = r2;
                 };
             if (t2) |t|
-                adduse(t, .phi, b, (p));
+                adduse(t, b, .{ .phi = p });
         },
         .ins => {
             const i = u.u.ins;
@@ -115,13 +115,13 @@ fn replaceuse(f: *Fn, u: *Use, r1: Ref, r2: Ref) void {
                     i.arg[n] = r2;
                 };
             if (t2) |t|
-                adduse(t, .ins, b, (i));
+                adduse(t, b, .{ .ins = i });
         },
         .jmp => {
             if (req(b.jmp.arg, r1))
                 b.jmp.arg = r2;
             if (t2) |t|
-                adduse(t, .jmp, b, null);
+                adduse(t, b, .jmp);
         },
         .xxx => die("unreachable", .{}),
     }
@@ -219,7 +219,7 @@ fn assoccon(f: *Fn, b: *Blk, i_1: *Ins) void {
     i_1.op = op;
     i_1.arg[0] = i_2.arg[0];
     i_1.arg[1] = newcon(&c, f);
-    adduse(&f.tmp[i_1.arg[0].val], .ins, b, (i_1));
+    adduse(&f.tmp[i_1.arg[0].val], b, .{ .ins = i_1 });
 }
 
 fn killins(f: *Fn, i: *Ins, r: Ref) void {

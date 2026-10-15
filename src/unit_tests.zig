@@ -285,6 +285,7 @@ test {
     std.testing.refAllDecls(@import("emit.zig"));
     std.testing.refAllDecls(@import("load.zig"));
     std.testing.refAllDecls(@import("mem.zig"));
+    std.testing.refAllDecls(@import("ssa.zig"));
 }
 
 // ---- bounded instruction copies ------------------------------------------
@@ -496,4 +497,40 @@ test "runmatch slices: jump and termination do not access number storage" {
     try t.expect(all.req(vars[0], all.tmpRef(7)));
     u.runmatch(&.{0}, &.{}, all.tmpRef(8), &vars);
     try t.expect(all.req(vars[0], all.tmpRef(7)));
+}
+
+test "bitset views: guarded subslices, const reads, and unowned empty storage" {
+    var storage = [_]all.bits{ 0x1234, 1, 0, 0x5678 };
+    var set: all.BSet = .{ .nt = 2, .t = storage[1..3].ptr };
+    const read_only: *const all.BSet = &set;
+    try t.expectEqualSlices(all.bits, &.{ 1, 0 }, read_only.wordsConst());
+    try t.expectEqual(@as(all.uint, 1), u.bscount(read_only));
+    u.bsset(&set, 65);
+    try t.expectEqual(@as(all.bits, 2), storage[2]);
+    u.bsunion(&set, read_only); // aliased operands remain well-defined
+    try t.expectEqual(@as(all.uint, 2), u.bscount(read_only));
+    u.bszero(&set);
+    try t.expectEqualSlices(all.bits, &.{ 0x1234, 0, 0, 0x5678 }, &storage);
+
+    var empty: all.BSet = .{ .nt = 0, .t = undefined };
+    const empty_const: *const all.BSet = &empty;
+    try t.expectEqual(@as(usize, 0), empty.words().len);
+    try t.expectEqual(@as(usize, 0), empty_const.wordsConst().len);
+    u.bszero(&empty);
+    u.bscopy(&empty, empty_const);
+    u.bsunion(&empty, empty_const);
+    u.bsinter(&empty, empty_const);
+    u.bsdiff(&empty, empty_const);
+    try t.expect(u.bsequal(&empty, empty_const));
+    try t.expectEqual(@as(all.uint, 0), u.bscount(empty_const));
+    var cursor: i32 = 0;
+    try t.expect(!u.bsiter(empty_const, &cursor));
+}
+
+test "bitset copy views: overlapping ranges retain forward-copy behavior" {
+    var storage = [_]all.bits{ 1, 2, 3, 4 };
+    const source: all.BSet = .{ .nt = 3, .t = storage[0..3].ptr };
+    var destination: all.BSet = .{ .nt = 3, .t = storage[1..4].ptr };
+    u.bscopy(&destination, &source);
+    try t.expectEqualSlices(all.bits, &.{ 1, 1, 1, 1 }, &storage);
 }

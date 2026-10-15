@@ -10,6 +10,7 @@ const Blk = all.Blk;
 const Fn = all.Fn;
 const PFn = all.PFn;
 const Phi = all.Phi;
+const Ins = all.Ins;
 const R = all.R;
 const RTmp = all.RTmp;
 const Ref = all.Ref;
@@ -61,22 +62,32 @@ const vnewT = all.vnewT;
 
 const NOID: uint = std.math.maxInt(uint);
 
-/// C: adduse(Tmp *, int, Blk *, ...); the variadic argument is the
-/// Phi* (UPhi) or Ins* (UIns), and absent (null) for UJmp
-pub fn adduse(tmp: *Tmp, ty: all.U, b: *Blk, x: ?*anyopaque) void {
+/// Typed payload for registering a temporary's use. The stored Use ABI stays
+/// unchanged; callers cannot pair a use kind with the wrong pointer type.
+pub const UseTarget = union(enum) {
+    phi: *Phi,
+    ins: *Ins,
+    jmp: void,
+};
+
+pub fn adduse(tmp: *Tmp, b: *Blk, target: UseTarget) void {
     if (tmp.use == null)
         return;
     const n = tmp.nuse;
     tmp.nuse += 1;
     vgrow(&tmp.use, tmp.nuse);
     const u = &tmp.use.?[n];
-    u.type = ty;
     u.bid = b.id;
-    switch (ty) {
-        .phi => u.u.phi = @ptrCast(@alignCast(x)),
-        .ins => u.u.ins = @ptrCast(@alignCast(x)),
-        .jmp => {},
-        else => die("unreachable", .{}),
+    switch (target) {
+        .phi => |p| {
+            u.type = .phi;
+            u.u.phi = p;
+        },
+        .ins => |i| {
+            u.type = .ins;
+            u.u.ins = i;
+        },
+        .jmp => u.type = .jmp,
     }
 }
 
@@ -116,7 +127,7 @@ pub fn filluse(f: *Fn) void {
             for (p.args()) |a|
                 if (rtype(a) == RTmp) {
                     t = a.val;
-                    adduse(&tmp[@intCast(t)], .phi, b, @ptrCast(p));
+                    adduse(&tmp[@intCast(t)], b, .{ .phi = p });
                     t = phicls(t, tmp);
                     if (t != tp)
                         tmp[@intCast(t)].phi = tp;
@@ -149,11 +160,11 @@ pub fn filluse(f: *Fn) void {
             while (m < 2) : (m += 1)
                 if (rtype(i.arg[m]) == RTmp) {
                     t = (i.arg[m].val);
-                    adduse(&tmp[@intCast(t)], .ins, b, @ptrCast(i));
+                    adduse(&tmp[@intCast(t)], b, .{ .ins = i });
                 };
         }
         if (rtype(b.jmp.arg) == RTmp)
-            adduse(&tmp[b.jmp.arg.val], .jmp, b, null);
+            adduse(&tmp[b.jmp.arg.val], b, .jmp);
     }
 }
 
@@ -438,4 +449,40 @@ pub fn ssacheck(f: *Fn) all.Error!void {
         die("%{s} violates ssa invariant", .{cs(t.name)})
     else
         return fail("ssa temporary %{s} is used undefined in @{s}", .{cs(t.name), cs(bu.?.name)});
+}
+
+test "typed use registration: payloads, block IDs, and growth" {
+    defer all.freeall();
+    var temp = std.mem.zeroes(Tmp);
+    temp.use = vnewT(Use, 0, PFn);
+    var block = std.mem.zeroes(Blk);
+    block.id = 7;
+    var phi = std.mem.zeroes(Phi);
+    var instruction = all.insOp(.copy);
+    adduse(&temp, &block, .{ .phi = &phi });
+    adduse(&temp, &block, .{ .ins = &instruction });
+    adduse(&temp, &block, .jmp);
+    try std.testing.expectEqual(@as(uint, 3), temp.nuse);
+    try std.testing.expectEqual(all.U.phi, temp.use.?[0].type);
+    try std.testing.expectEqual(&phi, temp.use.?[0].u.phi);
+    try std.testing.expectEqual(all.U.ins, temp.use.?[1].type);
+    try std.testing.expectEqual(&instruction, temp.use.?[1].u.ins);
+    try std.testing.expectEqual(all.U.jmp, temp.use.?[2].type);
+    for (0..20) |_| adduse(&temp, &block, .{ .ins = &instruction });
+    try std.testing.expectEqual(@as(uint, 23), temp.nuse);
+    for (temp.use.?[0..temp.nuse]) |use|
+        try std.testing.expectEqual(@as(uint, 7), use.bid);
+    try std.testing.expectEqual(&phi, temp.use.?[0].u.phi);
+    try std.testing.expectEqual(&instruction, temp.use.?[22].u.ins);
+}
+
+test "typed use registration: disabled use tracking leaves count unchanged" {
+    var temp = std.mem.zeroes(Tmp);
+    temp.nuse = 17;
+    var block = std.mem.zeroes(Blk);
+    var instruction = all.insOp(.copy);
+    adduse(&temp, &block, .{ .ins = &instruction });
+    adduse(&temp, &block, .jmp);
+    try std.testing.expect(temp.use == null);
+    try std.testing.expectEqual(@as(uint, 17), temp.nuse);
 }

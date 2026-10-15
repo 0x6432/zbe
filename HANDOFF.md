@@ -793,3 +793,26 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   Its 202-file real-world corpus compared over all six targets: 1212 runs,
   zero differ, 52 both-failed. The corpus used an immutable compiler snapshot
   so the concurrent optimizer mutation test could not contaminate the result.
+
+### Storage milestone verification (2026-10-15)
+- Fresh aggregate core run passed with zero failed checks, including unit
+  51/51, edge 291/0, jnz 21/0, parser-cache stress 12/0, library 1442/0,
+  bugs 110/0, input errors 51/0, strict comparator 42/0, all six assembly
+  and debug comparisons 0/76 differ, and mutation 11 killed/0 survived.
+- Optimized IR fuzz: 150/150 at EACH -O1 and -O2, 20 functions/iteration,
+  seeds 1000..1149. Cproc bootstrap/check and 1212-run corpus also passed.
+
+### Typed use payloads, bitset views, and parser states (2026-10-15)
+- SSA adduse accepts a tagged Phi/Ins/jump payload; all SSA/GVN callers pass
+  actual pointer types without anyopaque/align casts. Stored Use layout and
+  numeric kinds remain unchanged; disabled tracking still leaves counts alone.
+- BSet adds mutable/read-only word views without changing its fields/layout.
+  Empty views do not inspect an unowned pointer. Bitset helpers and direct
+  register-mask consumers use bounded views; readers accept const BSet values.
+- Parser control flow uses an enum; opcode-derived token numbering is untouched.
+- Five new direct tests cover typed payloads/counts/growth, disabled tracking,
+  guarded/empty/const bitset views, overlapping forward copies, and parser
+  state rejection/closing transitions with the exact existing diagnostic.
+  Current direct unit result: 56/56 passed. Full aggregate rerun is next.
+- Remaining rewrite work is tracked in docs/IDIOMATIC-ZIG.md; do not treat this
+  milestone as a blanket claim that all local builder interfaces are finished.

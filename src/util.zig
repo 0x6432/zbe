@@ -757,62 +757,54 @@ inline fn firstbit(b_: bits) i32 {
     return n;
 }
 
-pub fn bscount(bs: *BSet) uint {
+pub fn bscount(bs: *const BSet) uint {
     var n: uint = 0;
-    var i: uint = 0;
-    while (i < bs.nt) : (i += 1)
-        n += popcnt(bs.t[i]);
+    for (bs.wordsConst()) |word| n += popcnt(word);
     return n;
 }
 
-inline fn bsmax(bs: *BSet) uint {
+inline fn bsmax(bs: *const BSet) uint {
     return bs.nt * NBit;
 }
 
 pub fn bsset(bs: *BSet, elt: anytype) void {
     assert(elt < bsmax(bs));
     const e: uint = @intCast(elt);
-    bs.t[e / NBit] |= bitAt(e % NBit);
+    bs.words()[e / NBit] |= bitAt(e % NBit);
 }
 
 pub fn bsclr(bs: *BSet, elt: anytype) void {
     assert(elt < bsmax(bs));
     const e: uint = @intCast(elt);
-    bs.t[e / NBit] &= ~bitAt(e % NBit);
+    bs.words()[e / NBit] &= ~bitAt(e % NBit);
 }
 
-pub fn bscopy(a: *BSet, b: *BSet) void {
+pub fn bscopy(a: *BSet, b: *const BSet) void {
     assert(a.nt == b.nt);
-    var i: uint = 0;
-    while (i < a.nt) : (i += 1) a.t[i] = b.t[i];
+    for (a.words(), b.wordsConst()) |*dst, src| dst.* = src;
 }
-pub fn bsunion(a: *BSet, b: *BSet) void {
+pub fn bsunion(a: *BSet, b: *const BSet) void {
     assert(a.nt == b.nt);
-    var i: uint = 0;
-    while (i < a.nt) : (i += 1) a.t[i] |= b.t[i];
+    for (a.words(), b.wordsConst()) |*dst, src| dst.* |= src;
 }
-pub fn bsinter(a: *BSet, b: *BSet) void {
+pub fn bsinter(a: *BSet, b: *const BSet) void {
     assert(a.nt == b.nt);
-    var i: uint = 0;
-    while (i < a.nt) : (i += 1) a.t[i] &= b.t[i];
+    for (a.words(), b.wordsConst()) |*dst, src| dst.* &= src;
 }
-pub fn bsdiff(a: *BSet, b: *BSet) void {
+pub fn bsdiff(a: *BSet, b: *const BSet) void {
     assert(a.nt == b.nt);
-    var i: uint = 0;
-    while (i < a.nt) : (i += 1) a.t[i] &= ~b.t[i];
+    for (a.words(), b.wordsConst()) |*dst, src| dst.* &= ~src;
 }
 
-pub fn bsequal(a: *BSet, b: *BSet) bool {
+pub fn bsequal(a: *const BSet, b: *const BSet) bool {
     assert(a.nt == b.nt);
-    var i: uint = 0;
-    while (i < a.nt) : (i += 1)
-        if (a.t[i] != b.t[i])
-            return false;
+    for (a.wordsConst(), b.wordsConst()) |left, right|
+        if (left != right) return false;
     return true;
 }
 
 pub fn bszero(bs: *BSet) void {
-    if (bs.nt != 0) @memset(bs.t[0..bs.nt], 0);
+    @memset(bs.words(), 0);
 }
 
 /// iterates on a bitset, use as follows
@@ -820,18 +812,19 @@ pub fn bszero(bs: *BSet) void {
 ///     for (i=0; bsiter(set, &i); i++)
 ///         use(i);
 ///
-pub fn bsiter(bs: *BSet, elt: *i32) bool {
+pub fn bsiter(bs: *const BSet, elt: *i32) bool {
+    const words = bs.wordsConst();
     const i: uint = @intCast(elt.*);
     var t: uint = i / NBit;
-    if (t >= bs.nt)
+    if (t >= words.len)
         return false;
-    var b = bs.t[t];
+    var b = words[t];
     b &= ~(bitAt(i % NBit) -% 1);
     while (b == 0) {
         t += 1;
-        if (t >= bs.nt)
+        if (t >= words.len)
             return false;
-        b = bs.t[t];
+        b = words[t];
     }
     elt.* = @as(i32, @intCast(NBit * t)) + firstbit(b);
     return true;

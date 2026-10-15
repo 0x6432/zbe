@@ -48,6 +48,16 @@ pub const Tmp0 = NBit; // first non-reg temporary
 pub const BSet = extern struct {
     nt: uint,
     t: [*]bits,
+
+    pub fn words(self: *BSet) []bits {
+        if (self.nt == 0) return &.{};
+        return self.t[0..self.nt];
+    }
+
+    pub fn wordsConst(self: *const BSet) []const bits {
+        if (self.nt == 0) return &.{};
+        return self.t[0..self.nt];
+    }
 };
 
 pub const Ref = packed struct(u32) {
@@ -683,10 +693,10 @@ pub const bsiter = util.bsiter;
 pub const vnewT = util.vnewT;
 pub const ptrdiff = util.ptrdiff;
 
-pub inline fn bshas(bs: *BSet, elt: anytype) bool {
+pub inline fn bshas(bs: *const BSet, elt: anytype) bool {
     const e: uint = @intCast(elt);
     std.debug.assert(e < bs.nt * NBit);
-    return (bs.t[e / NBit] & bitAt(e % NBit)) != 0;
+    return (bs.wordsConst()[e / NBit] & bitAt(e % NBit)) != 0;
 }
 
 // parse.c

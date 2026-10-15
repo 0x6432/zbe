@@ -143,12 +143,12 @@ pub const optab_init: [NOp]Op = blk: {
     break :blk t;
 };
 
-const PState = i32;
-const PXXX = 0;
-const PLbl = 1;
-const PPhi = 2;
-const PIns = 3;
-const PEnd = 4;
+const PState = enum {
+    label,
+    phi,
+    instruction,
+    end,
+};
 
 // enum Token
 const Txxx = 0;
@@ -809,7 +809,7 @@ fn parseline(ps: PState) Error!PState {
     var ty: i32 = 0;
 
     var t = try nextnl();
-    if (ps == PLbl and t != Tlbl and t != Trbrace)
+    if (ps == .label and t != Tlbl and t != Trbrace)
         return fail("label or }} expected", .{});
     const Flow = enum { normal, jump, close, ins };
     var flow: Flow = .normal;
@@ -826,7 +826,7 @@ fn parseline(ps: PState) Error!PState {
             k = Cls.w.int();
             op = t;
         },
-        Trbrace => return PEnd,
+        Trbrace => return .end,
         Tlbl => {
             const b = findblk();
             if (st.curb != null and st.curb.?.jmp.type == .xxx) {
@@ -840,7 +840,7 @@ fn parseline(ps: PState) Error!PState {
             st.curb = b;
             st.plink = &b.phi;
             try expect(Tnl);
-            return PPhi;
+            return .phi;
         },
         Tret => {
             st.curb.?.jmp.type = J.retw.add(st.rcls);
@@ -911,7 +911,7 @@ fn parseline(ps: PState) Error!PState {
     if (flow == .close) {
         try expect(Tnl);
         closeblk();
-        return PLbl;
+        return .label;
     }
     if (flow == .normal and op == Tcall) {
         st.curf.leaf = 0;
@@ -961,7 +961,7 @@ fn parseline(ps: PState) Error!PState {
         _ = try next();
         switch (op) {
             Tphi => {
-                if (ps != PPhi or st.curb == st.curf.start)
+                if (ps != .phi or st.curb == st.curf.start)
                     return fail("unexpected phi instruction", .{});
                 const phi = pnew(Phi);
                 phi.to = r;
@@ -973,7 +973,7 @@ fn parseline(ps: PState) Error!PState {
                 phi.narg = @intCast(i);
                 st.plink.* = phi;
                 st.plink = &phi.link;
-                return PPhi;
+                return .phi;
             },
             Tblit => {
                 if (all.insbHead() >= NIns - 1)
@@ -992,7 +992,7 @@ fn parseline(ps: PState) Error!PState {
                 all.curi[0].op = .blit1;
                 all.curi[0].arg[0] = r;
                 all.curi += 1;
-                return PIns;
+                return .instruction;
             },
             else => {
                 if (op >= NPubOp)
@@ -1009,7 +1009,7 @@ fn parseline(ps: PState) Error!PState {
     all.curi[0].arg[0] = arg[0];
     all.curi[0].arg[1] = arg[1];
     all.curi += 1;
-    return PIns;
+    return .instruction;
 }
 
 fn usecheck(r: Ref, k: i32, f: *Fn) bool {
@@ -1135,10 +1135,10 @@ fn parsefn(lnk: *Lnk) Error!*Fn {
     st.curf.vararg = @intFromBool(try parserefl(false));
     if (try nextnl() != Tlbrace)
         return fail("function body must start with {{", .{});
-    ps = PLbl;
+    ps = .label;
     while (true) {
         ps = try parseline(ps);
-        if (ps == PEnd) break;
+        if (ps == .end) break;
     }
     if (st.curb == null)
         return fail("empty function", .{});
@@ -1698,4 +1698,31 @@ test "temporary hash slice: wrapped collisions and rehash preserve references" {
     tokval.str = @constCast("fourth");
     try std.testing.expect(req(fourth, tmpref()));
     try std.testing.expectEqual(@as(i32, Tmp0 + 4), f.ntmp);
+}
+
+test "typed parser states: label rejection and closing transition" {
+    const saved = st;
+    const saved_token = tokval;
+    const saved_debug = all.dbg;
+    st = .{};
+    lexinit();
+    tokval.str = @ptrCast(vnewT(u8, 128, PHeap));
+    defer {
+        vfree(tokval.str);
+        st = saved;
+        tokval = saved_token;
+        all.dbg = saved_debug;
+    }
+    var buffer: [256]u8 = undefined;
+    var debug = Writer.fixed(&buffer);
+    all.dbg = &debug;
+    st.inpath = "<state-test>";
+    st.in = "%bad =w copy 0\n";
+    st.lnum = 1;
+    try std.testing.expectError(error.InvalidInput, parseline(.label));
+    try std.testing.expectEqualStrings("qbe:<state-test>:1: label or } expected\n", debug.buffered());
+    st.in = "}\n";
+    st.ipos = 0;
+    st.thead = Txxx;
+    try std.testing.expectEqual(PState.end, try parseline(.label));
 }

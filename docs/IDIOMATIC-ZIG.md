@@ -20,24 +20,24 @@ intentional core representations, rather than private pass/parser state. This
 is a useful milestone, **not** the end of the rewrite: local vector builders,
 legacy interfaces, and raw core-field consumers remain.
 
+## Typed interfaces completed in the current batch
+
+- SSA/GVN use registration uses a tagged payload rather than a separately
+  supplied kind and erased pointer. The stored `Use` representation is unchanged.
+- Bitsets expose mutable/read-only word slices. Helpers and register-mask users
+  use bounded views, including zero-word sets without owned storage. Forward-copy
+  semantics for overlapping word ranges are covered explicitly.
+- Parser control states are an enum. Opcode-derived token numbers and grammar
+  diagnostics are deliberately unchanged.
+
 ## Next batches, in order
 
-1. **Typed use-registration payloads.** `ssa.adduse` still accepts a kind plus
-   `?*anyopaque`. Replace that interface with a tagged payload that cannot pair
-   the wrong pointer type with a use kind. Update its SSA/GVN callers together;
-   retain the stored `Use` layout, numeric kind encoding, and counting semantics.
-2. **Bounded bitset word views.** Add accessors over `BSet.t`/`nt`, then convert
-   helpers and direct consumers. Preserve zero-word behavior, first-word
-   register-mask operations, and bit numbering; do not change the extern layout.
-3. **Instruction-vector builder interfaces.** Audit `addins`/`addbins` and local
+1. **Instruction-vector builder interfaces.** Audit `addins`/`addbins` and local
    pointer/count builders (including the load pass's reused instruction buffer).
    Make ownership and active extents explicit without invalidating aliases or
    losing retained capacity. The pooled vector allocator is not automatically
    a candidate for replacement merely because it is custom.
-4. **Parser control-state typing.** Review the parser's integer state machine
-   separately from opcode-derived token numbers. Preserve token ranges, grammar,
-   diagnostic wording, and rejection behavior; no blind enum conversion.
-5. **Module-by-module final audit.** Check mutating-loop bounds, optionality,
+2. **Module-by-module final audit.** Check mutating-loop bounds, optionality,
    ownership/error paths, and helper naming. Avoid cosmetic churn, bulk textual
    renames, or changing intentionally numeric ABI/class/comparison fields.
 

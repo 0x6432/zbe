@@ -23,6 +23,12 @@
   leaves stale va register counts (BUGS.md #7, also in the C patch).
 
 ### Code quality
+- Parser name caches, debug-file lists, intern buckets, load insertion logs,
+  and memory-coalescing histories use bounded slices while retaining their
+  established ownership, reuse, ordering and numeric IDs.
+- SSA/GVN use registration accepts typed payloads instead of erased pointers;
+  bitset helpers expose bounded word views, and parser control states are an
+  enum. Stored extern/ABI layouts and compatibility-mode output are unchanged.
 - Register-allocation memory views and per-block register-map arrays use
   bounded slices. Spill-limit scratch storage carries its cached capacity
   in a slice, retaining reuse while sorting only the current active prefix.

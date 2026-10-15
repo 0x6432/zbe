@@ -292,16 +292,16 @@ fn dopm(b: *Blk, last: uint, v: *BSet) uint {
     bscopy(&u, v);
     if (n != 0 and b.ins[n - 1].op == .call) {
         const call = &b.ins[n - 1];
-        v.t[0] &= ~all.T.retregs(call.arg[1], null);
+        v.words()[0] &= ~all.T.retregs(call.arg[1], null);
         limit2(v, all.T.nrsave[0], all.T.nrsave[1], null);
         r = 0;
         var k: usize = 0;
         while (all.T.rsave[k] >= 0) : (k += 1)
             r |= bitAt(all.T.rsave[k]);
-        v.t[0] |= all.T.argregs(call.arg[1], null);
+        v.words()[0] |= all.T.argregs(call.arg[1], null);
     } else {
         limit2(v, 0, 0, null);
-        r = v.t[0];
+        r = v.words()[0];
     }
     sethint(v, r);
     reloads(&u, v);
@@ -382,7 +382,7 @@ pub fn spill(f: *Fn) void {
         if (hd_) |hd| {
             // back-edge
             bszero(&v);
-            hd.gen.t[0] |= all.T.rglob; // don't spill registers
+            hd.gen.words()[0] |= all.T.rglob; // don't spill registers
             for (0..2) |k| {
                 const n: i32 = if (k == 0) all.T.ngpr else all.T.nfpr;
                 bscopy(&u, &b.out);
@@ -413,7 +413,7 @@ pub fn spill(f: *Fn) void {
         } else {
             bscopy(&v, &b.out);
             if (rtype(b.jmp.arg) == RCall)
-                v.t[0] |= all.T.retregs(b.jmp.arg, null);
+                v.words()[0] |= all.T.retregs(b.jmp.arg, null);
         }
         if (rtype(b.jmp.arg) == RTmp) {
             t = b.jmp.arg.val;
@@ -512,14 +512,14 @@ pub fn spill(f: *Fn) void {
                     bsclr(&v, t);
             }
             emiti(i.*);
-            const r = v.t[0]; // Tmp0 is NBit
+            const r = v.words()[0]; // Tmp0 is NBit
             if (r != 0)
                 sethint(&v, r);
         }
         if (b == f.start)
-            assert(v.t[0] == (all.T.rglob | f.reg))
+            assert(v.words()[0] == (all.T.rglob | f.reg))
         else
-            assert(v.t[0] == all.T.rglob);
+            assert(v.words()[0] == all.T.rglob);
 
         var p_it: ?*Phi = b.phi;
         while (p_it) |p| : (p_it = p.link) {

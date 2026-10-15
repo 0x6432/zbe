@@ -152,7 +152,7 @@ fn ralloctry(m: *RMap, t: i32, try_: bool) Ref {
             if (try_)
                 return R;
             var regs = st.tmp[@intCast(phicls(t, st.tmp))].hint.m;
-            regs |= m.b.t[0];
+            regs |= m.b.words()[0];
             var r0: i32 = undefined;
             var r1: i32 = undefined;
             if (clsBase(st.tmp[@intCast(t)].cls) == 0) {

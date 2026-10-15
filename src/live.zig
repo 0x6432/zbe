@@ -90,15 +90,15 @@ pub fn filllive(f: *Fn) void {
             chg = chg or !bsequal(&b.out, &u);
 
             nlv = .{ 0, 0 };
-            b.out.t[0] |= all.T.rglob;
+            b.out.words()[0] |= all.T.rglob;
             bscopy(&b.in, &b.out);
             var t: i32 = 0;
             while (bsiter(&b.in, &t)) : (t += 1)
                 nlv[@intCast(clsBase(tmp[@intCast(t)].cls))] += 1;
             if (rtype(b.jmp.arg) == RCall) {
                 assert(@as(i32, @intCast(bscount(&b.in))) == all.T.nrglob and
-                    b.in.t[0] == all.T.rglob);
-                b.in.t[0] |= all.T.retregs(b.jmp.arg, &nlv);
+                    b.in.words()[0] == all.T.rglob);
+                b.in.words()[0] |= all.T.retregs(b.jmp.arg, &nlv);
             } else bset(b.jmp.arg, b, &nlv, tmp);
             b.nlive = nlv;
             var i_n = b.nins;
@@ -106,7 +106,7 @@ pub fn filllive(f: *Fn) void {
                 i_n -= 1;
                 const i = &b.ins[i_n];
                 if (i.op == .call and rtype(i.arg[1]) == RCall) {
-                    b.in.t[0] &= ~all.T.retregs(i.arg[1], &m);
+                    b.in.words()[0] &= ~all.T.retregs(i.arg[1], &m);
                     for (0..2) |k| {
                         nlv[k] -= m[k];
                         // caller-save registers are used
@@ -116,7 +116,7 @@ pub fn filllive(f: *Fn) void {
                         nlv[k] += all.T.nrsave[k];
                         b.nlive[k] = @max(b.nlive[k], nlv[k]);
                     }
-                    b.in.t[0] |= all.T.argregs(i.arg[1], &m);
+                    b.in.words()[0] |= all.T.argregs(i.arg[1], &m);
                     for (0..2) |k| {
                         nlv[k] -= all.T.nrsave[k];
                         nlv[k] += m[k];

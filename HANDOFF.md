@@ -1219,3 +1219,25 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   worktree. The root verification worktree runs source-mutating tests, so a
   release build must never consume that live source concurrently. No main
   publication until the corrected immutable v2 gate finishes successfully.
+
+### Corrected milestone: immutable v2 verification and six-package preview PASSED
+- The final v2 runner completed with failed checks: 0. Debug and ReleaseSafe
+  units 75/75; native optimized/compat behavior; all six targets' assembly AND
+  debug dumps 0/76 differ each; edge 291/0, bugs 110/0, lib 1442/0, input 51/0,
+  strict diagnostics 42/0, CLI 23/0, jumps 21/0 and address harness 39/0 with
+  2247 memory-oracle cases at each optimization level. All harness checks pass.
+- Existing eleven simpl mutants AND two new address mutants killed, zero
+  survivors. Sources were restored exactly; final isel hash matches measured
+  candidate. Optimizer/opttable/optfuzz and core optimized/compat/ABI fuzz pass.
+- Additional optimized IR fuzz: 150/150 at EACH -O1 and -O2, seeds 1000..1149,
+  20 functions per iteration. Unchanged Python oracle and C reference patch.
+- Final 231-file corpus: 1386 compatibility runs, zero differ, 100 matched
+  both-failed; optimized sweep 2572 passed, zero failed.
+- Isolated immutable checkpoint 7260c55 built and packaged all six baseline-CPU
+  ReleaseFast targets. All archives and checksums pass. Native Linux-musl CLI,
+  packaged static C library consumer and generated-code answer=42 smoke pass.
+  Other package formats were cross-built, NOT locally executed. Binary version
+  remains 1.4.0-zig; no version bump, tag or release.
+- Latest user instruction: finish this milestone, then STOP to conserve tokens.
+  Publish verified fast-forwards, inspect fresh GitHub CI, record actual status,
+  then stop. Do not start another optimization/refactor or unattended monitor.

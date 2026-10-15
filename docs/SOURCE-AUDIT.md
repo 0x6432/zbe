@@ -27,7 +27,7 @@ source-specific run; historical green is not transferred to a new checkpoint.
 | Memcheck describes six targets but runs five, shares a fixed temporary path, and counts non-99 failures as success | Verification reliability | Fixed six-target coverage, temporary isolation and nonzero-exit classification; 4 stub tests pass; Valgrind itself unavailable locally |
 | Benchmark divs.c relies on signed overflow, invalidating timing interpretation | Measurement reliability | Replaced accumulator and input construction with defined unsigned wrapping; six native benchmark fixtures checked with UBSan |
 | Local full-suite entry point hides failures behind tail/sed pipelines | Verification reliability | Replaced with fail-fast core/corpus orchestration; four isolated failure/success tests |
-| -O2 power-of-two multiplication becomes a shift that AMD64's address matcher does not recognize | Measured performance candidate | Matcher-only normalization of long shifts 1..3 to scales 2/4/8 at -O1/-O2; rejects word/nonconstant/out-of-range cases; optimized measurements and full gate required |
+| -O2 power-of-two multiplication becomes a shift that AMD64's address matcher does not recognize | Measured performance candidate | Matcher-only normalization of long shifts 1..3 to scales 2/4/8 at -O1/-O2; rejects word/nonconstant/out-of-range cases; measured and full corrected-source local v2 gate passed; fresh CI still required |
 | Repository-wide zig fmt --check reports pre-existing differences | Style / lower priority | Do not conceal this or reformat unrelated compiler code in a semantic patch |
 
 ## Boundaries to keep

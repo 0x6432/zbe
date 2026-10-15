@@ -38,3 +38,12 @@ Local preview results and the exact newly published CI state are recorded
 chronologically in HANDOFF.md. Do not infer that this checklist is complete
 from the existence of preview archives. No version bump/tag/release has been
 performed by this preparation work.
+
+## Completed development preview (not a release)
+
+Checkpoint 7260c55 passed six baseline-CPU ReleaseFast builds, package-content
+and archive/checksum checks. Native x86-64 Linux-musl CLI and packaged C API
+consumer/generated code were executed successfully. The other five packages
+were cross-built only. Exact final local verification is recorded in HANDOFF;
+a fresh source-specific GitHub CI result is still required. Version/tag
+approval and the release-source verification gates above remain open.

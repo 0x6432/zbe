@@ -137,7 +137,7 @@ const store = blk: {
 
 fn isfloatv(t: *Typ, cls: *Cls) bool {
     for (0..t.nunion) |n| {
-        for (&t.fields[n]) |*f| {
+        for (&t.fieldSets()[n]) |*f| {
             if (f.type == FEnd) break;
             switch (f.type) {
                 Fs => {

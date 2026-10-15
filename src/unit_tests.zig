@@ -763,3 +763,16 @@ test "core views: empty unowned block, phi, and reverse-postorder storage" {
     try t.expect(all.req(all.tmpRef(7), refs[1]));
     try t.expect(all.req(all.tmpRef(3), refs[2]));
 }
+
+test "aggregate field views: active alternatives and empty unowned storage" {
+    var aggregate: all.Typ = undefined;
+    aggregate.nunion = 0;
+    try t.expectEqual(@as(usize, 0), aggregate.fieldSets().len);
+    var fields = std.mem.zeroes([3][all.NField + 1]all.Field);
+    aggregate.fields = &fields;
+    aggregate.nunion = 2;
+    try t.expectEqual(@as(usize, 2), aggregate.fieldSets().len);
+    aggregate.fieldSets()[1][0].type = all.Fw;
+    try t.expectEqual(all.Fw, fields[1][0].type);
+    try t.expectEqual(all.FEnd, fields[2][0].type);
+}

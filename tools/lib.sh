@@ -28,6 +28,21 @@ int main(int argc, char **argv) {
       if (!strstr(out, "f:")) bad++;
       qbe_free(out);
     }
+    const char *broken[] = {
+      "type :bad = { w\n",
+      "type :bad = { { w } { d\n",
+      "type\n",
+      "export function w $bad(w %a) {\n@start\n%x =w add %a, 1\n}\n"
+    };
+    for (i = 0; i < 24; i++) { /* failed parse must not poison the next compile */
+      const char *b = broken[i % 4];
+      out = NULL;
+      if (qbe_compile(b, strlen(b), NULL, i % 3, &out, NULL) != 3 || out) bad++;
+      out = NULL;
+      if (qbe_compile(f, strlen(f), NULL, i % 3, &out, NULL) || !out) bad++;
+      else if (!strstr(out, "f:")) bad++;
+      qbe_free(out);
+    }
     printf("version %s\nbad %d\n", qbe_version(), bad);
     return bad != 0;
   }

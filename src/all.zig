@@ -570,6 +570,11 @@ pub const Typ = extern struct {
     size: u64,
     nunion: uint,
     fields: [*][NField + 1]Field,
+
+    pub fn fieldSets(self: *const Typ) [][NField + 1]Field {
+        if (self.nunion == 0) return &.{};
+        return self.fields[0..self.nunion];
+    }
 };
 
 pub const DStart = 0;
@@ -609,7 +614,7 @@ pub const PFn = 1; // discarded after processing the function
 pub const Pool = i32;
 
 pub const util = @import("util.zig");
-pub var typ: [*]Typ = undefined;
+pub var typ: []Typ = &.{};
 pub var insb: [NIns]Ins = undefined;
 /// cursor into insb; emit() fills insb backwards from insbEnd(),
 /// the parser fills it forwards from insb[0]

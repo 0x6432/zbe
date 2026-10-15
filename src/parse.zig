@@ -257,6 +257,7 @@ const M = 23;
 /// Lexer and parser state for the input being read.
 const State = struct {
     lexh: [1 << (32 - M)]uchar = @splat(0),
+    lex_initialized: bool = false,
     in: []const u8 = "",
     ipos: usize = 0,
     inpath: []const u8 = "",
@@ -270,7 +271,6 @@ const State = struct {
     blkh: [BMask + 1]?*Blk = @splat(null),
     nblk: i32 = 0,
     rcls: i32 = 0,
-    ntyp: uint = 0,
 };
 var st: State = .{};
 /// input text and read position (replaces FILE* + fgetc/ungetc)
@@ -393,9 +393,8 @@ pub fn fail(comptime fmt: []const u8, args: anytype) Error {
     return error.InvalidInput;
 }
 
-var lexinit_done = false;
 fn lexinit() void {
-    if (lexinit_done)
+    if (st.lex_initialized)
         return;
     var i: usize = 0;
     while (i < NPubOp) : (i += 1)
@@ -410,7 +409,7 @@ fn lexinit() void {
             assert(st.lexh[h] == Txxx);
             st.lexh[h] = @intCast(i);
         };
-    lexinit_done = true;
+    st.lex_initialized = true;
 }
 
 fn getint() Error!i64 {
@@ -680,7 +679,7 @@ fn findtyp(i_: i32) Error!i32 {
 fn parsecls(tyn: *i32) Error!i32 {
     switch (try next()) {
         Ttyp => {
-            tyn.* = try findtyp(@intCast(st.ntyp));
+            tyn.* = try findtyp(@intCast(all.typ.len));
             return Kc;
         },
         Tsb => return Ksb,
@@ -1202,7 +1201,7 @@ fn parsefields(fld: *[NField + 1]Field, ty: *Typ, t_: i32) Error!void {
             },
             Ttyp => {
                 @"type" = FTyp;
-                ty1 = @intCast(try findtyp(@as(i32, @intCast(st.ntyp)) - 1));
+                ty1 = @intCast(try findtyp(@as(i32, @intCast(all.typ.len)) - 1));
                 s = all.typ[ty1].size;
                 a = all.typ[ty1].@"align";
             },
@@ -1259,9 +1258,12 @@ fn parsetyp() Error!void {
     // be careful if extending the syntax
     // to handle nested types, any pointer
     // held to typ[] might be invalidated!
-    vgrow(&all.typ, st.ntyp + 1);
-    const ty = &all.typ[st.ntyp];
-    st.ntyp += 1;
+    const index = all.typ.len;
+    var storage = all.typ.ptr;
+    vgrow(&storage, index + 1);
+    all.typ = storage[0 .. index + 1];
+    const ty = &all.typ[index];
+    ty.* = std.mem.zeroes(Typ);
     ty.isdark = 0;
     ty.isunion = 0;
     ty.@"align" = -1;
@@ -1295,19 +1297,21 @@ fn parsetyp() Error!void {
     }
     var n: uint = 0;
     ty.fields = vnewT([NField + 1]Field, 1, PHeap);
+    ty.nunion = 1; // publish ownership before a field parser can fail
     if (t == Tlbrace) {
         ty.isunion = 1;
         while (true) {
             if (t != Tlbrace)
                 return fail("invalid union member", .{});
             vgrow(&ty.fields, n + 1);
-            try parsefields(&ty.fields[n], ty, try nextnl());
+            ty.nunion = n + 1;
+            try parsefields(&ty.fieldSets()[n], ty, try nextnl());
             n += 1;
             t = try nextnl();
             if (t == Trbrace) break;
         }
     } else {
-        try parsefields(&ty.fields[n], ty, t);
+        try parsefields(&ty.fieldSets()[n], ty, t);
         n += 1;
     }
     ty.nunion = n;
@@ -1437,9 +1441,23 @@ pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*:0]const 
     st.inpath = path;
     st.lnum = 1;
     st.thead = Txxx;
-    st.ntyp = 0;
-    all.typ = vnewT(Typ, 0, PHeap);
+    all.typ = vnewT(Typ, 0, PHeap)[0..0];
     tokval.str = @ptrCast(vnewT(u8, 128, PHeap));
+    defer {
+        for (all.typ) |ty| {
+            efree(ty.name);
+            if (ty.nunion != 0) vfree(ty.fields);
+        }
+        vfree(all.typ.ptr);
+        all.typ = &.{};
+        vfree(tokval.str);
+        tokval.str = undefined;
+        // Retain the cached hash allocation, but never leave references to
+        // failed function/pool storage for a subsequent library call.
+        @memset(st.tmph, 0);
+        st.blkh = @splat(null);
+    }
+    errdefer all.freeall();
     while (true) {
         lnk = std.mem.zeroes(Lnk);
         switch (try parselnk(&lnk)) {
@@ -1453,15 +1471,7 @@ pub fn parse(text: []const u8, path: []const u8, dbgfile: *const fn ([*:0]const 
             },
             Tdata => try parsedat(data, &lnk),
             Ttype => try parsetyp(),
-            Teof => {
-                for (0..st.ntyp) |n| {
-                    efree((all.typ[n].name));
-                    if (all.typ[n].nunion != 0)
-                        vfree(all.typ[n].fields);
-                }
-                vfree(all.typ);
-                return;
-            },
+            Teof => return,
             else => return fail("top-level definition expected", .{}),
         }
     }
@@ -1725,4 +1735,84 @@ test "typed parser states: label rejection and closing transition" {
     st.ipos = 0;
     st.thead = Txxx;
     try std.testing.expectEqual(PState.end, try parseline(.label));
+}
+
+test "type table slices: growth, nested types, union alternatives, and dark types" {
+    const saved = st;
+    const saved_token = tokval;
+    const saved_types = all.typ;
+    const saved_debug = all.dbg;
+    var debug_buffer: [4096]u8 = undefined;
+    var diagnostics = Writer.fixed(&debug_buffer);
+    all.dbg = &diagnostics;
+    st = .{};
+    defer {
+        if (st.tmph.len != 0) efree(st.tmph.ptr);
+        st = saved;
+        tokval = saved_token;
+        all.typ = saved_types;
+        all.dbg = saved_debug;
+        all.freeall();
+    }
+    const Callbacks = struct {
+        fn debugfile(_: [*:0]const u8) void {}
+        fn func(_: *Fn) Error!void {
+            return error.InvalidInput;
+        }
+        fn data(_: *Dat) Error!void {
+            if (all.typ.len != 42 or all.typ[39].size != 320 or
+                all.typ[39].nunion != 1 or all.typ[40].nunion != 9 or
+                all.typ[41].isdark != 1 or all.typ[41].size != 16 or
+                all.typ[41].fieldSets().len != 0) return error.InvalidInput;
+            for (all.typ[40].fieldSets()) |fields| {
+                if (fields[0].type != Fw or fields[1].type != FEnd)
+                    return error.InvalidInput;
+            }
+        }
+    };
+    var text: Writer.Allocating = .init(std.testing.allocator);
+    defer text.deinit();
+    try text.writer.writeAll("type :t0 = { w }\n");
+    for (1..40) |n|
+        try text.writer.print("type :t{d} = {{ :t{d}, l }}\n", .{ n, n - 1 });
+    try text.writer.writeAll("type :u = {");
+    for (0..9) |_| try text.writer.writeAll(" { w }");
+    try text.writer.writeAll(" }\ntype :opaque = align 8 { 16 }\ndata $probe = { w 1 }\n");
+    try parse(text.written(), "<types>", Callbacks.debugfile, Callbacks.data, Callbacks.func);
+    try std.testing.expectEqual(@as(usize, 0), all.typ.len);
+}
+
+test "parser cleanup: malformed type definitions then valid input" {
+    const saved = st;
+    const saved_token = tokval;
+    const saved_types = all.typ;
+    const saved_debug = all.dbg;
+    st = .{};
+    defer {
+        if (st.tmph.len != 0) efree(st.tmph.ptr);
+        st = saved;
+        tokval = saved_token;
+        all.typ = saved_types;
+        all.dbg = saved_debug;
+        all.freeall();
+    }
+    var buffer: [4096]u8 = undefined;
+    var debug = Writer.fixed(&buffer);
+    all.dbg = &debug;
+    const Callbacks = struct {
+        fn debugfile(_: [*:0]const u8) void {}
+        fn data(_: *Dat) Error!void {}
+        fn func(_: *Fn) Error!void {
+            return error.InvalidInput;
+        }
+    };
+    for ([_][]const u8{
+        "type\n",                                        "type :bad = { w\n", "type :bad = { { w } { d\n",
+        "type :one = { w }\ntype :bad = { :missing }\n",
+    }) |text| {
+        try std.testing.expectError(error.InvalidInput, parse(text, "<bad-types>", Callbacks.debugfile, Callbacks.data, Callbacks.func));
+        try std.testing.expectEqual(@as(usize, 0), all.typ.len);
+        try parse("type :good = { w }\n", "<good-types>", Callbacks.debugfile, Callbacks.data, Callbacks.func);
+        try std.testing.expectEqual(@as(usize, 0), all.typ.len);
+    }
 }

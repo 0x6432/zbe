@@ -23,6 +23,12 @@
   leaves stale va register counts (BUGS.md #7, also in the C patch).
 
 ### Code quality
+- Active Fn/Blk/Phi/type-table consumers across passes and targets use bounded
+  views. Capacity-aware instruction-prefix replacement centralizes overlap-safe
+  ABI/register-allocation edits without changing stored IR layouts.
+- Constant insertion/lowering snapshots values across possible vector growth.
+  Parser-owned types/lexer buffers are cleaned up on success and invalid input;
+  failed parses no longer retain stale block/temp lookup entries between calls.
 - Instruction builders use active slices and growth-safe self-appends, with
   block wrappers preserving the stored IR fields. CFG union-find returns typed
   block roots instead of casting optional pointers; temporary use-list readers

@@ -119,7 +119,7 @@ fn classify(a: *AClass, t: *Typ, s_: uint) void {
         n += 1;
         s = s1;
     }) {
-        for (&t.fields[n]) |*f| {
+        for (&t.fieldSets()[n]) |*f| {
             if (f.type == FEnd) break;
             assert(s <= 16);
             const cls = &a.cls[s / 8];

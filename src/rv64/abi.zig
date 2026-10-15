@@ -157,7 +157,7 @@ fn fpstruct(t: *Typ, off_: i32, c: *Class) i32 {
     if (t.isunion != 0)
         return -1;
 
-    for (&t.fields[0]) |*f| {
+    for (&t.fieldSets()[0]) |*f| {
         if (f.type == FEnd) break;
         if (f.type == FPad) {
             off += @intCast(f.len);

@@ -918,3 +918,25 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - Remaining representation audit: aggregate type-table/union-field storage and
   the final intentional allocator, sentinel, ABI and shared-buffer exceptions.
   Full aggregate verification remains required before publication.
+
+### Aggregate types and parser-owned cleanup (2026-10-15)
+- The compile-wide type table is an active slice, removing its separate parser
+  count without changing global compilation context or numeric type references.
+  Extern Typ fields retain their representation and expose bounded field-set views.
+- Type/union construction publishes owned storage before fallible parsing.
+  Deferred cleanup releases partial type names/fields and lexer storage on both
+  success and error; cached temporary-hash capacity is retained and cleared.
+  Failed parses clear block-name references and reset the function pool.
+- Lexer cache initialization now lives beside its cached table in parser State.
+  New isolated-state tests caught the old split flag/table fixture inconsistency;
+  moving the flag preserves production initialization and restores test isolation.
+- Added type-table growth, nested types, nine union alternatives, dark types,
+  guarded empty fields and malformed-then-valid parse tests. Direct units: 70/70.
+- Library API regression alternates 24 malformed parses with 24 valid compiles
+  in one process, including a function that fails after inserting temp/block names.
+  Full library comparisons including recovery: 1442/0. An initial callback-name
+  shadowing error in the new tests was corrected before the successful rerun.
+- All planned active IR/type indexing categories are now bounded. Remaining raw
+  operations are deliberate allocator/vector publication boundaries, core layout
+  fields, sentinel strings/register lists and the shared instruction buffer.
+  The final Debug/ReleaseSafe, full core/corpus/fuzz and online CI gate is pending.

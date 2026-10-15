@@ -1,7 +1,6 @@
 # Idiomatic Zig rewrite tracker
 
-Status: **planned codebase-wide representation/interface pass implemented;
-operand-kind correction locally verified; fresh GitHub CI pending**. No new optimizer features are part of this
+Status: **planned codebase-wide representation/interface pass complete and verified**. No new optimizer features are part of this
 stage. Historical HANDOFF sections record intermediate, not current, completion.
 
 ## Implemented scope
@@ -55,6 +54,15 @@ These are not unfinished work merely because they resemble the C reference:
 - `-O0`/`QBE_COMPAT=1` retains C-reference output, including documented upstream
   behavior. Optimized correctness is tested independently. Never weaken the
   Python oracle or patch the reference to conceal a mismatch.
+
+## Confirmed verification
+
+Source `ac2e3364de0fb7d3a2019a9e7a22b1c4d14cda42` passed all nine jobs in
+GitHub run https://github.com/0x6432/zbe/actions/runs/38763807465, including
+both Hare architectures. The earlier Hare operand-kind regression is fixed
+and covered by direct and six-target generated regressions. Local units are
+71/71 in Debug and ReleaseSafe; full core, cproc/Hare bootstrap and corpora,
+compatibility, optimized fuzz and all 11 mutation checks also passed.
 
 ## Verification/publication gate
 

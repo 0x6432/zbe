@@ -1006,3 +1006,19 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   wasting its remaining core-job time; do not call that old run green.
 - Planned representation/interface work is implemented and locally verified;
   fresh GitHub CI confirmation is still required. No tag/release authorized.
+
+### Planned idiomatic pass: fresh CI confirmed green (2026-10-15)
+- Corrected source ac2e3364de0fb7d3a2019a9e7a22b1c4d14cda42 completed
+  GitHub run https://github.com/0x6432/zbe/actions/runs/38763807465 SUCCESS.
+  ALL NINE verification jobs passed: core, cproc, Hare Linux x86_64/arm64,
+  native arm64 Linux/macOS, and arm64/rv64/Windows cross jobs. Release skipped.
+- The superseded 38761337334 run was canceled AFTER its documented two Hare
+  failures, not called green. The corrected run is an entirely fresh full CI run.
+- docs/IDIOMATIC-ZIG.md marks the planned codebase-wide representation/interface
+  pass complete and verified. Remaining raw operations are documented deliberate
+  allocator, extern-layout, sentinel, numeric-ABI and shared-buffer boundaries;
+  this is not a claim that every stylistic improvement or compiler bug is exhausted.
+- This final HANDOFF/tracker-only update uses [skip ci]. Source/tests remain
+  exactly those verified by the successful run; both branches receive the same
+  update by fast-forward. No force-push, credential commit, tag or release.
+- Do not add optimizer features or cut a release without the user's next decision.

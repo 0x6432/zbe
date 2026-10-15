@@ -49,7 +49,7 @@ class BenchmarkSafety(unittest.TestCase):
 
     def test_main_cleans_temporary_files_on_success(self):
         paths = []
-        with patch.object(bench, 'benchmark', lambda work: paths.append(work)):
+        with patch.object(bench, 'benchmark', lambda work: (paths.append(work), 0)[1]):
             self.assertEqual(0, bench.main())
         self.assertFalse(Path(paths[0]).exists())
 

@@ -1071,3 +1071,17 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - Fresh pinned cproc d1c53dd bootstrap (stage2 == stage3) and make check passed
   against the immutable current Debug compiler; 196/196 cproc tests passed.
 - Full core still running. No new performance speedup or CI-green claim.
+
+### Verification-tool follow-up
+- Benchmark's inner routine returns a status instead of exiting; build errors
+  propagate through the same checked-command path. Nine harness tests still pass.
+- Fixed ci.sh corpus summary filenames: an absolute corpus directory no longer
+  becomes nested path components beneath ci-out. Artifact copy failures now fail
+  the command and the temporary summary file is removed on success.
+- Extra optimized IR fuzz completed: 150/150 at EACH -O1/-O2, seeds 1000..1149,
+  n=20. These use an immutable Debug binary and the unchanged Python oracle.
+- Initial corpus generation exposed cproc's missing host limit macros; a final
+  fail-fast runner supplies all host integer-limit definitions, restricts C
+  inputs to actual compiler translation units (not non-standalone helper tools),
+  and uses explicit immutable compiler paths. Do not count partial/failed C-to-IL
+  outputs or a superseded run as complete-corpus evidence.

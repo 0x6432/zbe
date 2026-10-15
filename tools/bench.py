@@ -47,7 +47,7 @@ def benchmark(w):
     for c in benches:
         n = os.path.basename(c)[:-2]; f = os.path.join(w, n + '.qbe')
         r = run([CPROC, '-emit-qbe', '-o', f, c])
-        if r.returncode: print('cproc failed on %s: %s' % (n, r.stderr[:300])); sys.exit(1)
+        if r.returncode: raise RuntimeError('cproc failed on %s: %s' % (n, r.stderr[:300]))
         il[n] = f
     files = sorted(glob.glob(os.path.join(D, 'test/*.ssa'))) + list(il.values())
     if os.environ.get('CORPUS'):
@@ -94,9 +94,8 @@ def benchmark(w):
         exes = []
         for name, cmd in cfgs:
             s = os.path.join(w, '%s_%d.s' % (n, len(exes))); e = s[:-2]
-            r = run(cmd + ['-o', s, il[n]])
-            if r.returncode or run([CC, '-o', e, s]).returncode:
-                print('build failed: %s %s %s' % (n, name, r.stderr[:200])); sys.exit(1)
+            checked(cmd + ['-o', s, il[n]])
+            checked([CC, '-o', e, s])
             exes.append(e)
         for o in ('-O0', '-O2'):
             e = os.path.join(w, '%s_gcc%s' % (n, o))
@@ -114,16 +113,15 @@ def benchmark(w):
     print(txt)
     if len(sys.argv) > 1:
         open(sys.argv[1], 'w').write(txt + '\n')
-    sys.exit(bad != 0)
+    return int(bad != 0)
 
 def main():
     try:
         with tempfile.TemporaryDirectory(prefix='zbe-bench-') as work:
-            benchmark(work)
+            return benchmark(work)
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
         print('benchmark failed: %s' % error, file=sys.stderr)
         return 1
-    return 0
 
 if __name__ == '__main__':
     sys.exit(main())

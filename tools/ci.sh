@@ -110,6 +110,9 @@ corpus)
 *) echo "unknown suite $suite"; exit 2 ;;
 esac
 [ -n "$GITHUB_STEP_SUMMARY" ] && { echo "### $suite $*"; cat $SUM; } >> "$GITHUB_STEP_SUMMARY"
-mkdir -p ci-out && cp $SUM "ci-out/$suite${1:+-$1}.md"
+summary_name=$suite
+[ $# -gt 0 ] && summary_name="$suite-$(basename "$1")"
+mkdir -p ci-out && cp "$SUM" "ci-out/$summary_name.md" || exit 1
+rm -f "$SUM"
 echo "failed checks: $fail"
 [ $fail -eq 0 ]

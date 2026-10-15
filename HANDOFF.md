@@ -607,3 +607,23 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   intentional compile-wide globals, and extern-layout structs are unchanged.
 - Network access must be restored before fetching/pushing or confirming CI;
   main and wip/idiomatic remain at the last pushed checkpoint for now.
+
+### Pass-storage verification and offline checkpoint (2026-10-15)
+- Build OK; unit suite 40/40, including three new spill-cache regressions.
+- Assembly and debug dumps: 0/76 differ on each of all six targets.
+- Input-error cases 51/0; strict comparison cases 42/0; bugs 110/0.
+- lib 1442/0; cproc corpus 1212 runs, 0 differ, 52 both-failed.
+- Native behavior suite: All is fine; ABI fuzz: 20/20 iterations OK.
+- edge 271/20; complete FAIL list matches the sandbox baseline.
+- Additional IR fuzz: 149/150 iterations OK, seeds 1000..1149, 20 functions
+  per iteration. Seed 1130 reports f14 mismatch against the Python oracle.
+- Reproduced seed 1130 with this build, the previous 049c656 binary, and
+  /data/qbe-cfix/qbe: all three return the same native f14 mismatch. Their
+  assembly is byte-identical on all six targets. This is not introduced by
+  the pass-storage cleanup; the underlying compiler/oracle cause is unresolved.
+- Reproducer source, comparison log, patch and bundle are preserved in the
+  downloadable offline checkpoint. No compiler diagnostic strings changed;
+  all 11 optimizer mutation patterns remain intact.
+- New work is committed only on wip/pass-storage. Local main/wip/idiomatic
+  remain at 049c656; no release tag was created. Restore network access,
+  fetch and inspect remote state, then fast-forward/push and check CI.

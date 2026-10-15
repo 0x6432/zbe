@@ -23,6 +23,8 @@
   leaves stale va register counts (BUGS.md #7, also in the C patch).
 
 ### Code quality
+- Parser operand validation checks the reference kind before indexing temporary
+  storage; high type/constant IDs are covered by six-target comparison tests.
 - Active Fn/Blk/Phi/type-table consumers across passes and targets use bounded
   views. Capacity-aware instruction-prefix replacement centralizes overlap-safe
   ABI/register-allocation edits without changing stored IR layouts.

@@ -1064,7 +1064,6 @@ fn typecheck(f: *Fn) Error!void {
             while (n < 2) : (n += 1) {
                 k = all.optab[i.op.int()].argcls[n][i.cls.idx()];
                 r = i.arg[n];
-                t = &f.tmps()[r.val];
                 const which: []const u8 = if (n == 1) "second" else "first";
                 if (k == Ke)
                     return fail("invalid instruction type in {s}", .{cs(all.optab[i.op.int()].name)});
@@ -1074,8 +1073,10 @@ fn typecheck(f: *Fn) Error!void {
                     return fail("no {s} operand expected in {s}", .{which, cs(all.optab[i.op.int()].name)});
                 if (rtype(r) == -1 and k != Cls.x.int())
                     return fail("missing {s} operand in {s}", .{which, cs(all.optab[i.op.int()].name)});
-                if (!usecheck(r, k, f))
-                    return fail("invalid type for {s} operand %{s} in {s}", .{which, cs(t.?.name), cs(all.optab[i.op.int()].name)});
+                if (!usecheck(r, k, f)) {
+                    const operand = &f.tmps()[r.val];
+                    return fail("invalid type for {s} operand %{s} in {s}", .{which, cs(operand.name), cs(all.optab[i.op.int()].name)});
+                }
             }
         }
         r = b.jmp.arg;
@@ -1815,4 +1816,27 @@ test "parser cleanup: malformed type definitions then valid input" {
         try parse("type :good = { w }\n", "<good-types>", Callbacks.debugfile, Callbacks.data, Callbacks.func);
         try std.testing.expectEqual(@as(usize, 0), all.typ.len);
     }
+}
+
+test "typecheck: type and constant references never index the temporary table" {
+    defer all.freeall();
+    var f = std.mem.zeroes(Fn);
+    f.ntmp = Tmp0 + 1;
+    f.tmp = vnewT(Tmp, f.ntmp, PFn);
+    f.tmps()[Tmp0].cls = .l;
+    f.ncon = 400;
+    f.con = vnewT(Con, f.ncon, PFn);
+    f.cons()[399].type = CBits;
+    var instructions = [_]Ins{
+        all.mkIns(.parc, .l, tmpRef(Tmp0), typeRef(299), R),
+        all.mkIns(.copy, .l, tmpRef(Tmp0), all.conRef(399), R),
+    };
+    var block = std.mem.zeroes(Blk);
+    block.ins = &instructions;
+    block.nins = instructions.len;
+    block.pred = vnewT(*Blk, 0, PFn);
+    block.jmp.type = .ret0;
+    f.start = &block;
+    f.nblk = 1;
+    try typecheck(&f);
 }

@@ -967,3 +967,20 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - Remote main/wip/idiomatic were fetched and still at 9e92780; both permit a
   fast-forward. The next step is atomic publication and actual NEW GitHub CI
   confirmation. Local green alone is not a statement that the new CI is green.
+
+### CI-discovered operand-kind regression and correction (2026-10-15)
+- Published run 38761337334 at 68362b6 failed BOTH Hare jobs. Other completed
+  jobs passed; the run is not green. Hare runtime IL hit temporary index 273
+  with only 87 temporaries during parser type checking.
+- Root cause: the old C-shaped checker formed a temporary pointer for EVERY
+  reference before checking its kind, even for types/constants. Bounded views
+  correctly reject that invalid pointer formation. The lookup now occurs only
+  on a failed temporary-type check, where the temporary name is actually needed.
+  Do not undo the bounds checks or enlarge the temporary table to mask this.
+- Added a direct mixed-reference regression (71/71 direct units) and a generated
+  fixture with 300 types/few temps plus more constants than temps. All six targets
+  compare assembly and parser dumps with C. Published compiler: 0/12 passed;
+  corrected compiler: 12/12. The new fixture runs in core and native CI gates.
+- Local Hare reproduction/checks and the complete combined suite must pass
+  before publishing the correction. No successful local result is being used
+  to hide the failed published CI run.

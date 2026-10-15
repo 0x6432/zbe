@@ -50,6 +50,7 @@ core)
   chk cli ', 0 failed' sh tools/cli.sh
   chk jnz ', 0 failed' sh tools/jnz.sh
   chk parser-caches ', 0 failed' python3 tools/parser-caches.py
+  chk parser-ref-kinds ', 0 failed' python3 tools/parser-ref-kinds.py
   chk opttable '0 failures' python3 tests/opttable.py
   chk optfuzz 'iterations ok' python3 tests/optfuzz.py -n 20 -s 1 -k 40
   chk "irfuzz -O2" 'iterations ok' env -u QBEREF python3 tests/irfuzz.py -n 15 -s 9000 -k 60
@@ -65,6 +66,7 @@ native)
   chk "compat asm vs C (default target)" ' 0/[0-9]+ differ' C sh tools/cmp.sh "$($ZQBE -t?)"
   chk jnz ', 0 failed' sh tools/jnz.sh
   chk parser-caches ', 0 failed' python3 tools/parser-caches.py
+  chk parser-ref-kinds ', 0 failed' python3 tools/parser-ref-kinds.py
   chk opttable '0 failures' python3 tests/opttable.py
   chk optfuzz 'iterations ok' python3 tests/optfuzz.py -n 20 -s 1 -k 20
   chk lib ', 0 failed' sh tools/lib.sh

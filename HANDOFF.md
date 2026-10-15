@@ -730,3 +730,27 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   confirmed-green checkpoints. Both branches receive the same final record.
 - The original offline commits remain intact. No force push, release tag,
   oracle weakening, reference-patch change, or credential commit occurred.
+
+### Idiomatic rewrite resumed: parser/emitter caches (2026-10-15)
+- Continues from confirmed-green 8e4311b. The user prioritized completing
+  idiomatic Zig work before considering additional optimizations.
+- Parser temporary-name hash storage is []i32; its length carries capacity.
+  The table still starts at 16384 slots, grows at half full, preserves probe
+  and rehash order, and is cleared/reused between functions rather than freed.
+- Emitter debug-file storage is an active []u32 backed by the existing vector
+  allocation. Its length replaces nfile; file numbering, duplicate selection,
+  vector growth, and process-wide lifetime are unchanged.
+- Four new direct unit tests cover initial allocation/deduplication/reuse,
+  wraparound collisions/rehashing, debug-file numbering/location output, and
+  active-name preservation across vector growth. Unit suite: 45/45 passed.
+- tools/parser-caches.py generates large/small/large functions crossing the
+  real 8192-name growth threshold plus nine debug files and duplicate names.
+  Its six-target assembly and parser-dump comparisons with C passed 12/12.
+  Core/native CI and tools/all.sh now include this regression.
+- Full local core verification and targeted -O1/-O2 fuzzing are running in
+  the background; see /data/idiomatic-verify-summary.log and related logs.
+  Do not claim final verification or new CI green until those complete.
+- Further private pointer/count audit targets: util intern buckets, load
+  insertion-log rollback/sentinel traversal, and mem slot store histories.
+  Keep ABI/extern layouts, numeric ABI fields, sentinel strings, compile-wide
+  globals, shared instruction buffers, and cached pass capacities deliberate.

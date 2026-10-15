@@ -11,6 +11,7 @@ for t in amd64_sysv amd64_apple amd64_win arm64 arm64_apple rv64; do
   printf '%s | %s\n' "$(sh tools/cmp.sh $t 2>/dev/null | tail -1)" "$(sh tools/dbgcmp.sh $t 2>/dev/null | tail -1)"
 done
 zig build test >/dev/null 2>&1 && echo "unit: ok" || echo "unit: FAILED"
+python3 tools/parser-caches.py
 sh tools/edge.sh 2>&1 | tail -1
 sh tools/bugs.sh 2>&1 | tail -1
 ( unset QBE_COMPAT; sh tools/opt.sh 2>&1 | tail -1 )

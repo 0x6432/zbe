@@ -81,8 +81,7 @@ const di = blk: {
 const State = struct {
     emitdat_zero: i64 = 0,
     stash: ?*Asmbits = null,
-    file: ?[*]u32 = null, // vector of interned file names
-    nfile: uint = 0,
+    file: []u32 = &.{}, // active interned file names; vector header retains capacity
     curfile: uint = 0,
 };
 var st: State = .{};
@@ -222,21 +221,20 @@ pub fn pe_emitfin(f: *Writer) Writer.Error!void {
 
 pub fn emitdbgfile(fname: [*:0]const u8, f: *Writer) Writer.Error!void {
     const id = intern(fname);
-    var n: uint = 0;
-    while (n < st.nfile) : (n += 1) {
-        if (st.file.?[n] == id) {
+    for (st.file, 0..) |file, n| {
+        if (file == id) {
             // gas requires positive
             // file numbers
-            st.curfile = n + 1;
+            st.curfile = @intCast(n + 1);
             return;
         }
     }
-    if (st.file == null)
-        st.file = vnewT(u32, 0, PHeap);
-    st.nfile += 1;
-    vgrow(&st.file, st.nfile);
-    st.file.?[st.nfile - 1] = id;
-    st.curfile = st.nfile;
+    const n = st.file.len;
+    var files = if (n == 0) vnewT(u32, 1, PHeap) else st.file.ptr;
+    vgrow(&files, n + 1);
+    st.file = files[0 .. n + 1];
+    st.file[n] = id;
+    st.curfile = @intCast(st.file.len);
     try f.print(".file {d} {s}\n", .{st.curfile, cs(fname)});
 }
 
@@ -245,4 +243,59 @@ pub fn emitdbgloc(line: uint, col: uint, f: *Writer) Writer.Error!void {
         try f.print("\t.loc {d} {d} {d}\n", .{st.curfile, line, col})
     else
         try f.print("\t.loc {d} {d}\n", .{st.curfile, line});
+}
+
+test "debug file slice: numbering, deduplication, and location output" {
+    const saved = st;
+    st = .{};
+    defer {
+        if (st.file.len != 0) all.vfree(st.file.ptr);
+        st = saved;
+    }
+    var buffer: [512]u8 = undefined;
+    var out = Writer.fixed(&buffer);
+    try emitdbgfile("\"first.ssa\"", &out);
+    try std.testing.expectEqual(@as(usize, 1), st.file.len);
+    const cached = st.file.ptr;
+    try emitdbgfile("\"second.ssa\"", &out);
+    try std.testing.expectEqual(cached, st.file.ptr);
+    try std.testing.expectEqual(@as(usize, 2), st.file.len);
+    try emitdbgloc(12, 3, &out);
+    try emitdbgfile("\"first.ssa\"", &out);
+    try std.testing.expectEqual(@as(uint, 1), st.curfile);
+    try std.testing.expectEqual(@as(usize, 2), st.file.len);
+    try emitdbgloc(8, 0, &out);
+    try std.testing.expectEqualStrings(
+        ".file 1 \"first.ssa\"\n.file 2 \"second.ssa\"\n\t.loc 2 12 3\n\t.loc 1 8\n",
+        out.buffered(),
+    );
+}
+
+test "debug file slice: vector growth preserves active names and numbering" {
+    const saved = st;
+    st = .{};
+    defer {
+        if (st.file.len != 0) all.vfree(st.file.ptr);
+        st = saved;
+    }
+    var buffer: [2048]u8 = undefined;
+    var out = Writer.fixed(&buffer);
+    var ids: [9]u32 = undefined;
+    for (&ids, 0..) |*id, n| {
+        var name_buffer: [32]u8 = undefined;
+        const name = try std.fmt.bufPrintSentinel(&name_buffer, "\"source{d}.ssa\"", .{n}, 0);
+        try emitdbgfile(name.ptr, &out);
+        id.* = intern(name.ptr);
+        try std.testing.expectEqual(n + 1, st.file.len);
+        try std.testing.expectEqual(@as(uint, @intCast(n + 1)), st.curfile);
+    }
+    try std.testing.expectEqualSlices(u32, &ids, st.file);
+    try std.testing.expectEqual(@as(all.ulong, 16), @import("util.zig").vcap(st.file.ptr));
+    const cached = st.file.ptr;
+    const written = out.buffered().len;
+    try emitdbgfile("\"source2.ssa\"", &out);
+    try std.testing.expectEqual(@as(uint, 3), st.curfile);
+    try std.testing.expectEqual(@as(usize, 9), st.file.len);
+    try std.testing.expectEqual(cached, st.file.ptr);
+    try std.testing.expectEqual(written, out.buffered().len);
 }

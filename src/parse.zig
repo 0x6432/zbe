@@ -70,7 +70,6 @@ const cfloat = all.cfloat;
 const clsmerge = all.clsmerge;
 const cs = all.cs;
 const dprint = all.dprint;
-const ealloc = all.ealloc;
 const efree = all.efree;
 const fillpreds = all.fillpreds;
 const hash = all.hash;
@@ -264,8 +263,7 @@ const State = struct {
     thead: i32 = 0,
     lnum: i32 = 0,
     curf: *Fn = undefined,
-    tmph: [*]i32 = undefined,
-    tmphcap: i32 = 0,
+    tmph: []i32 = &.{}, // cached hash-table capacity; cleared between functions
     plink: *?*Phi = undefined,
     curb: ?*Blk = null,
     blink: *?*Blk = undefined,
@@ -594,28 +592,29 @@ fn expect(t: i32) Error!void {
 }
 
 fn tmpref() Ref {
-    var t: i32 = undefined;
-    var i: i32 = undefined;
-
-    if (@divTrunc(st.tmphcap, 2) <= st.curf.ntmp - Tmp0) {
-        if (st.tmphcap != 0) efree((st.tmph));
-        st.tmphcap = if (st.tmphcap != 0) st.tmphcap * 2 else TMask + 1;
-        st.tmph = ealloc(i32, st.tmphcap);
-        t = Tmp0;
-        while (t < st.curf.ntmp) : (t += 1) {
-            i = @bitCast(hash(st.curf.tmp[@intCast(t)].name.?) & @as(u32, @intCast(st.tmphcap - 1)));
-            while (st.tmph[@intCast(i)] != 0) : (i = (i + 1) & (st.tmphcap - 1)) {}
-            st.tmph[@intCast(i)] = t;
+    if (st.tmph.len / 2 <= @as(usize, @intCast(st.curf.ntmp - Tmp0))) {
+        const capacity: i32 = if (st.tmph.len != 0)
+            @as(i32, @intCast(st.tmph.len)) * 2
+        else
+            TMask + 1;
+        if (st.tmph.len != 0) efree(st.tmph.ptr);
+        st.tmph = all.eallocSlice(i32, capacity);
+        const mask = st.tmph.len - 1;
+        for (st.curf.tmps()[Tmp0..], Tmp0..) |temp, t| {
+            var i: usize = hash(temp.name.?) & @as(u32, @intCast(mask));
+            while (st.tmph[i] != 0) : (i = (i + 1) & mask) {}
+            st.tmph[i] = @intCast(t);
         }
     }
-    i = @bitCast(hash(tokval.str) & @as(u32, @intCast(st.tmphcap - 1)));
-    while (st.tmph[@intCast(i)] != 0) : (i = (i + 1) & (st.tmphcap - 1)) {
-        t = st.tmph[@intCast(i)];
+    const mask = st.tmph.len - 1;
+    var i: usize = hash(tokval.str) & @as(u32, @intCast(mask));
+    while (st.tmph[i] != 0) : (i = (i + 1) & mask) {
+        const t = st.tmph[i];
         if (streq(st.curf.tmp[@intCast(t)].name, tokval.str))
             return tmpRef(t);
     }
-    t = st.curf.ntmp;
-    st.tmph[@intCast(i)] = t;
+    const t = st.curf.ntmp;
+    st.tmph[i] = t;
     _ = newtmp(null, .x, st.curf);
     st.curf.tmp[@intCast(t)].name = strf(PFn, "{s}", .{cs(tokval.str)});
     return tmpRef(t);
@@ -1153,7 +1152,7 @@ fn parsefn(lnk: *Lnk) Error!*Fn {
     while (b_it) |b| : (b_it = b.link)
         b.dlink = null; // was trashed by findblk()
     st.blkh = @splat(null);
-    if (st.tmphcap != 0) @memset(st.tmph[0..@intCast(st.tmphcap)], 0);
+    @memset(st.tmph, 0);
     try typecheck(st.curf);
     return st.curf;
 }
@@ -1612,4 +1611,91 @@ pub fn printfn(f: *Fn, fp: *Writer) Writer.Error!void {
         }
     }
     try fp.print("}}\n", .{});
+}
+
+test "temporary hash slice: initial allocation, deduplication, and reuse" {
+    const saved = st;
+    const saved_token = tokval;
+    st = .{};
+    defer {
+        if (st.tmph.len != 0) efree(st.tmph.ptr);
+        st = saved;
+        tokval = saved_token;
+        all.freeall();
+    }
+    var f = std.mem.zeroes(Fn);
+    f.ntmp = Tmp0;
+    f.tmp = vnewT(Tmp, Tmp0, PFn);
+    st.curf = &f;
+    try std.testing.expectEqual(@as(usize, 0), st.tmph.len);
+    tokval.str = @constCast("alpha");
+    const alpha = tmpref();
+    try std.testing.expect(req(alpha, tmpRef(Tmp0)));
+    try std.testing.expectEqual(@as(usize, TMask + 1), st.tmph.len);
+    const cached = st.tmph.ptr;
+    try std.testing.expect(req(alpha, tmpref()));
+    try std.testing.expectEqual(@as(i32, Tmp0 + 1), f.ntmp);
+    tokval.str = @constCast("beta");
+    try std.testing.expect(req(tmpref(), tmpRef(Tmp0 + 1)));
+    try std.testing.expectEqual(cached, st.tmph.ptr);
+
+    // Match parsefn's table clear without discarding its cached allocation.
+    @memset(st.tmph, 0);
+    f.ntmp = Tmp0;
+    f.tmp = vnewT(Tmp, Tmp0, PFn);
+    tokval.str = @constCast("beta");
+    try std.testing.expect(req(tmpref(), tmpRef(Tmp0)));
+    try std.testing.expectEqual(cached, st.tmph.ptr);
+    try std.testing.expectEqual(@as(usize, TMask + 1), st.tmph.len);
+    try std.testing.expectEqualStrings("beta", cs(f.tmp[Tmp0].name));
+}
+
+test "temporary hash slice: wrapped collisions and rehash preserve references" {
+    const saved = st;
+    const saved_token = tokval;
+    st = .{};
+    defer {
+        if (st.tmph.len != 0) efree(st.tmph.ptr);
+        st = saved;
+        tokval = saved_token;
+        all.freeall();
+    }
+    var f = std.mem.zeroes(Fn);
+    f.ntmp = Tmp0;
+    f.tmp = vnewT(Tmp, Tmp0, PFn);
+    st.curf = &f;
+    // A small owned power-of-two table exercises the production growth path.
+    st.tmph = all.eallocSlice(i32, 8);
+    var names: [2][*:0]u8 = undefined;
+    var found: usize = 0;
+    for (0..1024) |n| {
+        const name = strf(PFn, "collision{d}", .{n});
+        if (hash(name) & 7 != 7) continue;
+        names[found] = name;
+        found += 1;
+        if (found == names.len) break;
+    }
+    try std.testing.expectEqual(names.len, found);
+    tokval.str = names[0];
+    const first = tmpref();
+    tokval.str = names[1];
+    const second = tmpref();
+    try std.testing.expectEqual(@as(i32, Tmp0), st.tmph[7]);
+    try std.testing.expectEqual(@as(i32, Tmp0 + 1), st.tmph[0]);
+    try std.testing.expect(req(second, tmpref()));
+    tokval.str = @constCast("third");
+    const third = tmpref();
+    tokval.str = @constCast("fourth");
+    const fourth = tmpref();
+    try std.testing.expectEqual(@as(usize, 8), st.tmph.len);
+    tokval.str = names[0];
+    try std.testing.expect(req(first, tmpref())); // grows and rehashes at half full
+    try std.testing.expectEqual(@as(usize, 16), st.tmph.len);
+    tokval.str = names[1];
+    try std.testing.expect(req(second, tmpref()));
+    tokval.str = @constCast("third");
+    try std.testing.expect(req(third, tmpref()));
+    tokval.str = @constCast("fourth");
+    try std.testing.expect(req(fourth, tmpref()));
+    try std.testing.expectEqual(@as(i32, Tmp0 + 4), f.ntmp);
 }

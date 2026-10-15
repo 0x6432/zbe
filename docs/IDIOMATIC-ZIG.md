@@ -41,9 +41,24 @@ legacy interfaces, and raw core-field consumers remain.
 - Reused buffers retain capacity between blocks. Load reconstruction still
   retains nops for byte-identical compatibility debug dumps.
 
+## Additional core boundaries
+
+- CFG union-find returns block roots directly and compresses typed parent
+  links; it no longer casts optional successor fields to nonoptional pointers.
+- Temporary use-list readers share `Tmp.uses()`. Empty views do not inspect
+  storage, while nonempty views require materialized uses. Count-only tracking
+  and the stored layout remain unchanged.
+
 ## Remaining audit
 
-Check each module's mutating-loop bounds, optionality, ownership/error paths,
+Current audit checks covered CFG/SSA use boundaries, allocator/vector
+ownership, driver error propagation, and the target ABI/isel/emitter pointer
+categories. Remaining raw pointers are predominantly stored core IR fields,
+sentinel strings, vector allocation boundaries and the shared instruction
+buffer. Direct indexed core-field consumers still merit a follow-up bounded-view
+audit; do not declare every module fully idiomatic from this scan alone.
+
+Continue checking mutating-loop bounds, optionality, ownership/error paths,
 and raw core-field consumers. Avoid cosmetic churn, bulk textual renames, or
 changing intentionally numeric ABI/class/comparison fields. The pooled vector
 allocator is deliberate, not automatically a replacement candidate.

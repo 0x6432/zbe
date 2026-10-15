@@ -590,3 +590,23 @@ test "block instruction append: extent synchronization and bounded self-copy" {
     for (block.insns(), expected) |instruction, number|
         try t.expectEqual(number, instruction.to.val);
 }
+
+test "temporary uses: bounded active storage and empty unowned view" {
+    var temp: all.Tmp = undefined;
+    temp.nuse = 0;
+    try t.expectEqual(@as(usize, 0), temp.uses().len);
+    temp.use = null;
+    try t.expectEqual(@as(usize, 0), temp.uses().len);
+    var storage: [3]all.Use = undefined;
+    for (&storage, 0..) |*use, n| {
+        use.type = .jmp;
+        use.bid = @intCast(n);
+    }
+    temp.use = &storage;
+    temp.nuse = 2;
+    const view = temp.uses();
+    try t.expectEqual(@as(usize, 2), view.len);
+    view[1].bid = 7;
+    try t.expectEqual(@as(all.uint, 7), storage[1].bid);
+    try t.expectEqual(@as(all.uint, 2), storage[2].bid);
+}

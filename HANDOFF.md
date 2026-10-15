@@ -829,3 +829,15 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   extent synchronization and empty unowned storage. Direct unit result: 59/59.
 - Full aggregate verification of the typed-interface and builder batches is
   still pending; earlier storage-only results are not sufficient for publishing.
+
+### Typed CFG roots and bounded use-list readers (2026-10-15)
+- CFG union-find returns typed block roots and compresses parent links, avoiding
+  casts from optional successor fields to nonoptional pointer-to-pointer types.
+- Temporary use readers use a shared bounded view, including an empty-storage
+  guard that does not inspect an undefined/null pointer at zero active uses.
+  Count-only tracking and all stored fields remain unchanged.
+- Added root/path-compression and guarded-use-view regressions. Debug direct
+  units: 61/61. ReleaseSafe and complete aggregate verification are pending.
+- The module audit retains intentional ABI layouts, numeric target fields,
+  allocator/vector boundaries and sentinel strings. Direct indexed core-field
+  consumers remain a follow-up; the rewrite is not declared complete.

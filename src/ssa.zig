@@ -192,7 +192,7 @@ fn phiins(f: *Fn) void {
         if (tt.ndef == 1) {
             var ok = true;
             const defb = tt.bid;
-            for (tt.use.?[0..tt.nuse]) |use|
+            for (tt.uses()) |use|
                 ok = ok and (use.bid == defb);
             if (ok or defb == f.start.?.id)
                 continue;
@@ -412,7 +412,7 @@ pub fn ssacheck(f: *Fn) all.Error!void {
             while (p_it) |p| : (p_it = p.link) {
                 r = p.to;
                 t = &f.tmp[r.val];
-                for (t.use.?[0..t.nuse]) |*u| {
+                for (t.uses()) |*u| {
                     bu = f.rpo[u.bid];
                     if (u.type == .phi) {
                         if (phicheck(u.u.phi, b, r))
@@ -426,7 +426,7 @@ pub fn ssacheck(f: *Fn) all.Error!void {
                     continue;
                 r = i.to;
                 t = &f.tmp[r.val];
-                for (t.use.?[0..t.nuse]) |*u| {
+                for (t.uses()) |*u| {
                     bu = f.rpo[u.bid];
                     if (u.type == .phi) {
                         if (phicheck(u.u.phi, b, r))
@@ -470,7 +470,7 @@ test "typed use registration: payloads, block IDs, and growth" {
     try std.testing.expectEqual(all.U.jmp, temp.use.?[2].type);
     for (0..20) |_| adduse(&temp, &block, .{ .ins = &instruction });
     try std.testing.expectEqual(@as(uint, 23), temp.nuse);
-    for (temp.use.?[0..temp.nuse]) |use|
+    for (temp.uses()) |use|
         try std.testing.expectEqual(@as(uint, 7), use.bid);
     try std.testing.expectEqual(&phi, temp.use.?[0].u.phi);
     try std.testing.expectEqual(&instruction, temp.use.?[22].u.ins);

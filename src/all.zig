@@ -461,6 +461,13 @@ pub const Tmp = extern struct {
     width: i32,
     visit: i32,
     gcmbid: uint,
+
+    /// Active uses; count-only tracking may leave storage absent until filluse.
+    /// A nonempty view requires materialized use storage.
+    pub fn uses(self: *const Tmp) []Use {
+        if (self.nuse == 0) return &.{};
+        return self.use.?[0..self.nuse];
+    }
 };
 
 pub const CUndef = 0;

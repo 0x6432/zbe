@@ -23,6 +23,10 @@
   leaves stale va register counts (BUGS.md #7, also in the C patch).
 
 ### Code quality
+- Instruction builders use active slices and growth-safe self-appends, with
+  block wrappers preserving the stored IR fields. CFG union-find returns typed
+  block roots instead of casting optional pointers; temporary use-list readers
+  share a bounded view with an empty-storage guard.
 - Parser name caches, debug-file lists, intern buckets, load insertion logs,
   and memory-coalescing histories use bounded slices while retaining their
   established ownership, reuse, ordering and numeric IDs.

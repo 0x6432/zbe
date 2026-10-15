@@ -283,11 +283,11 @@ pub fn fillloop(f: *Fn) void {
     loopiter(f, multloop);
 }
 
-fn uffind(pb: **Blk, uf: []?*Blk) void {
-    if (uf[pb.*.id]) |*pb1| {
-        uffind(pb1, uf);
-        pb.* = pb1.*;
-    }
+fn uffind(block: *Blk, parents: []?*Blk) *Blk {
+    const parent = parents[block.id] orelse return block;
+    const root = uffind(parent, parents);
+    parents[block.id] = root;
+    return root;
 }
 
 /// requires rpo and no phis, breaks cfg
@@ -306,7 +306,7 @@ pub fn simpljmp(f: *Fn) void {
         }
         if (b.nins == 0)
             if (b.jmp.type == .jmp) {
-                uffind(@ptrCast(&b.s1), uf);
+                b.s1 = uffind(b.s1.?, uf);
                 if (b.s1 != b)
                     uf[b.id] = b.s1;
             };
@@ -314,9 +314,9 @@ pub fn simpljmp(f: *Fn) void {
     var p: *?*Blk = &f.start;
     while (p.*) |b| : (p = &b.link) {
         if (b.s1 != null)
-            uffind(@ptrCast(&b.s1), uf);
+            b.s1 = uffind(b.s1.?, uf);
         if (b.s2 != null)
-            uffind(@ptrCast(&b.s2), uf);
+            b.s2 = uffind(b.s2.?, uf);
         if (b.s1 != null and b.s1 == b.s2) {
             b.jmp.type = .jmp;
             b.s2 = null;
@@ -506,4 +506,16 @@ pub fn simplcfg(f: *Fn) void {
         dprint("\n> After CFG simplification:\n", .{});
         printfn(f, all.dbg) catch {};
     }
+}
+
+test "union-find: typed roots and path compression" {
+    var blocks: [4]Blk = @splat(std.mem.zeroes(Blk));
+    for (&blocks, 0..) |*block, n| block.id = @intCast(n);
+    var parents = [_]?*Blk{ &blocks[1], &blocks[2], null, null };
+    try std.testing.expect(uffind(&blocks[0], &parents) == &blocks[2]);
+    try std.testing.expect(parents[0] == &blocks[2]);
+    try std.testing.expect(parents[1] == &blocks[2]);
+    try std.testing.expect(parents[2] == null);
+    try std.testing.expect(uffind(&blocks[3], &parents) == &blocks[3]);
+    try std.testing.expect(parents[3] == null);
 }

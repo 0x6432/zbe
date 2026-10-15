@@ -48,6 +48,8 @@ core)
   chk input-errors ', 0 failed' python3 tools/input-errors.py
   chk input-error-compat ', 0 failed' python3 tools/input-error-compat-test.py
   chk cli ', 0 failed' sh tools/cli.sh
+  chk benchmark-safety 'OK' python3 tools/bench-test.py
+  chk memcheck-harness 'OK' python3 tools/memcheck-test.py
   chk jnz ', 0 failed' sh tools/jnz.sh
   chk parser-caches ', 0 failed' python3 tools/parser-caches.py
   chk parser-ref-kinds ', 0 failed' python3 tools/parser-ref-kinds.py
@@ -73,6 +75,8 @@ native)
   chk input-errors ', 0 failed' python3 tools/input-errors.py
   chk input-error-compat ', 0 failed' python3 tools/input-error-compat-test.py
   chk cli ', 0 failed' sh tools/cli.sh
+  chk benchmark-safety 'OK' python3 tools/bench-test.py
+  chk memcheck-harness 'OK' python3 tools/memcheck-test.py
   chk "zig package" 'bytes' sh -c 'cd tests/pkg && zig build && ./zig-out/bin/cons'
   ;;
 cross)

@@ -9,7 +9,8 @@
 
 Env: QBEREF (C qbe), ZQBE (zbe binary, should be ReleaseFast), CPROC
 (cproc driver with -emit-qbe), CC (default cc), CORPUS (glob of extra IL),
-REPS (timing repetitions, default 3).
+REPS (timing repetitions, default 3), BENCH_TIMEOUT (per-command seconds,
+default 120). Failed or timed-out commands invalidate the benchmark.
 """
 import glob, os, platform, subprocess, sys, tempfile, time
 
@@ -19,10 +20,20 @@ Z = os.environ.get('ZQBE', os.path.join(D, 'zig-out/bin/qbe'))
 CPROC = os.environ.get('CPROC', '/data/cproc/cproc')
 CC = os.environ.get('CC', 'cc')
 REPS = int(os.environ.get('REPS', '3'))
+TIMEOUT = float(os.environ.get('BENCH_TIMEOUT', '120'))
+if REPS <= 0 or not (0 < TIMEOUT < float('inf')):
+    raise ValueError('REPS and BENCH_TIMEOUT must be positive and finite')
 ENV = dict(os.environ); ENV.pop('QBE_COMPAT', None)
 
 def run(cmd, **kw):
-    return subprocess.run(cmd, env=ENV, capture_output=True, text=True, **kw)
+    return subprocess.run(cmd, env=ENV, capture_output=True, text=True, timeout=TIMEOUT, **kw)
+
+def checked(cmd, **kw):
+    return run(cmd, check=True, **kw)
+
+def timed(cmd):
+    subprocess.run(cmd, env=ENV, stdout=subprocess.DEVNULL,
+                   stderr=subprocess.DEVNULL, check=True, timeout=TIMEOUT)
 
 def best(f):
     ts = []
@@ -30,8 +41,7 @@ def best(f):
         t = time.perf_counter(); f(); ts.append(time.perf_counter() - t)
     return min(ts)
 
-def main():
-    w = tempfile.mkdtemp()
+def benchmark(w):
     benches = sorted(glob.glob(os.path.join(D, 'bench/*.c')))
     il = {}
     for c in benches:
@@ -42,7 +52,19 @@ def main():
     files = sorted(glob.glob(os.path.join(D, 'test/*.ssa'))) + list(il.values())
     if os.environ.get('CORPUS'):
         files += sorted(glob.glob(os.environ['CORPUS']))
-    files = [f for f in files if run([REF, f]).returncode == 0]
+    valid = []
+    for f in files:
+        result = run([REF, f])
+        if result.returncode == 0:
+            valid.append(f)
+        elif result.returncode == 1:
+            # The upstream fixture set includes intentional invalid input.
+            continue
+        else:
+            raise RuntimeError('reference crashed or failed unexpectedly on %s (exit %d)' % (f, result.returncode))
+    files = valid
+    if not files or not benches:
+        raise RuntimeError('benchmark requires accepted IL and generated-code fixtures')
     out = []
     p = out.append
     p('### Benchmarks\n')
@@ -50,7 +72,7 @@ def main():
     def comp(cmd):
         def go():
             for f in files:
-                subprocess.run(cmd + [f], env=ENV, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                timed(cmd + [f])
         return go
     tr = best(comp([REF]))
     tz0 = best(comp([Z, '-O0']))
@@ -78,12 +100,12 @@ def main():
             exes.append(e)
         for o in ('-O0', '-O2'):
             e = os.path.join(w, '%s_gcc%s' % (n, o))
-            run([CC, o, '-w', '-o', e, c]); exes.append(e)
-        outs = [run([e]).stdout for e in exes]
+            checked([CC, o, '-w', '-o', e, c]); exes.append(e)
+        outs = [checked([e]).stdout for e in exes]
         if len(set(outs)) != 1:
             bad += 1; p('| %s | OUTPUT MISMATCH: %s |' % (n, ' / '.join(o.strip() for o in outs)))
             continue
-        t = [best(lambda e=e: subprocess.run([e], stdout=subprocess.DEVNULL)) for e in exes]
+        t = [best(lambda e=e: timed([e])) for e in exes]
         p('| %s | %.3f s | %.3f s | %.3f s | %+.1f%% | %.3f s | %.3f s |' %
           (n, t[0], t[1], t[2], (t[2] / t[0] - 1) * 100, t[3], t[4]))
     p('')
@@ -94,4 +116,14 @@ def main():
         open(sys.argv[1], 'w').write(txt + '\n')
     sys.exit(bad != 0)
 
-main()
+def main():
+    try:
+        with tempfile.TemporaryDirectory(prefix='zbe-bench-') as work:
+            benchmark(work)
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+        print('benchmark failed: %s' % error, file=sys.stderr)
+        return 1
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main())

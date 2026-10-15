@@ -1054,3 +1054,20 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   CLI checks: 23/0 on Linux, including /dev/full during a callback and at flush.
 - Full core is currently running; new CI has not yet been triggered. This
   checkpoint does not claim full verification, a release, or a new tag.
+
+### Verification tooling made fail-closed before performance work
+- Benchmark compile timings, GCC builds, executable validation and timed runs
+  now reject nonzero exits/signals; all commands have a finite timeout
+  (BENCH_TIMEOUT, default 120s). Invalid repetition/timeout settings fail;
+  temporary directories are cleaned on success and failure. Reference exit 1
+  remains an explicit invalid-input exclusion; unexpected statuses fail.
+- Added 9 benchmark safety tests, including failed timed compilation, generated
+  GCC build, validation run and timed executable; these do not invent timing
+  results. Added them to core/native CI.
+- Memcheck now includes amd64_apple (all six targets), uses an isolated temporary
+  directory and rejects ANY nonzero compiler/Valgrind status, not just 99.
+  Four stub-based harness tests passed and are wired into core/native CI.
+  Valgrind is absent in this fresh sandbox: harness tests are NOT a memory scan.
+- Fresh pinned cproc d1c53dd bootstrap (stage2 == stage3) and make check passed
+  against the immutable current Debug compiler; 196/196 cproc tests passed.
+- Full core still running. No new performance speedup or CI-green claim.

@@ -9,8 +9,8 @@ const Ins = all.Ins;
 const PFn = all.PFn;
 const Phi = all.Phi;
 const Ref = all.Ref;
-const addbins = all.addbins;
-const addins = all.addins;
+const appendBlockInsSlice = all.appendBlockInsSlice;
+const appendBlockIns = all.appendBlockIns;
 const dprint = all.dprint;
 const ealloc = all.ealloc;
 const eallocSlice = all.eallocSlice;
@@ -435,7 +435,7 @@ pub fn simplcfg(f: *Fn) void {
                 cpy.cls = p.cls;
                 cpy.to = p.to;
                 cpy.arg[0] = phiarg(p, bb);
-                addins(&bb.ins, &bb.nins, &cpy);
+                appendBlockIns(bb, cpy);
             }
             b.phi = null;
         };
@@ -463,7 +463,7 @@ pub fn simplcfg(f: *Fn) void {
             if (j.type == .jmp and j.s1.?.npred == 1) {
                 const s = j.s1.?;
                 assert(s.phi == null);
-                addbins(&b.ins, &b.nins, s);
+                appendBlockInsSlice(b, s.insns());
                 empty[b.id] = empty[b.id] and empty[s.id];
                 const jj = &jmp[s.id];
                 for ([2]?*Blk{ jj.s1, jj.s2 }) |bb_| {

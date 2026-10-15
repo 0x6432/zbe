@@ -816,3 +816,16 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
   Current direct unit result: 56/56 passed. Full aggregate rerun is next.
 - Remaining rewrite work is tracked in docs/IDIOMATIC-ZIG.md; do not treat this
   milestone as a blanket claim that all local builder interfaces are finished.
+
+### Bounded instruction builders (2026-10-15)
+- Replaced addins/addbins pointer/count interfaces with active-slice append
+  helpers and block wrappers that synchronize the unchanged stored IR fields.
+- GCM scheduling, conditional conversion and load reconstruction use bounded
+  active slices; reset lengths retain vector allocations and capacity.
+- Self-appending sources reacquire elements after growth. Appending by value
+  avoids retaining a pointer into a destination that may move. Load rebuilding
+  deliberately retains nops for unchanged compatibility debug dumps.
+- Three direct tests cover order/nop filtering/reuse, heap-alias growth, block
+  extent synchronization and empty unowned storage. Direct unit result: 59/59.
+- Full aggregate verification of the typed-interface and builder batches is
+  still pending; earlier storage-only results are not sufficient for publishing.

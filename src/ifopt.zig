@@ -14,8 +14,8 @@ const clsBase = all.clsBase;
 const PHeap = all.PHeap;
 const Phi = all.Phi;
 const R = all.R;
-const addbins = all.addbins;
-const addins = all.addins;
+const appendInsSlice = all.appendInsSlice;
+const appendIns = all.appendIns;
 const cs = all.cs;
 const dprint = all.dprint;
 const idup = all.idup;
@@ -67,18 +67,17 @@ fn okgraph(ifb: *Blk, thenb: *Blk, elseb: *Blk, joinb: *Blk) bool {
 }
 
 fn convert(ifb: *Blk, thenb: *Blk, elseb: *Blk, joinb: *Blk) void {
-    var ins = vnewT(Ins, 0, PHeap);
-    var nins: uint = 0;
-    addbins(&ins, &nins, ifb);
+    var ins: []Ins = vnewT(Ins, 0, PHeap)[0..0];
+    appendInsSlice(&ins, ifb.insns());
     if (thenb != ifb)
-        addbins(&ins, &nins, thenb);
+        appendInsSlice(&ins, thenb.insns());
     if (elseb != ifb)
-        addbins(&ins, &nins, elseb);
+        appendInsSlice(&ins, elseb.insns());
     assert(joinb.npred == 2);
     var sel: Ins = undefined;
     if (joinb.phi != null) {
         sel = mkIns(.sel0, .w, R, ifb.jmp.arg, R);
-        addins(&ins, &nins, &sel);
+        appendIns(&ins, sel);
     }
     sel = insOp(.sel1);
     var p_it: ?*Phi = joinb.phi;
@@ -87,9 +86,9 @@ fn convert(ifb: *Blk, thenb: *Blk, elseb: *Blk, joinb: *Blk) void {
         sel.cls = p.cls;
         sel.arg[0] = phiarg(p, thenb);
         sel.arg[1] = phiarg(p, elseb);
-        addins(&ins, &nins, &sel);
+        appendIns(&ins, sel);
     }
-    idup(ifb, ins[0..nins]);
+    idup(ifb, ins);
     ifb.jmp.type = .jmp;
     ifb.jmp.arg = R;
     ifb.s1 = joinb;
@@ -97,7 +96,7 @@ fn convert(ifb: *Blk, thenb: *Blk, elseb: *Blk, joinb: *Blk) void {
     joinb.npred = 1;
     joinb.pred[0] = ifb;
     joinb.phi = null;
-    vfree(ins);
+    vfree(ins.ptr);
 }
 
 /// eliminate if-then[-else] graphlets

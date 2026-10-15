@@ -15,7 +15,8 @@ const Phi = all.Phi;
 const R = all.R;
 const RTmp = all.RTmp;
 const Ref = all.Ref;
-const addins = all.addins;
+const appendIns = all.appendIns;
+const appendBlockIns = all.appendBlockIns;
 const die = all.die;
 const dom = all.dom;
 const dprint = all.dprint;
@@ -240,7 +241,7 @@ fn addgcmins(f: *Fn, vins: []Ins) void {
         assert(rtype(i.to) == RTmp);
         const t = &f.tmp[i.to.val];
         const b = f.rpo[t.gcmbid];
-        addins(&b.ins, &b.nins, i);
+        appendBlockIns(b, i.*);
     }
 }
 
@@ -249,8 +250,7 @@ fn addgcmins(f: *Fn, vins: []Ins) void {
 /// before-def errors are fixed by
 /// schedblk
 fn gcmmove(f: *Fn) void {
-    var nins: uint = 0;
-    var vins: [*]Ins = vnewT(Ins, nins, PFn);
+    var vins: []Ins = vnewT(Ins, 0, PFn)[0..0];
 
     for (f.tmps()) |*t| {
         if (t.def == null)
@@ -263,15 +263,15 @@ fn gcmmove(f: *Fn) void {
         assert(rtype(i.to) == RTmp);
         assert(t == &f.tmp[i.to.val]);
         if (t.gcmbid != NOBID)
-            addins(&vins, &nins, i);
+            appendIns(&vins, i.*);
         i.* = insOp(.nop);
     }
-    addgcmins(f, vins[0..nins]);
+    addgcmins(f, vins);
 }
 
 /// dfs ordering; schedules the group containing
 /// b.ins[n], returns the index past that group
-fn schedins(f: *Fn, b: *Blk, n: uint, pvins: *[*]Ins, pnins: *uint) uint {
+fn schedins(f: *Fn, b: *Blk, n: uint, instructions: *[]Ins) uint {
     const lo, const hi = igroup(b, n);
     for (b.ins[lo..hi]) |*i| {
         for (0..2) |k| {
@@ -280,11 +280,11 @@ fn schedins(f: *Fn, b: *Blk, n: uint, pvins: *[*]Ins, pnins: *uint) uint {
             const t = &f.tmp[i.arg[k].val];
             if (t.bid != b.id or t.def == null)
                 continue;
-            _ = schedins(f, b, insidx(b, t.def.?), pvins, pnins);
+            _ = schedins(f, b, insidx(b, t.def.?), instructions);
         }
     }
     for (b.ins[lo..hi]) |*i| {
-        addins(pvins, pnins, i);
+        appendIns(instructions, i.*);
         i.* = insOp(.nop);
     }
     return hi;
@@ -292,16 +292,16 @@ fn schedins(f: *Fn, b: *Blk, n: uint, pvins: *[*]Ins, pnins: *uint) uint {
 
 /// order ins within a block
 fn schedblk(f: *Fn) void {
-    var vins = vnewT(Ins, 0, PHeap);
+    var vins: []Ins = vnewT(Ins, 0, PHeap)[0..0];
     var b_it = f.start;
     while (b_it) |b| : (b_it = b.link) {
-        var nins: uint = 0;
+        vins = vins[0..0];
         var n: uint = 0;
         while (n < b.nins)
-            n = schedins(f, b, n, &vins, &nins);
-        idup(b, vins[0..nins]);
+            n = schedins(f, b, n, &vins);
+        idup(b, vins);
     }
-    vfree(vins);
+    vfree(vins.ptr);
 }
 
 fn cheap(i: *Ins) bool {

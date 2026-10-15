@@ -534,3 +534,59 @@ test "bitset copy views: overlapping ranges retain forward-copy behavior" {
     u.bscopy(&destination, &source);
     try t.expectEqualSlices(all.bits, &.{ 1, 1, 1, 1 }, &storage);
 }
+
+test "instruction builder slices: nop filtering, stable appends, and reuse" {
+    var items: []all.Ins = u.vnewT(all.Ins, 0, PHeap)[0..0];
+    defer u.vfree(items.ptr);
+    const cached = items.ptr;
+    u.appendIns(&items, all.insOp(.nop));
+    try t.expectEqual(@as(usize, 0), items.len);
+    try t.expectEqual(cached, items.ptr);
+    var source = numberedIns(7);
+    source[2].op = .nop;
+    u.appendInsSlice(&items, &source);
+    try t.expectEqual(@as(usize, 6), items.len);
+    const numbers = [_]u29{ 0, 1, 3, 4, 5, 6 };
+    for (items, numbers) |instruction, number|
+        try t.expectEqual(number, instruction.to.val);
+    const grown = items.ptr;
+    items = items[0..0];
+    u.appendIns(&items, source[0]);
+    try t.expectEqual(grown, items.ptr);
+    try t.expectEqual(@as(usize, 1), items.len);
+}
+
+test "instruction builder slices: aliased source survives heap-vector growth" {
+    var items: []all.Ins = u.vnewT(all.Ins, 2, PHeap)[0..2];
+    defer u.vfree(items.ptr);
+    const source = numberedIns(2);
+    @memcpy(items, &source);
+    u.appendInsSlice(&items, items);
+    try t.expectEqual(@as(usize, 4), items.len);
+    const expected = [_]u29{ 0, 1, 0, 1 };
+    for (items, expected) |instruction, number|
+        try t.expectEqual(number, instruction.to.val);
+    u.appendIns(&items, items[0]);
+    try t.expectEqual(@as(usize, 5), items.len);
+    try t.expectEqual(@as(u29, 0), items[4].to.val);
+}
+
+test "block instruction append: extent synchronization and bounded self-copy" {
+    var empty = std.mem.zeroes(all.Blk);
+    empty.ins = undefined;
+    u.appendBlockIns(&empty, all.insOp(.nop));
+    u.appendBlockInsSlice(&empty, &.{});
+    try t.expectEqual(@as(all.uint, 0), empty.nins);
+    var block = std.mem.zeroes(all.Blk);
+    block.ins = u.vnewT(all.Ins, 0, PFn);
+    defer u.freeall();
+    u.appendBlockIns(&block, all.insOp(.nop));
+    try t.expectEqual(@as(all.uint, 0), block.nins);
+    const source = numberedIns(3);
+    u.appendBlockInsSlice(&block, &source);
+    u.appendBlockInsSlice(&block, block.insns());
+    try t.expectEqual(@as(all.uint, 6), block.nins);
+    const expected = [_]u29{ 0, 1, 2, 0, 1, 2 };
+    for (block.insns(), expected) |instruction, number|
+        try t.expectEqual(number, instruction.to.val);
+}

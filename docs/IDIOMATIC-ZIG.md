@@ -30,16 +30,23 @@ legacy interfaces, and raw core-field consumers remain.
 - Parser control states are an enum. Opcode-derived token numbers and grammar
   diagnostics are deliberately unchanged.
 
-## Next batches, in order
+## Instruction builders completed
 
-1. **Instruction-vector builder interfaces.** Audit `addins`/`addbins` and local
-   pointer/count builders (including the load pass's reused instruction buffer).
-   Make ownership and active extents explicit without invalidating aliases or
-   losing retained capacity. The pooled vector allocator is not automatically
-   a candidate for replacement merely because it is custom.
-2. **Module-by-module final audit.** Check mutating-loop bounds, optionality,
-   ownership/error paths, and helper naming. Avoid cosmetic churn, bulk textual
-   renames, or changing intentionally numeric ABI/class/comparison fields.
+- Active instruction slices replace pointer/count pairs in GCM scheduling,
+  conditional conversion and load reconstruction. Block wrappers synchronize
+  the intentionally stored IR pointer/count fields.
+- Append helpers accept instruction values and bounded sources. Self-appends
+  reacquire source elements after growth; nops and empty inputs preserve the
+  existing semantics, including unowned empty block storage.
+- Reused buffers retain capacity between blocks. Load reconstruction still
+  retains nops for byte-identical compatibility debug dumps.
+
+## Remaining audit
+
+Check each module's mutating-loop bounds, optionality, ownership/error paths,
+and raw core-field consumers. Avoid cosmetic churn, bulk textual renames, or
+changing intentionally numeric ABI/class/comparison fields. The pooled vector
+allocator is deliberate, not automatically a replacement candidate.
 
 ## Deliberate representations
 

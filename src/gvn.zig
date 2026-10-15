@@ -23,7 +23,7 @@ const RTmp = all.RTmp;
 const Ref = all.Ref;
 const Tmp = all.Tmp;
 const Use = all.Use;
-const addins = all.addins;
+const appendBlockIns = all.appendBlockIns;
 const adduse = all.adduse;
 const argcls = all.argcls;
 const copyref = all.copyref;
@@ -394,7 +394,7 @@ fn rebuildcfg(f: *Fn) void {
         for (b.insns()) |*i|
             if (all.optab[i.op.int()].pinned == 0)
                 if (gvndup(i, false) == i)
-                    addins(&s.ins, &s.nins, i);
+                    appendBlockIns(s, i.*);
     }
     efree(@ptrCast(rpo.ptr));
 }

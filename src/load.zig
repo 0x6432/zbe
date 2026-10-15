@@ -477,7 +477,7 @@ pub fn loadopt(f: *Fn) void {
         }
     }
     sort(Insert, st.ilog, icmp);
-    var ib = vnewT(Ins, 0, PHeap);
+    var ib: []Ins = vnewT(Ins, 0, PHeap)[0..0];
     var next: usize = 0;
     for (f.blks(), 0..) |b, n| {
         while (next < st.ilog.len and st.ilog[next].bid == n and st.ilog[next].isphi != 0) : (next += 1) {
@@ -486,7 +486,7 @@ pub fn loadopt(f: *Fn) void {
             b.phi = p;
         }
         var ni: uint = 0;
-        var nt: uint = 0;
+        ib = ib[0..0];
         while (true) {
             var i: *Ins = undefined;
             if (next < st.ilog.len and st.ilog[next].bid == n and st.ilog[next].off == ni) {
@@ -513,13 +513,17 @@ pub fn loadopt(f: *Fn) void {
                     i.arg[1] = R;
                 }
             }
-            nt += 1;
-            vgrow(&ib, nt);
-            ib[nt - 1] = i.*;
+            // Unlike the non-nop append helpers, this reconstruction retains
+            // every instruction so compatibility debug dumps stay unchanged.
+            const count = ib.len;
+            var storage = ib.ptr;
+            vgrow(&storage, count + 1);
+            ib = storage[0 .. count + 1];
+            ib[count] = i.*;
         }
-        idup(b, ib[0..nt]);
+        idup(b, ib);
     }
-    vfree(ib);
+    vfree(ib.ptr);
     vfree(st.ilog.ptr);
     st.ilog = &.{};
     if (all.debug['M'] != 0) {

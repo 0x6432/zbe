@@ -367,17 +367,47 @@ pub fn vgrow(vp: anytype, len: anytype) void {
     vp.* = @ptrCast(n);
 }
 
-pub fn addins(pvins: *[*]Ins, pnins: *uint, i: *Ins) void {
-    if (i.op == .nop)
-        return;
-    pnins.* += 1;
-    vgrow(pvins, pnins.*);
-    pvins.*[pnins.* - 1] = i.*;
+/// Append a non-nop instruction to an active, vector-backed slice. Empty
+/// slices must retain their vector allocation, not an unowned empty literal.
+pub fn appendIns(items: *[]Ins, instruction: Ins) void {
+    if (instruction.op == .nop) return;
+    const n = items.len;
+    var storage = items.ptr;
+    vgrow(&storage, n + 1);
+    items.* = storage[0 .. n + 1];
+    items.*[n] = instruction;
 }
 
-pub fn addbins(pvins: *[*]Ins, pnins: *uint, b: *Blk) void {
-    for (b.insns()) |*i|
-        addins(pvins, pnins, i);
+/// Append a bounded source, preserving order and omitting nops. If source is
+/// inside the destination, reacquire it after growth instead of retaining an
+/// invalidated view into the old allocation.
+pub fn appendInsSlice(items: *[]Ins, source: []const Ins) void {
+    if (source.len == 0) return;
+    const base = @intFromPtr(items.ptr);
+    const address = @intFromPtr(source.ptr);
+    if (address >= base and address - base < items.len * @sizeOf(Ins)) {
+        const offset = @divExact(address - base, @sizeOf(Ins));
+        assert(source.len <= items.len - offset);
+        for (0..source.len) |n| appendIns(items, items.*[offset + n]);
+    } else {
+        for (source) |instruction| appendIns(items, instruction);
+    }
+}
+
+pub fn appendBlockIns(block: *Blk, instruction: Ins) void {
+    if (instruction.op == .nop) return;
+    var items = block.insns();
+    appendIns(&items, instruction);
+    block.ins = items.ptr;
+    block.nins = @intCast(items.len);
+}
+
+pub fn appendBlockInsSlice(block: *Blk, source: []const Ins) void {
+    if (source.len == 0) return;
+    var items = block.insns();
+    appendInsSlice(&items, source);
+    block.ins = items.ptr;
+    block.nins = @intCast(items.len);
 }
 
 /// allocate a NUL-terminated formatted string in pool pl

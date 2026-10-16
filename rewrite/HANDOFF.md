@@ -259,3 +259,21 @@ Nine added tests cover dead definitions, dying-source reuse, simultaneous phi re
 ### Interference local verification
 
 Pinned Zig Debug, ReleaseSafe and ReleaseFast each passed **126/126 unit tests**. In each build mode, **both normal and `--fold-integers` paths** passed **3,370 integer/program native checks**, **3,560 floating/bit-pattern/mixed-ABI native checks**, **24 arithmetic-fault checks**, and **8 CLI checks** per path. Formatting and all eight independent generators' reproducibility checks passed. Authoritative log: `/data/verify-native-interference.log`, ending `INTERFERENCE VERIFICATION PASSED`. Legacy source/build/tools/tests remain unchanged. Interference CI is checked separately after publication; no main integration or release tag.
+
+### Interference published CI
+
+Interference checkpoint `6c2feeba0de0c553162ffe3382e8a8523b849711` passed https://github.com/0x6432/zbe/actions/runs/38879941871: Debug, ReleaseSafe and ReleaseFast all succeeded. This result precedes optional stack-home reuse below.
+
+## Optional interference-colored stack homes
+
+Added owned typed slot layouts using deterministic value-order greedy coloring. They preserve every conservative interference edge, including dead writes and simultaneous parameter/phi bundles, but do not promise minimum colors. All scalar slots remain eight bytes. This is stack storage reuse, not physical register assignment, spill insertion or a full allocator.
+
+The existing `amd64.emit` keeps unique homes by default; `emitWithOptions` and CLI `--reuse-stack-homes` opt into coloring. Operands load before result stores; phi copies still read every input into separate scratch before any result write. Scratch starts after colored homes, and incoming parameters remain distinct. The existing aligned 64 KiB frame cap now applies to colored homes plus scratch in the opt-in path. IR is never mutated by emission, and temporary layouts are freed across functions and errors. Graph/liveness caps remain separate, not total memory/runtime limits. See STACK-HOMES.md.
+
+Ten added unit tests cover proper/contiguous/deterministic coloring, mixed-width/class chains, dead writes, parameter bundles, lifetime/bounds, empty frames, limit/SSA failures, every allocation failure, all mixed programs and phi/float fixtures, default emission, scratch placement and an 8,193-value chain. The initial smoke compile caught a capture shadowing the public `slot` method; it was renamed before the successful 136-test Debug run. No oracle was weakened.
+
+Five new native results cover dying chains, dead writes, a dead phi with a live-through input and a dead incoming parameter. The 301-value chain explicitly verifies default 2,416-byte versus reused 16-byte frames with identical return value. CLI checks increase to twelve, adding unknown/duplicate flag preservation and accepted flag-order identity. Both native harnesses and CI now cover all four combinations of folding and home reuse. No legacy source/build/tool/test changes or release tag.
+
+### Stack-home reuse local verification
+
+Pinned Zig Debug, ReleaseSafe and ReleaseFast each passed **136/136 unit tests** (fresh Debug smoke in `/data/check-stack-homes-debug-fixed.log`; the full runner reused that successful Debug test artifact). In each build mode, **all four folding/reuse flag combinations** passed **3,375 integer/program native checks**, **3,560 floating/bit-pattern/mixed-ABI native checks**, **24 arithmetic-fault checks**, and **12 CLI rejection/output-preservation/flag-order checks** per combination. Formatting and all eight independent generators' reproducibility checks passed. Authoritative full log: `/data/verify-native-stack-homes.log`, ending `STACK HOME REUSE VERIFICATION PASSED`. Legacy source/build/tools/tests remain unchanged. Remote CI is checked separately after publication; no main integration or release tag.

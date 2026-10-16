@@ -29,11 +29,11 @@ The independent build exports `zbe_native` without linking libc or importing the
 - Owned block-boundary liveness snapshots with phi-edge uses, checked matrix limits and an independent path-search oracle.
 - Owned, bounded scalar-home interference graphs, independently checked at program points; no register assignment.
 - Bounded scalar interpreter and independent integer/dominance oracle checks.
-- Experimental stack-homed Linux AMD64 base-scalar emitter and driver, tested by assembling/linking/executing from C.
+- Experimental stack-homed Linux AMD64 base-scalar emitter and driver, tested by assembling/linking/executing from C; opt-in deterministic interference-colored stack-home reuse.
 - Opt-in SSA-validated, source-order integer/bit-pattern constant folding with preserved arithmetic faults.
 - Explicit errors for invalid builders; allocation-failure and ownership tests.
 - Correct low-32-bit constant branch semantics, including long operands.
 
 There are no compile-wide mutable globals, pointer-packed references, C-layout requirements, or calls into the existing backend in this core. This is a design direction, not a claim that all future compiler code can avoid low-level operations.
 
-See [INTERFERENCE.md](INTERFERENCE.md) for conservative graph contracts, [LIVENESS.md](LIVENESS.md) for analysis boundaries and resource limits, [OPTIMIZE.md](OPTIMIZE.md) for the conservative opt-in pass, [NATIVE-AMD64.md](NATIVE-AMD64.md) for the native slice, [SCALAR-SEMANTICS.md](SCALAR-SEMANTICS.md) for analysis/evaluation contracts, [FRONTEND.md](FRONTEND.md) for the exact supported subset and limitations, [DESIGN.md](DESIGN.md) for ownership and implementation milestones and [HANDOFF.md](HANDOFF.md) for the current verification record.
+See [STACK-HOMES.md](STACK-HOMES.md) for optional layout reuse, [INTERFERENCE.md](INTERFERENCE.md) for conservative graph contracts, [LIVENESS.md](LIVENESS.md) for analysis boundaries and resource limits, [OPTIMIZE.md](OPTIMIZE.md) for the conservative opt-in pass, [NATIVE-AMD64.md](NATIVE-AMD64.md) for the native slice, [SCALAR-SEMANTICS.md](SCALAR-SEMANTICS.md) for analysis/evaluation contracts, [FRONTEND.md](FRONTEND.md) for the exact supported subset and limitations, [DESIGN.md](DESIGN.md) for ownership and implementation milestones and [HANDOFF.md](HANDOFF.md) for the current verification record.

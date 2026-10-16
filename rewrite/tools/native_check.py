@@ -3,6 +3,7 @@
 from pathlib import Path
 import argparse
 import platform
+import re
 import resource
 import signal
 import subprocess
@@ -19,12 +20,13 @@ def main() -> None:
     parser.add_argument("--compiler", type=Path, default=root / "zig-out/bin/zbe-native")
     parser.add_argument("--cc", default="cc")
     parser.add_argument("--fold-integers", action="store_true")
+    parser.add_argument("--reuse-stack-homes", action="store_true")
     args = parser.parse_args()
     if platform.system() != "Linux" or platform.machine() not in ("x86_64", "amd64"):
         raise SystemExit("Native execution requires Linux x86_64; no result claimed.")
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
     compiler = str(args.compiler.resolve())
-    compiler_flags = ["--fold-integers"] if args.fold_integers else []
+    compiler_flags = (["--fold-integers"] if args.fold_integers else []) + (["--reuse-stack-homes"] if args.reuse_stack_homes else [])
     declarations = ["#include <stdint.h>", "#include <stdio.h>"]
     checks = []
     functions = []
@@ -161,6 +163,23 @@ def main() -> None:
     declarations.append("extern uint32_t same_target(uint32_t);")
     check("same_target(0)", 42)
     check("same_target(1)", 42)
+    # Home-reuse regressions: dead definitions still write, parallel phis
+    # preserve live-through values, and dead incoming parameters are homed too.
+    chain = ["%v0 =l copy 1"] + [f"%v{i} =l add %v{i-1}, 1" for i in range(1, 301)]
+    functions.append("export function l $home_chain() {\n@entry\n" + "\n".join(chain) + "\nret %v300\n}")
+    declarations.append("extern uint64_t home_chain(void);")
+    check("home_chain()", 301)
+    functions.append("export function l $home_dead_write(l %p) {\n@b\n%dead =w copy 0\nret %p\n}")
+    declarations.append("extern uint64_t home_dead_write(uint64_t);")
+    check("home_dead_write(UINT64_C(0xfedcba9876543210))", 0xfedcba9876543210)
+    functions.append("export function w $home_dead_phi(w %p) {\n@entry\njnz %p, @left, @right\n@left\njmp @join\n@right\njmp @join\n@join\n%r =w phi @left 11, @right 22\n%dead =w phi @left 99, @right 100\n%sum =w add %r, %p\nret %sum\n}")
+    declarations.append("extern uint32_t home_dead_phi(uint32_t);")
+    check("home_dead_phi(5)", 16)
+    check("home_dead_phi(0)", 22)
+    functions.append("export function w $home_dead_parameter(w %p, w %unused) {\n@entry\nret %p\n}")
+    declarations.append("extern uint32_t home_dead_parameter(uint32_t, uint32_t);")
+    check("home_dead_parameter(17, 99)", 17)
+
     functions.append("export function $nothing() {\n@entry\nret\n}")
     declarations.append("extern void nothing(void);")
 
@@ -174,6 +193,11 @@ def main() -> None:
         trap_dispatch = "\n".join(traps)
         driver.write_text("\n".join(declarations) + "\n#include <stdlib.h>\nint main(int argc, char **argv) {\nif (argc == 2) { int which = atoi(argv[1]);\n" + trap_dispatch + "\nreturn 4; }\nnothing();\n" + "\n".join(checks) + f'\nputs("{len(checks)} native integer/ABI/phi checks passed");\nreturn 0;\n}}\n')
         run([compiler, *compiler_flags, str(source), str(assembly)])
+        chain_assembly = assembly.read_text().split("home_chain:\n", 1)[1].split(".size home_chain,", 1)[0]
+        match = re.search(r"subq \$(\d+), %rsp", chain_assembly)
+        expected_frame = 16 if args.reuse_stack_homes else 2416
+        if match is None or int(match.group(1)) != expected_frame:
+            raise SystemExit(f"Home-chain frame is not {expected_frame} bytes")
         run([args.cc, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-no-pie", str(driver), str(assembly), "-o", str(executable)])
         run([str(executable)])
         for index in range(len(traps)):
@@ -205,7 +229,21 @@ def main() -> None:
         same = subprocess.run([compiler, *compiler_flags, str(source), str(source)], capture_output=True, text=True, timeout=30)
         if same.returncode == 0 or source.read_bytes() != original:
             raise SystemExit("Same-path output overwrote its input")
-        print("8 CLI rejection/output-preservation checks passed")
+        for flags in (["--unknown"], ["--fold-integers", "--fold-integers"], ["--reuse-stack-homes", "--reuse-stack-homes"]):
+            assembly.write_text("preserve-existing-output")
+            rejected = subprocess.run([compiler, *flags, str(source), str(assembly)], capture_output=True, text=True, timeout=30)
+            if rejected.returncode != 2 or "usage:" not in rejected.stderr or assembly.read_text() != "preserve-existing-output":
+                raise SystemExit("Invalid or duplicate flags did not preserve output")
+        # Both accepted flag orders must choose exactly the same pipeline.
+        small = work / "flag-order.ssa"
+        small.write_text("export function w $flag_order() {\n@b\n%x =w add 1, 2\nret %x\n}")
+        first = work / "flag-order-a.s"
+        second = work / "flag-order-b.s"
+        run([compiler, "--fold-integers", "--reuse-stack-homes", str(small), str(first)])
+        run([compiler, "--reuse-stack-homes", "--fold-integers", str(small), str(second)])
+        if first.read_bytes() != second.read_bytes():
+            raise SystemExit("Flag ordering changed assembly")
+        print("12 CLI rejection/output-preservation/flag-order checks passed")
 
 
 if __name__ == "__main__":

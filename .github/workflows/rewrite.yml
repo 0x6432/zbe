@@ -44,7 +44,7 @@ jobs:
         working-directory: rewrite
         run: |
           zig build -Doptimize=${{ matrix.optimize }} --summary all
-          python3 tools/native_check.py
-          python3 tools/native_float_check.py
-          python3 tools/native_check.py --fold-integers
-          python3 tools/native_float_check.py --fold-integers
+          for flags in "" "--fold-integers" "--reuse-stack-homes" "--fold-integers --reuse-stack-homes"; do
+            python3 tools/native_check.py $flags
+            python3 tools/native_float_check.py $flags
+          done

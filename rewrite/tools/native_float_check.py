@@ -13,10 +13,11 @@ def main() -> None:
     parser.add_argument("--compiler", type=Path, default=root / "zig-out/bin/zbe-native")
     parser.add_argument("--cc", default="cc")
     parser.add_argument("--fold-integers", action="store_true")
+    parser.add_argument("--reuse-stack-homes", action="store_true")
     args = parser.parse_args()
     if platform.system() != "Linux" or platform.machine() not in ("x86_64", "amd64"):
         raise SystemExit("Native execution requires Linux x86_64; no result claimed.")
-    compiler_flags = ["--fold-integers"] if args.fold_integers else []
+    compiler_flags = (["--fold-integers"] if args.fold_integers else []) + (["--reuse-stack-homes"] if args.reuse_stack_homes else [])
     declarations = ["#include <stdint.h>", "#include <stdio.h>", "#include <string.h>", "#include <fenv.h>",
                     "static float f32(uint32_t v) { float f; memcpy(&f, &v, 4); return f; }",
                     "static double f64(uint64_t v) { double f; memcpy(&f, &v, 8); return f; }",

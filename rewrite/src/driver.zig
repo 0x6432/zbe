@@ -11,13 +11,19 @@ pub fn main(init: std.process.Init) u8 {
 
 fn run(init: std.process.Init) !u8 {
     const args = try init.minimal.args.toSlice(init.arena.allocator());
-    const fold = args.len > 1 and std.mem.eql(u8, args[1], "--fold-integers");
-    if (args.len != @as(usize, if (fold) 4 else 3)) {
-        report(init.io, "usage: zbe-native [--fold-integers] input.ssa output.s (Linux AMD64 scalar subset)\n", .{});
-        return 2;
+    var fold = false;
+    var reuse = false;
+    var first_path: usize = 1;
+    while (first_path < args.len and std.mem.startsWith(u8, args[first_path], "--")) : (first_path += 1) {
+        if (std.mem.eql(u8, args[first_path], "--fold-integers") and !fold) {
+            fold = true;
+        } else if (std.mem.eql(u8, args[first_path], "--reuse-stack-homes") and !reuse) {
+            reuse = true;
+        } else return usage(init.io);
     }
-    const input_path = args[if (fold) 2 else 1];
-    const output_path = args[if (fold) 3 else 2];
+    if (args.len < first_path or args.len - first_path != 2) return usage(init.io);
+    const input_path = args[first_path];
+    const output_path = args[first_path + 1];
     if (std.mem.eql(u8, input_path, output_path)) return error.SameInputAndOutput;
     const text = try std.Io.Dir.cwd().readFileAlloc(init.io, input_path, init.gpa, .limited(16 * 1024 * 1024));
     defer init.gpa.free(text);
@@ -35,7 +41,7 @@ fn run(init: std.process.Init) !u8 {
     if (fold) for (module.functions.items) |function| {
         _ = try core.optimize.foldIntegerConstants(init.gpa, function);
     };
-    const assembly = try core.amd64.emit(init.gpa, &module);
+    const assembly = try core.amd64.emitWithOptions(init.gpa, &module, .{ .reuse_stack_homes = reuse });
     defer init.gpa.free(assembly);
     // No output is created/truncated until parsing, validation and emission succeed.
     try std.Io.Dir.cwd().writeFile(init.io, .{ .sub_path = output_path, .data = assembly });
@@ -47,4 +53,9 @@ fn report(io: std.Io, comptime format: []const u8, args: anytype) void {
     var output = std.Io.File.stderr().writerStreaming(io, &buffer);
     output.interface.print(format, args) catch return;
     output.interface.flush() catch {};
+}
+
+fn usage(io: std.Io) u8 {
+    report(io, "usage: zbe-native [--fold-integers] [--reuse-stack-homes] input.ssa output.s (Linux AMD64 scalar subset)\n", .{});
+    return 2;
 }

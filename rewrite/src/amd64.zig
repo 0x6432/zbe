@@ -1,22 +1,29 @@
 const std = @import("std");
 const ir = @import("ir.zig");
 const ssa = @import("ssa.zig");
+const stack_homes = @import("stack_homes.zig");
 const Module = @import("module.zig").Module;
-pub const Error = ssa.Error || error{ InvalidSymbol, DuplicateSymbol, FrameTooLarge };
+pub const Error = stack_homes.Error || error{ InvalidSymbol, DuplicateSymbol, FrameTooLarge };
+
+pub const Options = struct { reuse_stack_homes: bool = false };
 
 /// Experimental Linux ELF/System V base-scalar slice. Every SSA value has a stack
 /// home; this is not instruction selection/register allocation parity with QBE.
 /// Caller owns the returned assembly. Invalid input never returns partial text.
 pub fn emit(allocator: std.mem.Allocator, module: *const Module) Error![]u8 {
+    return emitWithOptions(allocator, module, .{});
+}
+
+pub fn emitWithOptions(allocator: std.mem.Allocator, module: *const Module, options: Options) Error![]u8 {
     for (module.functions.items, 0..) |function, index| {
         const name = module.symbols.get(function.name) orelse return error.InvalidSymbol;
         if (!validSymbol(name)) return error.InvalidSymbol;
         for (module.functions.items[0..index]) |previous| if (previous.name == function.name) return error.DuplicateSymbol;
-        _ = try Frame.init(function);
+        if (!options.reuse_stack_homes) _ = try Frame.init(function);
         var issue: ?ssa.Issue = null;
         try ssa.validate(allocator, function, &issue);
     }
-    var emitter: Emitter = .{ .output = .init(allocator), .module = module };
+    var emitter: Emitter = .{ .output = .init(allocator), .module = module, .allocator = allocator, .options = options };
     defer emitter.output.deinit();
     try emitter.print(".text\n", .{});
     for (module.functions.items, 0..) |function, index| try emitter.function(function, index);
@@ -57,6 +64,9 @@ const argument_registers = [_]ArgumentRegisters{
 const Emitter = struct {
     output: std.Io.Writer.Allocating,
     module: *const Module,
+    allocator: std.mem.Allocator,
+    options: Options,
+    homes: ?[]const stack_homes.SlotId = null,
     current: *const ir.Function = undefined,
     ordinal: usize = 0,
     frame: Frame = undefined,
@@ -69,7 +79,15 @@ const Emitter = struct {
     fn function(self: *Emitter, f: *const ir.Function, index: usize) Error!void {
         self.current = f;
         self.ordinal = index;
-        self.frame = try Frame.init(f);
+        var layout: ?stack_homes.Layout = if (self.options.reuse_stack_homes) try stack_homes.Layout.init(self.allocator, f, .{}) else null;
+        defer if (layout) |*owned| owned.deinit();
+        self.homes = if (layout) |owned| owned.slots else null;
+        defer self.homes = null;
+        if (layout) |owned| {
+            var max_phis: usize = 0;
+            for (f.blocks.items) |block| max_phis = @max(max_phis, block.phis.items.len);
+            self.frame = try Frame.fromCounts(owned.slot_count, max_phis, f.parameters.items.len);
+        } else self.frame = try Frame.init(f);
         const name = self.module.symbols.get(f.name).?;
         try self.print("{s} {s}\n.type {s}, @function\n{s}:\n\tpushq %rbp\n\tmovq %rsp, %rbp\n", .{ if (f.linkage == .exported) @as([]const u8, ".globl") else ".local", name, name, name });
         if (self.frame.bytes != 0) try self.print("\tsubq ${d}, %rsp\n", .{self.frame.bytes});
@@ -268,7 +286,7 @@ const Emitter = struct {
         const ty = try self.current.operandType(operand);
         const target = register(ty, scratch);
         switch (operand) {
-            .value => |value| try self.print("\tmov{c} -{d}(%rbp), {s}\n", .{ suffix(ty), home(value), target }),
+            .value => |value| try self.print("\tmov{c} -{d}(%rbp), {s}\n", .{ suffix(ty), self.home(value), target }),
             .constant => |constant| switch (constant) {
                 .word => |bits| try self.print("\tmovl $0x{x}, {s}\n", .{ bits, target }),
                 .long => |bits| try self.print("\tmovabsq $0x{x}, {s}\n", .{ bits, target }),
@@ -280,13 +298,15 @@ const Emitter = struct {
 
     fn save(self: *Emitter, value: ir.ValueId, reg: []const u8) Error!void {
         const ty = self.current.values.items[@backingInt(value)].scalar_type;
-        try self.print("\tmov{c} {s}, -{d}(%rbp)\n", .{ suffix(ty), reg, home(value) });
+        try self.print("\tmov{c} {s}, -{d}(%rbp)\n", .{ suffix(ty), reg, self.home(value) });
+    }
+
+    fn home(self: *const Emitter, value: ir.ValueId) usize {
+        const ordinal: usize = @backingInt(value);
+        const slot = if (self.homes) |homes| @as(usize, @backingInt(homes[ordinal])) else ordinal;
+        return (slot + 1) * 8;
     }
 };
-
-fn home(value: ir.ValueId) usize {
-    return (@as(usize, @backingInt(value)) + 1) * 8;
-}
 fn suffix(ty: ir.ScalarType) u8 {
     return switch (ty) {
         .word, .single => 'l',
@@ -467,4 +487,60 @@ fn exerciseFloatComparisons(allocator: std.mem.Allocator) !void {
 
 test "floating comparison parsing evaluation and emission clean up every allocation failure" {
     try @import("test_support.zig").checkAllocationFailures(exerciseFloatComparisons);
+}
+
+test "optional stack reuse shrinks frames without changing default emission" {
+    var module = try parse("function l $f(w %a) {\n@b\n%s =s cast %a\n%d =d exts %s\n%x =l cast %d\n%r =l add %x, 1\nret %r\n}");
+    defer module.deinit();
+    const original = try emit(testing.allocator, &module);
+    defer testing.allocator.free(original);
+    const explicit_default = try emitWithOptions(testing.allocator, &module, .{});
+    defer testing.allocator.free(explicit_default);
+    try testing.expectEqualSlices(u8, original, explicit_default);
+    const reused = try emitWithOptions(testing.allocator, &module, .{ .reuse_stack_homes = true });
+    defer testing.allocator.free(reused);
+    try testing.expect(std.mem.indexOf(u8, original, "subq $48, %rsp") != null);
+    try testing.expect(std.mem.indexOf(u8, reused, "subq $16, %rsp") != null);
+    try testing.expect(std.mem.indexOf(u8, reused, "-16(%rbp)") == null);
+}
+
+test "reused phi scratch starts after all colored homes and remains parallel" {
+    var module = try parse(@embedFile("fixtures/phi-loop.ssa"));
+    defer module.deinit();
+    var layout = try stack_homes.Layout.init(testing.allocator, module.functions.items[0], .{});
+    defer layout.deinit();
+    const assembly = try emitWithOptions(testing.allocator, &module, .{ .reuse_stack_homes = true });
+    defer testing.allocator.free(assembly);
+    for (0..3) |index| {
+        const store = try std.fmt.allocPrint(testing.allocator, "movl %eax, -{d}(%rbp)", .{(layout.slot_count + index + 1) * 8});
+        defer testing.allocator.free(store);
+        try testing.expect(std.mem.indexOf(u8, assembly, store) != null);
+    }
+}
+
+fn exerciseReusedHomes(allocator: std.mem.Allocator) !void {
+    var diagnostic: ?source.Diagnostic = null;
+    var module = try frontend.parse(allocator, .{ .name = "reused-homes", .text = @embedFile("fixtures/phi-loop.ssa") ++ "\nfunction l $bits(w %a) {\n@b\n%s =s cast %a\n%d =d exts %s\n%x =l cast %d\nret %x\n}" }, &diagnostic);
+    defer module.deinit();
+    const assembly = try emitWithOptions(allocator, &module, .{ .reuse_stack_homes = true });
+    defer allocator.free(assembly);
+    try testing.expect(std.mem.indexOf(u8, assembly, "cvtss2sd") != null);
+}
+test "reused-home emission cleans up every allocation failure across functions" {
+    try @import("test_support.zig").checkAllocationFailures(exerciseReusedHomes);
+}
+
+test "reused frame limit applies to homes rather than original value count" {
+    var module = Module.init(testing.allocator);
+    defer module.deinit();
+    const function_id = try module.addFunction("long_chain", .word);
+    const f = module.getFunction(function_id).?;
+    const block = try f.addBlock(null);
+    var previous = try f.appendCopy(block, .word, .{ .constant = .{ .word = 1 } });
+    for (0..8192) |_| previous = try f.appendBinary(block, .word, .add, .{ .value = previous }, .{ .constant = .{ .word = 1 } });
+    try f.terminate(block, .{ .return_value = .{ .value = previous } });
+    try testing.expectError(error.FrameTooLarge, emit(testing.allocator, &module));
+    const assembly = try emitWithOptions(testing.allocator, &module, .{ .reuse_stack_homes = true });
+    defer testing.allocator.free(assembly);
+    try testing.expect(std.mem.indexOf(u8, assembly, "subq $16, %rsp") != null);
 }

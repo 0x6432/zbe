@@ -21,6 +21,7 @@ pub const Error = ArithmeticError || module_validation.Error || error{
     UnsupportedCall,
     UnsupportedExternalCall,
     UnsupportedIndirectCall,
+    UnsupportedMemory,
     InvalidFunction,
     CallDepthLimitExceeded,
 };
@@ -112,6 +113,8 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
             try step(&remaining);
             const instruction = block.instructions.items[frame.next_instruction];
             frame.next_instruction += 1;
+            // This evaluator owns scalar values, not a native address space.
+            if (instruction == .load or instruction == .store) return error.UnsupportedMemory;
             if (instruction == .call) {
                 const call = instruction.call;
                 const owner = module orelse return error.UnsupportedCall;
@@ -159,6 +162,7 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
 
 fn scalarInstruction(function: *const ir.Function, values: []const ?ir.Constant, instruction: ir.Instruction) Error!ir.Constant {
     return switch (instruction) {
+        .load, .store => error.UnsupportedMemory,
         .call => error.UnsupportedCall,
         .copy => |copy| try resolve(values, copy.operand),
         .unary => |unary| semantics.unaryValue(unary.op, try resolve(values, unary.operand), function.values.items[@backingInt(unary.result)].scalar_type),

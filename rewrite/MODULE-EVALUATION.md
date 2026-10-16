@@ -35,3 +35,7 @@ Seven added tests cover:
 - exhaustive allocation-failure cleanup through parsing, nested frames, argument copies, handle growth, phi scratch and early depth/step exits.
 
 The existing standalone scalar/interpreter/oracle tests and complete native regression matrix remain in force. Deep bounded recursion and these fixtures are not proof of complete QBE semantics, total-process resource limits or external ABI execution in the interpreter.
+
+## Memory boundary
+
+The IR/native compiler now supports scalar loads/stores (MEMORY.md). This evaluator has no simulated address space: a reached memory instruction consumes its step then returns `UnsupportedMemory`, propagating through internal calls and freeing all active frames. It never dereferences a numeric host address. Step exhaustion before the instruction wins; memory-free paths remain evaluable.

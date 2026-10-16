@@ -159,6 +159,12 @@ const Parser = struct {
                 if (std.mem.eql(u8, self.tokenText(token), "call")) {
                     _ = self.advance();
                     try self.call(active, null, token);
+                } else if (store_opcodes.get(self.tokenText(token))) |kind| {
+                    _ = self.advance();
+                    const value = try self.readOperand(kind.valueType());
+                    _ = try self.expect(.comma);
+                    const address = try self.readOperand(.long);
+                    f.appendStore(active, kind, value, address) catch |err| return self.irError(err, token);
                 } else try self.terminator(active);
             } else return self.fail(.unsupported_construct, token);
             try self.lineEnd();
@@ -207,6 +213,9 @@ const Parser = struct {
         const f = self.current_function.?;
         if (std.mem.eql(u8, spelling, "call")) {
             try self.call(block, result, opcode);
+        } else if (load_opcodes.get(spelling)) |kind| {
+            const address = try self.readOperand(.long);
+            f.defineLoad(block, result, kind, address) catch |err| return self.irError(err, opcode);
         } else if (std.mem.eql(u8, spelling, "copy")) {
             const operand = try self.readOperand(ty);
             f.defineCopy(block, result, operand) catch |err| return self.irError(err, opcode);
@@ -499,7 +508,7 @@ test "diagnostics reject undefined and duplicate names at their source spans" {
 
 test "malformed syntax, types and unsupported IL never silently lower" {
     try expectInvalid("data $x = { w 1 }", .unsupported_construct, "data");
-    try expectInvalid("function w $f() {\n@b\n%x =w loadw 0\nret %x\n}", .unsupported_construct, "loadw");
+    try expectInvalid("function w $f() {\n@b\n%x =w alloc8 8\nret %x\n}", .unsupported_construct, "alloc8");
     try expectInvalid("function $f(...) {\n@b\nret\n}", .unsupported_construct, "...");
     try expectInvalid("function w $\"quoted\"() {\n@b\nret 0\n}", .unsupported_construct, "$\"quoted\"");
     try expectInvalid("function w $f() {\n@b\nret d_1\n}", .type_mismatch, "d_1");
@@ -656,3 +665,15 @@ test "halt takes no operands and closes its block" {
     try expectInvalid("function $f() {\n@b\nhlt 1\n}", .unexpected_token, "1");
     try expectInvalid("function $f() {\n@b\nhlt\nret\n}", .block_terminated, "ret");
 }
+
+const load_opcodes = std.StaticStringMap(ir.LoadKind).initComptime(.{
+    .{ "loadsb", .signed_byte }, .{ "loadub", .unsigned_byte },
+    .{ "loadsh", .signed_half }, .{ "loaduh", .unsigned_half },
+    .{ "loadsw", .signed_word }, .{ "loaduw", .unsigned_word },
+    .{ "loadw", .signed_word },  .{ "loadl", .long },
+    .{ "loads", .single },       .{ "loadd", .double },
+});
+const store_opcodes = std.StaticStringMap(ir.StoreKind).initComptime(.{
+    .{ "storeb", .byte }, .{ "storeh", .half },   .{ "storew", .word },
+    .{ "storel", .long }, .{ "stores", .single }, .{ "stored", .double },
+});

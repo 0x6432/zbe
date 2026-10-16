@@ -48,4 +48,5 @@ jobs:
             python3 tools/native_check.py $flags
             python3 tools/native_float_check.py $flags
             python3 tools/native_call_check.py $flags
+            python3 tools/native_memory_check.py $flags
           done

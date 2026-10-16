@@ -7,7 +7,7 @@ The native Linux AMD64 slice accepts scalar-result and void calls through a **lo
 call %long_target(w|l|s|d argument, ...)
 ```
 
-The ellipsis describes repetition, not variadic IL. Direct `$symbol` calls remain supported. A word or floating target is a type error. This does not add function-address/global operands elsewhere in the language, memory operations, aggregates, environment arguments, variadic ABI support, shared-library machinery or another target.
+The ellipsis describes repetition, not variadic IL. Direct `$symbol` calls remain supported. A word or floating target is a type error. The indirect-call extension itself does not add function-address/global operands elsewhere in the language, memory operations (the later scalar memory slice is documented in MEMORY.md), aggregates, environment arguments, variadic ABI support, shared-library machinery or another target.
 
 ## Representation, ownership and validation
 

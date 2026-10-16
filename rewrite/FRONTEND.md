@@ -12,6 +12,10 @@
     call $void_symbol(type operand, type operand)
     %result =type call %long_target(type operand, type operand)
     call %long_target(type operand, type operand)
+    %result =w|l loadsb|loadub|loadsh|loaduh|loadsw|loaduw|loadw long-address
+    %result =l|s|d loadl|loads|loadd long-address
+    storeb|storeh|storew word-value, long-address
+    storel|stores|stored matching-scalar-value, long-address
     %result =type copy operand
     %result =type neg operand
     %result =type cast opposite-class-same-width-operand
@@ -33,6 +37,7 @@ The ellipsis above describes repeated parameters, **not** variadic IL. A missing
 
 - `hlt` has no operands and closes its block with target-dependent program termination, independently of the function result type. The evaluator returns `Halted`; Linux AMD64 emits `ud2`. See HALT.md.
 - Direct nonvariadic scalar-result or void-result calls with explicitly typed base-scalar arguments are accepted; empty argument lists are allowed. Void calls are effect-only statements with no result definition. Known callee result presence/type must match; omitting a nonvoid return is not permitted. Indirect calls now accept a long temporary or integer-address literal as target; address/signature validity is a native caller contract and module interpretation refuses reached address targets (see INDIRECT-CALLS.md). Variadic/environment/aggregate/extended-ABI calls are unsupported. Native emission checks known module-local signatures; external signatures remain a caller contract. The standalone evaluator reports `UnsupportedCall` only when a call is reached; module-aware evaluation can interpret internal direct calls, but never external functions (see MODULE-EVALUATION.md). See CALLS.md.
+- Scalar loads/stores accept long addresses and exact source/result classes; signed/unsigned narrow loads extend to word or long, while byte/half stores truncate word sources. `loadw` is an exact `loadsw` alias, including sign extension when its result is long. Stores are effect-only; both evaluators refuse reached memory with `UnsupportedMemory` without host dereferences. No allocation/blit/global-address forms are added. See MEMORY.md.
 - Types are the four base scalar types. Binary operands and copied/returned values must match their declared type exactly. Implicit mixed-width temporary conversions are not implemented.
 - `copy`, `add`, `sub`, `mul`, `div` support matching integer or floating types; bitwise operations, `udiv`, `rem` and `urem` require integer types.
 - Integer `div` truncates the signed quotient toward zero; `rem` has the dividend's sign. `udiv`/`urem` use unsigned bits. The evaluator returns `DivisionByZero` or `IntegerOverflow` for exceptional integer pairs; native AMD64 execution faults instead. See SCALAR-SEMANTICS.md for this explicit boundary.
@@ -45,7 +50,7 @@ The ellipsis above describes repeated parameters, **not** variadic IL. A missing
 - Floating literals retain their `s_`/`d_` width, including decimal/hex spellings, signed zero, infinity and plain NaN. Numeric conversion uses Zig, not libc. NaN payload spellings are scanned intact but **rejected explicitly by this parser** until payload semantics are implemented.
 - Phi nodes precede ordinary instructions in a block. The parser retains typed predecessor/value pairs; `ssa.validate` checks predecessor coverage and incoming-edge dominance.
 - Forward **block targets** are resolved by a declaration pass. Temporary result types are predeclared, so loop backedges and layout-independent forward references are accepted; scalar SSA validation must establish actual definition availability. Parameters and blocks are scoped per function; duplicate function/block/value names are rejected.
-- The lexer returns borrowed raw spans, including string escapes and quoted global names; it does not silently decode/rewrite names. Quoted globals, strings as operands, aggregates, data, memory operations, unsupported call forms, varargs, extended ABI types and unimplemented opcodes are explicitly rejected by the parser.
+- The lexer returns borrowed raw spans, including string escapes and quoted global names; it does not silently decode/rewrite names. Quoted globals, strings as operands, aggregates, data, unsupported memory operations, unsupported call forms, varargs, extended ABI types and unimplemented opcodes are explicitly rejected by the parser.
 
 ## Not a full verifier or compiler
 

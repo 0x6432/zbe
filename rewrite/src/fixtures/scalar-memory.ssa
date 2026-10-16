@@ -1,0 +1,30 @@
+function l $memory_loop(l %address, w %count, w %value) {
+@entry
+jmp @loop
+@loop
+%i =w phi @entry %count, @again %next
+storeb %value, %address
+%loaded =l loadsb %address
+jnz %i, @again, @done
+@again
+%next =w sub %i, 1
+jmp @loop
+@done
+ret %loaded
+}
+function w $memory_path(w %take, l %pointer) {
+@entry
+jnz %take, @memory, @safe
+@memory
+storew 7, %pointer
+%r =w loadw %pointer
+ret %r
+@safe
+ret 42
+}
+function l $address_and_value(l %pointer) {
+@entry
+storel %pointer, %pointer
+%r =l loadl %pointer
+ret %r
+}

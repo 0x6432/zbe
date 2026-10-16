@@ -106,6 +106,44 @@ pub const IntegerPredicate = enum {
     unsigned_greater,
     unsigned_greater_equal,
 };
+/// Access width and signedness are semantic, independent of machine opcodes.
+pub const LoadKind = enum {
+    signed_byte,
+    unsigned_byte,
+    signed_half,
+    unsigned_half,
+    signed_word,
+    unsigned_word,
+    long,
+    single,
+    double,
+
+    pub fn accepts(self: LoadKind, ty: ScalarType) bool {
+        return switch (self) {
+            .long => ty == .long,
+            .single => ty == .single,
+            .double => ty == .double,
+            else => ty.isInteger(),
+        };
+    }
+};
+pub const StoreKind = enum {
+    byte,
+    half,
+    word,
+    long,
+    single,
+    double,
+
+    pub fn valueType(self: StoreKind) ScalarType {
+        return switch (self) {
+            .byte, .half, .word => .word,
+            .long => .long,
+            .single => .single,
+            .double => .double,
+        };
+    }
+};
 pub const CallArgument = struct { scalar_type: ScalarType, operand: Operand };
 /// Symbol targets use the module pool; address operands use function-scoped IDs.
 pub const CallTarget = union(enum) {
@@ -122,6 +160,8 @@ pub const CallTarget = union(enum) {
 /// Argument storage is owned by Function, not borrowed from callers.
 pub const Call = struct { result: ?ValueId, callee: CallTarget, arguments: []const CallArgument };
 pub const Instruction = union(enum) {
+    load: struct { result: ValueId, kind: LoadKind, address: Operand },
+    store: struct { kind: StoreKind, value: Operand, address: Operand },
     call: Call,
     binary: struct { result: ValueId, op: BinaryOp, lhs: Operand, rhs: Operand },
     copy: struct { result: ValueId, operand: Operand },
@@ -130,9 +170,11 @@ pub const Instruction = union(enum) {
     compare_float: struct { result: ValueId, predicate: FloatPredicate, operand_type: FloatType, lhs: Operand, rhs: Operand },
     compare_integer: struct { result: ValueId, predicate: IntegerPredicate, operand_type: IntegerType, lhs: Operand, rhs: Operand },
 
-    /// Void calls are effect-only instructions, not definitions of dummy values.
+    /// Stores and void calls have effects, not definitions of dummy values.
     pub fn result(self: Instruction) ?ValueId {
         return switch (self) {
+            .load => |load| load.result,
+            .store => null,
             .call => |call| call.result,
             .binary => |binary| binary.result,
             .copy => |copy| copy.result,
@@ -269,6 +311,23 @@ pub const Function = struct {
         try target.instructions.ensureUnusedCapacity(self.allocator, 1);
         value.definition = .{ .instruction = .{ .block = block_id, .index = target.instructions.items.len } };
         target.instructions.appendAssumeCapacity(.{ .binary = .{ .result = result, .op = op, .lhs = lhs, .rhs = rhs } });
+    }
+
+    pub fn defineLoad(self: *Function, block: BlockId, result: ValueId, kind: LoadKind, address: Operand) BuildError!void {
+        const target = try self.getBlock(block);
+        if (target.terminator != null) return error.BlockTerminated;
+        const value = try self.pendingValue(result);
+        if (!kind.accepts(value.scalar_type) or try self.operandType(address) != .long) return error.TypeMismatch;
+        try target.instructions.ensureUnusedCapacity(self.allocator, 1);
+        value.definition = .{ .instruction = .{ .block = block, .index = target.instructions.items.len } };
+        target.instructions.appendAssumeCapacity(.{ .load = .{ .result = result, .kind = kind, .address = address } });
+    }
+
+    pub fn appendStore(self: *Function, block: BlockId, kind: StoreKind, value: Operand, address: Operand) BuildError!void {
+        const target = try self.getBlock(block);
+        if (target.terminator != null) return error.BlockTerminated;
+        if (try self.operandType(value) != kind.valueType() or try self.operandType(address) != .long) return error.TypeMismatch;
+        try target.instructions.append(self.allocator, .{ .store = .{ .kind = kind, .value = value, .address = address } });
     }
 
     pub fn defineCopy(self: *Function, block_id: BlockId, result: ValueId, operand: Operand) BuildError!void {
@@ -457,6 +516,12 @@ pub const Function = struct {
                     }
                 }
                 switch (instruction) {
+                    .load => |load| {
+                        if (!load.kind.accepts(ty.?) or try self.operandType(load.address) != .long) return error.TypeMismatch;
+                    },
+                    .store => |store| {
+                        if (try self.operandType(store.value) != store.kind.valueType() or try self.operandType(store.address) != .long) return error.TypeMismatch;
+                    },
                     .call => |call| {
                         try self.checkCallTarget(call.callee);
                         try self.checkArguments(call.arguments);

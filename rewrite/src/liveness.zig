@@ -40,6 +40,11 @@ pub const Snapshot = struct {
             for (block.phis.items) |phi| defs[index].set(@backingInt(phi.result));
             for (block.instructions.items) |instruction| {
                 switch (instruction) {
+                    .load => |load| addUse(&uses[index], defs[index], load.address),
+                    .store => |store| {
+                        addUse(&uses[index], defs[index], store.value);
+                        addUse(&uses[index], defs[index], store.address);
+                    },
                     .call => |call| {
                         if (call.callee.addressOperand()) |address| addUse(&uses[index], defs[index], address);
                         for (call.arguments) |argument| addUse(&uses[index], defs[index], argument.operand);
@@ -214,6 +219,8 @@ fn matches(operand: ir.Operand, value: ir.ValueId) bool {
 }
 fn instructionUses(instruction: ir.Instruction, value: ir.ValueId) bool {
     return switch (instruction) {
+        .load => |load| matches(load.address, value),
+        .store => |store| matches(store.value, value) or matches(store.address, value),
         .call => |call| found: {
             if (call.callee.addressOperand()) |address| if (matches(address, value)) break :found true;
             for (call.arguments) |argument| if (matches(argument.operand, value)) break :found true;
@@ -298,7 +305,7 @@ fn compareOracle(function: *const ir.Function) !void {
 }
 
 test "phi swaps loops mixed scalar instructions and diamonds match path oracle" {
-    var module = try parse(testing.allocator, diamond ++ "\n" ++ @embedFile("fixtures/phi-loop.ssa") ++ "\n" ++ @embedFile("fixtures/compare-loop.ssa") ++ "\n" ++ @embedFile("fixtures/float-operations.ssa") ++ "\n" ++ @embedFile("fixtures/halt.ssa") ++ "\n" ++ @embedFile("fixtures/direct-calls.ssa") ++ "\n" ++ @embedFile("fixtures/void-calls.ssa") ++ "\n" ++ @embedFile("fixtures/indirect-calls.ssa"));
+    var module = try parse(testing.allocator, diamond ++ "\n" ++ @embedFile("fixtures/phi-loop.ssa") ++ "\n" ++ @embedFile("fixtures/compare-loop.ssa") ++ "\n" ++ @embedFile("fixtures/float-operations.ssa") ++ "\n" ++ @embedFile("fixtures/halt.ssa") ++ "\n" ++ @embedFile("fixtures/direct-calls.ssa") ++ "\n" ++ @embedFile("fixtures/void-calls.ssa") ++ "\n" ++ @embedFile("fixtures/indirect-calls.ssa") ++ "\n" ++ @embedFile("fixtures/scalar-memory.ssa"));
     defer module.deinit();
     for (module.functions.items) |f| try compareOracle(f);
 }

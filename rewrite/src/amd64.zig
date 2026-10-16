@@ -172,6 +172,43 @@ const Emitter = struct {
             const id: ir.BlockId = @fromBackingInt(@as(u32, @intCast(number)));
             try self.print("\".Lzbe@{d}@b{d}\":\n", .{ index, number });
             for (block.instructions.items) |instruction| switch (instruction) {
+                .load => |read| {
+                    try self.load(read.address, .accumulator);
+                    try self.print("\tmovq %rax, %r10\n", .{});
+                    const ty = f.values.items[@backingInt(read.result)].scalar_type;
+                    const mnemonic: []const u8 = switch (read.kind) {
+                        .signed_byte => if (ty == .long) "movsbq" else "movsbl",
+                        .unsigned_byte => "movzbl",
+                        .signed_half => if (ty == .long) "movswq" else "movswl",
+                        .unsigned_half => "movzwl",
+                        .signed_word => if (ty == .long) "movslq" else "movl",
+                        .unsigned_word, .single => "movl",
+                        .long, .double => "movq",
+                    };
+                    const destination: []const u8 = switch (read.kind) {
+                        .unsigned_byte, .unsigned_half, .unsigned_word => "%eax",
+                        else => register(ty, .accumulator),
+                    };
+                    try self.print("\t{s} (%r10), {s}\n", .{ mnemonic, destination });
+                    try self.save(read.result, register(ty, .accumulator));
+                },
+                .store => |store| {
+                    try self.load(store.address, .accumulator);
+                    try self.print("\tmovq %rax, %r10\n", .{});
+                    try self.load(store.value, .accumulator);
+                    const width: u8 = switch (store.kind) {
+                        .byte => 'b',
+                        .half => 'w',
+                        .word, .single => 'l',
+                        .long, .double => 'q',
+                    };
+                    const source_register: []const u8 = switch (store.kind) {
+                        .byte => "%al",
+                        .half => "%ax",
+                        else => register(store.kind.valueType(), .accumulator),
+                    };
+                    try self.print("\tmov{c} {s}, (%r10)\n", .{ width, source_register });
+                },
                 .call => |call| {
                     if (call.callee.addressOperand()) |address| {
                         try self.load(address, .accumulator);

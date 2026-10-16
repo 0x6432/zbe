@@ -51,6 +51,11 @@ pub fn validate(allocator: std.mem.Allocator, function: *const ir.Function, issu
             }
         }
         for (block.instructions.items, 0..) |instruction, index| switch (instruction) {
+            .load => |load| try checkUse(function, &graph, &dominators, load.address, id, index, issue),
+            .store => |store| {
+                try checkUse(function, &graph, &dominators, store.value, id, index, issue);
+                try checkUse(function, &graph, &dominators, store.address, id, index, issue);
+            },
             .call => |call| {
                 if (call.callee.addressOperand()) |address| try checkUse(function, &graph, &dominators, address, id, index, issue);
                 for (call.arguments) |argument| try checkUse(function, &graph, &dominators, argument.operand, id, index, issue);

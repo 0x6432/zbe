@@ -92,7 +92,7 @@ test "frontend accepts all memory spellings and rejects invalid classes and arit
         "function w $f(w %p) {\n@e\n%x =w loadw %p\nret %x\n}",
         "function s $f() {\n@e\n%x =s loadsb 0\nret %x\n}",
         "function w $f() {\n@e\n%x =w loadl 0\nret %x\n}",
-        "function $f(l %v) {\n@e\nstoreb %v, 0\nret\n}",
+        "function $f(s %v) {\n@e\nstoreb %v, 0\nret\n}",
         "function $f(w %p) {\n@e\nstorew 1, %p\nret\n}",
         "function $f() {\n@e\nstorew 1\nret\n}",
         "function w $f() {\n@e\n%x =w loadw 0, 1\nret %x\n}",

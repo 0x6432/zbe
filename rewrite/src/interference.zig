@@ -113,7 +113,7 @@ fn storageShape(values: usize) error{InterferenceTooLarge}!Shape {
     return .{ .words = words, .words_per_row = words_per_row, .bytes = bytes };
 }
 fn addUse(live: *BitSet, operand: ir.Operand) void {
-    if (operand == .value) live.set(@backingInt(operand.value));
+    if (operand.referencedValue()) |value| live.set(@backingInt(value));
 }
 
 const testing = std.testing;
@@ -128,7 +128,11 @@ fn id(index: usize) ir.ValueId {
     return @fromBackingInt(@as(u32, @intCast(index)));
 }
 fn uses(operand: ir.Operand, value: ir.ValueId) bool {
-    return operand == .value and operand.value == value;
+    return switch (operand) {
+        .value => |reference| reference == value,
+        .low_word => |reference| reference == value,
+        .constant => false,
+    };
 }
 fn instructionUses(instruction: ir.Instruction, value: ir.ValueId) bool {
     return switch (instruction) {
@@ -323,7 +327,7 @@ test "every interference allocation failure frees graph and analysis scratch" {
 }
 
 test "program-point oracle covers phi loops float operations and unreachable blocks" {
-    var module = try parse(testing.allocator, @embedFile("fixtures/phi-loop.ssa") ++ "\n" ++ @embedFile("fixtures/compare-loop.ssa") ++ "\n" ++ @embedFile("fixtures/float-operations.ssa") ++ "\n" ++ @embedFile("fixtures/halt.ssa") ++ "\n" ++ @embedFile("fixtures/direct-calls.ssa") ++ "\n" ++ @embedFile("fixtures/void-calls.ssa") ++ "\n" ++ @embedFile("fixtures/indirect-calls.ssa") ++ "\n" ++ @embedFile("fixtures/scalar-memory.ssa") ++ "\n" ++ @embedFile("fixtures/blit.ssa") ++ "\n" ++ @embedFile("fixtures/signed-conversions.ssa") ++ "\n" ++ @embedFile("fixtures/signed-conversion-loop.ssa") ++ "\n" ++ @embedFile("fixtures/unsigned-conversions.ssa") ++ "\n" ++ @embedFile("fixtures/unsigned-conversion-loop.ssa") ++ "\nfunction w $dead(w %p) {\n@entry\nret %p\n@unreachable\n%x =w copy 2\n%y =w add %p, %x\nret %y\n}");
+    var module = try parse(testing.allocator, @embedFile("fixtures/phi-loop.ssa") ++ "\n" ++ @embedFile("fixtures/compare-loop.ssa") ++ "\n" ++ @embedFile("fixtures/float-operations.ssa") ++ "\n" ++ @embedFile("fixtures/halt.ssa") ++ "\n" ++ @embedFile("fixtures/direct-calls.ssa") ++ "\n" ++ @embedFile("fixtures/void-calls.ssa") ++ "\n" ++ @embedFile("fixtures/indirect-calls.ssa") ++ "\n" ++ @embedFile("fixtures/scalar-memory.ssa") ++ "\n" ++ @embedFile("fixtures/blit.ssa") ++ "\n" ++ @embedFile("fixtures/signed-conversions.ssa") ++ "\n" ++ @embedFile("fixtures/signed-conversion-loop.ssa") ++ "\n" ++ @embedFile("fixtures/unsigned-conversions.ssa") ++ "\n" ++ @embedFile("fixtures/unsigned-conversion-loop.ssa") ++ "\n" ++ @embedFile("fixtures/low-word-operations.ssa") ++ "\n" ++ @embedFile("fixtures/low-word-contexts.ssa") ++ "\nfunction w $dead(w %p) {\n@entry\nret %p\n@unreachable\n%x =w copy 2\n%y =w add %p, %x\nret %y\n}");
     defer module.deinit();
     for (module.functions.items) |f| try compareOracle(f);
 }

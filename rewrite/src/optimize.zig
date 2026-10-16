@@ -34,6 +34,7 @@ fn known(facts: []const ?ir.Constant, operand: ir.Operand) ?ir.Constant {
     return switch (operand) {
         .constant => |c| c,
         .value => |v| facts[@backingInt(v)],
+        .low_word => |v| if (facts[@backingInt(v)]) |constant| .{ .word = @truncate(constant.long) } else null,
     };
 }
 fn folded(instruction: ir.Instruction, facts: []const ?ir.Constant, ty: ir.ScalarType) ?ir.Constant {

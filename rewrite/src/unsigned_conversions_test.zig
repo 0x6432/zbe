@@ -93,7 +93,7 @@ test "unsigned conversion builders validate classes and retain pending definitio
     for ([_][]const u8{
         "function w $f() {\n@e\n%r =w uwtof 1\nret %r\n}",
         "function s $f() {\n@e\n%r =s stoui s_1\nret %r\n}",
-        "function d $f(l %x) {\n@e\n%r =d uwtof %x\nret %r\n}",
+        "function d $f(s %x) {\n@e\n%r =d uwtof %x\nret %r\n}",
         "function l $f() {\n@e\n%r =l dtoui s_1\nret %r\n}",
     }) |text| try testing.expectError(error.InvalidInput, parse(testing.allocator, text));
 }

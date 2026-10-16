@@ -67,3 +67,8 @@ The evaluator's pure operation implementations live in `semantics.zig`; callers 
 ### Explicit termination
 
 `hlt` has no SSA uses or successor edges. Evaluation consumes a terminator step and returns `Halted` without terminating the host process. Preceding arithmetic errors and earlier budget exhaustion retain precedence. Native Linux AMD64 emits `ud2` (SIGILL by default), not a portable interpreter error object or the privileged hardware halt instruction. See HALT.md.
+
+
+### Explicit low-word projections
+
+Long values in word contexts now retain their source ID with a typed `Operand.low_word` projection. The evaluator truncates only the operand result, the original long remains unchanged, and known long facts project to word facts in the integer folder. SSA/liveness/interference retain source dependencies, including phi edges. No implicit word-to-long extension is added. A separate 1,024-case Python integer oracle and mixed-context tests cover this boundary (LOW-WORD.md).

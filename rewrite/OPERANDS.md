@@ -4,7 +4,7 @@
 
 | Instruction | Scalar uses |
 | --- | --- |
-| `copy`, `unary`, signed numeric `convert` | operand |
+| `copy`, `unary`, numeric `convert` | operand |
 | `binary`, integer/float comparison | lhs, rhs |
 | `shift` | value, amount |
 | `load` | address |
@@ -28,3 +28,6 @@ The independent path-search/program-point liveness/interference oracles intentio
 Three direct tests cover every fixed instruction variant (with an explicit tag-count coverage check), source order/result exclusion, repeated exhaustion, every scalar/void × direct/indirect × zero-through-four-argument call combination with all raw classes, target-only calls, and fixed-operand lifetime across overwritten/temporary instruction values. The tagged-union accessor switch remains compile-time exhaustive for future variants. Existing malformed-SSA, analysis-oracle and allocation-failure tests exercise the production consumers.
 
 This is a focused representation/maintenance improvement, not a new optimizer, performance claim, complete compiler milestone or assertion of "100% idiomatic Zig."
+
+
+`Operand.low_word` is a copied long-source projection, not a new SSA definition. `Operand.referencedValue()` returns its original source ID (or the ordinary value ID; constants return null). Production SSA/liveness/interference include that source, including phi-edge uses; independent oracles retain their own operand switches. A fourth iterator test checks projection/source identity after overwriting the originating instruction. See LOW-WORD.md.

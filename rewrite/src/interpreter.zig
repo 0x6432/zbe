@@ -207,6 +207,7 @@ fn resolve(values: []const ?ir.Constant, operand: ir.Operand) error{Uninitialize
     return switch (operand) {
         .constant => |constant| constant,
         .value => |value| values[@backingInt(value)] orelse error.UninitializedValue,
+        .low_word => |value| if (values[@backingInt(value)]) |constant| .{ .word = @truncate(constant.long) } else error.UninitializedValue,
     };
 }
 

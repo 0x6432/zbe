@@ -54,7 +54,7 @@ Same-width `cast` uses raw-bit moves across integer/SSE ABI classes. `exts` uses
 Floating predicates use explicit ordered/unordered SSE flag handling rather than treating floating flags as integer comparisons. Equality/less/less-equal exclude unordered results, inequality includes unordered results, and ordered/unordered test parity explicitly. Native tests cover both integer result widths, both floating operand widths, signed zeros, infinities and quiet/signaling NaN operands. Truth-value coverage does not establish floating exception-flag equivalence or behavior with unmasked exceptions.
 
 
-All six native harnesses accept `--fold-integers`, `--reuse-stack-homes` and `--callee-saved-homes`, forwarding them to the experimental compiler. CI executes each harness in all eight flag combinations in every compiler build mode, retaining all result, arithmetic-fault and output-preservation expectations. See OPTIMIZE.md for the folding pass's conservative scope and failure-atomic per-function contract and STACK-HOMES.md for layout ownership and analysis limits, and PRESERVED-HOMES.md for limited physical homes and the explicit full-width register-preservation adapter. No new IL optimization level or legacy compatibility behavior is implied.
+All seven native harnesses accept `--fold-integers`, `--reuse-stack-homes` and `--callee-saved-homes`, forwarding them to the experimental compiler. CI executes each harness in all eight flag combinations in every compiler build mode, retaining all result, arithmetic-fault and output-preservation expectations. See OPTIMIZE.md for the folding pass's conservative scope and failure-atomic per-function contract and STACK-HOMES.md for layout ownership and analysis limits, and PRESERVED-HOMES.md for limited physical homes and the explicit full-width register-preservation adapter. No new IL optimization level or legacy compatibility behavior is implied.
 
 ## Scalar memory subset
 
@@ -63,3 +63,8 @@ Typed loads and effect-only stores now lower through full-width long addresses, 
 ## Signed numeric conversions
 
 Signed word/long to single/double and single/double to signed word/long now use width-specific SSE conversions (SIGNED-CONVERSIONS.md). Float-to-signed truncates toward zero; the evaluator checks finite/range domains before host integer casts, but native invalid conversions retain ISA/environment-dependent behavior outside the defined-value claim. The numeric harness now combines signed and unsigned cases: 1,554 defined results and twenty rejection/output-preservation checks per option combination. Unsigned conversion uses explicit high-half algorithms (UNSIGNED-CONVERSIONS.md). The `truncd` discrepancy remains unresolved.
+
+
+## Explicit low-word operand projections
+
+Long temporaries used in word contexts load their low 32 bits from their original homes without changing the long source or creating a new definition. A seventh harness checks 2,114 outcomes, two retained arithmetic faults and eight rejection/output-preservation cases per option combination, including word call/stack arguments, indirect callbacks, phi edges, loops, raw casts, stores and original long uses after calls. Implicit reverse extension remains invalid. See LOW-WORD.md.

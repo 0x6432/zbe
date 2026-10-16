@@ -146,11 +146,11 @@ static uint64_t bits_d(double v) { uint64_t x; memcpy(&x,&v,8); return x; }
         for text in (
             'function w $f() {\n@e\n%r =w swtof 1\nret %r\n}',
             'function s $f() {\n@e\n%r =s stosi s_1\nret %r\n}',
-            'function d $f(l %x) {\n@e\n%r =d swtof %x\nret %r\n}',
+            'function d $f(s %x) {\n@e\n%r =d swtof %x\nret %r\n}',
             'function l $f() {\n@e\n%r =l dtosi s_1\nret %r\n}',
             'function s $f() {\n@e\n%r =s stoui s_1\nret %r\n}',
             'function w $f() {\n@e\n%r =w uwtof 1\nret %r\n}',
-            'function d $f(l %x) {\n@e\n%r =d uwtof %x\nret %r\n}',
+            'function d $f(s %x) {\n@e\n%r =d uwtof %x\nret %r\n}',
             'function l $f() {\n@e\n%r =l dtoui s_1\nret %r\n}',
             'function s $f(w %x) {\n@e\n%r =s ultof %x\nret %r\n}',
             'function s $f() {\n@e\n%r =s truncd d_1\nret %r\n}',

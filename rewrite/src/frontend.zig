@@ -351,7 +351,12 @@ const Parser = struct {
             else => return self.fail(.unexpected_token, token),
         };
         const actual = self.current_function.?.operandType(result) catch |err| return self.irError(err, token);
-        if (expected) |ty| if (actual != ty) return self.fail(.type_mismatch, token);
+        if (expected) |ty| if (actual != ty) {
+            // Normalize QBE's one implicit scalar subtype into an explicit IR
+            // projection. No guessed signedness or fresh SSA value is needed.
+            if (ty == .word and actual == .long and result == .value) return .{ .low_word = result.value };
+            return self.fail(.type_mismatch, token);
+        };
         return result;
     }
 
@@ -642,7 +647,7 @@ test "phi syntax predeclares backedge values and rejects late phi nodes" {
 }
 
 test "shifts require integer values and word counts and comparisons require integer results" {
-    try expectInvalid("function l $f(l %count) {\n@b\n%x =l shl 1, %count\nret %x\n}", .type_mismatch, "%count");
+    try expectInvalid("function l $f(s %count) {\n@b\n%x =l shl 1, %count\nret %x\n}", .type_mismatch, "%count");
     try expectInvalid("function d $f() {\n@b\n%x =d shl d_1, 1\nret %x\n}", .type_mismatch, "shl");
     try expectInvalid("function d $f() {\n@b\n%x =d ceqw 1, 1\nret %x\n}", .type_mismatch, "ceqw");
 }
@@ -650,8 +655,8 @@ test "shifts require integer values and word counts and comparisons require inte
 test "integer extensions require word operands and valid result widths" {
     try expectInvalid("function w $f() {\n@b\n%x =w extsw 1\nret %x\n}", .type_mismatch, "extsw");
     try expectInvalid("function s $f() {\n@b\n%x =s extub 1\nret %x\n}", .type_mismatch, "extub");
-    try expectInvalid("function l $f(l %v) {\n@b\n%x =l extuh %v\nret %x\n}", .type_mismatch, "%v");
-    try expectInvalid("function w $f(l %v) {\n@b\n%x =w neg %v\nret %x\n}", .type_mismatch, "%v");
+    try expectInvalid("function l $f(s %v) {\n@b\n%x =l extuh %v\nret %x\n}", .type_mismatch, "%v");
+    try expectInvalid("function w $f(s %v) {\n@b\n%x =w neg %v\nret %x\n}", .type_mismatch, "%v");
 }
 
 test "unsigned division and both remainders reject floating types" {

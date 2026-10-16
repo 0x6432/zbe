@@ -63,10 +63,7 @@ pub fn validate(allocator: std.mem.Allocator, function: *const ir.Function, issu
 }
 
 fn checkUse(function: *const ir.Function, graph: *const cfg.Graph, dominators: *const cfg.Dominators, operand: ir.Operand, block: ir.BlockId, index: ?usize, issue: *?Issue) error{InvalidSSA}!void {
-    const value = switch (operand) {
-        .constant => return,
-        .value => |value| value,
-    };
+    const value = operand.referencedValue() orelse return;
     const site: UseSite = if (index) |number| .{ .instruction = number } else .terminator;
     const defining_block = switch (function.values.items[@backingInt(value)].definition) {
         .pending => unreachable, // Structure validation rejects unfinished values.

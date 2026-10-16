@@ -64,3 +64,15 @@ test "fixed use iterators own operand copies and can outlive a temporary instruc
     try testing.expectEqualDeep(b, temporary.next().?);
     try testing.expectEqual(@as(?ir.Operand, null), temporary.next());
 }
+
+test "projected use iterators copy the projection and retain its source identity" {
+    const projected: ir.Operand = .{ .low_word = @fromBackingInt(@as(u32, 17)) };
+    var instruction: ir.Instruction = .{ .copy = .{ .result = result, .operand = projected } };
+    var iterator = instruction.operands();
+    instruction.copy.operand = b;
+    const operand = iterator.next().?;
+    try testing.expectEqualDeep(projected, operand);
+    try testing.expectEqual(projected.low_word, operand.referencedValue().?);
+    try testing.expectEqual(@as(?ir.Operand, null), iterator.next());
+    try check(.{ .binary = .{ .result = result, .op = .add, .lhs = projected, .rhs = a } }, &.{ projected, a });
+}

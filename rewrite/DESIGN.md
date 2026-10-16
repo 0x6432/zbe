@@ -4,6 +4,8 @@
 
 `Module` owns a symbol pool and separately allocated `Function` objects. Each function owns its parameters, values, blocks and each block's instruction array. Every owner accepts an allocator and has a matching `deinit`. Errors propagate to callers rather than exiting the process.
 
+Long-to-word subtyping is normalized as an explicit `Operand.low_word` projection retaining the original source ID/type; it does not allocate a value or permit implicit word-to-long extension (LOW-WORD.md).
+
 Symbol strings and module-owned function pointers remain stable until owner destruction. Array views and pointers into function storage can be invalidated by growth; retain IDs instead. `ValueId` and `BlockId` are distinct types, but **owner scope is a caller invariant**: IDs from two functions can have identical ordinals. Symbol IDs belong to their pool and function IDs to their module. These types do not encode owner identity at compile time.
 
 Builders validate before publishing and reserve all necessary capacity before appending linked records. Failed allocation can retain enlarged capacity. A failed function addition can retain a newly interned symbol, but never publishes an incomplete function; the module still owns that symbol. This is logical-record atomicity, not byte-for-byte rollback of allocator state.

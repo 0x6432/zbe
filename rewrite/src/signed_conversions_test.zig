@@ -90,7 +90,7 @@ test "signed conversion builders validate classes and retain pending definitions
     for ([_][]const u8{
         "function w $f() {\n@e\n%r =w swtof 1\nret %r\n}",
         "function s $f() {\n@e\n%r =s stosi s_1\nret %r\n}",
-        "function d $f(l %x) {\n@e\n%r =d swtof %x\nret %r\n}",
+        "function d $f(s %x) {\n@e\n%r =d swtof %x\nret %r\n}",
         "function l $f() {\n@e\n%r =l dtosi s_1\nret %r\n}",
     }) |text| try testing.expectError(error.InvalidInput, parse(testing.allocator, text));
 }

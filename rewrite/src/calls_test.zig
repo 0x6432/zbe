@@ -58,7 +58,7 @@ test "call operands obey local ordering dominance and exact base-scalar types" {
         try testing.expect(issue.?.site == .instruction);
     }
     const rejected = [_][]const u8{
-        "function w $f(l %p) {\n@e\n%r =w call $g(w %p)\nret %r\n}",
+        "function w $f(s %p) {\n@e\n%r =w call $g(w %p)\nret %r\n}",
         "function w $f(w %p) {\n@e\n%r =w call %p()\nret %r\n}",
         "function w $f() {\n@e\n%r =w call $g(w 1, ...)\nret %r\n}",
         "function w $f() {\n@e\n%r =w call $g(sb 1)\nret %r\n}",

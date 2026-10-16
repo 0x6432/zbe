@@ -114,7 +114,7 @@ fn destroySets(allocator: std.mem.Allocator, sets: []const BitSet) void {
     allocator.free(sets);
 }
 fn addUse(uses: *BitSet, defs: BitSet, operand: ir.Operand) void {
-    if (operand == .value and !defs.isSet(@backingInt(operand.value))) uses.set(@backingInt(operand.value));
+    if (operand.referencedValue()) |value| if (!defs.isSet(@backingInt(value))) uses.set(@backingInt(value));
 }
 const Solver = struct {
     function: *const ir.Function,
@@ -133,7 +133,7 @@ const Solver = struct {
             self.next_out.setUnion(self.live_in[s]);
             for (self.function.blocks.items[s].phis.items) |phi| {
                 for (phi.inputs) |input| {
-                    if (@backingInt(input.predecessor) == block and input.value == .value) self.next_out.set(@backingInt(input.value.value));
+                    if (@backingInt(input.predecessor) == block) if (input.value.referencedValue()) |value| self.next_out.set(@backingInt(value));
                 }
             }
         }
@@ -188,7 +188,11 @@ test "phi inputs are live on their own predecessor edge, not at the join" {
 }
 
 fn matches(operand: ir.Operand, value: ir.ValueId) bool {
-    return operand == .value and operand.value == value;
+    return switch (operand) {
+        .value => |reference| reference == value,
+        .low_word => |reference| reference == value,
+        .constant => false,
+    };
 }
 fn instructionUses(instruction: ir.Instruction, value: ir.ValueId) bool {
     return switch (instruction) {
@@ -280,7 +284,7 @@ fn compareOracle(function: *const ir.Function) !void {
 }
 
 test "phi swaps loops mixed scalar instructions and diamonds match path oracle" {
-    var module = try parse(testing.allocator, diamond ++ "\n" ++ @embedFile("fixtures/phi-loop.ssa") ++ "\n" ++ @embedFile("fixtures/compare-loop.ssa") ++ "\n" ++ @embedFile("fixtures/float-operations.ssa") ++ "\n" ++ @embedFile("fixtures/halt.ssa") ++ "\n" ++ @embedFile("fixtures/direct-calls.ssa") ++ "\n" ++ @embedFile("fixtures/void-calls.ssa") ++ "\n" ++ @embedFile("fixtures/indirect-calls.ssa") ++ "\n" ++ @embedFile("fixtures/scalar-memory.ssa") ++ "\n" ++ @embedFile("fixtures/blit.ssa") ++ "\n" ++ @embedFile("fixtures/signed-conversions.ssa") ++ "\n" ++ @embedFile("fixtures/signed-conversion-loop.ssa") ++ "\n" ++ @embedFile("fixtures/unsigned-conversions.ssa") ++ "\n" ++ @embedFile("fixtures/unsigned-conversion-loop.ssa"));
+    var module = try parse(testing.allocator, diamond ++ "\n" ++ @embedFile("fixtures/phi-loop.ssa") ++ "\n" ++ @embedFile("fixtures/compare-loop.ssa") ++ "\n" ++ @embedFile("fixtures/float-operations.ssa") ++ "\n" ++ @embedFile("fixtures/halt.ssa") ++ "\n" ++ @embedFile("fixtures/direct-calls.ssa") ++ "\n" ++ @embedFile("fixtures/void-calls.ssa") ++ "\n" ++ @embedFile("fixtures/indirect-calls.ssa") ++ "\n" ++ @embedFile("fixtures/scalar-memory.ssa") ++ "\n" ++ @embedFile("fixtures/blit.ssa") ++ "\n" ++ @embedFile("fixtures/signed-conversions.ssa") ++ "\n" ++ @embedFile("fixtures/signed-conversion-loop.ssa") ++ "\n" ++ @embedFile("fixtures/unsigned-conversions.ssa") ++ "\n" ++ @embedFile("fixtures/unsigned-conversion-loop.ssa") ++ "\n" ++ @embedFile("fixtures/low-word-operations.ssa") ++ "\n" ++ @embedFile("fixtures/low-word-contexts.ssa"));
     defer module.deinit();
     for (module.functions.items) |f| try compareOracle(f);
 }

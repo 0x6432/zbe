@@ -1,0 +1,104 @@
+export function w $low_word_return(l %x) {
+@entry
+ret %x
+}
+export function w $low_word_phi(l %x,l %y,w %choose) {
+@entry
+jnz %choose, @left, @right
+@left
+jmp @join
+@right
+jmp @join
+@join
+%r =w phi @left %x, @right %y
+ret %r
+}
+export function l $low_word_keep(l %x) {
+@entry
+%w =w copy %x
+%wide =l extuw %w
+%r =l xor %x, %wide
+ret %r
+}
+export function w $low_word_sink(w %a,w %b,w %c,w %d,w %e,w %f,w %g,w %h) {
+@entry
+%r0 =w add %a, %b
+%r1 =w add %r0, %c
+%r2 =w add %r1, %d
+%r3 =w add %r2, %e
+%r4 =w add %r3, %f
+%r5 =w add %r4, %g
+%r6 =w add %r5, %h
+ret %r6
+}
+export function l $low_word_call(l %x,l %y,l %z,l %a,l %b,l %c,l %d) {
+@entry
+%r =w call $low_word_sink(w %x,w %y,w %z,w %a,w %b,w %c,w %d,w %x)
+%wide =l extuw %r
+%kept =l xor %x, %wide
+ret %kept
+}
+export function w $low_word_indirect(l %target,l %x) {
+@entry
+%r =w call %target(w %x)
+ret %r
+}
+export function w $low_word_store(l %address,l %x) {
+@entry
+storew %x, %address
+%r =w loadw %address
+ret %r
+}
+export function d $low_word_swtof(l %x) {
+@entry
+%r =d swtof %x
+ret %r
+}
+export function d $low_word_uwtof(l %x) {
+@entry
+%r =d uwtof %x
+ret %r
+}
+export function l $low_word_count(l %x) {
+@entry
+%r =l shl 1, %x
+ret %r
+}
+export function l $low_word_compare(l %x,l %y) {
+@entry
+%r =l csltw %x, %y
+ret %r
+}
+export function w $low_word_loop(l %start,w %n) {
+@entry
+jmp @loop
+@loop
+%v =w phi @entry %start, @body %next
+%i =w phi @entry 0, @body %inc
+%more =w cultw %i, %n
+jnz %more, @body, @done
+@body
+%next =w add %v, 1
+%inc =w add %i, 1
+jmp @loop
+@done
+ret %v
+}
+export function s $low_word_cast(l %x) {
+@entry
+%r =s cast %x
+ret %r
+}
+export function l $low_word_extend(l %x) {
+@entry
+%r =l extsb %x
+ret %r
+}
+export function l $low_word_fold() {
+@entry
+%x =l copy 16045690981402826360
+%w =w add %x, 1
+%wide =l extuw %w
+%r =l xor %x, %wide
+ret %r
+}

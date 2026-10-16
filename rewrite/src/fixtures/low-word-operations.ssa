@@ -1,0 +1,80 @@
+export function w $low_word_add(l %x,l %y) {
+@entry
+%r =w add %x, %y
+ret %r
+}
+export function w $low_word_sub(l %x,l %y) {
+@entry
+%r =w sub %x, %y
+ret %r
+}
+export function w $low_word_mul(l %x,l %y) {
+@entry
+%r =w mul %x, %y
+ret %r
+}
+export function w $low_word_and(l %x,l %y) {
+@entry
+%r =w and %x, %y
+ret %r
+}
+export function w $low_word_or(l %x,l %y) {
+@entry
+%r =w or %x, %y
+ret %r
+}
+export function w $low_word_xor(l %x,l %y) {
+@entry
+%r =w xor %x, %y
+ret %r
+}
+export function w $low_word_shl(l %x,l %y) {
+@entry
+%r =w shl %x, %y
+ret %r
+}
+export function w $low_word_shr(l %x,l %y) {
+@entry
+%r =w shr %x, %y
+ret %r
+}
+export function w $low_word_sar(l %x,l %y) {
+@entry
+%r =w sar %x, %y
+ret %r
+}
+export function w $low_word_div(l %x,l %y) {
+@entry
+%r =w div %x, %y
+ret %r
+}
+export function w $low_word_rem(l %x,l %y) {
+@entry
+%r =w rem %x, %y
+ret %r
+}
+export function w $low_word_udiv(l %x,l %y) {
+@entry
+%r =w udiv %x, %y
+ret %r
+}
+export function w $low_word_urem(l %x,l %y) {
+@entry
+%r =w urem %x, %y
+ret %r
+}
+export function w $low_word_neg(l %x,l %y) {
+@entry
+%r =w neg %x
+ret %r
+}
+export function w $low_word_extub(l %x,l %y) {
+@entry
+%r =w extub %x
+ret %r
+}
+export function w $low_word_extsb(l %x,l %y) {
+@entry
+%r =w extsb %x
+ret %r
+}

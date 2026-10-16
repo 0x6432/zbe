@@ -199,7 +199,7 @@ int main(int argc, char **argv) {
         # Parse/type failures must leave either absent or existing output alone.
         invalid = {
             'load-address': 'function w $f(w %p) {\n@e\n%x =w loadw %p\nret %x\n}',
-            'store-value': 'function $f(l %v) {\n@e\nstoreb %v, 0\nret\n}',
+            'store-value': 'function $f(s %v) {\n@e\nstoreb %v, 0\nret\n}',
             'load-result': 'function s $f(l %p) {\n@e\n%x =s loadub %p\nret %x\n}',
             'store-address': 'function $f(w %p) {\n@e\nstorew 1, %p\nret\n}',
         }

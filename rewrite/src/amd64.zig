@@ -459,7 +459,7 @@ const Emitter = struct {
         const ty = try self.current.operandType(operand);
         const target = register(ty, scratch);
         switch (operand) {
-            .value => |value| switch (self.location(value)) {
+            .value, .low_word => |value| switch (self.location(value)) {
                 .stack_offset => |offset| try self.print("\tmov{c} -{d}(%rbp), {s}\n", .{ suffix(ty), offset, target }),
                 .preserved => |preserved| try self.print("\tmov{c} {s}, {s}\n", .{ suffix(ty), preserved.name(ty), target }),
             },

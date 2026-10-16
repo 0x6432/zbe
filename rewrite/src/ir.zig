@@ -172,7 +172,7 @@ pub const Instruction = union(enum) {
     compare_float: struct { result: ValueId, predicate: FloatPredicate, operand_type: FloatType, lhs: Operand, rhs: Operand },
     compare_integer: struct { result: ValueId, predicate: IntegerPredicate, operand_type: IntegerType, lhs: Operand, rhs: Operand },
 
-    /// Stores and void calls have effects, not definitions of dummy values.
+    /// Stores, blits and void calls have effects, not dummy value definitions.
     pub fn result(self: Instruction) ?ValueId {
         return switch (self) {
             .load => |load| load.result,
@@ -185,6 +185,43 @@ pub const Instruction = union(enum) {
             .compare_integer => |comparison| comparison.result,
             .compare_float => |comparison| comparison.result,
         };
+    }
+    /// Scalar uses in stable operand order; never results or symbol IDs.
+    /// Fixed operands are copied. Call arguments borrow their Function's storage,
+    /// which must remain alive and unmodified until iteration finishes.
+    pub fn operands(self: Instruction) OperandIterator {
+        return switch (self) {
+            .blit => |b| .{ .first = b.source, .second = b.destination },
+            .load => |l| .{ .first = l.address },
+            .store => |s| .{ .first = s.value, .second = s.address },
+            .call => |c| .{ .first = c.callee.addressOperand(), .arguments = c.arguments },
+            .binary => |b| .{ .first = b.lhs, .second = b.rhs },
+            .copy => |c| .{ .first = c.operand },
+            .unary => |u| .{ .first = u.operand },
+            .shift => |s| .{ .first = s.value, .second = s.amount },
+            .compare_float => |c| .{ .first = c.lhs, .second = c.rhs },
+            .compare_integer => |c| .{ .first = c.lhs, .second = c.rhs },
+        };
+    }
+};
+
+/// Allocation-free scalar-use iterator. The optional fixed operands are values,
+/// not pointers/slices into a temporary union payload. Only call storage borrows.
+pub const OperandIterator = struct {
+    first: ?Operand = null,
+    second: ?Operand = null,
+    arguments: []const CallArgument = &.{},
+
+    pub fn next(self: *OperandIterator) ?Operand {
+        if (self.first) |operand| {
+            self.first = self.second;
+            self.second = null;
+            return operand;
+        }
+        if (self.arguments.len == 0) return null;
+        const operand = self.arguments[0].operand;
+        self.arguments = self.arguments[1..];
+        return operand;
     }
 };
 pub const Terminator = union(enum) {

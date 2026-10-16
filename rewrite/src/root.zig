@@ -27,6 +27,7 @@ test {
     _ = @import("memory_test.zig");
     _ = @import("memory_eval_test.zig");
     _ = @import("blit_test.zig");
+    _ = @import("operands_test.zig");
     _ = @import("amd64.zig");
     _ = @import("abi_amd64.zig");
     _ = @import("interpreter.zig");

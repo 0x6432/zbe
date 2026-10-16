@@ -39,39 +39,8 @@ pub const Snapshot = struct {
         for (function.blocks.items, 0..) |block, index| {
             for (block.phis.items) |phi| defs[index].set(@backingInt(phi.result));
             for (block.instructions.items) |instruction| {
-                switch (instruction) {
-                    .blit => |blit| {
-                        addUse(&uses[index], defs[index], blit.source);
-                        addUse(&uses[index], defs[index], blit.destination);
-                    },
-                    .load => |load| addUse(&uses[index], defs[index], load.address),
-                    .store => |store| {
-                        addUse(&uses[index], defs[index], store.value);
-                        addUse(&uses[index], defs[index], store.address);
-                    },
-                    .call => |call| {
-                        if (call.callee.addressOperand()) |address| addUse(&uses[index], defs[index], address);
-                        for (call.arguments) |argument| addUse(&uses[index], defs[index], argument.operand);
-                    },
-                    .copy => |c| addUse(&uses[index], defs[index], c.operand),
-                    .unary => |u| addUse(&uses[index], defs[index], u.operand),
-                    .binary => |b| {
-                        addUse(&uses[index], defs[index], b.lhs);
-                        addUse(&uses[index], defs[index], b.rhs);
-                    },
-                    .shift => |s| {
-                        addUse(&uses[index], defs[index], s.value);
-                        addUse(&uses[index], defs[index], s.amount);
-                    },
-                    .compare_integer => |c| {
-                        addUse(&uses[index], defs[index], c.lhs);
-                        addUse(&uses[index], defs[index], c.rhs);
-                    },
-                    .compare_float => |c| {
-                        addUse(&uses[index], defs[index], c.lhs);
-                        addUse(&uses[index], defs[index], c.rhs);
-                    },
-                }
+                var operands = instruction.operands();
+                while (operands.next()) |operand| addUse(&uses[index], defs[index], operand);
                 if (instruction.result()) |result| defs[index].set(@backingInt(result));
             }
             switch (block.terminator.?) {

@@ -25,6 +25,7 @@ The independent build exports `zbe_native` without linking libc or importing the
 - Function-owned typed value/block IDs and growable instruction storage.
 - Tagged scalar constants and operands, typed copy/phi, integer/floating arithmetic subset, integer bitwise/extension operations and negation, typed shifts, signed/unsigned integer comparisons and ordered/unordered floating comparisons, branch/jump/return and explicit program-termination (`hlt`) terminators.
 - Source spans, typed diagnostics, allocation-free lexer and transactional scalar parser with forward block resolution.
+- Allocation-free scalar instruction-use iteration with copied fixed operands and explicitly borrowed call argument tails; production analyses share it while independent oracles remain separate (OPERANDS.md).
 - Structural/type checks, owned CFG snapshots, dominators and explicit scalar SSA use/phi-edge validation.
 - Owned block-boundary liveness snapshots with phi-edge uses, checked matrix limits and an independent path-search oracle.
 - Owned, bounded scalar-home interference graphs, independently checked at program points; no machine-specific constraints in the graph.

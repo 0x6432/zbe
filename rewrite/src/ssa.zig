@@ -50,39 +50,10 @@ pub fn validate(allocator: std.mem.Allocator, function: *const ir.Function, issu
                 };
             }
         }
-        for (block.instructions.items, 0..) |instruction, index| switch (instruction) {
-            .blit => |blit| {
-                try checkUse(function, &graph, &dominators, blit.source, id, index, issue);
-                try checkUse(function, &graph, &dominators, blit.destination, id, index, issue);
-            },
-            .load => |load| try checkUse(function, &graph, &dominators, load.address, id, index, issue),
-            .store => |store| {
-                try checkUse(function, &graph, &dominators, store.value, id, index, issue);
-                try checkUse(function, &graph, &dominators, store.address, id, index, issue);
-            },
-            .call => |call| {
-                if (call.callee.addressOperand()) |address| try checkUse(function, &graph, &dominators, address, id, index, issue);
-                for (call.arguments) |argument| try checkUse(function, &graph, &dominators, argument.operand, id, index, issue);
-            },
-            .binary => |binary| {
-                try checkUse(function, &graph, &dominators, binary.lhs, id, index, issue);
-                try checkUse(function, &graph, &dominators, binary.rhs, id, index, issue);
-            },
-            .copy => |copy| try checkUse(function, &graph, &dominators, copy.operand, id, index, issue),
-            .unary => |unary| try checkUse(function, &graph, &dominators, unary.operand, id, index, issue),
-            .shift => |shift| {
-                try checkUse(function, &graph, &dominators, shift.value, id, index, issue);
-                try checkUse(function, &graph, &dominators, shift.amount, id, index, issue);
-            },
-            .compare_float => |comparison| {
-                try checkUse(function, &graph, &dominators, comparison.lhs, id, index, issue);
-                try checkUse(function, &graph, &dominators, comparison.rhs, id, index, issue);
-            },
-            .compare_integer => |comparison| {
-                try checkUse(function, &graph, &dominators, comparison.lhs, id, index, issue);
-                try checkUse(function, &graph, &dominators, comparison.rhs, id, index, issue);
-            },
-        };
+        for (block.instructions.items, 0..) |instruction, index| {
+            var operands = instruction.operands();
+            while (operands.next()) |operand| try checkUse(function, &graph, &dominators, operand, id, index, issue);
+        }
         switch (block.terminator.?) {
             .jump, .halt => {},
             .branch => |branch| try checkUse(function, &graph, &dominators, branch.condition, id, null, issue),

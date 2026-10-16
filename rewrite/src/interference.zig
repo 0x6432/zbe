@@ -46,39 +46,8 @@ pub const Graph = struct {
                     graph.connectLive(@backingInt(result), current);
                     current.unset(@backingInt(result));
                 }
-                switch (instruction) {
-                    .blit => |blit| {
-                        addUse(&current, blit.source);
-                        addUse(&current, blit.destination);
-                    },
-                    .load => |load| addUse(&current, load.address),
-                    .store => |store| {
-                        addUse(&current, store.value);
-                        addUse(&current, store.address);
-                    },
-                    .call => |call| {
-                        if (call.callee.addressOperand()) |address| addUse(&current, address);
-                        for (call.arguments) |argument| addUse(&current, argument.operand);
-                    },
-                    .copy => |c| addUse(&current, c.operand),
-                    .unary => |u| addUse(&current, u.operand),
-                    .binary => |bin| {
-                        addUse(&current, bin.lhs);
-                        addUse(&current, bin.rhs);
-                    },
-                    .shift => |s| {
-                        addUse(&current, s.value);
-                        addUse(&current, s.amount);
-                    },
-                    .compare_integer => |c| {
-                        addUse(&current, c.lhs);
-                        addUse(&current, c.rhs);
-                    },
-                    .compare_float => |c| {
-                        addUse(&current, c.lhs);
-                        addUse(&current, c.rhs);
-                    },
-                }
+                var operands = instruction.operands();
+                while (operands.next()) |operand| addUse(&current, operand);
             }
             // Phi definitions happen together. Even a dead result must not
             // clobber another result when the complete bundle is materialized.

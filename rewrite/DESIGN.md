@@ -8,6 +8,8 @@ Symbol strings and module-owned function pointers remain stable until owner dest
 
 Builders validate before publishing and reserve all necessary capacity before appending linked records. Failed allocation can retain enlarged capacity. A failed function addition can retain a newly interned symbol, but never publishes an incomplete function; the module still owns that symbol. This is logical-record atomicity, not byte-for-byte rollback of allocator state.
 
+Scalar instruction uses have a shared allocation-free value iterator (OPERANDS.md); production SSA/liveness/interference share it while independent test oracles retain separate tagged-union switches. Fixed operands are copied; call argument tails borrow their owner.
+
 Structural validation checks reference bounds, bidirectional definition links, operand/result types, branch targets, returns, and terminator presence. `cfg` separately supplies reachability/dominators and `ssa.validate` checks scalar use ordering/dominance and exact phi-edge coverage. This is not a complete QBE IL/SSA verifier. Public IR storage can be edited by future passes; those passes must maintain invariants and rebuild analyses/run validation at their boundaries.
 
 ## Semantic and compatibility boundaries

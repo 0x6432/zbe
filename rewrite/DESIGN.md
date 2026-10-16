@@ -20,8 +20,8 @@ This rewrite intentionally does not carry forward the old port's internal-global
 
 ## Milestones
 
-1. **Foundation (current):** ownership, symbols, minimal typed IR/builders, structural validation and allocation-failure tests.
-2. **Frontend:** source spans, typed diagnostics, lexer/parser and complete IL representation, including globals, memory, calls and phi nodes. Test malformed and valid input without delegating to the old parser.
+1. **Foundation (implemented):** ownership, symbols, minimal typed IR/builders, structural validation and allocation-failure tests.
+2. **Frontend (in progress):** source spans, typed diagnostics and independent lexer/scalar parser are implemented. Expand to complete IL representation, including globals, memory, calls and phi nodes. Test malformed and valid input without delegating to the old parser. See FRONTEND.md for current boundaries.
 3. **Verified semantics:** CFG/SSA construction and dominance/phi validation; a bounded semantic interpreter and differential tests. Preserve float bits and machine integer widths explicitly.
 4. **First vertical slice:** simple native AMD64 end-to-end compile, assemble and execute path, ABI handling and behavioral regressions. No parity claim from a small subset.
 5. **Backend completeness:** analyses, optimizations, instruction selection, liveness, register allocation, spills and full AMD64 instruction support, with pass-level invariants.

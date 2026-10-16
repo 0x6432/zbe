@@ -1,4 +1,4 @@
-name: Zig-native rewrite foundation
+name: Zig-native rewrite
 
 on:
   push:
@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  foundation:
-    name: Foundation (${{ matrix.optimize }})
+  core:
+    name: Rewrite core (${{ matrix.optimize }})
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
@@ -26,6 +26,6 @@ jobs:
       - name: Formatting
         working-directory: rewrite
         run: zig fmt --check build.zig src
-      - name: Independent core tests (not backend parity)
+      - name: Independent IR/frontend tests (not backend parity)
         working-directory: rewrite
         run: zig build test -Doptimize=${{ matrix.optimize }} --summary all

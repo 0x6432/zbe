@@ -71,5 +71,5 @@ fn exercise(allocator: Allocator) !void {
 }
 
 test "symbol growth and every allocation failure clean up ownership" {
-    try std.testing.checkAllAllocationFailures(std.testing.allocator, exercise, .{});
+    try @import("test_support.zig").checkAllocationFailures(exercise);
 }

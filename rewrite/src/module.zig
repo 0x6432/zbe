@@ -70,5 +70,5 @@ fn exercise(allocator: std.mem.Allocator) !void {
 }
 
 test "module growth preserves function pointers and OOM cleans every owner" {
-    try std.testing.checkAllAllocationFailures(std.testing.allocator, exercise, .{});
+    try @import("test_support.zig").checkAllocationFailures(exercise);
 }

@@ -1,0 +1,33 @@
+# Independent scalar frontend
+
+`frontend.parse(allocator, Source, &diagnostic)` returns an owned `Module`. It borrows input only during the call; names that survive parsing are interned into the module. The caller deinitializes successful modules. Any failed parse frees tokens, name maps and all partially constructed functions. `InvalidInput` carries a typed diagnostic with a half-open source byte span; allocator/resource errors propagate separately. There is no process exit or CLI diagnostic rendering in this API.
+
+## Currently accepted subset
+
+```text
+[export] function [w|l|s|d] $name([type %parameter, ...]) {
+@block
+    %result =type copy operand
+    %result =type add|sub|mul|and|or|xor operand, operand
+    jmp @block
+    jnz operand, @true, @false
+    ret [operand]
+}
+```
+
+The ellipsis above describes repeated parameters, **not** variadic IL. A missing function result type means void. Every actual block must end in exactly one explicit terminator; the example lists alternative instruction/terminator forms, not a single valid block. Labels occupy their own lines; instructions end at a newline or closing brace. LF and CRLF input, comments and blank lines are supported. Function export linkage is retained in the IR.
+
+- Types are the four base scalar types. Binary operands and copied/returned values must match their declared type exactly. Implicit mixed-width temporary conversions are not implemented.
+- `copy`, `add`, `sub`, `mul` support matching integer or floating types; bitwise operations require integer types.
+- Decimal integer constants wrap modulo 2^64, with explicit low-word truncation in word contexts. An untyped immediate branch condition is retained as long; branch interpretation tests its low 32 bits.
+- Floating literals retain their `s_`/`d_` width, including decimal/hex spellings, signed zero, infinity and plain NaN. Numeric conversion uses Zig, not libc. NaN payload spellings are scanned intact but **rejected explicitly by this parser** until payload semantics are implemented.
+- Forward **block targets** are resolved by a declaration pass. Temporary definitions must appear textually before use, even across blocks. Parameters and blocks are scoped per function; duplicate function/block/value names are rejected.
+- The lexer returns borrowed raw spans, including string escapes and quoted global names; it does not silently decode/rewrite names. Quoted globals, strings as operands, aggregates, data, memory operations, calls, phi, varargs, extended ABI types and unimplemented opcodes are explicitly rejected by the parser.
+
+## Not a full verifier or compiler
+
+Parsing checks syntax and the current IR's structural/type invariants. It does **not** prove SSA dominance or validate phi edges. In particular, a textually earlier definition in a non-dominating block is not yet rejected. Full CFG/SSA verification is required before this IR is safe to execute or optimize as verified SSA.
+
+The new API is not yet a drop-in QBE parser: strict malformed-number rejection is intentional and does not emulate legacy scanf prefix recovery; diagnostic codes are not a promise of the old CLI's exact messages. The legacy CLI and compatibility modes are unchanged.
+
+`src/fixtures/constant-jump.ssa` is copied unchanged from the existing `tests/upstream-bug-jnz-constant.ssa` regression. Tests parse all four functions independently and inspect typed constants/targets; this is parsing coverage, **not** proof of compiled execution or optimized branch folding.

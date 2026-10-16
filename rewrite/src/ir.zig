@@ -47,6 +47,14 @@ pub const Operand = union(enum) { value: ValueId, constant: Constant };
 pub const BinaryOp = enum { add, sub, mul, bit_and, bit_or, bit_xor };
 pub const Instruction = union(enum) {
     binary: struct { result: ValueId, op: BinaryOp, lhs: Operand, rhs: Operand },
+    copy: struct { result: ValueId, operand: Operand },
+
+    pub fn result(self: Instruction) ValueId {
+        return switch (self) {
+            .binary => |binary| binary.result,
+            .copy => |copy| copy.result,
+        };
+    }
 };
 pub const Terminator = union(enum) {
     jump: BlockId,
@@ -84,6 +92,7 @@ pub const Function = struct {
     allocator: Allocator,
     name: SymbolId,
     return_type: ?ScalarType,
+    linkage: enum { internal, exported } = .internal,
     parameters: std.ArrayList(ValueId) = .empty,
     values: std.ArrayList(Value) = .empty,
     blocks: std.ArrayList(Block) = .empty,
@@ -128,6 +137,18 @@ pub const Function = struct {
         return result;
     }
 
+    pub fn appendCopy(self: *Function, block_id: BlockId, ty: ScalarType, operand: Operand) BuildError!ValueId {
+        const target = try self.getBlock(block_id);
+        if (target.terminator != null) return error.BlockTerminated;
+        if (try self.operandType(operand) != ty) return error.TypeMismatch;
+        const result = try self.nextValueId();
+        try self.values.ensureUnusedCapacity(self.allocator, 1);
+        try target.instructions.ensureUnusedCapacity(self.allocator, 1);
+        self.values.appendAssumeCapacity(.{ .scalar_type = ty, .definition = .{ .instruction = .{ .block = block_id, .index = target.instructions.items.len } } });
+        target.instructions.appendAssumeCapacity(.{ .copy = .{ .result = result, .operand = operand } });
+        return result;
+    }
+
     pub fn terminate(self: *Function, block_id: BlockId, terminator: Terminator) ValidationError!void {
         const target = try self.getBlock(block_id);
         if (target.terminator != null) return error.BlockTerminated;
@@ -166,24 +187,24 @@ pub const Function = struct {
                 if (@backingInt(definition.block) >= self.blocks.items.len) return error.InvalidDefinition;
                 const instructions = self.blocks.items[@backingInt(definition.block)].instructions.items;
                 if (definition.index >= instructions.len) return error.InvalidDefinition;
-                switch (instructions[definition.index]) {
-                    .binary => |binary| if (@backingInt(binary.result) != number) return error.InvalidDefinition,
-                }
+                if (@backingInt(instructions[definition.index].result()) != number) return error.InvalidDefinition;
             },
         };
         for (self.blocks.items, 0..) |b, number| {
-            for (b.instructions.items, 0..) |instruction, index| switch (instruction) {
-                .binary => |binary| {
-                    const ty = try self.operandType(.{ .value = binary.result });
-                    switch (self.values.items[@backingInt(binary.result)].definition) {
-                        .instruction => |definition| {
-                            if (@backingInt(definition.block) != number or definition.index != index) return error.InvalidDefinition;
-                        },
-                        else => return error.InvalidDefinition,
-                    }
-                    try self.checkBinary(ty, binary.op, binary.lhs, binary.rhs);
-                },
-            };
+            for (b.instructions.items, 0..) |instruction, index| {
+                const result = instruction.result();
+                const ty = try self.operandType(.{ .value = result });
+                switch (self.values.items[@backingInt(result)].definition) {
+                    .instruction => |definition| {
+                        if (@backingInt(definition.block) != number or definition.index != index) return error.InvalidDefinition;
+                    },
+                    else => return error.InvalidDefinition,
+                }
+                switch (instruction) {
+                    .binary => |binary| try self.checkBinary(ty, binary.op, binary.lhs, binary.rhs),
+                    .copy => |copy| if (try self.operandType(copy.operand) != ty) return error.TypeMismatch,
+                }
+            }
             try self.checkTerminator(b.terminator orelse return error.MissingTerminator);
         }
     }
@@ -306,7 +327,7 @@ fn exerciseGrowth(allocator: Allocator) !void {
 }
 
 test "IR IDs survive growth and every allocation failure is cleaned up" {
-    try testing.checkAllAllocationFailures(testing.allocator, exerciseGrowth, .{});
+    try @import("test_support.zig").checkAllocationFailures(exerciseGrowth);
 }
 
 test "structural validation rejects corrupt definition backlinks and types" {
@@ -353,4 +374,17 @@ test "builders remain usable after either linked allocation fails" {
             try f.validateStructure();
         }
     }
+}
+
+test "copy is typed and participates in definition validation" {
+    var f = Function.init(testing.allocator, test_name, .double);
+    defer f.deinit();
+    const b = try f.addBlock(null);
+    const input: Operand = .{ .constant = .{ .double_bits = 0x7ff8000000000042 } };
+    try testing.expectError(error.TypeMismatch, f.appendCopy(b, .word, input));
+    const value = try f.appendCopy(b, .double, input);
+    try f.terminate(b, .{ .return_value = .{ .value = value } });
+    try f.validateStructure();
+    try testing.expectEqual(value, f.blocks.items[0].instructions.items[0].result());
+    try testing.expectEqual(@as(u64, 0x7ff8000000000042), f.blocks.items[0].instructions.items[0].copy.operand.constant.double_bits);
 }

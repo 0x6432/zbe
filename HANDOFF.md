@@ -1287,3 +1287,20 @@ Restore: `git clone https://github.com/0x6432/zbe qbe-zig`.
 - Compiler code and benchmark results are unchanged by this CI-only repair.
   No new optimization/refactor, version bump, tag or release. Stop here to
   respect the user's token budget. This status-only checkpoint uses [skip ci].
+
+### Milestone complete: all nine CI verification jobs confirmed green
+- Live uncached GitHub API check confirms run 38813379435 completed SUCCESS
+  for source checkpoint 439f0213c8b4a2671469b5d154dc8eed4161664a:
+  https://github.com/0x6432/zbe/actions/runs/38813379435
+- Core, both native jobs (Linux arm64/macOS), all three cross jobs (arm64,
+  rv64/Windows), cproc and both Hare jobs passed. Release was skipped.
+  This supersedes the previous pending-core status, not the historical failed
+  run 38791061549. The missing cross-job reference setup is now verified fixed.
+- Final local regression, fuzz/corpus verification, measured bounded-address
+  optimization and six portable package previews are recorded above. Compiler,
+  reference and test sources are unchanged after the successful source run;
+  this final handoff-only checkpoint uses [skip ci].
+- Milestone is COMPLETE. Stop to conserve tokens. No unattended agent work or
+  further refactoring/optimization is scheduled. Version remains unchanged;
+  no release or tag has been created or authorized. Any future release still
+  requires explicit user approval and verification of its exact release source.

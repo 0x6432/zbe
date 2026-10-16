@@ -15,7 +15,7 @@ The driver takes two paths and optionally preceding `--fold-integers`, `--reuse-
 ## Implemented boundary
 
 - GNU assembler syntax for Linux ELF AMD64, System V base-scalar calling convention.
-- Word/long/single/double or void functions. Integer and SSE argument banks are tracked independently (six GP and eight SSE registers), with overflow scalar stack slots in declaration order; integer/SSE/void returns.
+- Word/long/single/double or void functions. Integer and SSE argument banks are tracked independently (six GP and eight SSE registers), with overflow scalar stack slots in declaration order; integer/SSE/void returns. Incoming argument locations come from the typed allocation-free classifier described in ABI-AMD64.md.
 - Floating copy/negation, scalar SSE add/sub/mul/div, and bit-preserving edge phi copies. Single/double homes retain raw bits; moves and negation do not pass through arithmetic conversion.
 - Current integer copy/arithmetic/division/remainder/bitwise/negation/integer-extension/shift/integer-comparison instructions, jumps, low-word conditional branches, explicit `hlt` lowered to `ud2`, and edge-specific parallel phi copies.
 - Every SSA value has an eight-byte stack home; phi copies use additional, non-overlapping scratch homes. Default emission assigns unique homes. Opt-in `--reuse-stack-homes` greedily colors scalar interference into shared homes (see STACK-HOMES.md). Opt-in `--callee-saved-homes` additionally puts the first five colors in saved/restored GP registers, with remaining colors on the stack (see PRESERVED-HOMES.md). This is not a complete register allocator. A separate opt-in prepass performs conservative integer constant folding without deleting instructions.

@@ -1,9 +1,10 @@
 const std = @import("std");
 const ir = @import("ir.zig");
+const abi = @import("abi_amd64.zig");
 const ssa = @import("ssa.zig");
 const stack_homes = @import("stack_homes.zig");
 const Module = @import("module.zig").Module;
-pub const Error = stack_homes.Error || error{ InvalidSymbol, DuplicateSymbol, FrameTooLarge };
+pub const Error = stack_homes.Error || abi.Error || error{ InvalidSymbol, DuplicateSymbol, FrameTooLarge };
 
 pub const Options = struct {
     reuse_stack_homes: bool = false,
@@ -84,12 +85,6 @@ const preserved_registers = [_]Preserved{ .rbx, .r12, .r13, .r14, .r15 };
 const Home = union(enum) { stack_offset: usize, preserved: Preserved };
 
 const Scratch = enum { accumulator, temporary, count };
-const ArgumentRegisters = struct { word: []const u8, long: []const u8 };
-const argument_registers = [_]ArgumentRegisters{
-    .{ .word = "%edi", .long = "%rdi" }, .{ .word = "%esi", .long = "%rsi" },
-    .{ .word = "%edx", .long = "%rdx" }, .{ .word = "%ecx", .long = "%rcx" },
-    .{ .word = "%r8d", .long = "%r8" },  .{ .word = "%r9d", .long = "%r9" },
-};
 
 const Emitter = struct {
     output: std.Io.Writer.Allocating,
@@ -126,23 +121,26 @@ const Emitter = struct {
         for (preserved_registers[0..self.saved_count], 0..) |preserved, i| {
             try self.print("\tmovq {s}, -{d}(%rbp)\n", .{ preserved.name(.long), self.frame.saved_base + (i + 1) * 8 });
         }
-        var gp: usize = 0;
-        var fp: usize = 0;
-        var stack: usize = 0;
+        var arguments: abi.ArgumentCursor = .{};
         for (f.parameters.items) |parameter| {
             const ty = f.values.items[@backingInt(parameter)].scalar_type;
-            if (ty.isInteger() and gp < argument_registers.len) {
-                const registers = argument_registers[gp];
-                try self.save(parameter, if (ty == .word) registers.word else registers.long);
-                gp += 1;
-            } else if (!ty.isInteger() and fp < 8) {
-                try self.print("\tmov{c} %xmm{d}, {s}\n", .{ sseMove(ty), fp, register(ty, .accumulator) });
-                try self.save(parameter, register(ty, .accumulator));
-                fp += 1;
-            } else {
-                try self.print("\tmov{c} {d}(%rbp), {s}\n", .{ suffix(ty), 16 + stack * 8, register(ty, .accumulator) });
-                try self.save(parameter, register(ty, .accumulator));
-                stack += 1;
+            switch (try arguments.next(ty)) {
+                .general => |reg| {
+                    const width: ir.IntegerType = switch (ty) {
+                        .word => .word,
+                        .long => .long,
+                        else => unreachable, // ABI classifier guarantees an integer class.
+                    };
+                    try self.save(parameter, reg.name(width));
+                },
+                .vector => |reg| {
+                    try self.print("\tmov{c} {s}, {s}\n", .{ sseMove(ty), reg.name(), register(ty, .accumulator) });
+                    try self.save(parameter, register(ty, .accumulator));
+                },
+                .stack => |slot| {
+                    try self.print("\tmov{c} {d}(%rbp), {s}\n", .{ suffix(ty), try slot.incomingOffset(), register(ty, .accumulator) });
+                    try self.save(parameter, register(ty, .accumulator));
+                },
             }
         }
         for (f.blocks.items, 0..) |block, number| {

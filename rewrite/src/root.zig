@@ -1,5 +1,6 @@
 //! Independent Zig-native core and experimental base-scalar AMD64 slice.
 //! No legacy module is imported and no compilation delegates to the old port.
+pub const abi_amd64 = @import("abi_amd64.zig");
 pub const amd64 = @import("amd64.zig");
 pub const stack_homes = @import("stack_homes.zig");
 pub const interference = @import("interference.zig");
@@ -18,6 +19,7 @@ pub const Module = @import("module.zig").Module;
 
 test {
     _ = @import("amd64.zig");
+    _ = @import("abi_amd64.zig");
     _ = @import("interpreter.zig");
     _ = @import("optimize.zig");
     _ = @import("liveness.zig");

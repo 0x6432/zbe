@@ -317,3 +317,17 @@ Four added tests cover every result class, block closure/arity, conditional retu
 ### Halt local verification
 
 Pinned Zig Debug, ReleaseSafe and ReleaseFast each passed **147/147 unit tests** (fresh Debug smoke in `/data/check-halt-debug.log`, reused by the full runner; fresh release-mode results in the full log). Authoritative `/data/verify-native-halt.log` ended `HALT VERIFICATION PASSED`. In every build mode, **all eight flag combinations** passed **3,378 integer/program native checks**, **3,560 floating/bit-pattern/mixed-ABI native checks**, **24 arithmetic-fault checks**, **4 termination/ordering checks**, and **15 CLI rejection/output-preservation/flag-order checks** per combination. All 24 completions of each suite were counted. Formatting and all eight independent generators' reproducibility passed. Legacy source/build/tools/tests remain unchanged. CI is checked separately after publication; no main integration or release tag.
+
+### Halt published CI
+
+Halt checkpoint `f69ccbb85b54523c0771d1f30b9ccc06d37c9210` passed https://github.com/0x6432/zbe/actions/runs/38906265283: Debug, ReleaseSafe and ReleaseFast all succeeded, including 147 unit tests and all eight native flag combinations with termination/ordering checks. This result precedes typed argument classification below.
+
+## Typed base-scalar AMD64 argument locations
+
+Extracted the existing incoming-argument ABI logic into allocation-free per-signature cursors with typed GP/vector/stack locations, semantic register names and checked positive stack displacements. Register banks still exhaust independently and share overflow slots in declaration order. The emitter no longer maintains its own parallel GP/SSE/stack counters. This adds no calls, aggregate/extended ABI classes, varargs or new targets. The separate 64 KiB frame cap and home strategies are unchanged. See ABI-AMD64.md.
+
+Four new unit tests cover width-specific names, independent cursor instances, displacement boundaries, forged stack IDs and failure atomicity. An independent prefix-count oracle checks every one of 65,536 sixteen-argument integer-versus-floating class patterns, with scalar widths alternated within each class and explicit result-tag checks. This is exhaustive class-pattern coverage for that length, not all four-type sequences or arbitrary signature lengths. Existing weighted native mixed-ABI checks and all eight compiler pipelines remain intact.
+
+### Typed argument classifier local verification
+
+Authoritative `/data/verify-native-abi-classifier.log` ended `ABI CLASSIFIER VERIFICATION PASSED`. Pinned Zig Debug, ReleaseSafe and ReleaseFast each passed **151/151 unit tests**. Each mode passed all eight flag combinations: **3,378 integer/program**, **3,560 floating/bit-pattern/mixed-ABI**, **24 arithmetic-fault**, **4 termination/ordering**, and **15 CLI** checks per combination. All 24 completions of each suite were counted. Formatting and all eight independent generator reproducibility checks passed. Legacy source/build/tools/tests remain unchanged. Publication CI is checked separately; no main integration or release tag.

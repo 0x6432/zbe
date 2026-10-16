@@ -199,3 +199,14 @@ The sandbox reverted to local checkpoint `1a95cea` after an interrupted publicat
 ### Recovered cast/widening verification
 
 Fresh verification after recovery passed in Debug, ReleaseSafe and ReleaseFast: **98/98 unit tests**, **3,370 integer/program native checks**, **1,000 floating/bit-pattern/mixed-ABI native checks**, **12 native arithmetic-fault checks**, and **8 CLI checks per mode**. Formatting and all seven generators' reproducibility passed. Current-environment log: `/data/verify-native-conversions-recovered.log`; runner and PID file share that prefix. Legacy source/build/tools/tests are unchanged. The floating checkpoint is confirmed green on GitHub; conversion CI is checked separately after this source checkpoint is pushed.
+
+
+## Typed floating comparisons
+
+Added semantic floating type/predicate enums, a typed compare instruction and failure-atomic builder, frontend opcode decoding, structure/SSA checks, strict evaluator truth semantics and NaN-aware SSE lowering. Both floating operand widths and both integer result widths are supported. Equality/less/less-equal explicitly mask unordered native flags; inequality includes unordered. Ordered/unordered predicates use the parity flag.
+
+An independent reproducible 2,560-case oracle uses integer NaN/infinity classification and exact rational finite ordering. It checks both operands and signed zero/infinity/quiet/signaling NaN cases through evaluation and native execution. Additional tests check invalid classes/widths, dominance of each operand, builder retry/mutation validation and exhaustive allocation cleanup. Native exception-flag/unmasked-trap parity is not claimed. The unsupported CLI fixture now rejects still-unimplemented `truncd`; rejection/output preservation checks remain intact.
+
+### Floating comparison local verification
+
+Pinned Zig Debug, ReleaseSafe and ReleaseFast each passed **103/103 unit tests**, **3,370 integer/program native checks**, **3,560 floating/bit-pattern/mixed-ABI native checks**, **12 native arithmetic-fault checks**, and **8 CLI checks**. Formatting and all eight generators' reproducibility checks passed. Current-environment log: `/data/verify-native-float-comparisons.log`. Legacy source/build/tools/tests remain unchanged. Conversion CI is still monitored separately; no running run is inferred green. Comparison CI is checked after publication.

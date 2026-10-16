@@ -83,6 +83,17 @@ pub const UnaryOp = enum {
     }
 };
 pub const ShiftOp = enum { left, logical_right, arithmetic_right };
+pub const FloatType = enum {
+    single,
+    double,
+    pub fn scalar(self: FloatType) ScalarType {
+        return switch (self) {
+            .single => .single,
+            .double => .double,
+        };
+    }
+};
+pub const FloatPredicate = enum { equal, not_equal, less, less_equal, greater, greater_equal, ordered, unordered };
 pub const IntegerPredicate = enum {
     equal,
     not_equal,
@@ -100,6 +111,7 @@ pub const Instruction = union(enum) {
     copy: struct { result: ValueId, operand: Operand },
     unary: struct { result: ValueId, op: UnaryOp, operand: Operand },
     shift: struct { result: ValueId, op: ShiftOp, value: Operand, amount: Operand },
+    compare_float: struct { result: ValueId, predicate: FloatPredicate, operand_type: FloatType, lhs: Operand, rhs: Operand },
     compare_integer: struct { result: ValueId, predicate: IntegerPredicate, operand_type: IntegerType, lhs: Operand, rhs: Operand },
 
     pub fn result(self: Instruction) ValueId {
@@ -109,6 +121,7 @@ pub const Instruction = union(enum) {
             .unary => |unary| unary.result,
             .shift => |shift| shift.result,
             .compare_integer => |comparison| comparison.result,
+            .compare_float => |comparison| comparison.result,
         };
     }
 };
@@ -265,6 +278,16 @@ pub const Function = struct {
         target.instructions.appendAssumeCapacity(.{ .shift = .{ .result = result, .op = op, .value = operand, .amount = amount } });
     }
 
+    pub fn defineFloatCompare(self: *Function, block_id: BlockId, result: ValueId, predicate: FloatPredicate, operand_type: FloatType, lhs: Operand, rhs: Operand) BuildError!void {
+        const target = try self.getBlock(block_id);
+        if (target.terminator != null) return error.BlockTerminated;
+        const value = try self.pendingValue(result);
+        try self.checkFloatCompare(value.scalar_type, operand_type, lhs, rhs);
+        try target.instructions.ensureUnusedCapacity(self.allocator, 1);
+        value.definition = .{ .instruction = .{ .block = block_id, .index = target.instructions.items.len } };
+        target.instructions.appendAssumeCapacity(.{ .compare_float = .{ .result = result, .predicate = predicate, .operand_type = operand_type, .lhs = lhs, .rhs = rhs } });
+    }
+
     pub fn defineIntegerCompare(self: *Function, block_id: BlockId, result: ValueId, predicate: IntegerPredicate, operand_type: IntegerType, lhs: Operand, rhs: Operand) BuildError!void {
         const target = try self.getBlock(block_id);
         if (target.terminator != null) return error.BlockTerminated;
@@ -374,6 +397,7 @@ pub const Function = struct {
                     .copy => |copy| if (try self.operandType(copy.operand) != ty) return error.TypeMismatch,
                     .unary => |unary| try self.checkUnary(ty, unary.op, unary.operand),
                     .shift => |shift| try self.checkShift(ty, shift.value, shift.amount),
+                    .compare_float => |comparison| try self.checkFloatCompare(ty, comparison.operand_type, comparison.lhs, comparison.rhs),
                     .compare_integer => |comparison| try self.checkIntegerCompare(ty, comparison.operand_type, comparison.lhs, comparison.rhs),
                 }
             }
@@ -406,6 +430,10 @@ pub const Function = struct {
 
     fn checkShift(self: *const Function, ty: ScalarType, value: Operand, amount: Operand) ValidationError!void {
         if (!ty.isInteger() or try self.operandType(value) != ty or try self.operandType(amount) != .word) return error.TypeMismatch;
+    }
+
+    fn checkFloatCompare(self: *const Function, result_type: ScalarType, operand_type: FloatType, lhs: Operand, rhs: Operand) ValidationError!void {
+        if (!result_type.isInteger() or try self.operandType(lhs) != operand_type.scalar() or try self.operandType(rhs) != operand_type.scalar()) return error.TypeMismatch;
     }
 
     fn checkIntegerCompare(self: *const Function, result_type: ScalarType, operand_type: IntegerType, lhs: Operand, rhs: Operand) ValidationError!void {
@@ -631,5 +659,26 @@ test "unary builder rejects bad types and permits retry after failed allocation"
     try f.terminate(b, .{ .return_value = .{ .value = value } });
     try f.validateStructure();
     f.blocks.items[0].instructions.items[0].unary.operand = .{ .constant = .{ .long = 255 } };
+    try testing.expectError(error.TypeMismatch, f.validateStructure());
+}
+
+test "floating comparison builder validates types and retries after allocation failure" {
+    var failing = testing.FailingAllocator.init(testing.allocator, .{});
+    var f = Function.init(failing.allocator(), test_name, .word);
+    defer f.deinit();
+    const b = try f.addBlock(null);
+    const value = try f.declareValue(.word);
+    const operand: Operand = .{ .constant = .{ .single_bits = 0 } };
+    try testing.expectError(error.TypeMismatch, f.defineFloatCompare(b, value, .equal, .double, operand, operand));
+    try testing.expect(f.values.items[@backingInt(value)].definition == .pending);
+    failing.fail_index = failing.alloc_index;
+    try testing.expectError(error.OutOfMemory, f.defineFloatCompare(b, value, .equal, .single, operand, operand));
+    try testing.expect(f.values.items[@backingInt(value)].definition == .pending);
+    try testing.expectEqual(@as(usize, 0), f.blocks.items[0].instructions.items.len);
+    failing.fail_index = std.math.maxInt(usize);
+    try f.defineFloatCompare(b, value, .equal, .single, operand, operand);
+    try f.terminate(b, .{ .return_value = .{ .value = value } });
+    try f.validateStructure();
+    f.blocks.items[0].instructions.items[0].compare_float.operand_type = .double;
     try testing.expectError(error.TypeMismatch, f.validateStructure());
 }

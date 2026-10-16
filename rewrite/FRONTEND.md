@@ -17,6 +17,7 @@
     %result =type add|sub|mul|div|udiv|rem|urem|and|or|xor operand, operand
     %result =w|l shl|shr|sar operand, word-count
     %result =w|l ceq[w|l]|cne[w|l]|cslt[w|l]|csle[w|l]|csgt[w|l]|csge[w|l]|cult[w|l]|cule[w|l]|cugt[w|l]|cuge[w|l] operand, operand
+    %result =w|l ceq[s|d]|cne[s|d]|clt[s|d]|cle[s|d]|cgt[s|d]|cge[s|d]|co[s|d]|cuo[s|d] operand, operand
     jmp @block
     jnz operand, @true, @false
     ret [operand]
@@ -31,8 +32,9 @@ The ellipsis above describes repeated parameters, **not** variadic IL. A missing
 - `neg` preserves the operand/result width. Integer negation wraps; floating negation flips only the sign bit, including signed zero and NaN payloads. Integer extensions consume word operands: byte/half extensions produce word or long, while word extensions produce long only. They sign- or zero-extend the selected low bits. These are ordinary instructions, not extended ABI parameter types.
 - `cast` preserves raw bits across word/single or long/double classes in either direction. It is not numeric conversion. `exts` widens a single to double, exactly for finite values. Double-to-single `truncd` and numeric integer/float conversions are still unsupported.
 - Shifts require a word count, including when shifting a long. Only the low five (word) or six (long) count bits are used; `shr` is logical and `sar` is arithmetic.
-- Integer comparison opcode suffixes select operand width independently of the word/long result width. Results are exactly zero or one. For example, `%r =l csltw %a, %b` compares word operands as signed integers and produces a long. Floating comparisons are unsupported.
+- Integer comparison opcode suffixes select operand width independently of the word/long result width. Results are exactly zero or one. For example, `%r =l csltw %a, %b` compares word operands as signed integers and produces a long. Floating comparisons use their own single/double suffixes and predicates.
 - Decimal integer constants wrap modulo 2^64, with explicit low-word truncation in word contexts. An untyped immediate branch condition is retained as long; branch interpretation tests its low 32 bits.
+- Floating comparisons return word or long zero/one independently of operand width. NaN makes `ne` and `uo` true and `eq`/relative comparisons/`o` false. Signed zeros compare equal; infinities retain numeric ordering. Exception flags and unmasked floating traps are not part of this subset's conformance claim.
 - Floating literals retain their `s_`/`d_` width, including decimal/hex spellings, signed zero, infinity and plain NaN. Numeric conversion uses Zig, not libc. NaN payload spellings are scanned intact but **rejected explicitly by this parser** until payload semantics are implemented.
 - Phi nodes precede ordinary instructions in a block. The parser retains typed predecessor/value pairs; `ssa.validate` checks predecessor coverage and incoming-edge dominance.
 - Forward **block targets** are resolved by a declaration pass. Temporary result types are predeclared, so loop backedges and layout-independent forward references are accepted; scalar SSA validation must establish actual definition availability. Parameters and blocks are scoped per function; duplicate function/block/value names are rejected.

@@ -52,3 +52,8 @@ Dominance tests compare with a separate vertex-removal/reachability oracle on 51
 ### Explicit bitcasts and exact widening
 
 Same-width `cast` changes word/single or long/double class without changing any bit, including signed zeros, infinities and NaN payloads. `exts` converts single to double; finite input values are exactly representable. An additional 384-case reproducible conversion fixture checks 256 casts (all four directions) and 128 widening values, including subnormal and infinity boundaries, without asserting signaling-NaN widening payloads. Numeric integer/float conversions and `truncd` remain unsupported. See NATIVE-AMD64.md for the observed documentation/reference narrowing discrepancy.
+
+
+### Floating predicates
+
+Eight semantic predicates cover equal/not-equal, less/less-equal, greater/greater-equal, ordered and unordered. Single/double operand widths and word/long result widths are independent. NaN makes inequality/unordered true and equality/ordered/relative comparisons false. Signed zero compares equal; infinities order numerically. The reproducible 2,560-case classification oracle uses raw integer NaN/infinity classification and exact fractions for finite ordering, not host floating comparisons or compiler output. It covers both operands, both result widths and signaling/quiet NaN inputs. Validation and allocation-failure tests cover the new typed instruction. Exception flags and unmasked floating traps are not asserted equivalent between evaluator and native output.

@@ -69,6 +69,22 @@ def main() -> None:
         check(expression, int(expected))
         conversion_cases += 1
     assert conversion_cases == 384 and len(conversion_functions) == 5
+    comparison_functions = set()
+    comparison_cases = 0
+    for line in (root / "src/fixtures/float-comparison-oracle.tsv").read_text().splitlines():
+        if not line or line.startswith("#"):
+            continue
+        result_ty, opcode, operand_ty, a, b, expected = line.split()
+        name = f"compare_{opcode}_{result_ty}"
+        ctype = "float" if operand_ty == "s" else "double"
+        if name not in comparison_functions:
+            functions.append(f"export function {result_ty} ${name}({operand_ty} %a, {operand_ty} %b) {{\n@entry\n%r ={result_ty} {opcode} %a, %b\nret %r\n}}")
+            declarations.append(f"extern {ctypes[result_ty]} {name}({ctype}, {ctype});")
+            comparison_functions.add(name)
+        width = 32 if operand_ty == "s" else 64
+        check(f"{name}(f{width}(UINT{width}_C({a})), f{width}(UINT{width}_C({b})))", int(expected))
+        comparison_cases += 1
+    assert comparison_cases == 2560 and len(comparison_functions) == 32
     # Exercise both register banks and their independent exhaustion. Stack slots
     # retain declaration order across floating and integer overflow arguments.
     for ty, ctype in (("s", "float"), ("d", "double")):

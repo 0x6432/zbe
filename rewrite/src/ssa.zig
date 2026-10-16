@@ -58,6 +58,10 @@ pub fn validate(allocator: std.mem.Allocator, function: *const ir.Function, issu
                 try checkUse(function, &graph, &dominators, shift.value, id, index, issue);
                 try checkUse(function, &graph, &dominators, shift.amount, id, index, issue);
             },
+            .compare_float => |comparison| {
+                try checkUse(function, &graph, &dominators, comparison.lhs, id, index, issue);
+                try checkUse(function, &graph, &dominators, comparison.rhs, id, index, issue);
+            },
             .compare_integer => |comparison| {
                 try checkUse(function, &graph, &dominators, comparison.lhs, id, index, issue);
                 try checkUse(function, &graph, &dominators, comparison.rhs, id, index, issue);
@@ -276,4 +280,16 @@ test "unary operands obey same block ordering and cross block dominance" {
     defer diamond.deinit();
     try testing.expectError(error.InvalidSSA, validate(testing.allocator, diamond.functions.items[0], &issue));
     try testing.expectEqual(.non_dominating_definition, issue.?.code);
+}
+
+test "both floating comparison operands require dominating definitions" {
+    for ([_][]const u8{ "ceqs %x, s_1", "cuos s_1, %x" }) |operation| {
+        const text = try std.fmt.allocPrint(testing.allocator, "function w $f(w %p) {{\n@entry\njnz %p, @left, @join\n@left\n%x =s copy s_1\njmp @join\n@join\n%r =w {s}\nret %r\n}}", .{operation});
+        defer testing.allocator.free(text);
+        var module = try parse(text);
+        defer module.deinit();
+        var issue: ?Issue = null;
+        try testing.expectError(error.InvalidSSA, validate(testing.allocator, module.functions.items[0], &issue));
+        try testing.expectEqual(.non_dominating_definition, issue.?.code);
+    }
 }

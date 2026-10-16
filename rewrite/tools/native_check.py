@@ -173,7 +173,7 @@ def main() -> None:
         print(f"{len(traps)} native integer arithmetic-fault checks passed")
 
         invalid = {
-            "unsupported": ("export function d $bad(d %a) {\n@b\n%r =w ceqd %a, %a\nret d_1\n}", "unsupported_construct"),
+            "unsupported": ("export function s $bad(d %a) {\n@b\n%r =s truncd %a\nret %r\n}", "unsupported_construct"),
             "ssa": ("export function w $bad() {\n@entry\njnz 0, @left, @join\n@left\n%x =w copy 1\njmp @join\n@join\nret %x\n}", "InvalidSSA"),
             "syntax": ("export function w $bad() {\n@b\nret %missing\n}", "unknown_value"),
         }

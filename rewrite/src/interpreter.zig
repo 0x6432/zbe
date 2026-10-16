@@ -49,6 +49,7 @@ pub fn evaluate(allocator: std.mem.Allocator, function: *const ir.Function, argu
                 .copy => |copy| try resolve(values, copy.operand),
                 .unary => |unary| unaryValue(unary.op, try resolve(values, unary.operand), function.values.items[@backingInt(unary.result)].scalar_type),
                 .shift => |shift| shiftedValue(shift.op, try resolve(values, shift.value), (try resolve(values, shift.amount)).word),
+                .compare_float => |comparison| floatComparisonValue(comparison.predicate, try resolve(values, comparison.lhs), try resolve(values, comparison.rhs), function.values.items[@backingInt(comparison.result)].scalar_type),
                 .compare_integer => |comparison| comparisonValue(comparison.predicate, try resolve(values, comparison.lhs), try resolve(values, comparison.rhs), function.values.items[@backingInt(comparison.result)].scalar_type),
                 .binary => |binary| try binaryValue(binary.op, try resolve(values, binary.lhs), try resolve(values, binary.rhs)),
             };
@@ -131,6 +132,29 @@ fn shifted(comptime U: type, comptime S: type, comptime Count: type, op: ir.Shif
         .arithmetic_right => @bitCast(@as(S, @bitCast(value)) >> count),
     };
 }
+fn floatComparisonValue(predicate: ir.FloatPredicate, lhs: ir.Constant, rhs: ir.Constant, result_type: ir.ScalarType) ir.Constant {
+    const result = switch (lhs) {
+        .single_bits => |a| compareFloat(f32, predicate, @bitCast(a), @bitCast(rhs.single_bits)),
+        .double_bits => |a| compareFloat(f64, predicate, @bitCast(a), @bitCast(rhs.double_bits)),
+        else => unreachable,
+    };
+    return if (result_type == .word) .{ .word = @intFromBool(result) } else .{ .long = @intFromBool(result) };
+}
+fn compareFloat(comptime F: type, predicate: ir.FloatPredicate, lhs: F, rhs: F) bool {
+    @setFloatMode(.strict);
+    const unordered = std.math.isNan(lhs) or std.math.isNan(rhs);
+    return switch (predicate) {
+        .equal => lhs == rhs,
+        .not_equal => lhs != rhs,
+        .less => lhs < rhs,
+        .less_equal => lhs <= rhs,
+        .greater => lhs > rhs,
+        .greater_equal => lhs >= rhs,
+        .ordered => !unordered,
+        .unordered => unordered,
+    };
+}
+
 fn comparisonValue(predicate: ir.IntegerPredicate, lhs: ir.Constant, rhs: ir.Constant, result_type: ir.ScalarType) ir.Constant {
     const result = switch (lhs) {
         .word => |a| compare(u32, i32, predicate, a, rhs.word),
@@ -631,4 +655,30 @@ test "casts preserve every bit and single precision widening matches exact oracl
         case_count += 1;
     }
     try testing.expectEqual(@as(usize, 384), case_count);
+}
+
+test "floating comparisons agree with classification oracle including NaNs and signed zeros" {
+    var lines = std.mem.tokenizeScalar(u8, @embedFile("fixtures/float-comparison-oracle.tsv"), '\n');
+    var case_count: usize = 0;
+    while (lines.next()) |line| {
+        if (line[0] == '#') continue;
+        var fields = std.mem.tokenizeAny(u8, line, " \t");
+        const result_ty = fields.next().?;
+        const opcode = fields.next().?;
+        const operand_ty = fields.next().?;
+        const a = try std.fmt.parseInt(u64, fields.next().?, 10);
+        const b = try std.fmt.parseInt(u64, fields.next().?, 10);
+        const expected = try std.fmt.parseInt(u64, fields.next().?, 10);
+        try testing.expect(fields.next() == null);
+        const text = try std.fmt.allocPrint(testing.allocator, "function {s} $f({s} %a, {s} %b) {{\n@entry\n%r ={s} {s} %a, %b\nret %r\n}}", .{ result_ty, operand_ty, operand_ty, result_ty, opcode });
+        defer testing.allocator.free(text);
+        var module = try parse(text);
+        defer module.deinit();
+        const single = std.mem.eql(u8, operand_ty, "s");
+        const args: []const ir.Constant = &.{ if (single) .{ .single_bits = @intCast(a) } else .{ .double_bits = a }, if (single) .{ .single_bits = @intCast(b) } else .{ .double_bits = b } };
+        const result = (try evaluate(testing.allocator, module.functions.items[0], args, .{ .max_steps = 2 })).?;
+        try testing.expectEqual(expected, if (std.mem.eql(u8, result_ty, "w")) @as(u64, result.word) else result.long);
+        case_count += 1;
+    }
+    try testing.expectEqual(@as(usize, 2560), case_count);
 }

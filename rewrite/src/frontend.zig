@@ -42,6 +42,21 @@ fn comparisonOpcode(spelling: []const u8) ?ComparisonOpcode {
     const predicate = comparison_predicates.get(spelling[0 .. spelling.len - 1]) orelse return null;
     return .{ .predicate = predicate, .operand_type = ty };
 }
+const float_comparison_predicates = std.StaticStringMap(ir.FloatPredicate).initComptime(.{
+    .{ "ceq", .equal },   .{ "cne", .not_equal },     .{ "clt", .less },   .{ "cle", .less_equal },
+    .{ "cgt", .greater }, .{ "cge", .greater_equal }, .{ "co", .ordered }, .{ "cuo", .unordered },
+});
+const FloatComparisonOpcode = struct { predicate: ir.FloatPredicate, operand_type: ir.FloatType };
+fn floatComparisonOpcode(spelling: []const u8) ?FloatComparisonOpcode {
+    if (spelling.len < 3) return null;
+    const ty: ir.FloatType = switch (spelling[spelling.len - 1]) {
+        's' => .single,
+        'd' => .double,
+        else => return null,
+    };
+    const predicate = float_comparison_predicates.get(spelling[0 .. spelling.len - 1]) orelse return null;
+    return .{ .predicate = predicate, .operand_type = ty };
+}
 pub const Error = Allocator.Error || error{ InvalidInput, TooManySymbols, TooManyFunctions, TooManyValues, TooManyBlocks };
 
 /// Parse the documented scalar subset into an independently owned module.
@@ -215,6 +230,11 @@ const Parser = struct {
             _ = try self.expect(.comma);
             const rhs = try self.readOperand(comparison.operand_type.scalar());
             f.defineIntegerCompare(block, result, comparison.predicate, comparison.operand_type, lhs, rhs) catch |err| return self.irError(err, opcode);
+        } else if (floatComparisonOpcode(spelling)) |comparison| {
+            const lhs = try self.readOperand(comparison.operand_type.scalar());
+            _ = try self.expect(.comma);
+            const rhs = try self.readOperand(comparison.operand_type.scalar());
+            f.defineFloatCompare(block, result, comparison.predicate, comparison.operand_type, lhs, rhs) catch |err| return self.irError(err, opcode);
         } else {
             const op = binary_opcodes.get(spelling) orelse return self.fail(.unsupported_construct, opcode);
             const lhs = try self.readOperand(ty);
@@ -578,4 +598,10 @@ test "casts require the opposite same-width class and widening requires single i
     try expectInvalid("function l $f(s %v) {\n@b\n%r =l cast %v\nret %r\n}", .type_mismatch, "%v");
     try expectInvalid("function s $f(s %v) {\n@b\n%r =s exts %v\nret %r\n}", .type_mismatch, "exts");
     try expectInvalid("function d $f(d %v) {\n@b\n%r =d exts %v\nret %r\n}", .type_mismatch, "%v");
+}
+
+test "floating comparisons require integer results and matching operand widths" {
+    try expectInvalid("function s $f(s %a) {\n@b\n%r =s ceqs %a, %a\nret %r\n}", .type_mismatch, "ceqs");
+    try expectInvalid("function w $f(d %a) {\n@b\n%r =w ceqs %a, s_1\nret %r\n}", .type_mismatch, "%a");
+    try expectInvalid("function l $f(s %a) {\n@b\n%r =l cod %a, d_1\nret %r\n}", .type_mismatch, "%a");
 }

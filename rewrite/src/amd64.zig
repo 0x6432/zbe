@@ -135,6 +135,31 @@ const Emitter = struct {
                     try self.print("\t{s}{c} %cl, {s}\n", .{ mnemonic, suffix(ty), register(ty, .accumulator) });
                     try self.save(shift.result, register(ty, .accumulator));
                 },
+                .compare_float => |comparison| {
+                    try self.load(comparison.lhs, .accumulator);
+                    try self.load(comparison.rhs, .temporary);
+                    const ty = comparison.operand_type.scalar();
+                    try self.print("\tmov{c} {s}, %xmm0\n\tmov{c} {s}, %xmm1\n\tucomi{s} %xmm1, %xmm0\n", .{ sseMove(ty), register(ty, .accumulator), sseMove(ty), register(ty, .temporary), if (ty == .single) @as([]const u8, "ss") else "sd" });
+                    const condition: []const u8 = switch (comparison.predicate) {
+                        .equal => "e",
+                        .not_equal => "ne",
+                        .less => "b",
+                        .less_equal => "be",
+                        .greater => "a",
+                        .greater_equal => "ae",
+                        .ordered => "np",
+                        .unordered => "p",
+                    };
+                    try self.print("\tset{s} %al\n", .{condition});
+                    switch (comparison.predicate) {
+                        .equal, .less, .less_equal => try self.print("\tsetnp %r10b\n\tandb %r10b, %al\n", .{}),
+                        .not_equal => try self.print("\tsetp %r10b\n\torb %r10b, %al\n", .{}),
+                        else => {},
+                    }
+                    try self.print("\tmovzbl %al, %eax\n", .{});
+                    const result_type = f.values.items[@backingInt(comparison.result)].scalar_type;
+                    try self.save(comparison.result, register(result_type, .accumulator));
+                },
                 .compare_integer => |comparison| {
                     try self.load(comparison.lhs, .accumulator);
                     try self.load(comparison.rhs, .temporary);
@@ -426,4 +451,20 @@ fn exerciseConversions(allocator: std.mem.Allocator) !void {
 
 test "cast and widening parsing evaluation and emission clean up allocation failures" {
     try @import("test_support.zig").checkAllocationFailures(exerciseConversions);
+}
+
+fn exerciseFloatComparisons(allocator: std.mem.Allocator) !void {
+    var diagnostic: ?source.Diagnostic = null;
+    var module = try frontend.parse(allocator, .{ .name = "float-comparison", .text = "function l $f(s %a, s %b) {\n@entry\n%r =l cuos %a, %b\nret %r\n}" }, &diagnostic);
+    defer module.deinit();
+    const result = (try @import("interpreter.zig").evaluate(allocator, module.functions.items[0], &.{ .{ .single_bits = 0x7fc01234 }, .{ .single_bits = 0 } }, .{})).?;
+    try testing.expectEqual(@as(u64, 1), result.long);
+    const text = try emit(allocator, &module);
+    defer allocator.free(text);
+    try testing.expect(std.mem.indexOf(u8, text, "ucomiss %xmm1, %xmm0") != null);
+    try testing.expect(std.mem.indexOf(u8, text, "setp %al") != null);
+}
+
+test "floating comparison parsing evaluation and emission clean up every allocation failure" {
+    try @import("test_support.zig").checkAllocationFailures(exerciseFloatComparisons);
 }

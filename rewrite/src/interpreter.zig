@@ -117,6 +117,13 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
             const instruction = block.instructions.items[frame.next_instruction];
             frame.next_instruction += 1;
             switch (instruction) {
+                .blit => |blit| {
+                    const image = options.memory_image orelse return error.UnsupportedMemory;
+                    const src = (try resolve(frame.values, blit.source)).long;
+                    const dst = (try resolve(frame.values, blit.destination)).long;
+                    try image.copy(src, dst, blit.byte_count);
+                    continue;
+                },
                 .load => |read| {
                     const image = options.memory_image orelse return error.UnsupportedMemory;
                     const address = (try resolve(frame.values, read.address)).long;
@@ -179,7 +186,7 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
 
 fn scalarInstruction(function: *const ir.Function, values: []const ?ir.Constant, instruction: ir.Instruction) Error!ir.Constant {
     return switch (instruction) {
-        .load, .store => error.UnsupportedMemory,
+        .load, .store, .blit => error.UnsupportedMemory,
         .call => error.UnsupportedCall,
         .copy => |copy| try resolve(values, copy.operand),
         .unary => |unary| semantics.unaryValue(unary.op, try resolve(values, unary.operand), function.values.items[@backingInt(unary.result)].scalar_type),

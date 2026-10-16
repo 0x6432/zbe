@@ -43,7 +43,7 @@ fn folded(instruction: ir.Instruction, facts: []const ?ir.Constant, ty: ir.Scala
         .binary => |binary| if (!ty.isInteger()) null else semantics.binaryValue(binary.op, known(facts, binary.lhs) orelse return null, known(facts, binary.rhs) orelse return null) catch null,
         .shift => |shift| semantics.shiftedValue(shift.op, known(facts, shift.value) orelse return null, (known(facts, shift.amount) orelse return null).word),
         .compare_integer => |comparison| semantics.comparisonValue(comparison.predicate, known(facts, comparison.lhs) orelse return null, known(facts, comparison.rhs) orelse return null, ty),
-        .load, .store => null, // Preserve memory reads, faults and ordered effects.
+        .load, .store, .blit => null, // Preserve memory reads, faults and ordered effects.
         .call => null, // Calls remain effectful even when their result is unused.
         .compare_float => null, // Preserve floating-environment/NaN flag behavior.
     };

@@ -159,6 +159,19 @@ const Parser = struct {
                 if (std.mem.eql(u8, self.tokenText(token), "call")) {
                     _ = self.advance();
                     try self.call(active, null, token);
+                } else if (std.mem.eql(u8, self.tokenText(token), "blit")) {
+                    _ = self.advance();
+                    const src = try self.readOperand(.long);
+                    _ = try self.expect(.comma);
+                    const dst = try self.readOperand(.long);
+                    _ = try self.expect(.comma);
+                    const count_token = try self.expect(.integer);
+                    const spelling = self.tokenText(count_token);
+                    // Counts are exact nonnegative signed-word constants, not
+                    // modulo-2^64 data literals or legacy packed references.
+                    if (spelling[0] == '-') return self.fail(.invalid_integer, count_token);
+                    const count = std.fmt.parseInt(u31, spelling, 10) catch return self.fail(.invalid_integer, count_token);
+                    f.appendBlit(active, src, dst, count) catch |err| return self.irError(err, token);
                 } else if (store_opcodes.get(self.tokenText(token))) |kind| {
                     _ = self.advance();
                     const value = try self.readOperand(kind.valueType());

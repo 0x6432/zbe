@@ -160,6 +160,8 @@ pub const CallTarget = union(enum) {
 /// Argument storage is owned by Function, not borrowed from callers.
 pub const Call = struct { result: ?ValueId, callee: CallTarget, arguments: []const CallArgument };
 pub const Instruction = union(enum) {
+    /// Nonnegative signed-word byte count, not a packed reference field.
+    blit: struct { source: Operand, destination: Operand, byte_count: u31 },
     load: struct { result: ValueId, kind: LoadKind, address: Operand },
     store: struct { kind: StoreKind, value: Operand, address: Operand },
     call: Call,
@@ -174,7 +176,7 @@ pub const Instruction = union(enum) {
     pub fn result(self: Instruction) ?ValueId {
         return switch (self) {
             .load => |load| load.result,
-            .store => null,
+            .store, .blit => null,
             .call => |call| call.result,
             .binary => |binary| binary.result,
             .copy => |copy| copy.result,
@@ -311,6 +313,13 @@ pub const Function = struct {
         try target.instructions.ensureUnusedCapacity(self.allocator, 1);
         value.definition = .{ .instruction = .{ .block = block_id, .index = target.instructions.items.len } };
         target.instructions.appendAssumeCapacity(.{ .binary = .{ .result = result, .op = op, .lhs = lhs, .rhs = rhs } });
+    }
+
+    pub fn appendBlit(self: *Function, block: BlockId, source: Operand, destination: Operand, byte_count: u31) BuildError!void {
+        const target = try self.getBlock(block);
+        if (target.terminator != null) return error.BlockTerminated;
+        if (try self.operandType(source) != .long or try self.operandType(destination) != .long) return error.TypeMismatch;
+        try target.instructions.append(self.allocator, .{ .blit = .{ .source = source, .destination = destination, .byte_count = byte_count } });
     }
 
     pub fn defineLoad(self: *Function, block: BlockId, result: ValueId, kind: LoadKind, address: Operand) BuildError!void {
@@ -516,6 +525,9 @@ pub const Function = struct {
                     }
                 }
                 switch (instruction) {
+                    .blit => |blit| {
+                        if (try self.operandType(blit.source) != .long or try self.operandType(blit.destination) != .long) return error.TypeMismatch;
+                    },
                     .load => |load| {
                         if (!load.kind.accepts(ty.?) or try self.operandType(load.address) != .long) return error.TypeMismatch;
                     },

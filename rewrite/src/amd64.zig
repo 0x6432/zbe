@@ -172,6 +172,13 @@ const Emitter = struct {
             const id: ir.BlockId = @fromBackingInt(@as(u32, @intCast(number)));
             try self.print("\".Lzbe@{d}@b{d}\":\n", .{ index, number });
             for (block.instructions.items) |instruction| switch (instruction) {
+                .blit => |blit| {
+                    if (blit.byte_count == 0) continue;
+                    try self.load(blit.source, .accumulator);
+                    try self.print("\tmovq %rax, %rsi\n", .{});
+                    try self.load(blit.destination, .accumulator);
+                    try self.print("\tmovq %rax, %rdi\n\tmovl ${d}, %ecx\n\trep movsb\n", .{blit.byte_count});
+                },
                 .load => |read| {
                     try self.load(read.address, .accumulator);
                     try self.print("\tmovq %rax, %r10\n", .{});

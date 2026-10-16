@@ -1,7 +1,7 @@
 //! Owned simulated bytes. Synthetic IL addresses are never host pointers.
 const std = @import("std");
 const ir = @import("ir.zig");
-pub const Error = error{ InvalidMemoryRange, MemoryOutOfBounds, TypeMismatch };
+pub const Error = error{ InvalidMemoryRange, MemoryOutOfBounds, PartialMemoryOverlap, TypeMismatch };
 pub const Options = struct {
     /// Zero stays outside the image, so an IL null address is never valid.
     base: u64 = 0x10000,
@@ -77,6 +77,18 @@ pub const Image = struct {
             .word, .single => std.mem.writeInt(u32, bytes[0..4], @truncate(bits), self.endian),
             .long, .double => std.mem.writeInt(u64, bytes[0..8], bits, self.endian),
         }
+    }
+
+    /// Zero length touches no address. Check both complete spans and overlap
+    /// before mutation. Exact aliases are allowed; partial overlap is not.
+    pub fn copy(self: *Image, source_address: u64, destination_address: u64, byte_count: usize) Error!void {
+        if (byte_count == 0) return;
+        const src = try self.access(source_address, byte_count);
+        const dst = try self.access(destination_address, byte_count);
+        if (source_address == destination_address) return;
+        const distance = if (source_address < destination_address) destination_address - source_address else source_address - destination_address;
+        if (distance < byte_count) return error.PartialMemoryOverlap;
+        std.mem.copyForwards(u8, dst, src);
     }
 
     fn access(self: *const Image, address: u64, width: usize) Error![]u8 {

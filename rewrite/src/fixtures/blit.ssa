@@ -1,0 +1,18 @@
+function $blit_loop(l %src, l %dst, w %count) {
+@entry
+jmp @loop
+@loop
+%i =w phi @entry %count, @again %next
+blit %src, %dst, 7
+jnz %i, @again, @done
+@again
+%next =w sub %i, 1
+jmp @loop
+@done
+ret
+}
+function $blit_zero(l %src, l %dst) {
+@entry
+blit %src, %dst, 0
+ret
+}

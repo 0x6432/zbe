@@ -42,6 +42,7 @@ jobs:
           python3 tools/generate_unsigned_conversion_oracle.py --check
           python3 tools/generate_low_word_oracle.py --check
           python3 tools/generate_data_oracle.py --check
+          python3 tools/generate_data_string_oracle.py --check
       - name: Independent IR/frontend tests (not backend parity)
         working-directory: rewrite
         run: zig build test -Doptimize=${{ matrix.optimize }} --summary all
@@ -63,4 +64,5 @@ jobs:
             python3 tools/native_symbol_check.py $flags
             python3 tools/native_data_check.py $flags
             python3 tools/native_relocation_check.py $flags
+            python3 tools/native_string_check.py $flags
           done

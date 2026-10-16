@@ -2,7 +2,7 @@
 
 ## Ownership and invariants
 
-`Module` owns a symbol pool and separately allocated `Function` and numeric/zero-fill `Data` objects (DATA.md). Each function owns its parameters, values, blocks and each block's instruction array. Every owner accepts an allocator and has a matching `deinit`. Errors propagate to callers rather than exiting the process.
+`Module` owns a symbol pool and separately allocated `Function` and numeric/zero-fill `Data` objects (DATA.md); Data owns copied byte-string items (DATA-STRINGS.md). Each function owns its parameters, values, blocks and each block's instruction array. Every owner accepts an allocator and has a matching `deinit`. Errors propagate to callers rather than exiting the process.
 
 Long-to-word subtyping is normalized as an explicit `Operand.low_word` projection retaining the original source ID/type; it does not allocate a value or permit implicit word-to-long extension (LOW-WORD.md).
 

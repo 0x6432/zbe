@@ -154,6 +154,18 @@ const Parser = struct {
             var count: usize = 0;
             while (self.peek().kind != .comma and self.peek().kind != .rbrace) {
                 const token = self.advance();
+                if (token.kind == .string) {
+                    if (kind != 'b') return self.fail(.unsupported_construct, token);
+                    const bytes = @import("byte_strings.zig").decode(self.allocator, self.tokenText(token), data.max_object_bytes - object.byte_len) catch |err| switch (err) {
+                        error.InvalidStringLiteral => return self.fail(.invalid_string, token),
+                        else => |resource| return resource,
+                    };
+                    defer self.allocator.free(bytes);
+                    try object.append(.{ .bytes = bytes });
+                    count += 1;
+                    self.skipLines();
+                    continue;
+                }
                 const item: data.Item = if (kind == 'z') zero: {
                     if (count != 0 or token.kind != .integer) return self.fail(.unexpected_token, token);
                     const text = self.tokenText(token);

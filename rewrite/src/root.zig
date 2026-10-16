@@ -17,6 +17,7 @@ pub const lexer = @import("lexer.zig");
 pub const symbols = @import("symbols.zig");
 pub const ir = @import("ir.zig");
 pub const module_validation = @import("module_validation.zig");
+pub const byte_strings = @import("byte_strings.zig");
 pub const data = @import("data.zig");
 pub const DataId = @import("module.zig").DataId;
 pub const Module = @import("module.zig").Module;
@@ -38,6 +39,7 @@ test {
     _ = @import("symbol_addresses_test.zig");
     _ = @import("data_test.zig");
     _ = @import("data_relocations_test.zig");
+    _ = @import("data_strings_test.zig");
     _ = @import("amd64.zig");
     _ = @import("abi_amd64.zig");
     _ = @import("interpreter.zig");

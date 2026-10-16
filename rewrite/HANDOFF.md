@@ -888,3 +888,54 @@ Next bounded proposal is owned byte strings in b-data groups with explicit safe
 escape decoding, no implicit terminator and numeric-only assembly emission. It
 must preserve failure-atomic byte ownership, payload bounds, independent byte
 expectations and existing unsupported-class/output-preservation checks.
+
+## Owned byte-string data milestone (in progress)
+
+Byte data groups now support owned strings mixed with numeric bytes. A two-pass
+bounded decoder validates/counts before allocation, accepts an explicit control/
+quote/backslash/octal/exact-two-hex escape subset and rejects malformed escapes or
+physical line breaks. Raw nonescape bytes/UTF-8 are retained, with no implicit NUL,
+padding or normalization. Data.append copies byte slices and publishes only after
+copy/table allocation succeeds; failed table growth frees its copy. Data.deinit
+frees every owned byte item. Object/module payload caps include decoded bytes.
+
+AMD64 emits only numeric `.byte` lines, never raw `.ascii` text. An independent
+Python corpus supplies eight objects and358 bytes, including all256 byte values,
+UTF-8, embedded zeros, empty strings, mixed fields and assembler-like payloads.
+Six new tests passed with all existing tests: **259/259 Debug** in
+`/data/check-strings-debug.log`. The first compile found only a test binding that
+needed const (its pointed-to source bytes remain intentionally mutable); it was
+corrected before the passing run. Tests include copied ownership/source mutation,
+copy/table OOM atomic retry, decoder limits/diagnostics and exhaustive allocation
+failure cleanup. String definitions do not initialize caller Image or resolve
+interpreter globals (DATA-STRINGS.md).
+
+Eight-option Debug smoke passed in `/data/check-native-strings.log`: **1,455
+non-PIE +1,463 PIE** string/address/mutation/call results per combination,16 ELF
+metadata records,2 linked injection exclusions,2 data-only links and48 rejection/
+output-preservation checks. Existing data, relocation and symbol harnesses also
+passed all eight options unchanged in their counts. Only now-valid b-string
+negative inputs were changed to unsupported h-string forms. Existing generators
+and fixture/oracle bytes are unchanged; CI adds a fourteenth generator and a
+thirteenth native harness. Full matrix/publication CI verification follows and
+is not assumed by this in-progress record. No main merge or release tag occurred.
+
+### Byte-string authoritative local verification
+
+The CI-derived serial `/data/verify-data-strings.sh` ended **DATA STRING
+VERIFICATION PASSED**, exit0, in `/data/verify-data-strings.log`. Source was frozen
+throughout the run. Debug explicitly reused the unchanged **259/259** smoke result
+(cached test execution); ReleaseSafe and ReleaseFast freshly passed **259/259**.
+All **24** mode/option combinations passed all **thirteen** native harnesses.
+Mechanically counted **46 distinct completion groups**:45 groups exactly24 times,
+plus the2,032 linked-symbol group48 times for its two executable links. Existing
+result/fault/overflow/guard/negative-control/rejection groups stayed intact.
+
+New per-combination checks were1,455 non-PIE +1,463 PIE string results,16 ELF
+metadata,2 linked injection exclusions,2 data-only links and48 rejection/output-
+preservation checks. Formatting and all **fourteen** independent generators
+passed. Every pre-existing generator and fixture/oracle file remains unchanged;
+only the documented obsolete b-string negative inputs changed to h-string forms,
+retaining all assertion/count contracts. Scope, whitespace, credential and legacy
+isolation checks passed. No main merge, tag or backend/ABI parity claim was made.
+Publication CI will be checked independently for the exact pushed code SHA.

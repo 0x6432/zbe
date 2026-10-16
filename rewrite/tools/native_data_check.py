@@ -145,7 +145,7 @@ ret
             'data $x = align 0 {}','data $x = align 3 {}','data $x = align 128 {}',
             'data $x = { z -1 }','data $x = { z 4294967296 }','data $x = { z 16777217 }',
             'data $x = { z 1 2 }','data $x = { b }','data $x = { b 1 h 2 }','data $x = { b 1,, }',
-            'data $x = { w $other }','data $x = { h $other+8 }','data $x = { b "string" }',
+            'data $x = { w $other }','data $x = { h $other+8 }','data $x = { h "string" }',
             'data $"quoted" = {}','thread data $x = {}','section "custom" data $x = {}',
             'data $x = { s d_1 }','data $x = { s 1 }','data $x = { d d_nan(payload) }',
             'data $x = {}\ndata $x = {}',

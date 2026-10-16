@@ -166,6 +166,11 @@ const Emitter = struct {
             .half => |bits| try self.print("\t.short {d}\n", .{bits}),
             .word, .single_bits => |bits| try self.print("\t.long {d}\n", .{bits}),
             .long, .double_bits => |bits| try self.print("\t.quad {d}\n", .{bits}),
+            .bytes => |bytes| for (bytes, 0..) |byte, index| {
+                if (index % 16 == 0) try self.print("\t.byte ", .{}) else try self.print(",", .{});
+                try self.print("{d}", .{byte});
+                if (index % 16 == 15 or index + 1 == bytes.len) try self.print("\n", .{});
+            },
             .symbol_address => |reference| {
                 try self.print("\t.quad {s}", .{self.module.symbols.get(reference.symbol).?});
                 if (reference.addend > 0) try self.print("+{d}", .{reference.addend});

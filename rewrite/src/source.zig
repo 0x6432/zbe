@@ -37,6 +37,7 @@ pub const Diagnostic = struct {
         unterminated_string,
         invalid_integer,
         invalid_float,
+        invalid_string,
         unexpected_token,
         unsupported_construct,
         duplicate_function,

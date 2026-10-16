@@ -40,6 +40,7 @@ pub const Item = union(enum) {
     double_bits: u64,
     zero: u32,
     symbol_address: SymbolAddress,
+    bytes: []const u8,
     pub fn size(self: Item) usize {
         return switch (self) {
             .byte => 1,
@@ -47,6 +48,7 @@ pub const Item = union(enum) {
             .word, .single_bits => 4,
             .long, .double_bits, .symbol_address => 8,
             .zero => |count| count,
+            .bytes => |bytes| bytes.len,
         };
     }
 };
@@ -61,6 +63,7 @@ pub const Data = struct {
         return .{ .allocator = allocator, .name = name };
     }
     pub fn deinit(self: *Data) void {
+        for (self.items.items) |item| if (item == .bytes) self.allocator.free(item.bytes);
         self.items.deinit(self.allocator);
         self.* = undefined;
     }
@@ -68,7 +71,11 @@ pub const Data = struct {
     pub fn append(self: *Data, item: Item) Error!void {
         const total = std.math.add(usize, self.byte_len, item.size()) catch return error.DataTooLarge;
         if (total > max_object_bytes) return error.DataTooLarge;
-        try self.items.append(self.allocator, item);
+        // Byte items are copied, never borrowed/transferred from the caller.
+        var stored = item;
+        if (item == .bytes) stored = .{ .bytes = try self.allocator.dupe(u8, item.bytes) };
+        errdefer if (stored == .bytes) self.allocator.free(stored.bytes);
+        try self.items.append(self.allocator, stored);
         self.byte_len = total;
     }
     /// Public storage may have been edited: never trust the cached size.

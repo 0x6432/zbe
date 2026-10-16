@@ -29,10 +29,11 @@ Use `$symbol+-8` to request a negative addend. A separated lone `-` is invalid.
 Ordinary scalar `$symbol+offset` operands remain unsupported; they still require
 explicit runtime long arithmetic.
 
-Byte/half/word/single/double/zero symbolic initializers, quoted names, strings,
+Byte/half/word/single/double/zero symbolic initializers, quoted names,
 symbol differences, TLS/extern modifiers, GOT/section/common policy and relocation
 expressions other than one checked addend remain unsupported. This is a narrow
 pointer-table slice, not complete QBE data syntax or a portable pointer model.
+Owned byte strings are supported separately in b-groups (DATA-STRINGS.md).
 
 ## Linux AMD64 executable behavior
 

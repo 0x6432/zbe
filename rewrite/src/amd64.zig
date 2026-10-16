@@ -20,7 +20,12 @@ pub fn emit(allocator: std.mem.Allocator, module: *const Module) Error![]u8 {
 
 pub fn emitWithOptions(allocator: std.mem.Allocator, module: *const Module, options: Options) Error![]u8 {
     try module_validation.validate(allocator, module);
-    for (module.data.items) |object| if (!validSymbol(module.symbols.get(object.name).?)) return error.InvalidSymbol;
+    for (module.data.items) |object| {
+        if (!validSymbol(module.symbols.get(object.name).?)) return error.InvalidSymbol;
+        for (object.items.items) |item| if (item == .symbol_address) {
+            if (!validSymbol(module.symbols.get(item.symbol_address.symbol).?)) return error.InvalidSymbol;
+        };
+    }
     for (module.functions.items) |function| {
         if (!validSymbol(module.symbols.get(function.name).?)) return error.InvalidSymbol;
         if (!options.reuse_stack_homes and !options.callee_saved_homes) _ = try Frame.init(function);
@@ -161,6 +166,13 @@ const Emitter = struct {
             .half => |bits| try self.print("\t.short {d}\n", .{bits}),
             .word, .single_bits => |bits| try self.print("\t.long {d}\n", .{bits}),
             .long, .double_bits => |bits| try self.print("\t.quad {d}\n", .{bits}),
+            .symbol_address => |reference| {
+                try self.print("\t.quad {s}", .{self.module.symbols.get(reference.symbol).?});
+                if (reference.addend > 0) try self.print("+{d}", .{reference.addend});
+                // Printing the signed minimum directly never negates/overflows it.
+                if (reference.addend < 0) try self.print("{d}", .{reference.addend});
+                try self.print("\n", .{});
+            },
             .zero => |count| if (count != 0) {
                 try self.print("\t.zero {d}\n", .{count});
             },

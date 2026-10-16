@@ -1,0 +1,70 @@
+# Pointer tables are writable data; addends are explicit signed byte offsets.
+export data $reloc_table = align 16 {
+    l $reloc_bytes $reloc_bytes+1 $reloc_bytes+63,
+    l $reloc_bytes+32 $reloc_bytes+32,
+    l $reloc_external_bytes $reloc_external_bytes+17,
+    l $reloc_internal_function $reloc_external_function,
+    l $reloc_self $reloc_forward $reloc_table,
+    l $reloc_bytes+9223372036854775807 $reloc_bytes+-9223372036854775808,
+    l 81985529216486895,
+}
+data $reloc_bytes = align 64 { b 17, z 62, b 165 }
+data $reloc_forward = { l $reloc_table, b 51 }
+export data $reloc_self = { l $reloc_self }
+export data $reloc_negative = { l $reloc_external_middle+-17 }
+export data $reloc_unaligned = { b 85, l $reloc_external_bytes+1, h 8755 }
+export function l $reloc_address() {
+@e
+ret $reloc_bytes
+}
+export function l $reloc_forward_address() {
+@e
+ret $reloc_forward
+}
+function l $reloc_internal_function(l %x) {
+@e
+%r =l add %x, 257
+ret %r
+}
+export function l $reloc_internal_address() {
+@e
+ret $reloc_internal_function
+}
+export function l $reloc_read(l %i) {
+@e
+%offset =l mul %i, 8
+%p =l add $reloc_table, %offset
+%r =l loadl %p
+ret %r
+}
+export function w $reloc_load_byte(l %i) {
+@e
+%offset =l mul %i, 8
+%slot =l add $reloc_table, %offset
+%p =l loadl %slot
+%r =w loadub %p
+ret %r
+}
+export function l $reloc_callback(l %i, l %x) {
+@e
+%offset =l mul %i, 8
+%slot =l add $reloc_table, %offset
+%p =l loadl %slot
+%r =l call %p(l %x)
+ret %r
+}
+export function $reloc_write_byte(l %i, w %x) {
+@e
+%offset =l mul %i, 8
+%slot =l add $reloc_table, %offset
+%p =l loadl %slot
+storeb %x, %p
+ret
+}
+export function $reloc_replace(l %i, l %p) {
+@e
+%offset =l mul %i, 8
+%slot =l add $reloc_table, %offset
+storel %p, %slot
+ret
+}

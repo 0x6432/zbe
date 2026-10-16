@@ -12,8 +12,8 @@ Bare symbols are deliberately long-only in this subset. To project low bits, fir
 copy the symbol to a long temporary and use that temporary in a word context.
 Direct `$symbol` callees keep their existing meaning and known-signature checks;
 a long temporary containing a function address can be an indirect target. No
-symbol-plus-offset literal, quoted-symbol support or relocation
-initializer, implicit floating bit pattern, linker resolver or full ABI is added.
+ordinary scalar symbol-plus-offset literal, quoted-symbol support,
+implicit floating bit pattern, linker resolver or full ABI is added.
 Existing long arithmetic can form runtime byte offsets after taking an address.
 
 Instruction operand iteration returns the copied symbolic operand, but
@@ -35,7 +35,8 @@ The linker supplies external data/functions. This implementation supports the
 existing Linux AMD64 executable slice (PIE and non-PIE). It does **not** implement
 GOT/preemptible shared-object policy, arbitrary code models, dynamic loader symbol
 lookup, symbol visibility/TLS or full PIC support. Numeric/zero-fill data definitions are
-now implemented separately (DATA.md), without relocation initializers. Address reach
+implemented separately (DATA.md); typed long symbolic data initializers with one
+checked addend are described in DATA-RELOCATIONS.md. Address reach
 and relocation validity remain assembler/linker contracts; native dereferences
 still require valid extent/lifetime/permissions and are not sandboxed.
 

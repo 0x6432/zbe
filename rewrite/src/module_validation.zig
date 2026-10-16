@@ -12,6 +12,9 @@ pub fn validate(allocator: std.mem.Allocator, module: *const Module) Error!void 
     _ = try module.dataSize();
     for (module.data.items, 0..) |object, index| {
         _ = module.symbols.get(object.name) orelse return error.InvalidSymbol;
+        for (object.items.items) |item| if (item == .symbol_address) {
+            _ = module.symbols.get(item.symbol_address.symbol) orelse return error.InvalidSymbol;
+        };
         for (module.data.items[0..index]) |previous| if (previous.name == object.name) return error.DuplicateSymbol;
         for (module.functions.items) |function| if (function.name == object.name) return error.DuplicateSymbol;
     }

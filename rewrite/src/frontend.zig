@@ -168,8 +168,20 @@ const Parser = struct {
                         .{ .single_bits = @bitCast(parseFloating(f32, text) catch return self.fail(.invalid_float, token)) }
                     else
                         .{ .double_bits = @bitCast(parseFloating(f64, text) catch return self.fail(.invalid_float, token)) };
+                } else if (token.kind == .global) symbolic: {
+                    if (kind != 'l') return self.fail(.unsupported_construct, token);
+                    const symbol = try self.module.symbols.intern(try self.globalName(token));
+                    self.skipLines();
+                    var addend: i64 = 0;
+                    if (self.peek().kind == .plus) {
+                        _ = self.advance();
+                        self.skipLines();
+                        const offset = try self.expect(.integer);
+                        addend = std.fmt.parseInt(i64, self.tokenText(offset), 10) catch return self.fail(.invalid_integer, offset);
+                    }
+                    break :symbolic .{ .symbol_address = .{ .symbol = symbol, .addend = addend } };
                 } else integer: {
-                    if (token.kind == .global or token.kind == .string) return self.fail(.unsupported_construct, token);
+                    if (token.kind == .string) return self.fail(.unsupported_construct, token);
                     if (token.kind != .integer) return self.fail(.type_mismatch, token);
                     const bits = lex.integerBits(self.tokenText(token)) catch return self.fail(.invalid_integer, token);
                     break :integer switch (kind) {
@@ -623,7 +635,7 @@ test "diagnostics reject undefined and duplicate names at their source spans" {
 }
 
 test "malformed syntax, types and unsupported IL never silently lower" {
-    try expectInvalid("data $x = { l $other }", .unsupported_construct, "$other");
+    try expectInvalid("data $x = { w $other }", .unsupported_construct, "$other");
     try expectInvalid("function w $f() {\n@b\n%x =w alloc8 8\nret %x\n}", .type_mismatch, "alloc8");
     try expectInvalid("function $f(...) {\n@b\nret\n}", .unsupported_construct, "...");
     try expectInvalid("function w $\"quoted\"() {\n@b\nret 0\n}", .unsupported_construct, "$\"quoted\"");

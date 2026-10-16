@@ -28,6 +28,8 @@ pub const Alignment = enum(u8) {
         return @backingInt(self);
     }
 };
+/// Module-pool linker reference; it never contains a host pointer.
+pub const SymbolAddress = struct { symbol: symbols.Id, addend: i64 = 0 };
 /// Numeric fields retain exact width/bit patterns. No implicit field padding.
 pub const Item = union(enum) {
     byte: u8,
@@ -37,12 +39,13 @@ pub const Item = union(enum) {
     single_bits: u32,
     double_bits: u64,
     zero: u32,
+    symbol_address: SymbolAddress,
     pub fn size(self: Item) usize {
         return switch (self) {
             .byte => 1,
             .half => 2,
             .word, .single_bits => 4,
-            .long, .double_bits => 8,
+            .long, .double_bits, .symbol_address => 8,
             .zero => |count| count,
         };
     }

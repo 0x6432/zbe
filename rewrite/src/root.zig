@@ -37,6 +37,7 @@ test {
     _ = @import("interpreter_allocations_test.zig");
     _ = @import("symbol_addresses_test.zig");
     _ = @import("data_test.zig");
+    _ = @import("data_relocations_test.zig");
     _ = @import("amd64.zig");
     _ = @import("abi_amd64.zig");
     _ = @import("interpreter.zig");

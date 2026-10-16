@@ -55,11 +55,13 @@ The ellipsis above describes repeated parameters, **not** variadic IL. A missing
 - Floating literals retain their `s_`/`d_` width, including decimal/hex spellings, signed zero, infinity and plain NaN. Numeric conversion uses Zig, not libc. NaN payload spellings are scanned intact but **rejected explicitly by this parser** until payload semantics are implemented.
 - Phi nodes precede ordinary instructions in a block. The parser retains typed predecessor/value pairs; `ssa.validate` checks predecessor coverage and incoming-edge dominance.
 - Forward **block targets** are resolved by a declaration pass. Temporary result types are predeclared, so loop backedges and layout-independent forward references are accepted; scalar SSA validation must establish actual definition availability. Parameters and blocks are scoped per function; duplicate function/block/value names are rejected.
-- The lexer returns borrowed raw spans, including string escapes and quoted global names; it does not silently decode/rewrite names. Quoted globals, strings as operands, aggregates, strings/relocations in data, unsupported memory operations, unsupported call forms, varargs, extended ABI types and unimplemented opcodes are explicitly rejected by the parser.
+- The lexer returns borrowed raw spans, including string escapes and quoted global names; it does not silently decode/rewrite names. Quoted globals, strings as operands, aggregates, strings/unsupported relocation forms in data, unsupported memory operations, unsupported call forms, varargs, extended ABI types and unimplemented opcodes are explicitly rejected by the parser.
 
 Numeric/zero-fill data definitions are accepted outside functions; fields are packed,
 alignment defaults to eight and sizes are bounded. See DATA.md for exact group,
-linkage, ownership and rejection rules; this is not the full QBE data language.
+linkage, ownership and rejection rules. Long symbolic initializer groups with one
+checked signed addend are now supported separately (DATA-RELOCATIONS.md); ordinary
+scalar symbol+offset syntax remains unsupported. This is not the full QBE data language.
 
 ## Not a full verifier or compiler
 

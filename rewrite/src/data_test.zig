@@ -33,6 +33,7 @@ fn expectBytes(object: *const data.Data, hex: []const u8) !void {
             .single_bits => |x| x,
             .double_bits => |x| x,
             .zero => 0,
+            .symbol_address => return error.UnexpectedRelocationInNumericOracle,
         };
         for (0..item.size()) |i| {
             const actual: u8 = if (item == .zero) 0 else @truncate(bits >> @intCast(i * 8));
@@ -136,7 +137,7 @@ test "data parser rejects malformed unsupported and duplicate definitions precis
         "data $x = align 3 { b 1 }",                 "data $x = align 0 { b 1 }",                 "data $x = align -1 { b 1 }",
         "data $x = align 128 { b 1 }",               "data $x = { z -1 }",                        "data $x = { z 4294967296 }",
         "data $x = { z 1 2 }",                       "data $x = { b }",                           "data $x = { b 1,, }",
-        "data $x = { b 1 h 2 }",                     "data $x = { l $symbol }",                   "data $x = { l $symbol+8 }",
+        "data $x = { b 1 h 2 }",                     "data $x = { w $symbol }",                   "data $x = { h $symbol+8 }",
         "data $x = { b \"text\" }",                  "data $\"quoted\" = {}",                     "thread data $x = {}",
         "section \"a\" data $x = {}",                "data $x = { s d_1 }",                       "data $x = { w s_1 }",
         "data $x = { s 1 }",                         "data $x = { d d_nan(payload) }",            "data $x = {}\ndata $x = {}",

@@ -818,3 +818,57 @@ with signed addends, module symbol validation and executable PIE/non-PIE checks.
 Numeric oracle bytes remain independent and unchanged. Strings, narrow/TLS/GOT
 relocations and interpreter global resolution stay outside that proposed scope.
 No main merge, release tag or full QBE/data/ABI claim was made.
+
+## Typed long symbolic data initializer milestone (in progress)
+
+Data.Item now has a typed eight-byte SymbolAddress (module SymbolId +i64 addend).
+Long data groups accept forward/self/data/function/external symbolic initializers
+and checked signed addends. Every referenced ID/spelling is validated even for
+unused definitions. AMD64 emits full-width writable `.quad` linker expressions,
+printing signed-minimum addends directly without negation. Numeric payload limits,
+object size/binding and existing scalar address lowering are unchanged. No global
+interpreter resolver, host pointer conversion, Image growth, narrow/TLS/GOT/general
+relocations or shared-object/ABI parity is added (DATA-RELOCATIONS.md).
+
+Five new unit tests passed: **253/253 Debug** in
+`/data/check-relocations-debug.log`, including exhaustive allocation cleanup.
+A first new negative test wrongly treated `$target-8` as subtraction; the existing
+group grammar correctly parses a symbol followed by a negative numeric item.
+The test now verifies that legal two-item result and rejects a separated lone
+minus instead. No parser rejection was weakened to hide this test-author mistake.
+An additional pre-full-run assertion strengthens successful symbolic append retry
+and exact eight-byte accounting after injected OOM.
+
+Eight-option Debug smoke passed in `/data/check-native-relocations.log`: **324
+non-PIE +327 PIE** address/callback/mutation checks per option, plus12 ELF metadata,
+2 no-text-relocation checks,2 data-only links and40 rejection/output-preservation
+checks. Its initial completion count was hand-added as424 instead of324; all
+behavioral assertions had passed, and only that new harness's count arithmetic was
+corrected, with an explicit count diagnostic retained. Existing data and symbol
+harnesses also passed all eight options with all counts unchanged. Now-valid long
+symbol negative inputs were replaced only by still-unsupported narrow forms.
+Independent numeric oracle bytes and every existing generator remain unchanged.
+
+Full three-mode/eight-option verification follows. CI includes the twelfth harness;
+no full-matrix or publication-CI success is assumed by this in-progress record.
+
+### Symbolic-data authoritative local verification
+
+The current CI-derived serial `/data/verify-data-relocations.sh` completed with
+**DATA RELOCATION VERIFICATION PASSED**, exit0, recorded in
+`/data/verify-data-relocations.log` and `.exit`. No source changed during the run.
+**253/253 tests** passed in Debug, ReleaseSafe and ReleaseFast. All **24** native
+mode/option combinations passed all **twelve** harnesses. Mechanical completion
+counts matched **40 distinct groups**:39 groups exactly24 times, and the existing
+2,032 linked-symbol group48 times (PIE/non-PIE). All prior result/fault/overflow/
+negative-control/rejection checks stayed intact. New per-combination results:
+324 non-PIE +327 PIE symbolic-data results,12 ELF metadata,2 no-text-relocation,
+2 data-only link and40 rejection/output-preservation checks.
+
+Formatting and all **thirteen** independent generators passed; every pre-existing
+generator and fixture/oracle file is unchanged. Existing numeric/data/symbol
+rejection counts and output-preservation contracts were retained as documented.
+Scope, whitespace, credential and legacy-isolation checks passed. Origin remains
+credential-free. The byte-string follow-up in `/data/zbe-byte-string-followup-design.txt`
+is proposal-only, not implemented or verified. No main merge or release tag occurred.
+Publication CI is checked separately at the exact pushed code SHA.

@@ -47,9 +47,12 @@ A direct call to a defined data object is rejected with `CalledDataSymbol` rathe
 than treated as an unknown external function. Indirect address calls still carry
 the existing native caller contract, not pointer provenance or executable checks.
 
-Strings/escapes, quoted definitions, symbol relocation initializers or offsets,
+Strings/escapes, quoted definitions, unsupported symbolic relocation forms,
 thread/TLS, extern/common/section linkages and aggregate/full-data syntax remain
 unsupported. This is not complete QBE data-language compatibility.
+
+Long symbolic initializers with one checked signed addend are now supported
+separately (DATA-RELOCATIONS.md); other relocations remain unsupported.
 
 ## Linux AMD64 emission
 
@@ -64,7 +67,7 @@ Data-only modules are valid compilation units. Emission does not modify IR.
 Ordinary long `$symbol` address operands use the existing full-width RIP-relative
 executable lowering (SYMBOL-ADDRESSES.md). PIE and non-PIE executables are covered;
 there is no GOT/preemptible shared-library policy, arbitrary code model, TLS,
-relocation initializer support, sandbox or full ABI/platform parity claim.
+general relocation-expression support, sandbox or full ABI/platform parity claim.
 
 ## Interpreter boundary and independent checks
 

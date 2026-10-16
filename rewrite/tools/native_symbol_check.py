@@ -113,7 +113,7 @@ int main(int argc,char **argv) {
             'function l $f() {\n@e\nret $"quoted"\n}',
             'function l $f() {\n@e\nret thread $target\n}',
             'function l $f() {\n@e\nret extern $target\n}',
-            'data $target = { l $other }',
+            'data $target = { w $other }',
             'function $f() {\n@e\ncall $callee(w $target)\nret\n}',
         )
         for text in bad_inputs:

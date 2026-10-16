@@ -1,0 +1,155 @@
+//! Invocation-owned synthetic objects plus a borrowed, never resized Image.
+const std = @import("std");
+const ir = @import("ir.zig");
+const memory = @import("memory.zig");
+pub const StackOptions = struct {
+    base: u64 = 0x100000000,
+    max_bytes: usize = 1024 * 1024,
+    endian: std.builtin.Endian = .little,
+};
+pub const Error = memory.Error || std.mem.Allocator.Error || error{
+    InvalidStackRange,
+    AllocationSizeOverflow,
+    StackLimitExceeded,
+    UninitializedMemory,
+    UnsupportedAllocation,
+    UnsupportedMemory,
+};
+
+const Object = struct {
+    address: u64,
+    bytes: []u8,
+    initialized: []bool,
+
+    fn deinit(self: Object, allocator: std.mem.Allocator) void {
+        allocator.free(self.bytes);
+        allocator.free(self.initialized);
+    }
+};
+const Span = struct {
+    bytes: []u8,
+    initialized: ?[]bool,
+    endian: std.builtin.Endian,
+
+    fn requireInitialized(self: Span) Error!void {
+        if (self.initialized) |defined| for (defined) |byte| {
+            if (!byte) return error.UninitializedMemory;
+        };
+    }
+    fn define(self: Span) void {
+        if (self.initialized) |defined| @memset(defined, true);
+    }
+};
+
+/// Owns all stack bytes/metadata. Image remains caller-owned. Do not copy.
+/// Public for direct internal tests; the supported caller API is Options.
+pub const Space = struct {
+    allocator: std.mem.Allocator,
+    image: ?*memory.Image,
+    stack: ?StackOptions,
+    used: usize = 0,
+    objects: std.ArrayList(Object) = .empty,
+
+    pub fn init(allocator: std.mem.Allocator, image: ?*memory.Image, stack: ?StackOptions) Error!Space {
+        if (stack) |options| {
+            if (options.base == 0 or options.base % 16 != 0) return error.InvalidStackRange;
+            if (options.max_bytes != 0) {
+                const last_offset = std.math.cast(u64, options.max_bytes - 1) orelse return error.InvalidStackRange;
+                const last = std.math.add(u64, options.base, last_offset) catch return error.InvalidStackRange;
+                if (image) |borrowed| if (borrowed.bytes.len != 0) {
+                    const image_last = borrowed.base + @as(u64, @intCast(borrowed.bytes.len - 1));
+                    if (options.base <= image_last and borrowed.base <= last) return error.InvalidStackRange;
+                };
+            }
+        }
+        return .{ .allocator = allocator, .image = image, .stack = stack };
+    }
+
+    pub fn deinit(self: *Space) void {
+        self.releaseTo(0);
+        self.objects.deinit(self.allocator);
+        self.* = undefined;
+    }
+    pub fn mark(self: *const Space) usize {
+        return self.objects.items.len;
+    }
+    pub fn releaseTo(self: *Space, object_count: usize) void {
+        std.debug.assert(object_count <= self.objects.items.len);
+        while (self.objects.items.len > object_count) self.objects.pop().?.deinit(self.allocator);
+        // Do not rewind used: a later invocation must not revive stale addresses.
+    }
+    pub fn allocate(self: *Space, size: u64) Error!u64 {
+        const options = self.stack orelse return error.UnsupportedAllocation;
+        if (size == 0) return 0;
+        const sum = std.math.add(u64, size, 15) catch return error.AllocationSizeOverflow;
+        const rounded = sum & ~@as(u64, 15);
+        const charge = std.math.add(u64, rounded, 16) catch return error.StackLimitExceeded;
+        if (charge > options.max_bytes - self.used) return error.StackLimitExceeded;
+        const count = std.math.cast(usize, size) orelse return error.StackLimitExceeded;
+        const bytes = try self.allocator.alloc(u8, count);
+        errdefer self.allocator.free(bytes);
+        const initialized = try self.allocator.alloc(bool, count);
+        errdefer self.allocator.free(initialized);
+        @memset(initialized, false);
+        const address = options.base + @as(u64, @intCast(self.used));
+        try self.objects.append(self.allocator, .{ .address = address, .bytes = bytes, .initialized = initialized });
+        self.used += @intCast(charge);
+        return address;
+    }
+    pub fn read(self: *Space, kind: ir.LoadKind, ty: ir.ScalarType, address: u64) Error!ir.Constant {
+        try self.requireEnabled();
+        if (!kind.accepts(ty)) return error.TypeMismatch;
+        const span = try self.access(address, memory.loadWidth(kind));
+        try span.requireInitialized();
+        const borrowed = self.view(span, address);
+        return borrowed.read(kind, ty, address);
+    }
+    pub fn write(self: *Space, kind: ir.StoreKind, value: ir.Constant, address: u64) Error!void {
+        try self.requireEnabled();
+        if (kind.valueType() != value.scalarType()) return error.TypeMismatch;
+        const span = try self.access(address, memory.storeWidth(kind));
+        var borrowed = self.view(span, address);
+        try borrowed.write(kind, value, address);
+        span.define();
+    }
+    pub fn copy(self: *Space, src: u64, dst: u64, count: usize) Error!void {
+        try self.requireEnabled();
+        if (count == 0) return;
+        const source = try self.access(src, count);
+        const destination = try self.access(dst, count);
+        const distance = if (src < dst) dst - src else src - dst;
+        if (src != dst and distance < count) return error.PartialMemoryOverlap;
+        try source.requireInitialized();
+        if (src != dst) std.mem.copyForwards(u8, destination.bytes, source.bytes);
+        destination.define();
+    }
+    fn requireEnabled(self: *const Space) Error!void {
+        if (self.image == null and self.stack == null) return error.UnsupportedMemory;
+    }
+    fn view(self: *const Space, span: Span, address: u64) memory.Image {
+        // Borrowed checked view only. Never deinit it or expose it to callers.
+        return .{ .allocator = self.allocator, .bytes = span.bytes, .base = address, .endian = span.endian };
+    }
+    fn access(self: *Space, address: u64, width: usize) Error!Span {
+        std.debug.assert(width > 0);
+        if (width - 1 > std.math.maxInt(u64) - address) return error.MemoryOutOfBounds;
+        if (self.image) |image| if (offsetIn(image.base, image.bytes.len, address, width)) |offset| {
+            return .{ .bytes = image.bytes[offset..][0..width], .initialized = null, .endian = image.endian };
+        };
+        for (self.objects.items) |object| if (offsetIn(object.address, object.bytes.len, address, width)) |offset| {
+            return .{
+                .bytes = object.bytes[offset..][0..width],
+                .initialized = object.initialized[offset..][0..width],
+                .endian = self.stack.?.endian,
+            };
+        };
+        return error.MemoryOutOfBounds;
+    }
+};
+
+fn offsetIn(base: u64, length: usize, address: u64, width: usize) ?usize {
+    if (address < base) return null;
+    const offset = std.math.cast(usize, address - base) orelse return null;
+    if (offset > length or width > length - offset) return null;
+    return offset;
+}

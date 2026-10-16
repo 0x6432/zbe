@@ -18,7 +18,7 @@ Rounding checks `size + 15` for unsigned overflow before masking. Overflow delib
 
 ## Interpreter boundary remains explicit
 
-Neither standalone nor module evaluation implements a stack object/address/lifetime model yet. A reached allocation consumes its ordinary instruction step and returns **`UnsupportedAllocation`**, even for zero bytes or with a supplied `memory.Image`. Earlier step-budget exhaustion wins. No numeric IL address is converted into a host pointer, the caller's Image is not resized, and no fabricated pointer value is returned. An earlier successful image write persists after allocation refusal in a child call; evaluator-owned frames still clean up. Unreached allocations do not fail safe paths. Native support must not be described as interpreter allocation support.
+By default a reached allocation consumes its ordinary instruction step and returns **`UnsupportedAllocation`**, even for zero bytes or with a supplied `memory.Image`. Opt-in `Options.stack_memory` now supplies a separate bounded synthetic object/lifetime/initialization model to both evaluators (INTERPRETER-ALLOCATIONS.md). Earlier step-budget exhaustion wins. No numeric IL address becomes a host pointer and the caller's Image is never resized. Earlier successful image writes persist after later errors; evaluator-owned frames and objects clean up. Unreached allocations do not fail safe paths. The opt-in diagnostic model does not make native addresses safe or specify QBE invalid-program behavior.
 
 ## Bounded regression design
 
@@ -28,4 +28,4 @@ Six new allocation tests cover failure-atomic builder retry/types/structure, all
 
 Two controlled-stack child cases require **SIGSEGV** from real dynamic page probes; two test-only unprobed negative controls must return successfully. Three checked round-up-overflow cases require **SIGILL** as an implementation boundary, not a valid-input numeric oracle. Twelve invalid-input/output-preservation checks retain no implicit word-to-long sizing and strict result classes/arity. Children have timeouts and disabled core dumps. No object is dereferenced after its invocation returns, and no uninitialized byte is used as an oracle.
 
-All nine harnesses run in the three-build/eight-option matrix; the twelve existing independent generators remain unchanged. Actual verification results belong in HANDOFF.md after completion. This is still a scalar/native subset, not a complete compiler, interpreter stack model, full ABI/target coverage or a claim of 100% idiomatic Zig.
+All nine harnesses run in the three-build/eight-option matrix; the twelve existing independent generators remain unchanged. Actual verification results belong in HANDOFF.md after completion. This is still a scalar/native subset, not a complete compiler, full memory model, full ABI/target coverage or a claim of 100% idiomatic Zig.

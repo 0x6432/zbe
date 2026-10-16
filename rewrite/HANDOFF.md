@@ -563,3 +563,71 @@ The authoritative non-overlapping `/data/verify-native-allocations.log` ended `N
 ### Native dynamic allocation published CI and requested stop
 
 Code checkpoint `35026f9e8bd62db4b5b18402d9f835535a771a6c` passed https://github.com/0x6432/zbe/actions/runs/38937920348: **Debug, ReleaseSafe and ReleaseFast all completed successfully**, including 226 unit tests, twelve generator checks and all eight option combinations of all nine native harnesses. Verified through the GitHub run and jobs APIs after completion, not inferred from a running workflow. This final documentation-only record does not alter the verified code; its commit skips redundant CI. Work stops here at the user's request. No next milestone was started, no main integration performed and no release tag created.
+
+## Opt-in bounded synthetic interpreter stack objects
+
+Continued at the user's explicit authorization from clean remote `0c1aa78`; the
+prior requested stop is superseded for this milestone. Added optional
+`Options.stack_memory`, separately owned synthetic objects and initialization
+tracking without host-pointer casts or Image resizing. Both evaluators retain
+allocation refusal by default. Enabled allocations are 16-aligned, requested-span
+bounded, cumulatively capped and function-scoped. Returning frees only that
+frame's objects; monotonic addresses prevent sibling calls reviving dead objects
+within one evaluation. New evaluations intentionally reset the numeric namespace,
+not a cross-evaluation provenance guarantee. See INTERPRETER-ALLOCATIONS.md for
+zero-size, round-up/cap errors, configuration/region checks and diagnostic limits.
+
+Reads and blit sources require initialized bytes. Whole-span validation precedes
+writes/copies; cross Image/object copies work without conversion. Earlier Image
+writes survive all later errors. Each operation consumes its ordinary instruction
+step, including unused allocations; existing shared depth/step limits and
+external/indirect refusals remain intact. Native allocation/emission, independent
+oracle/generator files and legacy implementation are unchanged.
+
+Ten new tests cover full reservation/disjoint boundaries, padding/guards/dead
+objects, initialization and failure atomicity, all allocation forms, loop
+freshness, recursive caller contents through 1,001 frames, exact budgets,
+retained Image writes, folding and exhaustive injected cleanup/retry (including
+recursive handle growth and child-call errors). The unchanged independent
+1,472-row Python memory oracle additionally runs through allocations and
+cross-region blits at eight offsets in both byte orders.
+
+Initial Debug smoke passed **236/236 tests** in
+`/data/check-interpreter-allocations.log`. Two Zig local/declaration name-shadowing
+compile errors were corrected before the passing run. Child-error coverage was
+then strengthened before starting fresh full verification. The serial,
+CI-equivalent `/data/verify-interpreter-allocations.sh` performs all three builds,
+eight option sets, nine native harnesses, twelve generator checks and formatting.
+No full-matrix or publication-CI result is assumed until observed. No main merge
+or release tag is authorized or performed.
+
+### Interpreter stack allocation local verification and publication boundary
+
+The authoritative serial `/data/verify-interpreter-allocations.log` ended
+`INTERPRETER STACK ALLOCATION VERIFICATION PASSED` with exit status 0. All three
+modes (Debug, ReleaseSafe and ReleaseFast) freshly passed **236/236 unit tests**
+after strengthening child-error coverage. All **24 native combinations** passed
+all **nine unchanged native harnesses**. All **26** result/fault/rejection/control
+completion markers were mechanically counted exactly **24 times**. Per-combination
+defined results remain 3,378 integer/program, 3,560 floating/bit-pattern/mixed-ABI,
+890 call/ABI/effect, 55,198 scalar-memory, 3,041 blit, 1,554 numeric conversion,
+2,114 projection, six fixed-frame and 580 dynamic-allocation results. All existing
+fault, guard, overflow, output-preservation and unprobed negative controls passed.
+Formatting and all **twelve independent generator checks** passed. Legacy
+source/build/tools/tests, native emitter and existing fixtures/oracles/generators
+are unchanged. Scope/credential scans and diff whitespace checks passed.
+
+GitHub device sign-in expired without approval. No exposed credential was used;
+no authentication token was written into the repository, Git remote, handoff or
+patch. Temporary authentication configuration was removed. The remote remained
+`0c1aa78` when freshly fetched after verification. Work is committed locally on
+`rewrite/zig-native`, but **not pushed**: this checkpoint has **no GitHub Actions
+run**, and no publication CI success is claimed. The earlier green native
+allocation CI is only evidence for its earlier code checkpoint, not this change.
+
+Resume by authenticating with a fresh secure GitHub/device connection, inspecting
+the remote with fetch and the ancestor check, pushing only rewrite/zig-native,
+then checking Actions for that exact pushed SHA and recording actual results.
+Do not merge main or create a release tag. A credential-free format-patch of the
+local checkpoint is also retained outside the repository for handoff. No further
+feature milestone was started.

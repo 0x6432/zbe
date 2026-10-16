@@ -58,12 +58,7 @@ pub const Image = struct {
     /// Check type and entire extent before the first write. No partial failures.
     pub fn write(self: *Image, kind: ir.StoreKind, value: ir.Constant, address: u64) Error!void {
         if (kind.valueType() != value.scalarType()) return error.TypeMismatch;
-        const width: usize = switch (kind) {
-            .byte => 1,
-            .half => 2,
-            .word, .single => 4,
-            .long, .double => 8,
-        };
+        const width = storeWidth(kind);
         const bytes = try self.access(address, width);
         const bits: u64 = switch (value) {
             .word => |v| v,
@@ -99,11 +94,20 @@ pub const Image = struct {
     }
 };
 
-fn loadWidth(kind: ir.LoadKind) usize {
+pub fn loadWidth(kind: ir.LoadKind) usize {
     return switch (kind) {
         .signed_byte, .unsigned_byte => 1,
         .signed_half, .unsigned_half => 2,
         .signed_word, .unsigned_word, .single => 4,
+        .long, .double => 8,
+    };
+}
+
+pub fn storeWidth(kind: ir.StoreKind) usize {
+    return switch (kind) {
+        .byte => 1,
+        .half => 2,
+        .word, .single => 4,
         .long, .double => 8,
     };
 }

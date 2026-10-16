@@ -3,19 +3,23 @@ const ir = @import("ir.zig");
 const ssa = @import("ssa.zig");
 const semantics = @import("semantics.zig");
 const memory = @import("memory.zig");
+const evaluation_memory = @import("evaluation_memory.zig");
+pub const StackOptions = evaluation_memory.StackOptions;
 const module_validation = @import("module_validation.zig");
 const Module = @import("module.zig").Module;
 const FunctionId = @import("module.zig").FunctionId;
 
 pub const Options = struct {
     max_steps: usize = 100_000,
+    /// Owned per evaluation; synthetic objects only, never host addresses.
+    stack_memory: ?StackOptions = null,
     /// Borrowed for this invocation and all child frames; no host address space.
     memory_image: ?*memory.Image = null,
     /// Total active invocation frames, including the entry function.
     max_call_depth: usize = 64,
 };
 pub const ArithmeticError = semantics.ArithmeticError;
-pub const Error = semantics.ConversionError || ArithmeticError || memory.Error || module_validation.Error || error{
+pub const Error = semantics.ConversionError || ArithmeticError || evaluation_memory.Error || module_validation.Error || error{
     ArgumentCountMismatch,
     ArgumentTypeMismatch,
     StepLimitExceeded,
@@ -57,6 +61,7 @@ const Frame = struct {
     entered: bool = false,
     next_instruction: usize = 0,
     return_destination: ?ir.ValueId,
+    object_mark: usize = 0,
 
     fn init(allocator: std.mem.Allocator, function: *const ir.Function, arguments: []const ir.Constant, destination: ?ir.ValueId) Error!Frame {
         if (arguments.len != function.parameters.items.len) return error.ArgumentCountMismatch;
@@ -88,6 +93,8 @@ fn appendFrame(allocator: std.mem.Allocator, frames: *std.ArrayList(Frame), func
 
 fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *const ir.Function, arguments: []const ir.Constant, options: Options) Error!?ir.Constant {
     if (options.max_call_depth == 0) return error.CallDepthLimitExceeded;
+    var space = try evaluation_memory.Space.init(allocator, options.memory_image, options.stack_memory);
+    defer space.deinit();
     var frames: std.ArrayList(Frame) = .empty;
     defer {
         for (frames.items) |*frame| frame.deinit(allocator);
@@ -118,25 +125,26 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
             const instruction = block.instructions.items[frame.next_instruction];
             frame.next_instruction += 1;
             switch (instruction) {
-                .allocate => return error.UnsupportedAllocation,
+                .allocate => |allocation| {
+                    const size = (try resolve(frame.values, allocation.size)).long;
+                    frame.values[@backingInt(allocation.result)] = .{ .long = try space.allocate(size) };
+                    continue;
+                },
                 .blit => |blit| {
-                    const image = options.memory_image orelse return error.UnsupportedMemory;
                     const src = (try resolve(frame.values, blit.source)).long;
                     const dst = (try resolve(frame.values, blit.destination)).long;
-                    try image.copy(src, dst, blit.byte_count);
+                    try space.copy(src, dst, blit.byte_count);
                     continue;
                 },
                 .load => |read| {
-                    const image = options.memory_image orelse return error.UnsupportedMemory;
                     const address = (try resolve(frame.values, read.address)).long;
                     const ty = frame.function.values.items[@backingInt(read.result)].scalar_type;
-                    frame.values[@backingInt(read.result)] = try image.read(read.kind, ty, address);
+                    frame.values[@backingInt(read.result)] = try space.read(read.kind, ty, address);
                     continue;
                 },
                 .store => |store| {
-                    const image = options.memory_image orelse return error.UnsupportedMemory;
                     const address = (try resolve(frame.values, store.address)).long;
-                    try image.write(store.kind, try resolve(frame.values, store.value), address);
+                    try space.write(store.kind, try resolve(frame.values, store.value), address);
                     continue;
                 },
                 else => {},
@@ -153,7 +161,9 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
                 const actual = try allocator.alloc(ir.Constant, call.arguments.len);
                 defer allocator.free(actual);
                 for (call.arguments, actual) |argument, *value| value.* = try resolve(frame.values, argument.operand);
+                const object_mark = space.mark();
                 try appendFrame(allocator, &frames, callee, actual, call.result);
+                frames.items[frames.items.len - 1].object_mark = object_mark;
                 continue; // The old frame pointer may now be invalid.
             }
             frame.values[@backingInt(instruction.result().?)] = try scalarInstruction(frame.function, frame.values, instruction);
@@ -171,6 +181,7 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
                 const value = if (operand) |v| try resolve(frame.values, v) else null;
                 var completed = frames.pop().?;
                 const destination = completed.return_destination;
+                space.releaseTo(completed.object_mark);
                 completed.deinit(allocator);
                 if (frames.items.len == 0) return value;
                 if (destination) |result| {

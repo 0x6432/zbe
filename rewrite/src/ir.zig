@@ -45,14 +45,41 @@ pub const Constant = union(enum) {
 
 pub const Operand = union(enum) { value: ValueId, constant: Constant };
 pub const BinaryOp = enum { add, sub, mul, bit_and, bit_or, bit_xor };
+pub const IntegerType = enum {
+    word,
+    long,
+    pub fn scalar(self: IntegerType) ScalarType {
+        return switch (self) {
+            .word => .word,
+            .long => .long,
+        };
+    }
+};
+pub const ShiftOp = enum { left, logical_right, arithmetic_right };
+pub const IntegerPredicate = enum {
+    equal,
+    not_equal,
+    signed_less,
+    signed_less_equal,
+    signed_greater,
+    signed_greater_equal,
+    unsigned_less,
+    unsigned_less_equal,
+    unsigned_greater,
+    unsigned_greater_equal,
+};
 pub const Instruction = union(enum) {
     binary: struct { result: ValueId, op: BinaryOp, lhs: Operand, rhs: Operand },
     copy: struct { result: ValueId, operand: Operand },
+    shift: struct { result: ValueId, op: ShiftOp, value: Operand, amount: Operand },
+    compare_integer: struct { result: ValueId, predicate: IntegerPredicate, operand_type: IntegerType, lhs: Operand, rhs: Operand },
 
     pub fn result(self: Instruction) ValueId {
         return switch (self) {
             .binary => |binary| binary.result,
             .copy => |copy| copy.result,
+            .shift => |shift| shift.result,
+            .compare_integer => |comparison| comparison.result,
         };
     }
 };
@@ -189,6 +216,26 @@ pub const Function = struct {
         target.instructions.appendAssumeCapacity(.{ .copy = .{ .result = result, .operand = operand } });
     }
 
+    pub fn defineShift(self: *Function, block_id: BlockId, result: ValueId, op: ShiftOp, operand: Operand, amount: Operand) BuildError!void {
+        const target = try self.getBlock(block_id);
+        if (target.terminator != null) return error.BlockTerminated;
+        const value = try self.pendingValue(result);
+        try self.checkShift(value.scalar_type, operand, amount);
+        try target.instructions.ensureUnusedCapacity(self.allocator, 1);
+        value.definition = .{ .instruction = .{ .block = block_id, .index = target.instructions.items.len } };
+        target.instructions.appendAssumeCapacity(.{ .shift = .{ .result = result, .op = op, .value = operand, .amount = amount } });
+    }
+
+    pub fn defineIntegerCompare(self: *Function, block_id: BlockId, result: ValueId, predicate: IntegerPredicate, operand_type: IntegerType, lhs: Operand, rhs: Operand) BuildError!void {
+        const target = try self.getBlock(block_id);
+        if (target.terminator != null) return error.BlockTerminated;
+        const value = try self.pendingValue(result);
+        try self.checkIntegerCompare(value.scalar_type, operand_type, lhs, rhs);
+        try target.instructions.ensureUnusedCapacity(self.allocator, 1);
+        value.definition = .{ .instruction = .{ .block = block_id, .index = target.instructions.items.len } };
+        target.instructions.appendAssumeCapacity(.{ .compare_integer = .{ .result = result, .predicate = predicate, .operand_type = operand_type, .lhs = lhs, .rhs = rhs } });
+    }
+
     pub fn definePhi(self: *Function, block_id: BlockId, result: ValueId, inputs: []const PhiInput) BuildError!void {
         const target = try self.getBlock(block_id);
         if (target.terminator != null) return error.BlockTerminated;
@@ -286,6 +333,8 @@ pub const Function = struct {
                 switch (instruction) {
                     .binary => |binary| try self.checkBinary(ty, binary.op, binary.lhs, binary.rhs),
                     .copy => |copy| if (try self.operandType(copy.operand) != ty) return error.TypeMismatch,
+                    .shift => |shift| try self.checkShift(ty, shift.value, shift.amount),
+                    .compare_integer => |comparison| try self.checkIntegerCompare(ty, comparison.operand_type, comparison.lhs, comparison.rhs),
                 }
             }
             try self.checkTerminator(b.terminator orelse return error.MissingTerminator);
@@ -309,6 +358,14 @@ pub const Function = struct {
             .bit_and, .bit_or, .bit_xor => if (!ty.isInteger()) return error.TypeMismatch,
             else => {},
         }
+    }
+
+    fn checkShift(self: *const Function, ty: ScalarType, value: Operand, amount: Operand) ValidationError!void {
+        if (!ty.isInteger() or try self.operandType(value) != ty or try self.operandType(amount) != .word) return error.TypeMismatch;
+    }
+
+    fn checkIntegerCompare(self: *const Function, result_type: ScalarType, operand_type: IntegerType, lhs: Operand, rhs: Operand) ValidationError!void {
+        if (!result_type.isInteger() or try self.operandType(lhs) != operand_type.scalar() or try self.operandType(rhs) != operand_type.scalar()) return error.TypeMismatch;
     }
 
     fn checkTerminator(self: *const Function, terminator: Terminator) ValidationError!void {

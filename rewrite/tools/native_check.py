@@ -38,6 +38,25 @@ def main() -> None:
         declarations.append(f'extern {"uint32_t" if ty == "w" else "uint64_t"} {name}(void);')
         check(f"{name}()", int(expected))
     assert len(functions) == 384
+    extra_count = 0
+    for line in (root / "src/fixtures/scalar-extra-oracle.tsv").read_text().splitlines():
+        if not line or line.startswith("#"):
+            continue
+        ty, opcode, lhs, rhs, expected = line.split()
+        name = f"scalar_extra_{extra_count}"
+        functions.append(f"export function {ty} ${name}() {{\n@entry\n%x ={ty} {opcode} {lhs}, {rhs}\nret %x\n}}")
+        declarations.append(f'extern {"uint32_t" if ty == "w" else "uint64_t"} {name}(void);')
+        check(f"{name}()", int(expected))
+        extra_count += 1
+    assert extra_count == 832
+    functions.append((root / "src/fixtures/compare-loop.ssa").read_text())
+    declarations.append("extern uint64_t sum_until(uint64_t);")
+    for n in (0, 1, 2, 10, 100):
+        check(f"sum_until({n})", n * (n - 1) // 2)
+    functions.append("export function l $shift_args(l %a, l %b, l %c, l %d, w %amount) {\n@entry\n%x =l shl %a, %amount\n%y =l add %x, %d\nret %y\n}")
+    declarations.append("extern uint64_t shift_args(uint64_t, uint64_t, uint64_t, uint64_t, uint32_t);")
+    for amount in (0, 65):
+        check(f"shift_args(3, 0, 0, UINT64_C({1 << 36}), {amount})", (3 << (amount & 63)) + (1 << 36))
     functions.append((root / "src/fixtures/constant-jump.ssa").read_text())
     for name, expected in (("jconstant", 0), ("jproduct", 0), ("jnegative", 0), ("jnonzero", 1)):
         declarations.append(f"extern uint32_t {name}(void);")

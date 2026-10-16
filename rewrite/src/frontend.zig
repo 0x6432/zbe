@@ -8,6 +8,27 @@ const binary_opcodes = std.StaticStringMap(ir.BinaryOp).initComptime(.{
     .{ "add", .add },     .{ "sub", .sub },   .{ "mul", .mul },
     .{ "and", .bit_and }, .{ "or", .bit_or }, .{ "xor", .bit_xor },
 });
+const shift_opcodes = std.StaticStringMap(ir.ShiftOp).initComptime(.{
+    .{ "shl", .left }, .{ "shr", .logical_right }, .{ "sar", .arithmetic_right },
+});
+const comparison_predicates = std.StaticStringMap(ir.IntegerPredicate).initComptime(.{
+    .{ "ceq", .equal },             .{ "cne", .not_equal },
+    .{ "cslt", .signed_less },      .{ "csle", .signed_less_equal },
+    .{ "csgt", .signed_greater },   .{ "csge", .signed_greater_equal },
+    .{ "cult", .unsigned_less },    .{ "cule", .unsigned_less_equal },
+    .{ "cugt", .unsigned_greater }, .{ "cuge", .unsigned_greater_equal },
+});
+const ComparisonOpcode = struct { predicate: ir.IntegerPredicate, operand_type: ir.IntegerType };
+fn comparisonOpcode(spelling: []const u8) ?ComparisonOpcode {
+    if (spelling.len < 4) return null;
+    const ty: ir.IntegerType = switch (spelling[spelling.len - 1]) {
+        'w' => .word,
+        'l' => .long,
+        else => return null,
+    };
+    const predicate = comparison_predicates.get(spelling[0 .. spelling.len - 1]) orelse return null;
+    return .{ .predicate = predicate, .operand_type = ty };
+}
 pub const Error = Allocator.Error || error{ InvalidInput, TooManySymbols, TooManyFunctions, TooManyValues, TooManyBlocks };
 
 /// Parse the documented scalar subset into an independently owned module.
@@ -167,6 +188,16 @@ const Parser = struct {
                 _ = self.advance();
             }
             f.definePhi(block, result, inputs.items) catch |err| return self.irError(err, opcode);
+        } else if (shift_opcodes.get(spelling)) |op| {
+            const operand = try self.readOperand(ty);
+            _ = try self.expect(.comma);
+            const amount = try self.readOperand(.word);
+            f.defineShift(block, result, op, operand, amount) catch |err| return self.irError(err, opcode);
+        } else if (comparisonOpcode(spelling)) |comparison| {
+            const lhs = try self.readOperand(comparison.operand_type.scalar());
+            _ = try self.expect(.comma);
+            const rhs = try self.readOperand(comparison.operand_type.scalar());
+            f.defineIntegerCompare(block, result, comparison.predicate, comparison.operand_type, lhs, rhs) catch |err| return self.irError(err, opcode);
         } else {
             const op = binary_opcodes.get(spelling) orelse return self.fail(.unsupported_construct, opcode);
             const lhs = try self.readOperand(ty);
@@ -504,4 +535,10 @@ test "phi syntax predeclares backedge values and rejects late phi nodes" {
     try testing.expectEqual(@as(usize, 3), module.functions.items[0].blocks.items[1].phis.items.len);
     try expectInvalid("function w $f() {\n@entry\njmp @b\n@b\n%x =w copy 1\n%y =w phi @entry 2\nret %y\n}", .phi_after_instruction, "phi");
     try expectInvalid("function w $f() {\n@entry\njmp @b\n@b\n%x =w phi @entry d_2\nret %x\n}", .type_mismatch, "d_2");
+}
+
+test "shifts require integer values and word counts and comparisons require integer results" {
+    try expectInvalid("function l $f(l %count) {\n@b\n%x =l shl 1, %count\nret %x\n}", .type_mismatch, "%count");
+    try expectInvalid("function d $f() {\n@b\n%x =d shl d_1, 1\nret %x\n}", .type_mismatch, "shl");
+    try expectInvalid("function d $f() {\n@b\n%x =d ceqw 1, 1\nret %x\n}", .type_mismatch, "ceqw");
 }

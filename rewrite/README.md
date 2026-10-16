@@ -23,7 +23,7 @@ The independent build exports `zbe_native` without linking libc or importing the
 - Allocator-owned interned symbols, with stable string storage.
 - Independent modules owning separately allocated functions; function pointers survive module-table growth.
 - Function-owned typed value/block IDs and growable instruction storage.
-- Tagged scalar constants and operands, typed copy/phi, integer/floating arithmetic subset, integer bitwise operations, branch/jump/return terminators.
+- Tagged scalar constants and operands, typed copy/phi, integer/floating arithmetic subset, integer bitwise operations, typed shifts and signed/unsigned comparisons, branch/jump/return terminators.
 - Source spans, typed diagnostics, allocation-free lexer and transactional scalar parser with forward block resolution.
 - Structural/type checks, owned CFG snapshots, dominators and explicit scalar SSA use/phi-edge validation.
 - Bounded scalar interpreter and independent integer/dominance oracle checks.

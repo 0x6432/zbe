@@ -46,6 +46,8 @@ pub fn evaluate(allocator: std.mem.Allocator, function: *const ir.Function, argu
             try step(&remaining);
             const result = switch (instruction) {
                 .copy => |copy| try resolve(values, copy.operand),
+                .shift => |shift| shiftedValue(shift.op, try resolve(values, shift.value), (try resolve(values, shift.amount)).word),
+                .compare_integer => |comparison| comparisonValue(comparison.predicate, try resolve(values, comparison.lhs), try resolve(values, comparison.rhs), function.values.items[@backingInt(comparison.result)].scalar_type),
                 .binary => |binary| binaryValue(binary.op, try resolve(values, binary.lhs), try resolve(values, binary.rhs)),
             };
             values[@backingInt(instruction.result())] = result;
@@ -73,6 +75,46 @@ fn resolve(values: []const ?ir.Constant, operand: ir.Operand) error{Uninitialize
     return switch (operand) {
         .constant => |constant| constant,
         .value => |value| values[@backingInt(value)] orelse error.UninitializedValue,
+    };
+}
+
+fn shiftedValue(op: ir.ShiftOp, value: ir.Constant, amount: u32) ir.Constant {
+    return switch (value) {
+        .word => |bits| .{ .word = shifted(u32, i32, u5, op, bits, amount) },
+        .long => |bits| .{ .long = shifted(u64, i64, u6, op, bits, amount) },
+        else => unreachable,
+    };
+}
+fn shifted(comptime U: type, comptime S: type, comptime Count: type, op: ir.ShiftOp, value: U, amount: u32) U {
+    const count: Count = @truncate(amount);
+    return switch (op) {
+        .left => value << count,
+        .logical_right => value >> count,
+        .arithmetic_right => @bitCast(@as(S, @bitCast(value)) >> count),
+    };
+}
+fn comparisonValue(predicate: ir.IntegerPredicate, lhs: ir.Constant, rhs: ir.Constant, result_type: ir.ScalarType) ir.Constant {
+    const result = switch (lhs) {
+        .word => |a| compare(u32, i32, predicate, a, rhs.word),
+        .long => |a| compare(u64, i64, predicate, a, rhs.long),
+        else => unreachable,
+    };
+    return if (result_type == .word) .{ .word = @intFromBool(result) } else .{ .long = @intFromBool(result) };
+}
+fn compare(comptime U: type, comptime S: type, predicate: ir.IntegerPredicate, lhs: U, rhs: U) bool {
+    const a: S = @bitCast(lhs);
+    const b: S = @bitCast(rhs);
+    return switch (predicate) {
+        .equal => lhs == rhs,
+        .not_equal => lhs != rhs,
+        .signed_less => a < b,
+        .signed_less_equal => a <= b,
+        .signed_greater => a > b,
+        .signed_greater_equal => a >= b,
+        .unsigned_less => lhs < rhs,
+        .unsigned_less_equal => lhs <= rhs,
+        .unsigned_greater => lhs > rhs,
+        .unsigned_greater_equal => lhs >= rhs,
     };
 }
 
@@ -282,4 +324,49 @@ test "floating phi selection retains payload bits without arithmetic conversion"
     defer module.deinit();
     const result = try evaluate(testing.allocator, module.functions.items[0], &.{ .{ .word = 1 }, .{ .double_bits = 0xfff8000000001234 }, .{ .double_bits = 0x8000000000000000 } }, .{});
     try testing.expectEqual(@as(u64, 0xfff8000000001234), result.?.double_bits);
+}
+
+test "Python oracle checks typed shifts and signed and unsigned comparisons" {
+    var lines = std.mem.tokenizeScalar(u8, @embedFile("fixtures/scalar-extra-oracle.tsv"), '\n');
+    var case_count: usize = 0;
+    while (lines.next()) |line| {
+        if (line[0] == '#') continue;
+        var fields = std.mem.tokenizeAny(u8, line, " \t");
+        const ty = fields.next().?;
+        const opcode = fields.next().?;
+        const lhs = fields.next().?;
+        const rhs = fields.next().?;
+        const expected = try std.fmt.parseInt(u64, fields.next().?, 10);
+        try testing.expect(fields.next() == null);
+        const text = try std.fmt.allocPrint(testing.allocator, "function {s} $f() {{\n@entry\n%x ={s} {s} {s}, {s}\nret %x\n}}", .{ ty, ty, opcode, lhs, rhs });
+        defer testing.allocator.free(text);
+        var module = try parse(text);
+        defer module.deinit();
+        const result = (try evaluate(testing.allocator, module.functions.items[0], &.{}, .{ .max_steps = 2 })).?;
+        const actual: u64 = if (std.mem.eql(u8, ty, "w")) result.word else result.long;
+        try testing.expectEqual(expected, actual);
+        case_count += 1;
+    }
+    try testing.expectEqual(@as(usize, 832), case_count);
+}
+
+test "unsigned integer comparison controls a loop with two carried values" {
+    var module = try parse(@embedFile("fixtures/compare-loop.ssa"));
+    defer module.deinit();
+    for ([_]u64{ 0, 1, 2, 10, 100 }) |n| {
+        const result = (try evaluate(testing.allocator, module.functions.items[0], &.{.{ .long = n }}, .{})).?;
+        try testing.expectEqual(if (n == 0) 0 else n * (n - 1) / 2, result.long);
+    }
+}
+
+fn exerciseScalarExtra(allocator: std.mem.Allocator) !void {
+    var diagnostic: ?source.Diagnostic = null;
+    var module = try frontend.parse(allocator, .{ .name = "scalar-extra", .text = @embedFile("fixtures/compare-loop.ssa") ++ "\nfunction l $shift(l %x, w %n) {\n@b\n%v =l sar %x, %n\n%r =l csltl %v, 0\nret %r\n}" }, &diagnostic);
+    defer module.deinit();
+    const result = (try evaluate(allocator, module.functions.items[1], &.{ .{ .long = 0x8000000000000000 }, .{ .word = 127 } }, .{})).?;
+    try testing.expectEqual(@as(u64, 1), result.long);
+}
+
+test "scalar extension parsing and evaluation clean up every allocation failure" {
+    try @import("test_support.zig").checkAllocationFailures(exerciseScalarExtra);
 }

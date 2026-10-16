@@ -48,7 +48,7 @@ const Frame = struct {
     }
 };
 
-const Scratch = enum { accumulator, temporary };
+const Scratch = enum { accumulator, temporary, count };
 const ArgumentRegisters = struct { word: []const u8, long: []const u8 };
 const argument_registers = [_]ArgumentRegisters{
     .{ .word = "%edi", .long = "%rdi" }, .{ .word = "%esi", .long = "%rsi" },
@@ -93,6 +93,38 @@ const Emitter = struct {
                     try self.load(copy.operand, .accumulator);
                     const ty = f.values.items[@backingInt(copy.result)].scalar_type;
                     try self.save(copy.result, register(ty, .accumulator));
+                },
+                .shift => |shift| {
+                    try self.load(shift.value, .accumulator);
+                    try self.load(shift.amount, .count);
+                    const ty = f.values.items[@backingInt(shift.result)].scalar_type;
+                    const mnemonic: []const u8 = switch (shift.op) {
+                        .left => "shl",
+                        .logical_right => "shr",
+                        .arithmetic_right => "sar",
+                    };
+                    try self.print("\t{s}{c} %cl, {s}\n", .{ mnemonic, suffix(ty), register(ty, .accumulator) });
+                    try self.save(shift.result, register(ty, .accumulator));
+                },
+                .compare_integer => |comparison| {
+                    try self.load(comparison.lhs, .accumulator);
+                    try self.load(comparison.rhs, .temporary);
+                    const ty = comparison.operand_type.scalar();
+                    const condition: []const u8 = switch (comparison.predicate) {
+                        .equal => "e",
+                        .not_equal => "ne",
+                        .signed_less => "l",
+                        .signed_less_equal => "le",
+                        .signed_greater => "g",
+                        .signed_greater_equal => "ge",
+                        .unsigned_less => "b",
+                        .unsigned_less_equal => "be",
+                        .unsigned_greater => "a",
+                        .unsigned_greater_equal => "ae",
+                    };
+                    try self.print("\tcmp{c} {s}, {s}\n\tset{s} %al\n\tmovzbl %al, %eax\n", .{ suffix(ty), register(ty, .temporary), register(ty, .accumulator), condition });
+                    const result_type = f.values.items[@backingInt(comparison.result)].scalar_type;
+                    try self.save(comparison.result, register(result_type, .accumulator));
                 },
                 .binary => |binary| {
                     try self.load(binary.lhs, .accumulator);
@@ -181,6 +213,7 @@ fn register(ty: ir.ScalarType, scratch: Scratch) []const u8 {
     return switch (scratch) {
         .accumulator => if (ty == .word) "%eax" else "%rax",
         .temporary => if (ty == .word) "%r10d" else "%r10",
+        .count => if (ty == .word) "%ecx" else "%rcx",
     };
 }
 fn validSymbol(name: []const u8) bool {
@@ -244,4 +277,18 @@ test "emitter validates owned symbol names and duplicate identities" {
     try testing.expectError(error.DuplicateSymbol, emit(testing.allocator, &module));
     module.functions.items[0].name = try module.symbols.intern("invalid\n.globl injected");
     try testing.expectError(error.InvalidSymbol, emit(testing.allocator, &module));
+}
+
+fn exerciseScalarExtra(allocator: std.mem.Allocator) !void {
+    var diagnostic: ?source.Diagnostic = null;
+    var module = try frontend.parse(allocator, .{ .name = "scalar-extra", .text = @embedFile("fixtures/compare-loop.ssa") ++ "\nfunction l $shift(l %x, w %n) {\n@b\n%v =l sar %x, %n\n%r =l csltl %v, 0\nret %r\n}" }, &diagnostic);
+    defer module.deinit();
+    const text = try emit(allocator, &module);
+    defer allocator.free(text);
+    try testing.expect(std.mem.indexOf(u8, text, "sarq %cl") != null);
+    try testing.expect(std.mem.indexOf(u8, text, "setl %al") != null);
+}
+
+test "shift and comparison emission clean up every allocation failure" {
+    try @import("test_support.zig").checkAllocationFailures(exerciseScalarExtra);
 }

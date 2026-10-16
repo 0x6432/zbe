@@ -53,6 +53,14 @@ pub fn validate(allocator: std.mem.Allocator, function: *const ir.Function, issu
                 try checkUse(function, &graph, &dominators, binary.rhs, id, index, issue);
             },
             .copy => |copy| try checkUse(function, &graph, &dominators, copy.operand, id, index, issue),
+            .shift => |shift| {
+                try checkUse(function, &graph, &dominators, shift.value, id, index, issue);
+                try checkUse(function, &graph, &dominators, shift.amount, id, index, issue);
+            },
+            .compare_integer => |comparison| {
+                try checkUse(function, &graph, &dominators, comparison.lhs, id, index, issue);
+                try checkUse(function, &graph, &dominators, comparison.rhs, id, index, issue);
+            },
         };
         switch (block.terminator.?) {
             .jump => {},
@@ -242,4 +250,17 @@ test "entry phi is rejected even with an entry backedge" {
     var issue: ?Issue = null;
     try testing.expectError(error.InvalidSSA, validate(testing.allocator, module.functions.items[0], &issue));
     try testing.expectEqual(.invalid_phi_predecessors, issue.?.code);
+}
+
+test "shift counts and both comparison operands require dominance" {
+    for ([_][]const u8{ "shl 1, %x", "ceqw %x, 1", "ceqw 1, %x" }) |operation| {
+        const text = try std.fmt.allocPrint(testing.allocator, "function w $f(w %p) {{\n@entry\njnz %p, @left, @join\n@left\n%x =w copy 1\njmp @join\n@join\n%r =w {s}\nret %r\n}}", .{operation});
+        defer testing.allocator.free(text);
+        var module = try parse(text);
+        defer module.deinit();
+        var issue: ?Issue = null;
+        try testing.expectError(error.InvalidSSA, validate(testing.allocator, module.functions.items[0], &issue));
+        try testing.expectEqual(.non_dominating_definition, issue.?.code);
+        try testing.expectEqual(@as(usize, 0), issue.?.site.instruction);
+    }
 }

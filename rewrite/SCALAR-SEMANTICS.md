@@ -1,6 +1,6 @@
 # Scalar CFG, SSA and evaluation
 
-This layer verifies and interprets **only the current scalar IR vocabulary**. It is not a completed compiler, full QBE verifier or optimizer. The separate experimental integer-only Linux AMD64 emitter is described in NATIVE-AMD64.md.
+This layer verifies and interprets **only the current scalar IR vocabulary**. It is not a completed compiler, full QBE verifier or optimizer. The separate experimental base-scalar Linux AMD64 emitter is described in NATIVE-AMD64.md.
 
 ## Owned CFG snapshots
 
@@ -42,3 +42,8 @@ Dominance tests compare with a separate vertex-removal/reachability oracle on 51
 ### Mixed-program regression corpus
 
 `generate_program_oracle.py --check` reproduces 32 multi-instruction integer functions and 512 expected invocation results. Each function combines 20 generated operations with a diamond, an edge phi and a bounded loop carrying a word counter and word/long accumulator. Inputs include wrap/sign/count boundaries and seeded random values. Expected results are evaluated independently with Python integer bit-pattern arithmetic; the same committed corpus is parsed/evaluated in Zig and assembled/linked/called from C. Division operands in this mixed corpus deliberately exclude exceptional pairs, which remain covered by the separate exception tests. This is bounded generated coverage, not exhaustive or ongoing randomized fuzzing.
+
+
+### Exact floating oracle
+
+`generate_float_oracle.py --check` reproduces 512 finite-input binary32/binary64 add/sub/mul/div results using exact Python fractions and explicit IEEE round-to-nearest, ties-to-even encoding. It never uses host floating arithmetic to produce expected bits. Cases include signed zero, normal/subnormal boundaries, underflow and overflow; zero division and NaN arithmetic are not assigned payload expectations in this fixture. Interpreter and native harnesses compare exact bits under the tested default environment. Native copy/negation/phi tests separately cover infinity and NaN payload movement without arithmetic. These checks do not establish non-default rounding-mode, exception-flag, signaling-NaN arithmetic or cross-platform conformance.

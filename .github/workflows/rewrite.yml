@@ -34,11 +34,13 @@ jobs:
           python3 tools/generate_unary_oracle.py --check
           python3 tools/generate_division_oracle.py --check
           python3 tools/generate_program_oracle.py --check
+          python3 tools/generate_float_oracle.py --check
       - name: Independent IR/frontend tests (not backend parity)
         working-directory: rewrite
         run: zig build test -Doptimize=${{ matrix.optimize }} --summary all
-      - name: Experimental Linux AMD64 integer execution
+      - name: Experimental Linux AMD64 scalar execution
         working-directory: rewrite
         run: |
           zig build -Doptimize=${{ matrix.optimize }} --summary all
           python3 tools/native_check.py
+          python3 tools/native_float_check.py

@@ -555,3 +555,33 @@ test "mixed programs agree with independent Python results through diamonds and 
     }
     try testing.expectEqual(@as(usize, 512), case_count);
 }
+
+test "floating arithmetic agrees with exact rational rounding oracle" {
+    var module = try parse(@embedFile("fixtures/float-operations.ssa"));
+    defer module.deinit();
+    var lines = std.mem.tokenizeScalar(u8, @embedFile("fixtures/float-oracle.tsv"), '\n');
+    var case_count: usize = 0;
+    while (lines.next()) |line| {
+        if (line[0] == '#') continue;
+        var fields = std.mem.tokenizeAny(u8, line, " \t");
+        const ty = fields.next().?;
+        const opcode = fields.next().?;
+        const a = try std.fmt.parseInt(u64, fields.next().?, 10);
+        const b = try std.fmt.parseInt(u64, fields.next().?, 10);
+        const expected = try std.fmt.parseInt(u64, fields.next().?, 10);
+        try testing.expect(fields.next() == null);
+        const single = std.mem.eql(u8, ty, "s");
+        var index: usize = if (single) 0 else 7;
+        for ([_][]const u8{ "add", "sub", "mul", "div" }, 0..) |op, offset| {
+            if (std.mem.eql(u8, opcode, op)) {
+                index += offset;
+                break;
+            }
+        } else return error.UnknownFixtureOpcode;
+        const args: []const ir.Constant = &.{ if (single) .{ .single_bits = @intCast(a) } else .{ .double_bits = a }, if (single) .{ .single_bits = @intCast(b) } else .{ .double_bits = b } };
+        const result = (try evaluate(testing.allocator, module.functions.items[index], args, .{ .max_steps = 2 })).?;
+        try testing.expectEqual(expected, if (single) @as(u64, result.single_bits) else result.double_bits);
+        case_count += 1;
+    }
+    try testing.expectEqual(@as(usize, 512), case_count);
+}

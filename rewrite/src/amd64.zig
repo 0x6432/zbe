@@ -2,9 +2,9 @@ const std = @import("std");
 const ir = @import("ir.zig");
 const ssa = @import("ssa.zig");
 const Module = @import("module.zig").Module;
-pub const Error = ssa.Error || error{ UnsupportedType, InvalidSymbol, DuplicateSymbol, FrameTooLarge };
+pub const Error = ssa.Error || error{ InvalidSymbol, DuplicateSymbol, FrameTooLarge };
 
-/// Experimental Linux ELF/System V integer slice. Every SSA value has a stack
+/// Experimental Linux ELF/System V base-scalar slice. Every SSA value has a stack
 /// home; this is not instruction selection/register allocation parity with QBE.
 /// Caller owns the returned assembly. Invalid input never returns partial text.
 pub fn emit(allocator: std.mem.Allocator, module: *const Module) Error![]u8 {
@@ -12,8 +12,6 @@ pub fn emit(allocator: std.mem.Allocator, module: *const Module) Error![]u8 {
         const name = module.symbols.get(function.name) orelse return error.InvalidSymbol;
         if (!validSymbol(name)) return error.InvalidSymbol;
         for (module.functions.items[0..index]) |previous| if (previous.name == function.name) return error.DuplicateSymbol;
-        if (function.return_type) |ty| if (!ty.isInteger()) return error.UnsupportedType;
-        for (function.values.items) |value| if (!value.scalar_type.isInteger()) return error.UnsupportedType;
         _ = try Frame.init(function);
         var issue: ?ssa.Issue = null;
         try ssa.validate(allocator, function, &issue);
@@ -75,14 +73,23 @@ const Emitter = struct {
         const name = self.module.symbols.get(f.name).?;
         try self.print("{s} {s}\n.type {s}, @function\n{s}:\n\tpushq %rbp\n\tmovq %rsp, %rbp\n", .{ if (f.linkage == .exported) @as([]const u8, ".globl") else ".local", name, name, name });
         if (self.frame.bytes != 0) try self.print("\tsubq ${d}, %rsp\n", .{self.frame.bytes});
-        for (f.parameters.items, 0..) |parameter, position| {
+        var gp: usize = 0;
+        var fp: usize = 0;
+        var stack: usize = 0;
+        for (f.parameters.items) |parameter| {
             const ty = f.values.items[@backingInt(parameter)].scalar_type;
-            if (position < argument_registers.len) {
-                const registers = argument_registers[position];
+            if (ty.isInteger() and gp < argument_registers.len) {
+                const registers = argument_registers[gp];
                 try self.save(parameter, if (ty == .word) registers.word else registers.long);
-            } else {
-                try self.print("\tmov{c} {d}(%rbp), {s}\n", .{ suffix(ty), 16 + (position - 6) * 8, register(ty, .accumulator) });
+                gp += 1;
+            } else if (!ty.isInteger() and fp < 8) {
+                try self.print("\tmov{c} %xmm{d}, {s}\n", .{ sseMove(ty), fp, register(ty, .accumulator) });
                 try self.save(parameter, register(ty, .accumulator));
+                fp += 1;
+            } else {
+                try self.print("\tmov{c} {d}(%rbp), {s}\n", .{ suffix(ty), 16 + stack * 8, register(ty, .accumulator) });
+                try self.save(parameter, register(ty, .accumulator));
+                stack += 1;
             }
         }
         for (f.blocks.items, 0..) |block, number| {
@@ -98,7 +105,13 @@ const Emitter = struct {
                     try self.load(unary.operand, .accumulator);
                     const ty = f.values.items[@backingInt(unary.result)].scalar_type;
                     switch (unary.op) {
-                        .negate => try self.print("\tneg{c} {s}\n", .{ suffix(ty), register(ty, .accumulator) }),
+                        .negate => if (ty.isInteger()) {
+                            try self.print("\tneg{c} {s}\n", .{ suffix(ty), register(ty, .accumulator) });
+                        } else if (ty == .single) {
+                            try self.print("\txorl $0x80000000, %eax\n", .{});
+                        } else {
+                            try self.print("\tmovabsq $0x8000000000000000, %r10\n\txorq %r10, %rax\n", .{});
+                        },
                         .sign_extend_byte => try self.print("\tmovsb{c} %al, {s}\n", .{ suffix(ty), register(ty, .accumulator) }),
                         .zero_extend_byte => try self.print("\tmovzbl %al, %eax\n", .{}),
                         .sign_extend_half => try self.print("\tmovsw{c} %ax, {s}\n", .{ suffix(ty), register(ty, .accumulator) }),
@@ -144,7 +157,17 @@ const Emitter = struct {
                     try self.load(binary.lhs, .accumulator);
                     try self.load(binary.rhs, .temporary);
                     const ty = f.values.items[@backingInt(binary.result)].scalar_type;
-                    switch (binary.op) {
+                    if (!ty.isInteger()) {
+                        const mnemonic: []const u8 = switch (binary.op) {
+                            .add => "add",
+                            .sub => "sub",
+                            .mul => "mul",
+                            .signed_divide => "div",
+                            else => unreachable, // Structural validation rejects non-floating opcodes.
+                        };
+                        try self.print("\tmov{c} {s}, %xmm0\n\tmov{c} {s}, %xmm1\n\t{s}{s} %xmm1, %xmm0\n\tmov{c} %xmm0, {s}\n", .{ sseMove(ty), register(ty, .accumulator), sseMove(ty), register(ty, .temporary), mnemonic, if (ty == .single) @as([]const u8, "ss") else "sd", sseMove(ty), register(ty, .accumulator) });
+                        try self.save(binary.result, register(ty, .accumulator));
+                    } else switch (binary.op) {
                         .signed_divide, .unsigned_divide, .signed_remainder, .unsigned_remainder => {
                             const signed = binary.op == .signed_divide or binary.op == .signed_remainder;
                             const remainder = binary.op == .signed_remainder or binary.op == .unsigned_remainder;
@@ -182,7 +205,11 @@ const Emitter = struct {
                     try self.edge(id, branch.taken);
                 },
                 .return_value => |operand| {
-                    if (operand) |value| try self.load(value, .accumulator);
+                    if (operand) |value| {
+                        try self.load(value, .accumulator);
+                        const ty = f.return_type.?;
+                        if (!ty.isInteger()) try self.print("\tmov{c} {s}, %xmm0\n", .{ sseMove(ty), register(ty, .accumulator) });
+                    }
                     try self.print("\tleave\n\tret\n", .{});
                 },
             }
@@ -218,7 +245,8 @@ const Emitter = struct {
             .constant => |constant| switch (constant) {
                 .word => |bits| try self.print("\tmovl $0x{x}, {s}\n", .{ bits, target }),
                 .long => |bits| try self.print("\tmovabsq $0x{x}, {s}\n", .{ bits, target }),
-                else => return error.UnsupportedType,
+                .single_bits => |bits| try self.print("\tmovl $0x{x}, {s}\n", .{ bits, target }),
+                .double_bits => |bits| try self.print("\tmovabsq $0x{x}, {s}\n", .{ bits, target }),
             },
         }
     }
@@ -234,16 +262,23 @@ fn home(value: ir.ValueId) usize {
 }
 fn suffix(ty: ir.ScalarType) u8 {
     return switch (ty) {
-        .word => 'l',
-        .long => 'q',
+        .word, .single => 'l',
+        .long, .double => 'q',
+    };
+}
+fn sseMove(ty: ir.ScalarType) u8 {
+    return switch (ty) {
+        .single => 'd',
+        .double => 'q',
         else => unreachable,
     };
 }
 fn register(ty: ir.ScalarType, scratch: Scratch) []const u8 {
+    const narrow = ty == .word or ty == .single;
     return switch (scratch) {
-        .accumulator => if (ty == .word) "%eax" else "%rax",
-        .temporary => if (ty == .word) "%r10d" else "%r10",
-        .count => if (ty == .word) "%ecx" else "%rcx",
+        .accumulator => if (narrow) "%eax" else "%rax",
+        .temporary => if (narrow) "%r10d" else "%r10",
+        .count => if (narrow) "%ecx" else "%rcx",
     };
 }
 fn validSymbol(name: []const u8) bool {
@@ -272,10 +307,12 @@ test "integer emitter validates low-word branches and phi scratch ownership" {
     try testing.expect(std.mem.indexOf(u8, text, ".note.GNU-stack") != null);
 }
 
-test "emitter rejects unsupported types, invalid symbols and oversized frames" {
+test "emitter supports base scalars and rejects invalid symbols and oversized frames" {
     var module = try parse("export function d $f() {\n@b\nret d_1\n}");
     defer module.deinit();
-    try testing.expectError(error.UnsupportedType, emit(testing.allocator, &module));
+    const text = try emit(testing.allocator, &module);
+    defer testing.allocator.free(text);
+    try testing.expect(std.mem.indexOf(u8, text, "movq %rax, %xmm0") != null);
     try testing.expect(!validSymbol(".Lzbe@0@b0"));
     try testing.expect(!validSymbol("x\n.globl injected"));
     try testing.expect(!validSymbol("."));
@@ -348,4 +385,28 @@ fn exerciseDivision(allocator: std.mem.Allocator) !void {
 
 test "division emission cleans up every allocation failure" {
     try @import("test_support.zig").checkAllocationFailures(exerciseDivision);
+}
+
+fn exerciseFloating(allocator: std.mem.Allocator) !void {
+    var diagnostic: ?source.Diagnostic = null;
+    var module = try frontend.parse(allocator, .{ .name = "floating", .text = "function d $f(w %p, d %a, d %b) {\n@entry\njnz %p, @left, @right\n@left\n%x =d mul %a, %b\njmp @join\n@right\n%y =d neg %a\njmp @join\n@join\n%z =d phi @left %x, @right %y\nret %z\n}" }, &diagnostic);
+    defer module.deinit();
+    const text = try emit(allocator, &module);
+    defer allocator.free(text);
+    try testing.expect(std.mem.indexOf(u8, text, "mulsd %xmm1, %xmm0") != null);
+    try testing.expect(std.mem.indexOf(u8, text, "movq %xmm1, %rax") != null);
+}
+
+test "floating emission and validation scratch clean up every allocation failure" {
+    try @import("test_support.zig").checkAllocationFailures(exerciseFloating);
+}
+
+test "floating literal and direct IR payloads are loaded as exact integer bits" {
+    var module = try parse("function s $s() {\n@entry\n%x =s copy s_-0\nret %x\n}\nfunction d $d() {\n@entry\n%x =d copy d_0\nret %x\n}");
+    defer module.deinit();
+    module.functions.items[1].blocks.items[0].instructions.items[0].copy.operand = .{ .constant = .{ .double_bits = 0x7ff0000000001234 } };
+    const text = try emit(testing.allocator, &module);
+    defer testing.allocator.free(text);
+    try testing.expect(std.mem.indexOf(u8, text, "movl $0x80000000, %eax") != null);
+    try testing.expect(std.mem.indexOf(u8, text, "movabsq $0x7ff0000000001234, %rax") != null);
 }

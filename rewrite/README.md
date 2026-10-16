@@ -1,6 +1,6 @@
 # Zig-native backend rewrite
 
-**Status: experimental integer-only Linux AMD64 compiler slice, plus scalar frontend/verifier/interpreter. Not a complete QBE backend.** This directory is a new implementation, not a wrapper around or a mechanical cleanup of the existing C-shaped port. Its parser accepts only the documented scalar subset. The experimental driver emits Linux AMD64 integer assembly only. Most IL/ABI/target support, optimization and register allocation are still missing. Passing its tests does not establish QBE compatibility or replace the legacy backend.
+**Status: experimental base-scalar Linux AMD64 compiler slice, plus scalar frontend/verifier/interpreter. Not a complete QBE backend.** This directory is a new implementation, not a wrapper around or a mechanical cleanup of the existing C-shaped port. Its parser accepts only the documented scalar subset. The experimental driver emits Linux AMD64 integer and single/double scalar assembly. Most IL/ABI/target support, optimization and register allocation are still missing. Passing its tests does not establish QBE compatibility or replace the legacy backend.
 
 Work lives on `rewrite/zig-native`. The existing compiler, build and regression suite remain the reference implementation and are unchanged by this foundation.
 
@@ -27,7 +27,7 @@ The independent build exports `zbe_native` without linking libc or importing the
 - Source spans, typed diagnostics, allocation-free lexer and transactional scalar parser with forward block resolution.
 - Structural/type checks, owned CFG snapshots, dominators and explicit scalar SSA use/phi-edge validation.
 - Bounded scalar interpreter and independent integer/dominance oracle checks.
-- Experimental stack-homed Linux AMD64 integer emitter and driver, tested by assembling/linking/executing from C.
+- Experimental stack-homed Linux AMD64 base-scalar emitter and driver, tested by assembling/linking/executing from C.
 - Explicit errors for invalid builders; allocation-failure and ownership tests.
 - Correct low-32-bit constant branch semantics, including long operands.
 

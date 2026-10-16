@@ -1,0 +1,90 @@
+export function s $fp_add_s(s %a, s %b) {
+@entry
+%r =s add %a, %b
+ret %r
+}
+export function s $fp_sub_s(s %a, s %b) {
+@entry
+%r =s sub %a, %b
+ret %r
+}
+export function s $fp_mul_s(s %a, s %b) {
+@entry
+%r =s mul %a, %b
+ret %r
+}
+export function s $fp_div_s(s %a, s %b) {
+@entry
+%r =s div %a, %b
+ret %r
+}
+export function s $fp_copy_s(s %a) {
+@entry
+%r =s copy %a
+ret %r
+}
+export function s $fp_neg_s(s %a) {
+@entry
+%r =s neg %a
+ret %r
+}
+export function s $fp_swap_s(w %n, s %a0, s %b0) {
+@entry
+jmp @loop
+@loop
+%i =w phi @entry 0, @body %next
+%a =s phi @entry %a0, @body %b
+%b =s phi @entry %b0, @body %a
+%more =w cultw %i, %n
+jnz %more, @body, @done
+@body
+%next =w add %i, 1
+jmp @loop
+@done
+ret %a
+}
+export function d $fp_add_d(d %a, d %b) {
+@entry
+%r =d add %a, %b
+ret %r
+}
+export function d $fp_sub_d(d %a, d %b) {
+@entry
+%r =d sub %a, %b
+ret %r
+}
+export function d $fp_mul_d(d %a, d %b) {
+@entry
+%r =d mul %a, %b
+ret %r
+}
+export function d $fp_div_d(d %a, d %b) {
+@entry
+%r =d div %a, %b
+ret %r
+}
+export function d $fp_copy_d(d %a) {
+@entry
+%r =d copy %a
+ret %r
+}
+export function d $fp_neg_d(d %a) {
+@entry
+%r =d neg %a
+ret %r
+}
+export function d $fp_swap_d(w %n, d %a0, d %b0) {
+@entry
+jmp @loop
+@loop
+%i =w phi @entry 0, @body %next
+%a =d phi @entry %a0, @body %b
+%b =d phi @entry %b0, @body %a
+%more =w cultw %i, %n
+jnz %more, @body, @done
+@body
+%next =w add %i, 1
+jmp @loop
+@done
+ret %a
+}

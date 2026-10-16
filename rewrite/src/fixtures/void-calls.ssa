@@ -1,0 +1,26 @@
+# No dummy values: the first two functions have no SSA values at all.
+export function $void_outer() {
+@entry
+    call $void_inner()
+    call $void_inner()
+    ret
+}
+function $void_inner() {
+@entry
+    ret
+}
+export function w $void_use(w %p) {
+@entry
+    jmp @body
+@body
+    call $external_sink(w %p)
+    ret 7
+}
+function w $void_live(w %p, w %q) {
+@entry
+    jmp @body
+@body
+    call $external_sink(w %q)
+    %r =w add %p, %q
+    ret %r
+}

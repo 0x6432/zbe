@@ -141,11 +141,11 @@ test "self-reference and forward local uses fail despite valid backlinks" {
     const f = module.functions.items[0];
     const instructions = f.blocks.items[0].instructions.items;
     var issue: ?Issue = null;
-    instructions[0].copy.operand = .{ .value = instructions[0].result() };
+    instructions[0].copy.operand = .{ .value = instructions[0].result().? };
     try f.validateStructure();
     try testing.expectError(error.InvalidSSA, validate(testing.allocator, f, &issue));
     try testing.expectEqual(.use_before_definition, issue.?.code);
-    instructions[0].copy.operand = .{ .value = instructions[1].result() };
+    instructions[0].copy.operand = .{ .value = instructions[1].result().? };
     try testing.expectError(error.InvalidSSA, validate(testing.allocator, f, &issue));
     try testing.expectEqual(.use_before_definition, issue.?.code);
 }
@@ -156,7 +156,7 @@ test "unreachable blocks accept parameters and local uses but not cross-block va
     const f = module.functions.items[0];
     var issue: ?Issue = null;
     try validate(testing.allocator, f, &issue);
-    f.blocks.items[1].instructions.items[0].copy.operand = .{ .value = f.blocks.items[0].instructions.items[0].result() };
+    f.blocks.items[1].instructions.items[0].copy.operand = .{ .value = f.blocks.items[0].instructions.items[0].result().? };
     try testing.expectError(error.InvalidSSA, validate(testing.allocator, f, &issue));
     try testing.expectEqual(.unreachable_cross_block_use, issue.?.code);
 }

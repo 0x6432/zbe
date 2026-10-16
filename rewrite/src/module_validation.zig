@@ -19,7 +19,7 @@ pub fn validate(allocator: std.mem.Allocator, module: *const Module) Error!void 
         .call => |call| {
             _ = module.symbols.get(call.callee) orelse return error.InvalidSymbol;
             const callee = findFunction(module, call.callee) orelse continue;
-            const result_type = function.values.items[@backingInt(call.result)].scalar_type;
+            const result_type: ?ir.ScalarType = if (call.result) |result| function.values.items[@backingInt(result)].scalar_type else null;
             if (callee.return_type != result_type or callee.parameters.items.len != call.arguments.len) return error.CallSignatureMismatch;
             for (callee.parameters.items, call.arguments) |parameter, argument| {
                 if (callee.values.items[@backingInt(parameter)].scalar_type != argument.scalar_type) return error.CallSignatureMismatch;

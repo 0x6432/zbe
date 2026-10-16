@@ -108,7 +108,7 @@ pub const IntegerPredicate = enum {
 };
 pub const CallArgument = struct { scalar_type: ScalarType, operand: Operand };
 /// Callee belongs to the module symbol pool; argument storage belongs to Function.
-pub const DirectCall = struct { result: ValueId, callee: SymbolId, arguments: []const CallArgument };
+pub const DirectCall = struct { result: ?ValueId, callee: SymbolId, arguments: []const CallArgument };
 pub const Instruction = union(enum) {
     call: DirectCall,
     binary: struct { result: ValueId, op: BinaryOp, lhs: Operand, rhs: Operand },
@@ -118,7 +118,8 @@ pub const Instruction = union(enum) {
     compare_float: struct { result: ValueId, predicate: FloatPredicate, operand_type: FloatType, lhs: Operand, rhs: Operand },
     compare_integer: struct { result: ValueId, predicate: IntegerPredicate, operand_type: IntegerType, lhs: Operand, rhs: Operand },
 
-    pub fn result(self: Instruction) ValueId {
+    /// Void calls are effect-only instructions, not definitions of dummy values.
+    pub fn result(self: Instruction) ?ValueId {
         return switch (self) {
             .call => |call| call.result,
             .binary => |binary| binary.result,
@@ -321,6 +322,17 @@ pub const Function = struct {
         target.instructions.appendAssumeCapacity(.{ .call = .{ .result = result, .callee = callee, .arguments = owned } });
     }
 
+    /// Append a void-result effect, without adding an SSA value. Duplicates
+    /// arguments before publication, with the same ownership as defineCall.
+    pub fn appendVoidCall(self: *Function, block_id: BlockId, callee: SymbolId, arguments: []const CallArgument) BuildError!void {
+        const target = try self.getBlock(block_id);
+        if (target.terminator != null) return error.BlockTerminated;
+        try self.checkArguments(arguments);
+        try target.instructions.ensureUnusedCapacity(self.allocator, 1);
+        const owned = try self.allocator.dupe(CallArgument, arguments);
+        target.instructions.appendAssumeCapacity(.{ .call = .{ .result = null, .callee = callee, .arguments = owned } });
+    }
+
     fn checkArguments(self: *const Function, arguments: []const CallArgument) ValidationError!void {
         for (arguments) |argument| if (try self.operandType(argument.operand) != argument.scalar_type) return error.TypeMismatch;
     }
@@ -392,7 +404,7 @@ pub const Function = struct {
                 if (@backingInt(definition.block) >= self.blocks.items.len) return error.InvalidDefinition;
                 const instructions = self.blocks.items[@backingInt(definition.block)].instructions.items;
                 if (definition.index >= instructions.len) return error.InvalidDefinition;
-                if (@backingInt(instructions[definition.index].result()) != number) return error.InvalidDefinition;
+                if (@backingInt(instructions[definition.index].result() orelse return error.InvalidDefinition) != number) return error.InvalidDefinition;
             },
         };
         for (self.blocks.items, 0..) |b, number| {
@@ -411,22 +423,24 @@ pub const Function = struct {
                 }
             }
             for (b.instructions.items, 0..) |instruction, index| {
-                const result = instruction.result();
-                const ty = try self.operandType(.{ .value = result });
-                switch (self.values.items[@backingInt(result)].definition) {
-                    .instruction => |definition| {
-                        if (@backingInt(definition.block) != number or definition.index != index) return error.InvalidDefinition;
-                    },
-                    else => return error.InvalidDefinition,
+                var ty: ?ScalarType = null;
+                if (instruction.result()) |result| {
+                    ty = try self.operandType(.{ .value = result });
+                    switch (self.values.items[@backingInt(result)].definition) {
+                        .instruction => |definition| {
+                            if (@backingInt(definition.block) != number or definition.index != index) return error.InvalidDefinition;
+                        },
+                        else => return error.InvalidDefinition,
+                    }
                 }
                 switch (instruction) {
                     .call => |call| try self.checkArguments(call.arguments),
-                    .binary => |binary| try self.checkBinary(ty, binary.op, binary.lhs, binary.rhs),
-                    .copy => |copy| if (try self.operandType(copy.operand) != ty) return error.TypeMismatch,
-                    .unary => |unary| try self.checkUnary(ty, unary.op, unary.operand),
-                    .shift => |shift| try self.checkShift(ty, shift.value, shift.amount),
-                    .compare_float => |comparison| try self.checkFloatCompare(ty, comparison.operand_type, comparison.lhs, comparison.rhs),
-                    .compare_integer => |comparison| try self.checkIntegerCompare(ty, comparison.operand_type, comparison.lhs, comparison.rhs),
+                    .binary => |binary| try self.checkBinary(ty.?, binary.op, binary.lhs, binary.rhs),
+                    .copy => |copy| if (try self.operandType(copy.operand) != ty.?) return error.TypeMismatch,
+                    .unary => |unary| try self.checkUnary(ty.?, unary.op, unary.operand),
+                    .shift => |shift| try self.checkShift(ty.?, shift.value, shift.amount),
+                    .compare_float => |comparison| try self.checkFloatCompare(ty.?, comparison.operand_type, comparison.lhs, comparison.rhs),
+                    .compare_integer => |comparison| try self.checkIntegerCompare(ty.?, comparison.operand_type, comparison.lhs, comparison.rhs),
                 }
             }
             try self.checkTerminator(b.terminator orelse return error.MissingTerminator);
@@ -626,7 +640,7 @@ test "copy is typed and participates in definition validation" {
     const value = try f.appendCopy(b, .double, input);
     try f.terminate(b, .{ .return_value = .{ .value = value } });
     try f.validateStructure();
-    try testing.expectEqual(value, f.blocks.items[0].instructions.items[0].result());
+    try testing.expectEqual(@as(?ValueId, value), f.blocks.items[0].instructions.items[0].result());
     try testing.expectEqual(@as(u64, 0x7ff8000000000042), f.blocks.items[0].instructions.items[0].copy.operand.constant.double_bits);
 }
 

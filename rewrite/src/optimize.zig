@@ -17,7 +17,7 @@ pub fn foldIntegerConstants(allocator: std.mem.Allocator, function: *ir.Function
     var changes: usize = 0;
     for (function.blocks.items) |*block| {
         for (block.instructions.items) |*instruction| {
-            const result = instruction.result();
+            const result = instruction.result() orelse continue;
             const ty = function.values.items[@backingInt(result)].scalar_type;
             if (folded(instruction.*, facts, ty)) |constant| {
                 facts[@backingInt(result)] = constant;

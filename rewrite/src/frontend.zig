@@ -156,7 +156,10 @@ const Parser = struct {
             if (token.kind == .temporary) {
                 try self.instruction(active);
             } else if (token.kind == .identifier) {
-                try self.terminator(active);
+                if (std.mem.eql(u8, self.tokenText(token), "call")) {
+                    _ = self.advance();
+                    try self.call(active, null, token);
+                } else try self.terminator(active);
             } else return self.fail(.unsupported_construct, token);
             try self.lineEnd();
         }
@@ -203,22 +206,7 @@ const Parser = struct {
         const spelling = self.tokenText(opcode);
         const f = self.current_function.?;
         if (std.mem.eql(u8, spelling, "call")) {
-            // Deliberately direct, nonvariadic, base-scalar, nonvoid calls only.
-            if (self.peek().kind != .global) return self.fail(.unsupported_construct, self.peek());
-            const callee_token = self.advance();
-            const callee = try self.module.symbols.intern(try self.globalName(callee_token));
-            _ = try self.expect(.lparen);
-            var arguments: std.ArrayList(ir.CallArgument) = .empty;
-            defer arguments.deinit(self.allocator);
-            if (self.peek().kind != .rparen) while (true) {
-                const argument_type = try self.takeType();
-                const operand = try self.readOperand(argument_type);
-                try arguments.append(self.allocator, .{ .scalar_type = argument_type, .operand = operand });
-                if (self.peek().kind != .comma) break;
-                _ = self.advance();
-            };
-            _ = try self.expect(.rparen);
-            f.defineCall(block, result, callee, arguments.items) catch |err| return self.irError(err, opcode);
+            try self.call(block, result, opcode);
         } else if (std.mem.eql(u8, spelling, "copy")) {
             const operand = try self.readOperand(ty);
             f.defineCopy(block, result, operand) catch |err| return self.irError(err, opcode);
@@ -258,6 +246,30 @@ const Parser = struct {
             _ = try self.expect(.comma);
             const rhs = try self.readOperand(ty);
             f.defineBinary(block, result, op, lhs, rhs) catch |err| return self.irError(err, opcode);
+        }
+    }
+
+    fn call(self: *Parser, block: ir.BlockId, result: ?ir.ValueId, opcode: lex.Token) Error!void {
+        // Deliberately direct, nonvariadic, base-scalar arguments only.
+        if (self.peek().kind != .global) return self.fail(.unsupported_construct, self.peek());
+        const callee_token = self.advance();
+        const callee = try self.module.symbols.intern(try self.globalName(callee_token));
+        _ = try self.expect(.lparen);
+        var arguments: std.ArrayList(ir.CallArgument) = .empty;
+        defer arguments.deinit(self.allocator);
+        if (self.peek().kind != .rparen) while (true) {
+            const argument_type = try self.takeType();
+            const operand = try self.readOperand(argument_type);
+            try arguments.append(self.allocator, .{ .scalar_type = argument_type, .operand = operand });
+            if (self.peek().kind != .comma) break;
+            _ = self.advance();
+        };
+        _ = try self.expect(.rparen);
+        const f = self.current_function.?;
+        if (result) |value| {
+            f.defineCall(block, value, callee, arguments.items) catch |err| return self.irError(err, opcode);
+        } else {
+            f.appendVoidCall(block, callee, arguments.items) catch |err| return self.irError(err, opcode);
         }
     }
 

@@ -122,7 +122,7 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
                 try appendFrame(allocator, &frames, callee, actual, call.result);
                 continue; // The old frame pointer may now be invalid.
             }
-            frame.values[@backingInt(instruction.result())] = try scalarInstruction(frame.function, frame.values, instruction);
+            frame.values[@backingInt(instruction.result().?)] = try scalarInstruction(frame.function, frame.values, instruction);
             continue;
         }
         try step(&remaining);
@@ -139,7 +139,9 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
                 const destination = completed.return_destination;
                 completed.deinit(allocator);
                 if (frames.items.len == 0) return value;
-                frames.items[frames.items.len - 1].values[@backingInt(destination.?)] = value orelse return error.InvalidReturn;
+                if (destination) |result| {
+                    frames.items[frames.items.len - 1].values[@backingInt(result)] = value orelse return error.InvalidReturn;
+                } else if (value != null) return error.InvalidReturn;
                 continue;
             },
         };

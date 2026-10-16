@@ -60,7 +60,7 @@ pub const Snapshot = struct {
                         addUse(&uses[index], defs[index], c.rhs);
                     },
                 }
-                defs[index].set(@backingInt(instruction.result()));
+                if (instruction.result()) |result| defs[index].set(@backingInt(result));
             }
             switch (block.terminator.?) {
                 .jump, .halt => {},
@@ -191,8 +191,8 @@ test "phi inputs are live on their own predecessor edge, not at the join" {
     const f = module.functions.items[0];
     var live = try Snapshot.init(testing.allocator, f, .{});
     defer live.deinit();
-    const a = f.blocks.items[1].instructions.items[0].result();
-    const b = f.blocks.items[2].instructions.items[0].result();
+    const a = f.blocks.items[1].instructions.items[0].result().?;
+    const b = f.blocks.items[2].instructions.items[0].result().?;
     const phi = f.blocks.items[3].phis.items[0].result;
     try testing.expect(live.isLiveOut(blockId(1), a).?);
     try testing.expect(!live.isLiveOut(blockId(1), b).?);
@@ -294,7 +294,7 @@ fn compareOracle(function: *const ir.Function) !void {
 }
 
 test "phi swaps loops mixed scalar instructions and diamonds match path oracle" {
-    var module = try parse(testing.allocator, diamond ++ "\n" ++ @embedFile("fixtures/phi-loop.ssa") ++ "\n" ++ @embedFile("fixtures/compare-loop.ssa") ++ "\n" ++ @embedFile("fixtures/float-operations.ssa") ++ "\n" ++ @embedFile("fixtures/halt.ssa") ++ "\n" ++ @embedFile("fixtures/direct-calls.ssa"));
+    var module = try parse(testing.allocator, diamond ++ "\n" ++ @embedFile("fixtures/phi-loop.ssa") ++ "\n" ++ @embedFile("fixtures/compare-loop.ssa") ++ "\n" ++ @embedFile("fixtures/float-operations.ssa") ++ "\n" ++ @embedFile("fixtures/halt.ssa") ++ "\n" ++ @embedFile("fixtures/direct-calls.ssa") ++ "\n" ++ @embedFile("fixtures/void-calls.ssa"));
     defer module.deinit();
     for (module.functions.items) |f| try compareOracle(f);
 }

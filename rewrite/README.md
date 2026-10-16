@@ -29,7 +29,7 @@ The independent build exports `zbe_native` without linking libc or importing the
 - Owned block-boundary liveness snapshots with phi-edge uses, checked matrix limits and an independent path-search oracle.
 - Owned, bounded scalar-home interference graphs, independently checked at program points; no machine-specific constraints in the graph.
 - Bounded scalar interpreter with an explicit owned invocation stack for module-local direct calls, shared step/depth limits and independent integer/dominance oracle checks; no external function execution.
-- Typed, per-signature Linux AMD64 scalar argument locations with independent GP/SSE banks and checked stack offsets; direct nonvariadic scalar-result calls, including known internal and caller-contract external targets (see CALLS.md).
+- Typed, per-signature Linux AMD64 scalar argument locations with independent GP/SSE banks and checked stack offsets; direct nonvariadic scalar/void-result calls, including known internal and caller-contract external targets (see CALLS.md).
 - Experimental stack-homed Linux AMD64 base-scalar emitter and driver, tested by assembling/linking/executing from C; opt-in deterministic interference-colored stack-home reuse and a limited five-callee-saved-register home mode.
 - Opt-in SSA-validated, source-order integer/bit-pattern constant folding with preserved arithmetic faults.
 - Explicit errors for invalid builders; allocation-failure and ownership tests.

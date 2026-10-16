@@ -65,7 +65,7 @@ test "call operands obey local ordering dominance and exact base-scalar types" {
         "function w $f() {\n@e\n%r =w call $g(env 1)\nret %r\n}",
         "function w $f() {\n@e\n%r =w call $g(w 1,)\nret %r\n}",
         "function w $f() {\n@e\n%r =w call $\"quoted\"()\nret %r\n}",
-        "function $f() {\n@e\ncall $g()\nret\n}",
+        "function $f(l %p) {\n@e\ncall %p()\nret\n}",
     };
     for (rejected) |text| try testing.expectError(error.InvalidInput, parse(testing.allocator, text));
 }

@@ -21,6 +21,7 @@ pub const Module = @import("module.zig").Module;
 test {
     _ = @import("calls_test.zig");
     _ = @import("module_eval_test.zig");
+    _ = @import("void_calls_test.zig");
     _ = @import("amd64.zig");
     _ = @import("abi_amd64.zig");
     _ = @import("interpreter.zig");

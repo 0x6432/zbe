@@ -42,9 +42,10 @@ pub const Graph = struct {
             while (n != 0) {
                 n -= 1;
                 const instruction = block.instructions.items[n];
-                const result = @backingInt(instruction.result());
-                graph.connectLive(result, current);
-                current.unset(result);
+                if (instruction.result()) |result| {
+                    graph.connectLive(@backingInt(result), current);
+                    current.unset(@backingInt(result));
+                }
                 switch (instruction) {
                     .call => |call| for (call.arguments) |argument| addUse(&current, argument.operand),
                     .copy => |c| addUse(&current, c.operand),
@@ -244,9 +245,11 @@ fn compareOracle(function: *const ir.Function) !void {
             };
         }
         for (block.instructions.items, 0..) |instruction, index| {
-            for (0..count) |v| if (try usedAfter(function, &flow, b, index + 1, id(v))) {
-                oracleConnect(expected, count, @backingInt(instruction.result()), v);
-            };
+            if (instruction.result()) |result| {
+                for (0..count) |v| if (try usedAfter(function, &flow, b, index + 1, id(v))) {
+                    oracleConnect(expected, count, @backingInt(result), v);
+                };
+            }
         }
     }
     for (0..count) |a| {
@@ -334,7 +337,7 @@ test "every interference allocation failure frees graph and analysis scratch" {
 }
 
 test "program-point oracle covers phi loops float operations and unreachable blocks" {
-    var module = try parse(testing.allocator, @embedFile("fixtures/phi-loop.ssa") ++ "\n" ++ @embedFile("fixtures/compare-loop.ssa") ++ "\n" ++ @embedFile("fixtures/float-operations.ssa") ++ "\n" ++ @embedFile("fixtures/halt.ssa") ++ "\n" ++ @embedFile("fixtures/direct-calls.ssa") ++ "\nfunction w $dead(w %p) {\n@entry\nret %p\n@unreachable\n%x =w copy 2\n%y =w add %p, %x\nret %y\n}");
+    var module = try parse(testing.allocator, @embedFile("fixtures/phi-loop.ssa") ++ "\n" ++ @embedFile("fixtures/compare-loop.ssa") ++ "\n" ++ @embedFile("fixtures/float-operations.ssa") ++ "\n" ++ @embedFile("fixtures/halt.ssa") ++ "\n" ++ @embedFile("fixtures/direct-calls.ssa") ++ "\n" ++ @embedFile("fixtures/void-calls.ssa") ++ "\nfunction w $dead(w %p) {\n@entry\nret %p\n@unreachable\n%x =w copy 2\n%y =w add %p, %x\nret %y\n}");
     defer module.deinit();
     for (module.functions.items) |f| try compareOracle(f);
 }

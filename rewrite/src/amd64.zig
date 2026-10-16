@@ -183,9 +183,11 @@ const Emitter = struct {
                         }
                     }
                     try self.print("\tcall {s}\n", .{self.module.symbols.get(call.callee).?});
-                    const ty = f.values.items[@backingInt(call.result)].scalar_type;
-                    if (!ty.isInteger()) try self.print("\tmov{c} %xmm0, {s}\n", .{ sseMove(ty), register(ty, .accumulator) });
-                    try self.save(call.result, register(ty, .accumulator));
+                    if (call.result) |result| {
+                        const ty = f.values.items[@backingInt(result)].scalar_type;
+                        if (!ty.isInteger()) try self.print("\tmov{c} %xmm0, {s}\n", .{ sseMove(ty), register(ty, .accumulator) });
+                        try self.save(result, register(ty, .accumulator));
+                    }
                 },
                 .copy => |copy| {
                     try self.load(copy.operand, .accumulator);

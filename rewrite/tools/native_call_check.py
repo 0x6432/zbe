@@ -201,6 +201,78 @@ ret %count
         for bits in patterns:
             check(f"call_stack_bits_{ty}(UINT64_C({bits}))", bits)
 
+    # Genuine void-result effects, including empty SSA frames, nested internal
+    # calls, recursive void calls and both GP/SSE overflow banks.
+    helpers += [
+        "static uint32_t void_ticks;",
+        "void void_reset(void) { void_ticks = 0; }",
+        "void void_tick(void) { ++void_ticks; }",
+        "uint32_t void_count(void) { return void_ticks; }",
+        "static uint64_t void_recorded;",
+        "uint64_t void_read(void) { return void_recorded; }",
+    ]
+    params = [f"uint64_t v{i}" for i in range(10)] + [f"double f{i}" for i in range(10)]
+    names = [f"v{i}" for i in range(10)] + [f"f{i}" for i in range(10)]
+    helpers.append(f"void void_stack_sink({', '.join(params)}) {{ void_recorded = helper_0({', '.join(names)}); }}")
+    outgoing = ["l %x"] + [f"l {i}" for i in range(2, 11)] + [f"d d_{i}" for i in range(1, 11)]
+    il.append(f"""export function $native_void_root() {{
+@entry
+call $void_reset()
+call $void_tick()
+call $void_tick()
+ret
+}}
+function $void_internal() {{
+@entry
+call $void_tick()
+ret
+}}
+function $void_recursive(w %n) {{
+@entry
+jnz %n, @step, @done
+@step
+call $void_tick()
+%next =w sub %n, 1
+call $void_recursive(w %next)
+ret
+@done
+ret
+}}
+export function w $native_void_effects() {{
+@entry
+call $void_reset()
+call $void_internal()
+call $void_internal()
+call $void_recursive(w 5)
+%r =w call $void_count()
+ret %r
+}}
+export function l $native_void_stack(l %x) {{
+@entry
+call $void_stack_sink({', '.join(outgoing)})
+%r =l call $void_read()
+%out =l add %r, %x
+ret %out
+}}
+export function l $native_void_preserved() {{
+@entry
+%r =l call $native_void_stack(l 123)
+ret %r
+}}
+export function l $native_void_clobber(l %x) {{
+@entry
+call $zbe_call_clobber()
+ret %x
+}}""")
+    declarations += ["extern void native_void_root(void);", "extern uint32_t native_void_effects(void);", "extern uint64_t native_void_stack(uint64_t);", "extern uint64_t native_void_preserved(void);", "extern uint64_t native_void_clobber(uint64_t);"]
+    check("(native_void_root(), void_count())", 2)
+    check("native_void_effects()", 7)
+    for x in (1, 5, 17):
+        check(f"native_void_stack({x})", 2 * x + constant)
+    check("native_void_preserved()", 246 + constant)
+    check("zbe_check_preserved(native_void_preserved)", 0)
+    check("native_void_clobber(UINT64_C(0x1234567887654321))", 0x1234567887654321)
+
     assembly_helpers = """.text
 .globl zbe_call_alignment
 zbe_call_alignment:
@@ -226,6 +298,8 @@ zbe_call_clobber:
             "result": "function w $f() {\n@e\n%r =w call $g()\nret %r\n}\nfunction l $g() {\n@e\nret 1\n}",
             "arity": "function w $f() {\n@e\n%r =w call $g()\nret %r\n}\nfunction w $g(w %x) {\n@e\nret %x\n}",
             "class": "function w $f() {\n@e\n%r =w call $g(s s_1)\nret %r\n}\nfunction w $g(w %x) {\n@e\nret %x\n}",
+            "void-to-scalar": "function $f() {\n@e\ncall $g()\nret\n}\nfunction w $g() {\n@e\nret 1\n}",
+            "scalar-to-void": "function w $f() {\n@e\n%r =w call $g()\nret %r\n}\nfunction $g() {\n@e\nret\n}",
         }.items():
             src.write_text(text)
             asm.unlink()
@@ -237,7 +311,7 @@ zbe_call_clobber:
                     raise SystemExit(f"Invalid {name} call signature accepted or wrong diagnostic")
                 if (existing and asm.read_text() != "preserve-existing-output") or (not existing and asm.exists()):
                     raise SystemExit("Invalid call signature changed output")
-        print("6 call-signature rejection/output-preservation checks passed")
+        print("10 call-signature rejection/output-preservation checks passed")
 
 if __name__ == "__main__":
     main()

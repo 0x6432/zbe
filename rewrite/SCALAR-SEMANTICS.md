@@ -1,0 +1,34 @@
+# Scalar CFG, SSA and evaluation
+
+This layer verifies and interprets **only the current scalar IR vocabulary**. It is not a completed compiler, full QBE verifier, optimizer or machine backend.
+
+## Owned CFG snapshots
+
+`cfg.Graph.init(allocator, &function)` first validates structure and types, then creates owned successor lists, CSR predecessor storage, entry reachability and reverse postorder. Entry is block zero. Both arms of a branch are CFG edges regardless of constant conditions; equal targets are deduplicated. An explicit DFS stack avoids recursion on deep graphs. Storage is linear in blocks plus edges.
+
+Snapshots do not borrow function storage, and their exposed slices are read-only. They do not carry mutation epochs or enforce owner identity: rebuild after any relevant function change, and never mix IDs from different functions. `cfg.Dominators` computes immediate dominators iteratively using reverse-postorder ranks, not numeric block IDs. Entry and unreachable blocks have no public immediate dominator; unreachable blocks return false for all dominance queries, including self-dominance.
+
+## Explicit scalar SSA verification
+
+`ssa.validate(allocator, &function, &issue)` checks structure/types and every instruction/terminator operand:
+
+- Parameters are available throughout the function.
+- An instruction definition in the same block must precede its use strictly; self-use and forward use are rejected.
+- A cross-block definition must dominate its reachable use.
+- Unreachable blocks allow ordered local uses and parameters, but cross-block uses in unreachable blocks are conservatively rejected with `unreachable_cross_block_use`. This is an explicit subset policy, not a claim about all legal QBE dead-code cases.
+
+`InvalidSSA` returns an issue containing the value, use block and instruction index (null for terminators). Structural and allocation errors remain distinct. Validation owns/frees scratch storage and never changes the function.
+
+The frontend's `parse` API still checks syntax/structure, not dominance. Call scalar SSA validation before using its result in a pass that requires verified SSA. Phi nodes and edge-specific phi uses do not exist yet; full IL/phi verification remains future work.
+
+## Bounded reference evaluator
+
+`interpreter.evaluate(allocator, &function, arguments, options)` always invokes scalar SSA validation, checks argument count/types, then executes into a separate invocation-owned frame. Every instruction and terminator consumes one step; the default budget is 100,000 steps. Budget zero performs no execution. Exhaustion returns `StepLimitExceeded`, including for endless CFG loops. The execution budget does not bound parsing or analysis time.
+
+Word/long arithmetic wraps at 32/64 bits. Copy preserves bit patterns; branch decisions test the low 32 bits of integer operands. Floating add/sub/mul use explicit f32/f64 width and strict host arithmetic, not target code generation. No target-specific NaN arithmetic, floating-environment, ABI or native-code parity is claimed. Copying an existing NaN payload preserves its bits; parsing payload spellings is still unsupported.
+
+There are no memory operations, calls, phi nodes, recursion, globals or side-effect emulation in this evaluator. It is a semantic test tool for the implemented subset, not a replacement CLI or a path that delegates execution to the old compiler.
+
+## Independent checks
+
+Dominance tests compare with a separate vertex-removal/reachability oracle on 512 generated small graphs, plus explicit diamonds, loops, unreachable nodes and a deep chain. Integer differential tests use a committed fixture generated with Python arbitrary-precision arithmetic; `python3 tools/generate_integer_oracle.py --check` checks reproducibility. Zig tests do not need Python to consume that fixture. Allocation-failure injection covers analysis and execution ownership.

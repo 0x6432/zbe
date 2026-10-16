@@ -26,6 +26,9 @@ jobs:
       - name: Formatting
         working-directory: rewrite
         run: zig fmt --check build.zig src
+      - name: Integer oracle reproducibility
+        working-directory: rewrite
+        run: python3 tools/generate_integer_oracle.py --check
       - name: Independent IR/frontend tests (not backend parity)
         working-directory: rewrite
         run: zig build test -Doptimize=${{ matrix.optimize }} --summary all

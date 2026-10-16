@@ -26,7 +26,7 @@ The ellipsis above describes repeated parameters, **not** variadic IL. A missing
 
 ## Not a full verifier or compiler
 
-Parsing checks syntax and the current IR's structural/type invariants. It does **not** prove SSA dominance or validate phi edges. In particular, a textually earlier definition in a non-dominating block is not yet rejected. Full CFG/SSA verification is required before this IR is safe to execute or optimize as verified SSA.
+Parsing checks syntax and the current IR's structural/type invariants. It does **not** prove SSA dominance or validate phi edges. In particular, a textually earlier definition in a non-dominating block is not yet rejected. Call `ssa.validate` for current scalar ordering/dominance checks before using parsed IR as verified SSA. The bounded interpreter does this automatically. Phi-edge/full-IL validation is still future work; see SCALAR-SEMANTICS.md.
 
 The new API is not yet a drop-in QBE parser: strict malformed-number rejection is intentional and does not emulate legacy scanf prefix recovery; diagnostic codes are not a promise of the old CLI's exact messages. The legacy CLI and compatibility modes are unchanged.
 

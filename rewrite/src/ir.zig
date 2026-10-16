@@ -166,8 +166,8 @@ pub const Function = struct {
         };
     }
 
-    /// Checks structure/types only. Dominance, phi edges and SSA verification
-    /// belong to the next IR/CFG milestone; this must not be sold as full SSA validation.
+    /// Checks structure/types only. Also call ssa.validate for current scalar
+    /// use ordering/dominance. Phi nodes and full IL verification remain future work.
     pub fn validateStructure(self: *const Function) ValidationError!void {
         if (self.blocks.items.len == 0) return error.NoBlocks;
         for (self.parameters.items, 0..) |id, index| {

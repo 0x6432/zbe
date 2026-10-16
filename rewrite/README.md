@@ -1,6 +1,6 @@
 # Zig-native backend rewrite
 
-**Status: ownership/IR foundation and scalar frontend subset, not a working compiler.** This directory is a new implementation, not a wrapper around or a mechanical cleanup of the existing C-shaped port. Its parser accepts only the documented scalar subset. It has no executable, machine-code/assembly emitter, ABI lowering, optimizer, or register allocator yet. Passing its tests does not establish QBE compatibility or replace the legacy backend.
+**Status: scalar frontend, CFG/SSA checks and bounded interpreter; not a working compiler.** This directory is a new implementation, not a wrapper around or a mechanical cleanup of the existing C-shaped port. Its parser accepts only the documented scalar subset. It has no executable, machine-code/assembly emitter, ABI lowering, optimizer, or register allocator yet. Passing its tests does not establish QBE compatibility or replace the legacy backend.
 
 Work lives on `rewrite/zig-native`. The existing compiler, build and regression suite remain the reference implementation and are unchanged by this foundation.
 
@@ -25,10 +25,11 @@ The independent build exports the `zbe_native` module without linking libc or im
 - Function-owned typed value/block IDs and growable instruction storage.
 - Tagged scalar constants and operands, typed copy, integer/floating arithmetic subset, integer bitwise operations, branch/jump/return terminators.
 - Source spans, typed diagnostics, allocation-free lexer and transactional scalar parser with forward block resolution.
-- Structural/type checks and definition backlinks, not full SSA verification.
+- Structural/type checks, owned CFG snapshots, dominators and explicit scalar SSA use validation.
+- Bounded scalar interpreter and independent integer/dominance oracle checks; not native code generation.
 - Explicit errors for invalid builders; allocation-failure and ownership tests.
 - Correct low-32-bit constant branch semantics, including long operands.
 
 There are no compile-wide mutable globals, pointer-packed references, C-layout requirements, or calls into the existing backend in this core. This is a design direction, not a claim that all future compiler code can avoid low-level operations.
 
-See [FRONTEND.md](FRONTEND.md) for the exact supported subset and limitations, [DESIGN.md](DESIGN.md) for ownership and implementation milestones and [HANDOFF.md](HANDOFF.md) for the current verification record.
+See [SCALAR-SEMANTICS.md](SCALAR-SEMANTICS.md) for analysis/evaluation contracts, [FRONTEND.md](FRONTEND.md) for the exact supported subset and limitations, [DESIGN.md](DESIGN.md) for ownership and implementation milestones and [HANDOFF.md](HANDOFF.md) for the current verification record.

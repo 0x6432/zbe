@@ -713,3 +713,30 @@ Publication CI is checked separately after pushing the exact code checkpoint.
 No main merge, release tag or next feature implementation is authorized by this
 record. The sandbox-only `/data/zbe-data-followup-design.txt` is an unimplemented
 proposal for the next bounded milestone, not evidence of data-definition support.
+
+### Symbol-address exact-SHA CI and rerun record
+
+Code checkpoint `bf78756dfd0f188389b1297777643e7d3a4c48da` was published to
+`rewrite/zig-native`. Workflow https://github.com/0x6432/zbe/actions/runs/38964639722
+is now **confirmed green** for Debug, ReleaseSafe and ReleaseFast at that exact SHA.
+The first attempt passed Debug/ReleaseSafe and all ReleaseFast unit tests, but the
+ReleaseFast native step ended with exit **143** after seven complete option sets
+and the eighth integer harness. Its only failure annotation was process exit 143;
+there was no assertion, Python traceback or timeout annotation. The job lasted
+514 seconds, below its 20-minute job limit. This is an unexplained termination,
+not evidence of a diagnosed compiler defect or a proven runner-infrastructure bug.
+
+The affected ReleaseFast/all-three-flags floating harness was repeated locally:
+all **3,560** checks passed in six seconds. The failed CI job was then rerun at the
+**unchanged SHA**, with unchanged harnesses/timeouts/oracles, and passed. The run's
+second attempt reports all three modes successful; the successful first-attempt
+Debug/ReleaseSafe jobs were retained. Original and rerun evidence is saved locally
+as `/data/symbol-address-ci-attempt1.json`, `/data/symbol-ci-full-fast.log`,
+`/data/symbol-ci-annotations.json`, `/data/recheck-symbol-fast.log` and
+`/data/symbol-address-ci-rerun-result.json`. No failed result was relabeled green.
+
+Next bounded milestone: numeric/zero-fill owned data definitions, packed fields,
+explicit bounded alignment/size, executable AMD64 emission and independent byte
+expectations. Strings/relocation initializers/TLS/full data or ABI parity and a
+persistent interpreter global-memory model remain outside that proposed scope.
+No main merge or release tag was performed.

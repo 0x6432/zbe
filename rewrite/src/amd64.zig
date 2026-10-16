@@ -172,6 +172,19 @@ const Emitter = struct {
             const id: ir.BlockId = @fromBackingInt(@as(u32, @intCast(number)));
             try self.print("\".Lzbe@{d}@b{d}\":\n", .{ index, number });
             for (block.instructions.items) |instruction| switch (instruction) {
+                .convert => |conversion| {
+                    try self.load(conversion.operand, .accumulator);
+                    const ty = f.values.items[@backingInt(conversion.result)].scalar_type;
+                    const source_type = try conversion.op.operandType(ty);
+                    if (source_type.isInteger()) {
+                        try self.print("\tcvtsi2{s}{c} {s}, %xmm0\n", .{ if (ty == .single) @as([]const u8, "ss") else "sd", suffix(source_type), register(source_type, .accumulator) });
+                        try self.print("\tmov{c} %xmm0, {s}\n", .{ sseMove(ty), register(ty, .accumulator) });
+                    } else {
+                        try self.print("\tmov{c} {s}, %xmm0\n", .{ sseMove(source_type), register(source_type, .accumulator) });
+                        try self.print("\tcvtt{s}2si{c} %xmm0, {s}\n", .{ if (source_type == .single) @as([]const u8, "ss") else "sd", suffix(ty), register(ty, .accumulator) });
+                    }
+                    try self.save(conversion.result, register(ty, .accumulator));
+                },
                 .blit => |blit| {
                     if (blit.byte_count == 0) continue;
                     try self.load(blit.source, .accumulator);

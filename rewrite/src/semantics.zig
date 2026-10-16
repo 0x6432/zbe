@@ -150,3 +150,38 @@ fn floatValue(comptime F: type, op: ir.BinaryOp, lhs: F, rhs: F) F {
         .bit_and, .bit_or, .bit_xor, .unsigned_divide, .signed_remainder, .unsigned_remainder => unreachable, // Rejected by validation.
     };
 }
+
+/// Out-of-domain numeric conversion is an evaluator error, not a portable QBE
+/// value or a promise to match native masked/unmasked floating exceptions.
+pub const ConversionError = error{ConversionOutOfRange};
+pub fn convertedValue(op: ir.ConvertOp, operand: ir.Constant, result_type: ir.ScalarType) ConversionError!ir.Constant {
+    @setFloatMode(.strict);
+    return switch (op) {
+        .signed_word_to_float => integerToFloat(@as(i32, @bitCast(operand.word)), result_type),
+        .signed_long_to_float => integerToFloat(@as(i64, @bitCast(operand.long)), result_type),
+        .single_to_signed_integer => floatToInteger(@as(f32, @bitCast(operand.single_bits)), result_type),
+        .double_to_signed_integer => floatToInteger(@as(f64, @bitCast(operand.double_bits)), result_type),
+    };
+}
+fn integerToFloat(value: anytype, result_type: ir.ScalarType) ir.Constant {
+    @setFloatMode(.strict);
+    return switch (result_type) {
+        .single => .{ .single_bits = @bitCast(@as(f32, @floatFromInt(value))) },
+        .double => .{ .double_bits = @bitCast(@as(f64, @floatFromInt(value))) },
+        else => unreachable, // Type validation precedes semantic evaluation.
+    };
+}
+fn floatToInteger(value: anytype, result_type: ir.ScalarType) ConversionError!ir.Constant {
+    @setFloatMode(.strict);
+    const wide: f64 = value; // Widening f32 to f64 preserves finite values exactly.
+    if (!std.math.isFinite(wide)) return error.ConversionOutOfRange;
+    const truncated = @trunc(wide);
+    const limit: f64 = if (result_type == .word) 0x1p31 else 0x1p63;
+    // Check the truncated value, allowing e.g. -2147483648.5 -> signed MIN.
+    if (truncated < -limit or truncated >= limit) return error.ConversionOutOfRange;
+    const signed: i64 = @intFromFloat(truncated);
+    return if (result_type == .word)
+        .{ .word = @bitCast(@as(i32, @intCast(signed))) }
+    else
+        .{ .long = @bitCast(signed) };
+}

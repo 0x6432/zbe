@@ -45,6 +45,7 @@ fn folded(instruction: ir.Instruction, facts: []const ?ir.Constant, ty: ir.Scala
         .compare_integer => |comparison| semantics.comparisonValue(comparison.predicate, known(facts, comparison.lhs) orelse return null, known(facts, comparison.rhs) orelse return null, ty),
         .load, .store, .blit => null, // Preserve memory reads, faults and ordered effects.
         .call => null, // Calls remain effectful even when their result is unused.
+        .convert => null, // Numeric conversions retain rounding/error behavior.
         .compare_float => null, // Preserve floating-environment/NaN flag behavior.
     };
 }

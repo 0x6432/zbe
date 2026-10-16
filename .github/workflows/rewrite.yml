@@ -38,6 +38,7 @@ jobs:
           python3 tools/generate_conversion_oracle.py --check
           python3 tools/generate_float_comparison_oracle.py --check
           python3 tools/generate_memory_oracle.py --check
+          python3 tools/generate_signed_conversion_oracle.py --check
       - name: Independent IR/frontend tests (not backend parity)
         working-directory: rewrite
         run: zig build test -Doptimize=${{ matrix.optimize }} --summary all
@@ -51,4 +52,5 @@ jobs:
             python3 tools/native_call_check.py $flags
             python3 tools/native_memory_check.py $flags
             python3 tools/native_blit_check.py $flags
+            python3 tools/native_numeric_check.py $flags
           done

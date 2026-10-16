@@ -14,6 +14,7 @@ fn check(instruction: ir.Instruction, expected: []const ir.Operand) !void {
 test "instruction use iterator covers each fixed variant in source order without definitions" {
     const cases = [_]struct { instruction: ir.Instruction, expected: []const ir.Operand }{
         .{ .instruction = .{ .copy = .{ .result = result, .operand = a } }, .expected = &.{a} },
+        .{ .instruction = .{ .convert = .{ .result = result, .op = .signed_word_to_float, .operand = a } }, .expected = &.{a} },
         .{ .instruction = .{ .unary = .{ .result = result, .op = .negate, .operand = a } }, .expected = &.{a} },
         .{ .instruction = .{ .binary = .{ .result = result, .op = .add, .lhs = a, .rhs = b } }, .expected = &.{ a, b } },
         .{ .instruction = .{ .shift = .{ .result = result, .op = .left, .value = a, .amount = b } }, .expected = &.{ a, b } },

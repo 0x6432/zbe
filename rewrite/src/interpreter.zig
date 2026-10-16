@@ -15,7 +15,7 @@ pub const Options = struct {
     max_call_depth: usize = 64,
 };
 pub const ArithmeticError = semantics.ArithmeticError;
-pub const Error = ArithmeticError || memory.Error || module_validation.Error || error{
+pub const Error = semantics.ConversionError || ArithmeticError || memory.Error || module_validation.Error || error{
     ArgumentCountMismatch,
     ArgumentTypeMismatch,
     StepLimitExceeded,
@@ -189,6 +189,7 @@ fn scalarInstruction(function: *const ir.Function, values: []const ?ir.Constant,
         .load, .store, .blit => error.UnsupportedMemory,
         .call => error.UnsupportedCall,
         .copy => |copy| try resolve(values, copy.operand),
+        .convert => |c| try semantics.convertedValue(c.op, try resolve(values, c.operand), function.values.items[@backingInt(c.result)].scalar_type),
         .unary => |unary| semantics.unaryValue(unary.op, try resolve(values, unary.operand), function.values.items[@backingInt(unary.result)].scalar_type),
         .shift => |shift| semantics.shiftedValue(shift.op, try resolve(values, shift.value), (try resolve(values, shift.amount)).word),
         .compare_float => |comparison| semantics.floatComparisonValue(comparison.predicate, try resolve(values, comparison.lhs), try resolve(values, comparison.rhs), function.values.items[@backingInt(comparison.result)].scalar_type),

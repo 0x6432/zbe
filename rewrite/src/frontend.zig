@@ -243,6 +243,10 @@ const Parser = struct {
                 _ = self.advance();
             }
             f.definePhi(block, result, inputs.items) catch |err| return self.irError(err, opcode);
+        } else if (conversion_opcodes.get(spelling)) |op| {
+            const operand_type = op.operandType(ty) catch |err| return self.irError(err, opcode);
+            const operand = try self.readOperand(operand_type);
+            f.defineConvert(block, result, op, operand) catch |err| return self.irError(err, opcode);
         } else if (unary_opcodes.get(spelling)) |op| {
             const operand_type = op.operandType(ty) catch |err| return self.irError(err, opcode);
             const operand = try self.readOperand(operand_type);
@@ -689,4 +693,9 @@ const load_opcodes = std.StaticStringMap(ir.LoadKind).initComptime(.{
 const store_opcodes = std.StaticStringMap(ir.StoreKind).initComptime(.{
     .{ "storeb", .byte }, .{ "storeh", .half },   .{ "storew", .word },
     .{ "storel", .long }, .{ "stores", .single }, .{ "stored", .double },
+});
+
+const conversion_opcodes = std.StaticStringMap(ir.ConvertOp).initComptime(.{
+    .{ "swtof", .signed_word_to_float },     .{ "sltof", .signed_long_to_float },
+    .{ "stosi", .single_to_signed_integer }, .{ "dtosi", .double_to_signed_integer },
 });

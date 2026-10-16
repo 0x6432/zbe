@@ -82,6 +82,22 @@ pub const UnaryOp = enum {
         };
     }
 };
+/// Numeric conversions are distinct from non-fallible bit-pattern unary ops.
+pub const ConvertOp = enum {
+    signed_word_to_float,
+    signed_long_to_float,
+    single_to_signed_integer,
+    double_to_signed_integer,
+
+    pub fn operandType(self: ConvertOp, result_type: ScalarType) error{TypeMismatch}!ScalarType {
+        return switch (self) {
+            .signed_word_to_float => if (!result_type.isInteger()) .word else error.TypeMismatch,
+            .signed_long_to_float => if (!result_type.isInteger()) .long else error.TypeMismatch,
+            .single_to_signed_integer => if (result_type.isInteger()) .single else error.TypeMismatch,
+            .double_to_signed_integer => if (result_type.isInteger()) .double else error.TypeMismatch,
+        };
+    }
+};
 pub const ShiftOp = enum { left, logical_right, arithmetic_right };
 pub const FloatType = enum {
     single,
@@ -168,6 +184,7 @@ pub const Instruction = union(enum) {
     binary: struct { result: ValueId, op: BinaryOp, lhs: Operand, rhs: Operand },
     copy: struct { result: ValueId, operand: Operand },
     unary: struct { result: ValueId, op: UnaryOp, operand: Operand },
+    convert: struct { result: ValueId, op: ConvertOp, operand: Operand },
     shift: struct { result: ValueId, op: ShiftOp, value: Operand, amount: Operand },
     compare_float: struct { result: ValueId, predicate: FloatPredicate, operand_type: FloatType, lhs: Operand, rhs: Operand },
     compare_integer: struct { result: ValueId, predicate: IntegerPredicate, operand_type: IntegerType, lhs: Operand, rhs: Operand },
@@ -181,6 +198,7 @@ pub const Instruction = union(enum) {
             .binary => |binary| binary.result,
             .copy => |copy| copy.result,
             .unary => |unary| unary.result,
+            .convert => |conversion| conversion.result,
             .shift => |shift| shift.result,
             .compare_integer => |comparison| comparison.result,
             .compare_float => |comparison| comparison.result,
@@ -198,6 +216,7 @@ pub const Instruction = union(enum) {
             .binary => |b| .{ .first = b.lhs, .second = b.rhs },
             .copy => |c| .{ .first = c.operand },
             .unary => |u| .{ .first = u.operand },
+            .convert => |c| .{ .first = c.operand },
             .shift => |s| .{ .first = s.value, .second = s.amount },
             .compare_float => |c| .{ .first = c.lhs, .second = c.rhs },
             .compare_integer => |c| .{ .first = c.lhs, .second = c.rhs },
@@ -384,6 +403,16 @@ pub const Function = struct {
         try target.instructions.ensureUnusedCapacity(self.allocator, 1);
         value.definition = .{ .instruction = .{ .block = block_id, .index = target.instructions.items.len } };
         target.instructions.appendAssumeCapacity(.{ .copy = .{ .result = result, .operand = operand } });
+    }
+
+    pub fn defineConvert(self: *Function, block: BlockId, result: ValueId, op: ConvertOp, operand: Operand) BuildError!void {
+        const target = try self.getBlock(block);
+        if (target.terminator != null) return error.BlockTerminated;
+        const value = try self.pendingValue(result);
+        if (try self.operandType(operand) != try op.operandType(value.scalar_type)) return error.TypeMismatch;
+        try target.instructions.ensureUnusedCapacity(self.allocator, 1);
+        value.definition = .{ .instruction = .{ .block = block, .index = target.instructions.items.len } };
+        target.instructions.appendAssumeCapacity(.{ .convert = .{ .result = result, .op = op, .operand = operand } });
     }
 
     pub fn defineUnary(self: *Function, block_id: BlockId, result: ValueId, op: UnaryOp, operand: Operand) BuildError!void {
@@ -578,6 +607,9 @@ pub const Function = struct {
                     .binary => |binary| try self.checkBinary(ty.?, binary.op, binary.lhs, binary.rhs),
                     .copy => |copy| if (try self.operandType(copy.operand) != ty.?) return error.TypeMismatch,
                     .unary => |unary| try self.checkUnary(ty.?, unary.op, unary.operand),
+                    .convert => |conversion| {
+                        if (try self.operandType(conversion.operand) != try conversion.op.operandType(ty.?)) return error.TypeMismatch;
+                    },
                     .shift => |shift| try self.checkShift(ty.?, shift.value, shift.amount),
                     .compare_float => |comparison| try self.checkFloatCompare(ty.?, comparison.operand_type, comparison.lhs, comparison.rhs),
                     .compare_integer => |comparison| try self.checkIntegerCompare(ty.?, comparison.operand_type, comparison.lhs, comparison.rhs),

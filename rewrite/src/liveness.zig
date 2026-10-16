@@ -202,6 +202,7 @@ fn instructionUses(instruction: ir.Instruction, value: ir.ValueId) bool {
         },
         .copy => |c| matches(c.operand, value),
         .unary => |u| matches(u.operand, value),
+        .convert => |c| matches(c.operand, value),
         .binary => |b| matches(b.lhs, value) or matches(b.rhs, value),
         .shift => |s| matches(s.value, value) or matches(s.amount, value),
         .compare_integer => |c| matches(c.lhs, value) or matches(c.rhs, value),
@@ -279,7 +280,7 @@ fn compareOracle(function: *const ir.Function) !void {
 }
 
 test "phi swaps loops mixed scalar instructions and diamonds match path oracle" {
-    var module = try parse(testing.allocator, diamond ++ "\n" ++ @embedFile("fixtures/phi-loop.ssa") ++ "\n" ++ @embedFile("fixtures/compare-loop.ssa") ++ "\n" ++ @embedFile("fixtures/float-operations.ssa") ++ "\n" ++ @embedFile("fixtures/halt.ssa") ++ "\n" ++ @embedFile("fixtures/direct-calls.ssa") ++ "\n" ++ @embedFile("fixtures/void-calls.ssa") ++ "\n" ++ @embedFile("fixtures/indirect-calls.ssa") ++ "\n" ++ @embedFile("fixtures/scalar-memory.ssa") ++ "\n" ++ @embedFile("fixtures/blit.ssa"));
+    var module = try parse(testing.allocator, diamond ++ "\n" ++ @embedFile("fixtures/phi-loop.ssa") ++ "\n" ++ @embedFile("fixtures/compare-loop.ssa") ++ "\n" ++ @embedFile("fixtures/float-operations.ssa") ++ "\n" ++ @embedFile("fixtures/halt.ssa") ++ "\n" ++ @embedFile("fixtures/direct-calls.ssa") ++ "\n" ++ @embedFile("fixtures/void-calls.ssa") ++ "\n" ++ @embedFile("fixtures/indirect-calls.ssa") ++ "\n" ++ @embedFile("fixtures/scalar-memory.ssa") ++ "\n" ++ @embedFile("fixtures/blit.ssa") ++ "\n" ++ @embedFile("fixtures/signed-conversions.ssa") ++ "\n" ++ @embedFile("fixtures/signed-conversion-loop.ssa"));
     defer module.deinit();
     for (module.functions.items) |f| try compareOracle(f);
 }

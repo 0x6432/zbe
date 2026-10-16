@@ -4,7 +4,7 @@
 
 | Instruction | Scalar uses |
 | --- | --- |
-| `copy`, `unary` | operand |
+| `copy`, `unary`, signed numeric `convert` | operand |
 | `binary`, integer/float comparison | lhs, rhs |
 | `shift` | value, amount |
 | `load` | address |

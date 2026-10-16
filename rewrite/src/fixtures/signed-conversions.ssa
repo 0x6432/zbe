@@ -1,0 +1,40 @@
+export function s $signed_swtof_s(w %v) {
+@e
+%r =s swtof %v
+ret %r
+}
+export function w $signed_stosi_w(s %v) {
+@e
+%r =w stosi %v
+ret %r
+}
+export function d $signed_swtof_d(w %v) {
+@e
+%r =d swtof %v
+ret %r
+}
+export function w $signed_dtosi_w(d %v) {
+@e
+%r =w dtosi %v
+ret %r
+}
+export function s $signed_sltof_s(l %v) {
+@e
+%r =s sltof %v
+ret %r
+}
+export function l $signed_stosi_l(s %v) {
+@e
+%r =l stosi %v
+ret %r
+}
+export function d $signed_sltof_d(l %v) {
+@e
+%r =d sltof %v
+ret %r
+}
+export function l $signed_dtosi_l(d %v) {
+@e
+%r =l dtosi %v
+ret %r
+}

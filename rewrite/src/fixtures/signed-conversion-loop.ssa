@@ -1,0 +1,17 @@
+export function w $signed_conversion_sum(w %n) {
+@entry
+jmp @loop
+@loop
+%i =w phi @entry 0, @body %next
+%sum =w phi @entry 0, @body %added
+%more =w cultw %i, %n
+jnz %more, @body, @done
+@body
+%float =s swtof %i
+%back =w stosi %float
+%added =w add %sum, %back
+%next =w add %i, 1
+jmp @loop
+@done
+ret %sum
+}

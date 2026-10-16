@@ -30,6 +30,7 @@ pub const Error = semantics.ConversionError || ArithmeticError || evaluation_mem
     UnsupportedIndirectCall,
     UnsupportedMemory,
     UnsupportedAllocation,
+    UnsupportedSymbolAddress,
     InvalidFunction,
     CallDepthLimitExceeded,
 };
@@ -217,9 +218,10 @@ fn step(remaining: *usize) error{StepLimitExceeded}!void {
     remaining.* -= 1;
 }
 
-fn resolve(values: []const ?ir.Constant, operand: ir.Operand) error{UninitializedValue}!ir.Constant {
+fn resolve(values: []const ?ir.Constant, operand: ir.Operand) error{ UninitializedValue, UnsupportedSymbolAddress }!ir.Constant {
     return switch (operand) {
         .constant => |constant| constant,
+        .symbol => error.UnsupportedSymbolAddress,
         .value => |value| values[@backingInt(value)] orelse error.UninitializedValue,
         .low_word => |value| if (values[@backingInt(value)]) |constant| .{ .word = @truncate(constant.long) } else error.UninitializedValue,
     };

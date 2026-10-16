@@ -23,6 +23,18 @@ pub fn emitWithOptions(allocator: std.mem.Allocator, module: *const Module, opti
     for (module.functions.items) |function| {
         if (!validSymbol(module.symbols.get(function.name).?)) return error.InvalidSymbol;
         if (!options.reuse_stack_homes and !options.callee_saved_homes) _ = try Frame.init(function);
+        for (function.blocks.items) |block| {
+            for (block.phis.items) |phi| for (phi.inputs) |input| try validateOperandSymbol(module, input.value);
+            for (block.instructions.items) |instruction| {
+                var operands = instruction.operands();
+                while (operands.next()) |operand| try validateOperandSymbol(module, operand);
+            }
+            switch (block.terminator.?) {
+                .branch => |branch| try validateOperandSymbol(module, branch.condition),
+                .return_value => |value| if (value) |operand| try validateOperandSymbol(module, operand),
+                .jump, .halt => {},
+            }
+        }
         for (function.blocks.items) |block| for (block.instructions.items) |instruction| switch (instruction) {
             .call => |call| switch (call.callee) {
                 .symbol => |symbol| if (!validSymbol(module.symbols.get(symbol).?)) return error.InvalidSymbol,
@@ -37,6 +49,10 @@ pub fn emitWithOptions(allocator: std.mem.Allocator, module: *const Module, opti
     for (module.functions.items, 0..) |function, index| try emitter.function(function, index);
     try emitter.print(".section .note.GNU-stack,\"\",@progbits\n", .{});
     return emitter.output.toOwnedSlice();
+}
+
+fn validateOperandSymbol(module: *const Module, operand: ir.Operand) Error!void {
+    if (operand == .symbol and !validSymbol(module.symbols.get(operand.symbol).?)) return error.InvalidSymbol;
 }
 
 const Frame = struct {
@@ -491,6 +507,7 @@ const Emitter = struct {
                 .stack_offset => |offset| try self.print("\tmov{c} -{d}(%rbp), {s}\n", .{ suffix(ty), offset, target }),
                 .preserved => |preserved| try self.print("\tmov{c} {s}, {s}\n", .{ suffix(ty), preserved.name(ty), target }),
             },
+            .symbol => |symbol| try self.print("\tleaq {s}(%rip), {s}\n", .{ self.module.symbols.get(symbol).?, target }),
             .constant => |constant| switch (constant) {
                 .word => |bits| try self.print("\tmovl $0x{x}, {s}\n", .{ bits, target }),
                 .long => |bits| try self.print("\tmovabsq $0x{x}, {s}\n", .{ bits, target }),

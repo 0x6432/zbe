@@ -651,3 +651,65 @@ recorded above remain unchanged.
 This follow-up is documentation-only and skips redundant CI. No source change,
 main merge or release tag was made. The previous publication/authentication
 blocker is resolved; no further feature milestone was started.
+
+## Typed long symbol-address operands
+
+Continued from clean remote `f17eba7` under the user's request to keep progressing
+through bounded milestones. Added module-owned `Operand.symbol`, always long,
+with frontend `$symbol` operands. Bare symbols are deliberately long-only in this
+subset; a long temporary permits explicit low-word projection. No data definitions,
+TLS/extern/GOT forms, quoted-symbol syntax or symbol-offset literals are added.
+See SYMBOL-ADDRESSES.md for scope and executable-linking limitations.
+
+Module validation checks symbol IDs in ordinary instructions, phi inputs and
+terminators, including unreachable paths. The emitter checks each used spelling
+before returning any assembly, then materializes full addresses using RIP-relative
+`leaq`. Indirect calls retain their target-capture and caller-contract semantics;
+known direct signatures are unchanged. This is executable PIE/non-PIE coverage,
+not complete PIC/shared-object/interposition or linker relocation support.
+
+Symbols do not invent function-local SSA values; production visitors and separate
+independent liveness/interference oracles treat them accordingly. The new fixture
+runs through both analysis oracles. Integer folding keeps symbol addresses unknown.
+Reached interpreter resolution returns `UnsupportedSymbolAddress` rather than
+looking up host pointers or fabricating synthetic addresses. Safe paths, ordinary
+step precedence, call-dispatch precedence and earlier Image writes are preserved;
+all frames and synthetic objects clean up on refusal.
+
+Five new tests cover typing/ownership/copied iterator state, invalid ID and hostile
+name checks in all scalar positions, emission across home strategies, folding,
+interpreter refusal/budgets/safe paths and exhaustive parser/analysis/folder/emitter/
+frame allocation cleanup. The adversarial verifier test explicitly casts its
+allocator-owned const slices to corrupt inputs; an initial test-only const-assignment
+compile error was corrected before the passing run. Debug freshly passed
+**241/241 tests** and built the executable in `/data/check-symbol-addresses.log`.
+
+The tenth native harness independently links C-owned data and function addresses.
+Its eight-option Debug smoke passed **2,032 defined checks per link mode**
+(**4,064 per option** across non-PIE and PIE), including the PIE/high-address
+preconditions, plus **16 rejection/output-preservation checks** per option in
+`/data/check-symbol-native.log`. Existing nine harnesses, fixtures/oracles and
+all twelve independent generators are unchanged. Full verification follows via
+`/data/verify-symbol-addresses.sh`; no full-matrix/CI success is assumed yet.
+No main integration, release tag or next feature code was started.
+
+### Symbol-address local verification
+
+The authoritative serial `/data/verify-symbol-addresses.log` ended
+`SYMBOL ADDRESS VERIFICATION PASSED` with exit status 0. Debug reused the unchanged
+**241/241** smoke result (the runner explicitly reported cached execution);
+ReleaseSafe and ReleaseFast freshly passed **241/241** each. All **24** native
+combinations passed all **ten** native harnesses. The **26** existing result/fault/
+rejection/control groups each completed exactly **24 times** unchanged. The new
+**2,032 linked-symbol checks** completed **48 times** (two executable link modes
+per combination), and the link-mode/high-address and 16 rejection/output-preservation
+groups each completed **24 times**. All **29** distinct markers were mechanically
+counted with those expectations. Formatting and all **twelve independent generator
+checks** passed. Existing native fixtures/oracles/generators and legacy source/
+build/tools/tests are unchanged. The changes remain isolated to rewrite/ and the
+rewrite workflow; credential and whitespace scans passed.
+
+Publication CI is checked separately after pushing the exact code checkpoint.
+No main merge, release tag or next feature implementation is authorized by this
+record. The sandbox-only `/data/zbe-data-followup-design.txt` is an unimplemented
+proposal for the next bounded milestone, not evidence of data-definition support.

@@ -42,3 +42,10 @@ The IR/native compiler now supports scalar loads/stores (MEMORY.md). An optional
 
 
 Reached `alloc4`/`alloc8`/`alloc16` consume the ordinary step then return `UnsupportedAllocation` by default, including in child calls and with a supplied Image. Opt-in `Options.stack_memory` enables separate evaluator-owned synthetic objects, scoped to each invocation and shared across internal calls (INTERPRETER-ALLOCATIONS.md). Returning releases only that frame's objects; all remaining objects clean up on error. Earlier Image writes persist. No host-pointer fallback or implicit Image resizing is introduced (NATIVE-ALLOCATIONS.md).
+
+
+Scalar symbol-address operands are now accepted by the IR/frontend/native slice,
+but resolving one in the interpreter returns `UnsupportedSymbolAddress` without
+lookup, host-pointer conversion or synthetic address invention. Safe paths and
+ordinary step/error precedence remain intact; Image writes before a later symbol
+refusal persist and owned frames/objects clean up (SYMBOL-ADDRESSES.md).

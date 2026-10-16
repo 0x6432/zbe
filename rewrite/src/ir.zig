@@ -48,11 +48,13 @@ pub const Operand = union(enum) {
     /// Explicit low-32-bit projection of a long value, not another definition.
     low_word: ValueId,
     constant: Constant,
+    /// Module-pool symbol address, always long; not a function-local value.
+    symbol: SymbolId,
 
     pub fn referencedValue(self: Operand) ?ValueId {
         return switch (self) {
             .value, .low_word => |value| value,
-            .constant => null,
+            .constant, .symbol => null,
         };
     }
 };
@@ -570,6 +572,7 @@ pub const Function = struct {
     pub fn operandType(self: *const Function, operand: Operand) ValidationError!ScalarType {
         return switch (operand) {
             .constant => |constant| constant.scalarType(),
+            .symbol => .long,
             .low_word => |id| if (@backingInt(id) >= self.values.items.len)
                 error.InvalidValue
             else if (self.values.items[@backingInt(id)].scalar_type != .long)

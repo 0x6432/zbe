@@ -15,6 +15,19 @@ pub fn validate(allocator: std.mem.Allocator, module: *const Module) Error!void 
         var issue: ?ssa.Issue = null;
         try ssa.validate(allocator, function, &issue);
     }
+    // Symbols in scalar positions are module-scoped, not SSA references.
+    for (module.functions.items) |function| for (function.blocks.items) |block| {
+        for (block.phis.items) |phi| for (phi.inputs) |input| try checkOperandSymbol(module, input.value);
+        for (block.instructions.items) |instruction| {
+            var operands = instruction.operands();
+            while (operands.next()) |operand| try checkOperandSymbol(module, operand);
+        }
+        switch (block.terminator.?) {
+            .branch => |branch| try checkOperandSymbol(module, branch.condition),
+            .return_value => |value| if (value) |operand| try checkOperandSymbol(module, operand),
+            .jump, .halt => {},
+        }
+    };
     for (module.functions.items) |function| for (function.blocks.items) |block| for (block.instructions.items) |instruction| switch (instruction) {
         .call => |call| {
             const symbol = switch (call.callee) {
@@ -38,4 +51,8 @@ pub fn validate(allocator: std.mem.Allocator, module: *const Module) Error!void 
 pub fn findFunction(module: *const Module, name: @import("symbols.zig").Id) ?*const ir.Function {
     for (module.functions.items) |function| if (function.name == name) return function;
     return null;
+}
+
+fn checkOperandSymbol(module: *const Module, operand: ir.Operand) Error!void {
+    if (operand == .symbol and module.symbols.get(operand.symbol) == null) return error.InvalidSymbol;
 }

@@ -33,6 +33,7 @@ test {
     _ = @import("low_word_test.zig");
     _ = @import("native_allocations_test.zig");
     _ = @import("interpreter_allocations_test.zig");
+    _ = @import("symbol_addresses_test.zig");
     _ = @import("amd64.zig");
     _ = @import("abi_amd64.zig");
     _ = @import("interpreter.zig");

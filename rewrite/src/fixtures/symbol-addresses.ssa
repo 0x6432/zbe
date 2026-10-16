@@ -1,0 +1,125 @@
+export function l $symbol_address() {
+@e
+ret $zbe_symbol_bytes
+}
+export function l $symbol_function_address() {
+@e
+ret $symbol_target
+}
+export function l $symbol_external_address() {
+@e
+ret $zbe_symbol_transform
+}
+export function l $symbol_load(l %offset) {
+@e
+%p =l add $zbe_symbol_bytes, %offset
+%r =l loadub %p
+ret %r
+}
+export function l $symbol_store(l %offset, w %value) {
+@e
+%p =l add $zbe_symbol_bytes, %offset
+storeb %value, %p
+%r =l loadub %p
+ret %r
+}
+export function l $symbol_phi(w %choose) {
+@e
+jnz %choose, @left, @right
+@left
+jmp @join
+@right
+jmp @join
+@join
+%p =l phi @left $zbe_symbol_bytes, @right $zbe_symbol_other
+%q =l phi @left $zbe_symbol_other, @right $zbe_symbol_bytes
+%x =l loadub %p
+%y =l loadub %q
+%weighted =l mul %y, 257
+%r =l add %weighted, %x
+ret %r
+}
+export function l $symbol_swap(w %n) {
+@e
+jmp @loop
+@loop
+%i =w phi @e %n, @body %next
+%p =l phi @e $zbe_symbol_bytes, @body %q
+%q =l phi @e $zbe_symbol_other, @body %p
+jnz %i, @body, @done
+@body
+%next =w sub %i, 1
+jmp @loop
+@done
+%x =l loadub %p
+%y =l loadub %q
+%weighted =l mul %y, 257
+%r =l add %weighted, %x
+ret %r
+}
+export function l $symbol_callback(l %n) {
+@e
+%target =l copy $symbol_target
+%r =l call %target(l $zbe_symbol_bytes, l %n)
+ret %r
+}
+export function l $symbol_target(l %p, l %n) {
+@e
+%x =l loadub %p
+%r =l add %x, %n
+ret %r
+}
+export function l $symbol_external_callback(l %n) {
+@e
+%target =l copy $zbe_symbol_transform
+%r =l call %target(l $zbe_symbol_bytes, l %n)
+ret %r
+}
+export function l $symbol_many_arguments() {
+@e
+%r =l call $zbe_symbol_arguments(l $zbe_symbol_bytes, l $zbe_symbol_other, l $zbe_symbol_slot, l $zbe_symbol_transform, l $symbol_target, l $zbe_symbol_bytes, l $zbe_symbol_other, l $zbe_symbol_slot, d d_1.5, s s_-0)
+ret %r
+}
+export function l $symbol_slot_roundtrip() {
+@e
+storel $zbe_symbol_bytes, $zbe_symbol_slot
+%r =l loadl $zbe_symbol_slot
+ret %r
+}
+export function $symbol_blit() {
+@e
+blit $zbe_symbol_bytes, $zbe_symbol_other, 16
+ret
+}
+export function w $symbol_low_word() {
+@e
+%p =l copy $zbe_symbol_bytes
+ret %p
+}
+export function w $symbol_branch() {
+@e
+jnz $zbe_symbol_bytes, @yes, @no
+@yes
+ret 11
+@no
+ret 22
+}
+export function l $symbol_difference() {
+@e
+%r =l sub $zbe_symbol_bytes, $zbe_symbol_other
+ret %r
+}
+export function l $symbol_preserved() {
+@e
+%p =l copy $zbe_symbol_bytes
+%q =l copy $zbe_symbol_other
+%a =l copy $zbe_symbol_slot
+%b =l copy $zbe_symbol_transform
+%c =l copy $symbol_target
+%call =l call $symbol_many_arguments()
+%x =l xor %p, %q
+%y =l xor %a, %b
+%z =l xor %x, %y
+%r =l xor %z, %c
+ret %r
+}

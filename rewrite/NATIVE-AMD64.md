@@ -54,7 +54,7 @@ Same-width `cast` uses raw-bit moves across integer/SSE ABI classes. `exts` uses
 Floating predicates use explicit ordered/unordered SSE flag handling rather than treating floating flags as integer comparisons. Equality/less/less-equal exclude unordered results, inequality includes unordered results, and ordered/unordered test parity explicitly. Native tests cover both integer result widths, both floating operand widths, signed zeros, infinities and quiet/signaling NaN operands. Truth-value coverage does not establish floating exception-flag equivalence or behavior with unmasked exceptions.
 
 
-All nine native harnesses accept `--fold-integers`, `--reuse-stack-homes` and `--callee-saved-homes`, forwarding them to the experimental compiler. CI executes each harness in all eight flag combinations in every compiler build mode, retaining all result, arithmetic-fault and output-preservation expectations. See OPTIMIZE.md for the folding pass's conservative scope and failure-atomic per-function contract and STACK-HOMES.md for layout ownership and analysis limits, and PRESERVED-HOMES.md for limited physical homes and the explicit full-width register-preservation adapter. No new IL optimization level or legacy compatibility behavior is implied.
+All ten native harnesses accept `--fold-integers`, `--reuse-stack-homes` and `--callee-saved-homes`, forwarding them to the experimental compiler. CI executes each harness in all eight flag combinations in every compiler build mode, retaining all result, arithmetic-fault and output-preservation expectations. See OPTIMIZE.md for the folding pass's conservative scope and failure-atomic per-function contract and STACK-HOMES.md for layout ownership and analysis limits, and PRESERVED-HOMES.md for limited physical homes and the explicit full-width register-preservation adapter. No new IL optimization level or legacy compatibility behavior is implied.
 
 ## Scalar memory subset
 
@@ -78,3 +78,16 @@ Fixed frames now descend at most 4,096 bytes per step with an in-frame read prob
 ## Dynamic native stack objects
 
 `alloc4`/`alloc8`/`alloc16` use typed long byte sizes/results and runtime page-wise reservation, over-aligned to16. Every reached execution reserves a fresh positive extent until return. An aligned outgoing-area offset keeps stack arguments below live objects even when an allocation is smaller than the outgoing reservation. Size-rounding overflow traps instead of wrapping; zero-byte objects promise no dereference. The ninth harness covers initialized extents, loops, recursion, mixed/indirect calls, preserved registers and protected-stack mutation controls. Evaluators refuse allocation by default, even with an Image; opt-in synthetic interpreter objects are separate (INTERPRETER-ALLOCATIONS.md). See NATIVE-ALLOCATIONS.md for the exact native/interpreter boundary.
+
+
+## Typed symbol addresses
+
+Bare unquoted `$symbol` scalar operands have long address type and lower to
+full-width RIP-relative `leaq`, never an implicit load or truncated immediate.
+Module validation checks operand symbol IDs and the emitter checks spellings,
+including phi/terminator/unreachable uses. Executable PIE/non-PIE linking is
+covered separately; GOT/shared-object interposition, TLS, symbol-offset literals,
+data definitions and full PIC/ABI support are not added. Interpreters explicitly
+refuse reached symbol-address resolution. See SYMBOL-ADDRESSES.md. The tenth
+native harness adds independent linked object/function address, initialized
+memory, phi, mixed call and preservation checks in both executable link modes.

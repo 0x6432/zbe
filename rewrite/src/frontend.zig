@@ -353,7 +353,8 @@ const Parser = struct {
                 else
                     .{ .double_bits = @bitCast(parseFloating(f64, spelling) catch return self.fail(.invalid_float, token)) } };
             },
-            .global, .type_name, .string => return self.fail(.unsupported_construct, token),
+            .global => .{ .symbol = try self.module.symbols.intern(try self.globalName(token)) },
+            .type_name, .string => return self.fail(.unsupported_construct, token),
             else => return self.fail(.unexpected_token, token),
         };
         const actual = self.current_function.?.operandType(result) catch |err| return self.irError(err, token);

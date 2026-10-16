@@ -18,11 +18,13 @@ def main() -> None:
     root = Path(__file__).resolve().parents[1]
     parser.add_argument("--compiler", type=Path, default=root / "zig-out/bin/zbe-native")
     parser.add_argument("--cc", default="cc")
+    parser.add_argument("--fold-integers", action="store_true")
     args = parser.parse_args()
     if platform.system() != "Linux" or platform.machine() not in ("x86_64", "amd64"):
         raise SystemExit("Native execution requires Linux x86_64; no result claimed.")
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
     compiler = str(args.compiler.resolve())
+    compiler_flags = ["--fold-integers"] if args.fold_integers else []
     declarations = ["#include <stdint.h>", "#include <stdio.h>"]
     checks = []
     functions = []
@@ -94,9 +96,17 @@ def main() -> None:
             functions.append(f"export function {ty} ${name}({ty} %a, {ty} %b) {{\n@entry\n%x ={ty} {opcode} %a, %b\nret %x\n}}")
             declarations.append(f"extern {ctype} {name}({ctype}, {ctype});")
             traps.append(f"if (which == {len(traps)}) {{ volatile {ctype} result = {name}(1, 0); (void)result; return 3; }}")
+            constant_name = f"constant_zero_{opcode}_{ty}"
+            functions.append(f"export function {ty} ${constant_name}() {{\n@b\n%x ={ty} {opcode} 1, 0\nret %x\n}}")
+            declarations.append(f"extern {ctype} {constant_name}(void);")
+            traps.append(f"if (which == {len(traps)}) {{ volatile {ctype} result = {constant_name}(); (void)result; return 3; }}")
             if opcode in ("div", "rem"):
                 minimum, minus_one = 1 << (width - 1), (1 << width) - 1
                 traps.append(f"if (which == {len(traps)}) {{ volatile {ctype} result = {name}(UINT64_C({minimum}), UINT64_C({minus_one})); (void)result; return 3; }}")
+                constant_name = f"constant_overflow_{opcode}_{ty}"
+                functions.append(f"export function {ty} ${constant_name}() {{\n@b\n%x ={ty} {opcode} {minimum}, {minus_one}\nret %x\n}}")
+                declarations.append(f"extern {ctype} {constant_name}(void);")
+                traps.append(f"if (which == {len(traps)}) {{ volatile {ctype} result = {constant_name}(); (void)result; return 3; }}")
     functions.append("export function l $divide_args(l %a, l %b, l %c, l %d) {\n@entry\n%q =l div %a, %b\n%r =l rem %a, %b\n%v =l add %q, %r\n%v2 =l add %v, %c\n%out =l add %v2, %d\nret %out\n}")
     declarations.append("extern uint64_t divide_args(uint64_t, uint64_t, uint64_t, uint64_t);")
     check(f"divide_args(UINT64_C({(1 << 64) - 17}), 5, UINT64_C({1 << 35}), 7)", (1 << 35) + 2)
@@ -163,7 +173,7 @@ def main() -> None:
         source.write_text("\n".join(functions) + "\n")
         trap_dispatch = "\n".join(traps)
         driver.write_text("\n".join(declarations) + "\n#include <stdlib.h>\nint main(int argc, char **argv) {\nif (argc == 2) { int which = atoi(argv[1]);\n" + trap_dispatch + "\nreturn 4; }\nnothing();\n" + "\n".join(checks) + f'\nputs("{len(checks)} native integer/ABI/phi checks passed");\nreturn 0;\n}}\n')
-        run([compiler, str(source), str(assembly)])
+        run([compiler, *compiler_flags, str(source), str(assembly)])
         run([args.cc, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-no-pie", str(driver), str(assembly), "-o", str(executable)])
         run([str(executable)])
         for index in range(len(traps)):
@@ -181,18 +191,18 @@ def main() -> None:
             bad_source = work / f"{name}.ssa"
             bad_output = work / f"{name}.s"
             bad_source.write_text(text)
-            result = subprocess.run([compiler, str(bad_source), str(bad_output)], capture_output=True, text=True, timeout=30)
+            result = subprocess.run([compiler, *compiler_flags, str(bad_source), str(bad_output)], capture_output=True, text=True, timeout=30)
             if result.returncode == 0 or bad_output.exists() or diagnostic not in result.stderr:
                 raise SystemExit(f"Invalid {name} input was accepted, created output, or had the wrong diagnostic")
             bad_output.write_text("preserve-existing-output")
-            result = subprocess.run([compiler, str(bad_source), str(bad_output)], capture_output=True, text=True, timeout=30)
+            result = subprocess.run([compiler, *compiler_flags, str(bad_source), str(bad_output)], capture_output=True, text=True, timeout=30)
             if result.returncode == 0 or bad_output.read_text() != "preserve-existing-output":
                 raise SystemExit(f"Invalid {name} input overwrote an existing output")
         usage = subprocess.run([compiler], capture_output=True, text=True, timeout=30)
         if usage.returncode != 2 or "usage:" not in usage.stderr:
             raise SystemExit("Usage check failed")
         original = source.read_bytes()
-        same = subprocess.run([compiler, str(source), str(source)], capture_output=True, text=True, timeout=30)
+        same = subprocess.run([compiler, *compiler_flags, str(source), str(source)], capture_output=True, text=True, timeout=30)
         if same.returncode == 0 or source.read_bytes() != original:
             raise SystemExit("Same-path output overwrote its input")
         print("8 CLI rejection/output-preservation checks passed")

@@ -57,3 +57,8 @@ Same-width `cast` changes word/single or long/double class without changing any 
 ### Floating predicates
 
 Eight semantic predicates cover equal/not-equal, less/less-equal, greater/greater-equal, ordered and unordered. Single/double operand widths and word/long result widths are independent. NaN makes inequality/unordered true and equality/ordered/relative comparisons false. Signed zero compares equal; infinities order numerically. The reproducible 2,560-case classification oracle uses raw integer NaN/infinity classification and exact fractions for finite ordering, not host floating comparisons or compiler output. It covers both operands, both result widths and signaling/quiet NaN inputs. Validation and allocation-failure tests cover the new typed instruction. Exception flags and unmasked floating traps are not asserted equivalent between evaluator and native output.
+
+
+### Shared pure operations and opt-in folding
+
+The evaluator's pure operation implementations live in `semantics.zig`; callers must first establish the IR operation type contract. Arithmetic errors remain typed, and no host floating mode is silently relaxed. `optimize.zig` reuses these bit-pattern operations but refuses floating arithmetic/comparison/widening folds and preserves invalid integer arithmetic. Independent Python expectations remain unchanged. See OPTIMIZE.md for source-order limits, SSA validation and allocation-failure atomicity.

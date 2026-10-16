@@ -1,6 +1,6 @@
 # Experimental Linux AMD64 base-scalar slice
 
-This is the first independent parse → SSA/phi verification → assembly → native-execution path. It is **not** full QBE, full AMD64 lowering, a register allocator, an optimizer, or release-ready code generation.
+This is the first independent parse → SSA/phi verification → assembly → native-execution path. It is **not** full QBE, full AMD64 lowering, a register allocator, a complete optimizer, or release-ready code generation.
 
 ```sh
 zig build
@@ -10,7 +10,7 @@ python3 tools/native_check.py
 python3 tools/native_float_check.py
 ```
 
-The driver takes exactly two paths. It reads at most 16 MiB of IL, constructs owned IR, and returns an error for unsupported or invalid input. No output is created/truncated until parsing, SSA validation and assembly generation succeed. Identical input/output path strings are rejected; path aliases are not canonicalized. Filesystem write failures are not promised to be atomic. Diagnostics are new typed/frontend messages, not the legacy QBE CLI wording.
+The driver takes two paths and optionally a leading `--fold-integers` flag. It reads at most 16 MiB of IL, constructs owned IR, and returns an error for unsupported or invalid input. No output is created/truncated until parsing, SSA validation and assembly generation succeed. Identical input/output path strings are rejected; path aliases are not canonicalized. Filesystem write failures are not promised to be atomic. Diagnostics are new typed/frontend messages, not the legacy QBE CLI wording.
 
 ## Implemented boundary
 
@@ -18,7 +18,7 @@ The driver takes exactly two paths. It reads at most 16 MiB of IL, constructs ow
 - Word/long/single/double or void functions. Integer and SSE argument banks are tracked independently (six GP and eight SSE registers), with overflow scalar stack slots in declaration order; integer/SSE/void returns.
 - Floating copy/negation, scalar SSE add/sub/mul/div, and bit-preserving edge phi copies. Single/double homes retain raw bits; moves and negation do not pass through arithmetic conversion.
 - Current integer copy/arithmetic/division/remainder/bitwise/negation/integer-extension/shift/integer-comparison instructions, jumps, low-word conditional branches, and edge-specific parallel phi copies.
-- Every SSA value has an eight-byte stack home; phi copies use additional, non-overlapping scratch homes. This deliberately simple strategy has **no register allocation or optimization**.
+- Every SSA value has an eight-byte stack home; phi copies use additional, non-overlapping scratch homes. This deliberately simple emitter has **no register allocation**. An opt-in prepass performs conservative integer constant folding; it does not delete instructions or compact stack homes.
 - Frame pointer is preserved, stack space rounded to 16 bytes, and only caller-saved scratch registers are used. A prototype frame-size cap of 64 KiB is explicit; large-frame probing is not implemented.
 - Export/local symbol linkage is retained. Symbols are validated, and quoted internal labels use a namespace unavailable to accepted user symbols. The assembly marks a non-executable GNU stack.
 
@@ -28,7 +28,7 @@ Native compiled loops have ordinary native-program behavior; the interpreter's e
 
 ## Verification
 
-The integer native harness consumes all 384 independent Python arithmetic/bitwise oracle cases 832 shift/comparison oracle cases and 384 negation/extension oracle cases and 1,228 division/remainder oracle cases, all four constant-jump regressions, loop-carried phi swaps, eight-argument word/long ABI cases, dynamic long-condition low-word checks, conditional phi edges and duplicate-target phi edges. It assembles/links through the host C compiler and calls the exported functions from C: 3,370 result checks plus a void-function call. The 512 additional mixed-program cases combine arithmetic, shifts, comparisons, extensions and division with diamonds and loop-carried phi values. These include a comparison-driven sum loop and a shift whose `%cl` scratch overlaps a former incoming argument register; all incoming arguments have independent homes before scratch use. Signed/unsigned division uses hardware quotient/remainder instructions, with all incoming arguments saved before `%rdx` scratch use; a mixed-argument regression checks this. Twelve separate subprocess checks require SIGFPE for zero divisors and signed-minimum/minus-one pairs. These faults are not compiler diagnostics or evaluator error objects. Core dumps are disabled in the harness.
+The integer native harness consumes all 384 independent Python arithmetic/bitwise oracle cases 832 shift/comparison oracle cases and 384 negation/extension oracle cases and 1,228 division/remainder oracle cases, all four constant-jump regressions, loop-carried phi swaps, eight-argument word/long ABI cases, dynamic long-condition low-word checks, conditional phi edges and duplicate-target phi edges. It assembles/links through the host C compiler and calls the exported functions from C: 3,370 result checks plus a void-function call. The 512 additional mixed-program cases combine arithmetic, shifts, comparisons, extensions and division with diamonds and loop-carried phi values. These include a comparison-driven sum loop and a shift whose `%cl` scratch overlaps a former incoming argument register; all incoming arguments have independent homes before scratch use. Signed/unsigned division uses hardware quotient/remainder instructions, with all incoming arguments saved before `%rdx` scratch use; a mixed-argument regression checks this. Twenty-four separate subprocess checks require SIGFPE for dynamic and compile-time zero divisors and signed-minimum/minus-one pairs. These faults are not compiler diagnostics or evaluator error objects. Core dumps are disabled in the harness.
 
 It also checks eight CLI rejection/output-preservation conditions.
 
@@ -44,3 +44,6 @@ Same-width `cast` uses raw-bit moves across integer/SSE ABI classes. `exts` uses
 
 
 Floating predicates use explicit ordered/unordered SSE flag handling rather than treating floating flags as integer comparisons. Equality/less/less-equal exclude unordered results, inequality includes unordered results, and ordered/unordered test parity explicitly. Native tests cover both integer result widths, both floating operand widths, signed zeros, infinities and quiet/signaling NaN operands. Truth-value coverage does not establish floating exception-flag equivalence or behavior with unmasked exceptions.
+
+
+Both native harnesses accept `--fold-integers`, forwarding it to the experimental compiler. CI executes each harness with and without the flag in every compiler build mode, retaining all result, arithmetic-fault and output-preservation expectations. See OPTIMIZE.md for the pass's conservative scope and failure-atomic per-function contract. No new IL optimization level or legacy compatibility behavior is implied.

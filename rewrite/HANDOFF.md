@@ -210,3 +210,20 @@ An independent reproducible 2,560-case oracle uses integer NaN/infinity classifi
 ### Floating comparison local verification
 
 Pinned Zig Debug, ReleaseSafe and ReleaseFast each passed **103/103 unit tests**, **3,370 integer/program native checks**, **3,560 floating/bit-pattern/mixed-ABI native checks**, **12 native arithmetic-fault checks**, and **8 CLI checks**. Formatting and all eight generators' reproducibility checks passed. Current-environment log: `/data/verify-native-float-comparisons.log`. Legacy source/build/tools/tests remain unchanged. Conversion CI is still monitored separately; no running run is inferred green. Comparison CI is checked after publication.
+
+
+### Conversion and floating comparison published CI
+
+Recovered conversion checkpoint `eff12e0c6c468c3149fcff66957f9ee1cff20c35` passed https://github.com/0x6432/zbe/actions/runs/38877374218: all three Debug/ReleaseSafe/ReleaseFast jobs succeeded. Floating comparison checkpoint `7b6b23d45eab28b7352f9b8ea840adb282dd6360` passed https://github.com/0x6432/zbe/actions/runs/38877658617: all three jobs also succeeded. These precede the optimizer below.
+
+## Conservative integer constant folding
+
+Extracted pure scalar bit-pattern operations into `semantics.zig`, shared by evaluation and a new opt-in source-order integer folding pass. The pass validates SSA and allocates all facts before mutating a function. It preserves IDs/backlinks, instruction counts, CFG, phi inputs and terminators. Parameters/phis remain unknown and layout order may conservatively prevent folding. Known copies, integer operations and bit-pattern-only transforms become constant copies; exceptional integer divisions/remainders remain executable. Floating arithmetic/comparisons/widening are not folded. No DCE, branch simplification, frame compaction, register allocation or full optimizer parity is implied.
+
+The experimental CLI gains `--fold-integers`; legacy `-O0`/compatibility behavior is unchanged. Both native harnesses and CI check normal and folded paths. Twelve additional compile-time-operand arithmetic-fault cases complement the original twelve dynamic cases. Unit tests independently check 2,444 folded constants, chaining/low-word branches, unchanged floating operations, conservative layout and per-function fact ownership, validation-before-mutation and exhaustive failure cleanup. See OPTIMIZE.md.
+
+An earlier integration smoke runner overlapped the first full runner, which could compete when installing compiler build modes. Both superseded process trees were stopped; only the fresh non-overlapping `/data/verify-native-folding-final.log` run is authoritative for this milestone's final mode-by-mode results.
+
+### Integer folding local verification
+
+Pinned Zig Debug, ReleaseSafe and ReleaseFast passed **110/110 unit tests**. Debug was additionally executed directly without run-step caching (`/data/verify-fold-debug-direct.log`, ending `All 110 tests passed`). The authoritative non-overlapping full log is `/data/verify-native-folding-final.log`: in each compiler build mode, **both normal and `--fold-integers` paths** passed **3,370 integer/program native checks**, **3,560 floating/bit-pattern/mixed-ABI native checks**, **24 arithmetic-fault checks**, and **8 CLI checks** per path. Formatting and all eight generators' reproducibility passed. Legacy source/build/tools/tests remain unchanged. CI for the optimizer is checked separately after publication; no release tag or main integration is authorized.

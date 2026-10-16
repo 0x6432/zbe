@@ -1,9 +1,10 @@
 const std = @import("std");
 const ir = @import("ir.zig");
 const ssa = @import("ssa.zig");
+const semantics = @import("semantics.zig");
 
 pub const Options = struct { max_steps: usize = 100_000 };
-pub const ArithmeticError = error{ DivisionByZero, IntegerOverflow };
+pub const ArithmeticError = semantics.ArithmeticError;
 pub const Error = ArithmeticError || ssa.Error || error{ ArgumentCountMismatch, ArgumentTypeMismatch, StepLimitExceeded, UninitializedValue };
 
 /// Bounded reference evaluator for the current scalar subset, not target code
@@ -47,11 +48,11 @@ pub fn evaluate(allocator: std.mem.Allocator, function: *const ir.Function, argu
             try step(&remaining);
             const result = switch (instruction) {
                 .copy => |copy| try resolve(values, copy.operand),
-                .unary => |unary| unaryValue(unary.op, try resolve(values, unary.operand), function.values.items[@backingInt(unary.result)].scalar_type),
-                .shift => |shift| shiftedValue(shift.op, try resolve(values, shift.value), (try resolve(values, shift.amount)).word),
-                .compare_float => |comparison| floatComparisonValue(comparison.predicate, try resolve(values, comparison.lhs), try resolve(values, comparison.rhs), function.values.items[@backingInt(comparison.result)].scalar_type),
-                .compare_integer => |comparison| comparisonValue(comparison.predicate, try resolve(values, comparison.lhs), try resolve(values, comparison.rhs), function.values.items[@backingInt(comparison.result)].scalar_type),
-                .binary => |binary| try binaryValue(binary.op, try resolve(values, binary.lhs), try resolve(values, binary.rhs)),
+                .unary => |unary| semantics.unaryValue(unary.op, try resolve(values, unary.operand), function.values.items[@backingInt(unary.result)].scalar_type),
+                .shift => |shift| semantics.shiftedValue(shift.op, try resolve(values, shift.value), (try resolve(values, shift.amount)).word),
+                .compare_float => |comparison| semantics.floatComparisonValue(comparison.predicate, try resolve(values, comparison.lhs), try resolve(values, comparison.rhs), function.values.items[@backingInt(comparison.result)].scalar_type),
+                .compare_integer => |comparison| semantics.comparisonValue(comparison.predicate, try resolve(values, comparison.lhs), try resolve(values, comparison.rhs), function.values.items[@backingInt(comparison.result)].scalar_type),
+                .binary => |binary| try semantics.binaryValue(binary.op, try resolve(values, binary.lhs), try resolve(values, binary.rhs)),
             };
             values[@backingInt(instruction.result())] = result;
         }
@@ -78,153 +79,6 @@ fn resolve(values: []const ?ir.Constant, operand: ir.Operand) error{Uninitialize
     return switch (operand) {
         .constant => |constant| constant,
         .value => |value| values[@backingInt(value)] orelse error.UninitializedValue,
-    };
-}
-
-fn unaryValue(op: ir.UnaryOp, operand: ir.Constant, result_type: ir.ScalarType) ir.Constant {
-    if (op == .negate) return switch (operand) {
-        .word => |bits| .{ .word = 0 -% bits },
-        .long => |bits| .{ .long = 0 -% bits },
-        .single_bits => |bits| .{ .single_bits = bits ^ 0x80000000 },
-        .double_bits => |bits| .{ .double_bits = bits ^ 0x8000000000000000 },
-    };
-    if (op == .bitcast) return switch (result_type) {
-        .word => .{ .word = operand.single_bits },
-        .long => .{ .long = operand.double_bits },
-        .single => .{ .single_bits = operand.word },
-        .double => .{ .double_bits = operand.long },
-    };
-    if (op == .widen_float) {
-        @setFloatMode(.strict);
-        const value: f32 = @bitCast(operand.single_bits);
-        return .{ .double_bits = @bitCast(@as(f64, value)) };
-    }
-    const bits = operand.word;
-    const extended: u64 = switch (op) {
-        .negate, .bitcast, .widen_float => unreachable,
-        .sign_extend_byte => signedExtension(u8, i8, bits),
-        .zero_extend_byte => bits & 0xff,
-        .sign_extend_half => signedExtension(u16, i16, bits),
-        .zero_extend_half => bits & 0xffff,
-        .sign_extend_word => signedExtension(u32, i32, bits),
-        .zero_extend_word => bits,
-    };
-    return if (result_type == .word) .{ .word = @truncate(extended) } else .{ .long = extended };
-}
-fn signedExtension(comptime U: type, comptime S: type, bits: u32) u64 {
-    const narrow: U = @truncate(bits);
-    const signed: S = @bitCast(narrow);
-    return @bitCast(@as(i64, signed));
-}
-
-fn shiftedValue(op: ir.ShiftOp, value: ir.Constant, amount: u32) ir.Constant {
-    return switch (value) {
-        .word => |bits| .{ .word = shifted(u32, i32, u5, op, bits, amount) },
-        .long => |bits| .{ .long = shifted(u64, i64, u6, op, bits, amount) },
-        else => unreachable,
-    };
-}
-fn shifted(comptime U: type, comptime S: type, comptime Count: type, op: ir.ShiftOp, value: U, amount: u32) U {
-    const count: Count = @truncate(amount);
-    return switch (op) {
-        .left => value << count,
-        .logical_right => value >> count,
-        .arithmetic_right => @bitCast(@as(S, @bitCast(value)) >> count),
-    };
-}
-fn floatComparisonValue(predicate: ir.FloatPredicate, lhs: ir.Constant, rhs: ir.Constant, result_type: ir.ScalarType) ir.Constant {
-    const result = switch (lhs) {
-        .single_bits => |a| compareFloat(f32, predicate, @bitCast(a), @bitCast(rhs.single_bits)),
-        .double_bits => |a| compareFloat(f64, predicate, @bitCast(a), @bitCast(rhs.double_bits)),
-        else => unreachable,
-    };
-    return if (result_type == .word) .{ .word = @intFromBool(result) } else .{ .long = @intFromBool(result) };
-}
-fn compareFloat(comptime F: type, predicate: ir.FloatPredicate, lhs: F, rhs: F) bool {
-    @setFloatMode(.strict);
-    const unordered = std.math.isNan(lhs) or std.math.isNan(rhs);
-    return switch (predicate) {
-        .equal => lhs == rhs,
-        .not_equal => lhs != rhs,
-        .less => lhs < rhs,
-        .less_equal => lhs <= rhs,
-        .greater => lhs > rhs,
-        .greater_equal => lhs >= rhs,
-        .ordered => !unordered,
-        .unordered => unordered,
-    };
-}
-
-fn comparisonValue(predicate: ir.IntegerPredicate, lhs: ir.Constant, rhs: ir.Constant, result_type: ir.ScalarType) ir.Constant {
-    const result = switch (lhs) {
-        .word => |a| compare(u32, i32, predicate, a, rhs.word),
-        .long => |a| compare(u64, i64, predicate, a, rhs.long),
-        else => unreachable,
-    };
-    return if (result_type == .word) .{ .word = @intFromBool(result) } else .{ .long = @intFromBool(result) };
-}
-fn compare(comptime U: type, comptime S: type, predicate: ir.IntegerPredicate, lhs: U, rhs: U) bool {
-    const a: S = @bitCast(lhs);
-    const b: S = @bitCast(rhs);
-    return switch (predicate) {
-        .equal => lhs == rhs,
-        .not_equal => lhs != rhs,
-        .signed_less => a < b,
-        .signed_less_equal => a <= b,
-        .signed_greater => a > b,
-        .signed_greater_equal => a >= b,
-        .unsigned_less => lhs < rhs,
-        .unsigned_less_equal => lhs <= rhs,
-        .unsigned_greater => lhs > rhs,
-        .unsigned_greater_equal => lhs >= rhs,
-    };
-}
-
-fn binaryValue(op: ir.BinaryOp, lhs: ir.Constant, rhs: ir.Constant) ArithmeticError!ir.Constant {
-    // Structural/SSA validation and argument checks establish matching tags.
-    return switch (lhs) {
-        .word => |a| .{ .word = try integerValue(u32, op, a, rhs.word) },
-        .long => |a| .{ .long = try integerValue(u64, op, a, rhs.long) },
-        .single_bits => |a| .{ .single_bits = @bitCast(floatValue(f32, op, @bitCast(a), @bitCast(rhs.single_bits))) },
-        .double_bits => |a| .{ .double_bits = @bitCast(floatValue(f64, op, @bitCast(a), @bitCast(rhs.double_bits))) },
-    };
-}
-
-fn integerValue(comptime T: type, op: ir.BinaryOp, lhs: T, rhs: T) ArithmeticError!T {
-    switch (op) {
-        .signed_divide, .unsigned_divide, .signed_remainder, .unsigned_remainder => {
-            if (rhs == 0) return error.DivisionByZero;
-            if (op == .signed_divide or op == .signed_remainder) {
-                const S = @Int(.signed, @bitSizeOf(T));
-                const a: S = @bitCast(lhs);
-                const b: S = @bitCast(rhs);
-                // AMD64 idiv traps on this pair for quotient and remainder alike.
-                if (a == std.math.minInt(S) and b == -1) return error.IntegerOverflow;
-                return @bitCast(if (op == .signed_divide) @divTrunc(a, b) else @rem(a, b));
-            }
-            return if (op == .unsigned_divide) lhs / rhs else lhs % rhs;
-        },
-        else => {},
-    }
-    return switch (op) {
-        .add => lhs +% rhs,
-        .sub => lhs -% rhs,
-        .mul => lhs *% rhs,
-        .bit_and => lhs & rhs,
-        .bit_or => lhs | rhs,
-        .bit_xor => lhs ^ rhs,
-        .signed_divide, .unsigned_divide, .signed_remainder, .unsigned_remainder => unreachable,
-    };
-}
-
-fn floatValue(comptime F: type, op: ir.BinaryOp, lhs: F, rhs: F) F {
-    @setFloatMode(.strict);
-    return switch (op) {
-        .add => lhs + rhs,
-        .sub => lhs - rhs,
-        .mul => lhs * rhs,
-        .signed_divide => lhs / rhs,
-        .bit_and, .bit_or, .bit_xor, .unsigned_divide, .signed_remainder, .unsigned_remainder => unreachable, // Rejected by validation.
     };
 }
 

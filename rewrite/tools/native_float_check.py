@@ -12,9 +12,11 @@ def main() -> None:
     root = Path(__file__).resolve().parents[1]
     parser.add_argument("--compiler", type=Path, default=root / "zig-out/bin/zbe-native")
     parser.add_argument("--cc", default="cc")
+    parser.add_argument("--fold-integers", action="store_true")
     args = parser.parse_args()
     if platform.system() != "Linux" or platform.machine() not in ("x86_64", "amd64"):
         raise SystemExit("Native execution requires Linux x86_64; no result claimed.")
+    compiler_flags = ["--fold-integers"] if args.fold_integers else []
     declarations = ["#include <stdint.h>", "#include <stdio.h>", "#include <string.h>", "#include <fenv.h>",
                     "static float f32(uint32_t v) { float f; memcpy(&f, &v, 4); return f; }",
                     "static double f64(uint64_t v) { double f; memcpy(&f, &v, 8); return f; }",
@@ -122,7 +124,7 @@ def main() -> None:
         source, output, driver, executable = (work / n for n in ("input.ssa", "output.s", "driver.c", "test"))
         source.write_text("\n".join(functions) + "\n")
         driver.write_text("\n".join(declarations) + "\nint main(void) {\nif (fesetround(FE_TONEAREST)) return 2;\n" + "\n".join(checks) + f'\nputs("{len(checks)} native floating/bit-pattern/mixed-ABI checks passed");\nreturn 0;\n}}\n')
-        for command in ([str(args.compiler.resolve()), str(source), str(output)], [args.cc, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-no-pie", str(driver), str(output), "-lm", "-o", str(executable)], [str(executable)]):
+        for command in ([str(args.compiler.resolve()), *compiler_flags, str(source), str(output)], [args.cc, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-no-pie", str(driver), str(output), "-lm", "-o", str(executable)], [str(executable)]):
             subprocess.run(command, check=True, timeout=90)
 
 

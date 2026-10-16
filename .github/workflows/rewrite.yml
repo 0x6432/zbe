@@ -46,3 +46,5 @@ jobs:
           zig build -Doptimize=${{ matrix.optimize }} --summary all
           python3 tools/native_check.py
           python3 tools/native_float_check.py
+          python3 tools/native_check.py --fold-integers
+          python3 tools/native_float_check.py --fold-integers

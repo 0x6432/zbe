@@ -1,4 +1,4 @@
-//! Experimental integer-only Linux AMD64 compiler driver; not QBE CLI parity.
+//! Experimental base-scalar Linux AMD64 compiler driver; not QBE CLI parity.
 const std = @import("std");
 const core = @import("root.zig");
 
@@ -11,14 +11,17 @@ pub fn main(init: std.process.Init) u8 {
 
 fn run(init: std.process.Init) !u8 {
     const args = try init.minimal.args.toSlice(init.arena.allocator());
-    if (args.len != 3) {
-        report(init.io, "usage: zbe-native input.ssa output.s (Linux AMD64 integer subset)\n", .{});
+    const fold = args.len > 1 and std.mem.eql(u8, args[1], "--fold-integers");
+    if (args.len != @as(usize, if (fold) 4 else 3)) {
+        report(init.io, "usage: zbe-native [--fold-integers] input.ssa output.s (Linux AMD64 scalar subset)\n", .{});
         return 2;
     }
-    if (std.mem.eql(u8, args[1], args[2])) return error.SameInputAndOutput;
-    const text = try std.Io.Dir.cwd().readFileAlloc(init.io, args[1], init.gpa, .limited(16 * 1024 * 1024));
+    const input_path = args[if (fold) 2 else 1];
+    const output_path = args[if (fold) 3 else 2];
+    if (std.mem.eql(u8, input_path, output_path)) return error.SameInputAndOutput;
+    const text = try std.Io.Dir.cwd().readFileAlloc(init.io, input_path, init.gpa, .limited(16 * 1024 * 1024));
     defer init.gpa.free(text);
-    const input: core.source.Source = .{ .name = args[1], .text = text };
+    const input: core.source.Source = .{ .name = input_path, .text = text };
     var diagnostic: ?core.source.Diagnostic = null;
     var module = core.frontend.parse(init.gpa, input, &diagnostic) catch |err| {
         if (diagnostic) |problem| {
@@ -29,10 +32,13 @@ fn run(init: std.process.Init) !u8 {
         return err;
     };
     defer module.deinit();
+    if (fold) for (module.functions.items) |function| {
+        _ = try core.optimize.foldIntegerConstants(init.gpa, function);
+    };
     const assembly = try core.amd64.emit(init.gpa, &module);
     defer init.gpa.free(assembly);
     // No output is created/truncated until parsing, validation and emission succeed.
-    try std.Io.Dir.cwd().writeFile(init.io, .{ .sub_path = args[2], .data = assembly });
+    try std.Io.Dir.cwd().writeFile(init.io, .{ .sub_path = output_path, .data = assembly });
     return 0;
 }
 

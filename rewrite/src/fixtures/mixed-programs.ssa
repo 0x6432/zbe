@@ -1,0 +1,1745 @@
+export function w $mixed_0(w %a, w %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =w xor %a, %b
+%v1 =w mul %a, %b
+%v2 =w or %b, %a
+%v3 =w shr %b, %count
+%v4 =w mul %a, %v3
+%v5 =w ceqw %v2, %v3
+%v6 =w csltw %b, %v0
+%v7 =w neg %v5
+%v8 =w shr %v1, %count
+%v9 =w cnew %v7, %v3
+%v10 =w xor %v0, %b
+%v11 =w cnew %v6, %v0
+%small12 =w and %a, 32767
+%safe12 =w or %small12, 1
+%v12 =w rem %v1, %safe12
+%v13 =w and %v3, %v10
+%small14 =w and %b, 32767
+%safe14 =w or %small14, 1
+%v14 =w div %v11, %safe14
+%v15 =w and %v8, %v6
+%v16 =w cnew %v6, %a
+%v17 =w sub %v12, %v1
+%v18 =w cultw %v2, %v5
+%small19 =w and %a, 32767
+%safe19 =w or %small19, 1
+%v19 =w udiv %v16, %safe19
+jnz %count, @left, @right
+@left
+%left =w add %v19, %a
+jmp @join
+@right
+%right =w xor %v19, %b
+jmp @join
+@join
+%base =w phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =w phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =w xor %acc, %v19
+%updated =w add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function l $mixed_1(l %a, l %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =l shl %b, %count
+%v1 =l cultl %v0, %b
+%v2 =l shl %v0, %count
+%v3 =l neg %v1
+%v4 =l extsb %count
+%v5 =l csltl %b, %v3
+%v6 =l shl %a, %count
+%small7 =l and %v6, 32767
+%safe7 =l or %small7, 1
+%v7 =l rem %b, %safe7
+%small8 =l and %v4, 32767
+%safe8 =l or %small8, 1
+%v8 =l div %v0, %safe8
+%small9 =l and %a, 32767
+%safe9 =l or %small9, 1
+%v9 =l rem %v0, %safe9
+%v10 =l shr %v8, %count
+%v11 =l or %v2, %v10
+%small12 =l and %v6, 32767
+%safe12 =l or %small12, 1
+%v12 =l urem %v2, %safe12
+%v13 =l shr %v4, %count
+%v14 =l add %v4, %v13
+%v15 =l sub %v8, %v13
+%v16 =l extsb %count
+%v17 =l add %v7, %v3
+%v18 =l sar %v2, %count
+%v19 =l shl %v8, %count
+jnz %count, @left, @right
+@left
+%left =l add %v19, %a
+jmp @join
+@right
+%right =l xor %v19, %b
+jmp @join
+@join
+%base =l phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =l phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =l xor %acc, %v19
+%updated =l add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function w $mixed_2(w %a, w %b, w %count) {
+@entry
+%limit =w and %count, 7
+%small0 =w and %b, 32767
+%safe0 =w or %small0, 1
+%v0 =w div %a, %safe0
+%v1 =w csltw %v0, %b
+%v2 =w xor %v1, %v1
+%v3 =w sub %v1, %a
+%v4 =w extuh %v0
+%v5 =w cnew %v0, %a
+%v6 =w shl %v3, %count
+%v7 =w cnew %b, %v1
+%v8 =w or %v0, %a
+%small9 =w and %v7, 32767
+%safe9 =w or %small9, 1
+%v9 =w urem %v2, %safe9
+%v10 =w shr %v9, %count
+%v11 =w neg %v0
+%small12 =w and %v1, 32767
+%safe12 =w or %small12, 1
+%v12 =w div %v7, %safe12
+%v13 =w or %v12, %v5
+%v14 =w cultw %v7, %v0
+%v15 =w ceqw %v9, %b
+%v16 =w and %v4, %v12
+%small17 =w and %v1, 32767
+%safe17 =w or %small17, 1
+%v17 =w rem %a, %safe17
+%v18 =w add %v5, %v10
+%v19 =w shl %v9, %count
+jnz %count, @left, @right
+@left
+%left =w add %v19, %a
+jmp @join
+@right
+%right =w xor %v19, %b
+jmp @join
+@join
+%base =w phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =w phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =w xor %acc, %v19
+%updated =w add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function l $mixed_3(l %a, l %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =l add %b, %b
+%v1 =l xor %v0, %v0
+%v2 =l mul %b, %a
+%v3 =l or %v1, %v2
+%v4 =l shl %v0, %count
+%v5 =l neg %v2
+%v6 =l neg %v4
+%v7 =l cultl %v0, %a
+%v8 =l extsb %count
+%small9 =l and %b, 32767
+%safe9 =l or %small9, 1
+%v9 =l urem %b, %safe9
+%v10 =l sar %v1, %count
+%v11 =l extuh %count
+%v12 =l neg %v11
+%v13 =l csltl %v9, %a
+%v14 =l shl %v6, %count
+%v15 =l xor %v12, %v8
+%v16 =l mul %v15, %v15
+%v17 =l csltl %v13, %v10
+%v18 =l csltl %v12, %v4
+%v19 =l shl %v4, %count
+jnz %count, @left, @right
+@left
+%left =l add %v19, %a
+jmp @join
+@right
+%right =l xor %v19, %b
+jmp @join
+@join
+%base =l phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =l phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =l xor %acc, %v19
+%updated =l add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function w $mixed_4(w %a, w %b, w %count) {
+@entry
+%limit =w and %count, 7
+%small0 =w and %a, 32767
+%safe0 =w or %small0, 1
+%v0 =w udiv %a, %safe0
+%v1 =w shr %a, %count
+%small2 =w and %v1, 32767
+%safe2 =w or %small2, 1
+%v2 =w rem %v1, %safe2
+%v3 =w shr %v0, %count
+%small4 =w and %v0, 32767
+%safe4 =w or %small4, 1
+%v4 =w udiv %a, %safe4
+%small5 =w and %v2, 32767
+%safe5 =w or %small5, 1
+%v5 =w div %v0, %safe5
+%v6 =w cnew %v3, %b
+%v7 =w or %v3, %v1
+%small8 =w and %v1, 32767
+%safe8 =w or %small8, 1
+%v8 =w urem %a, %safe8
+%v9 =w sub %v7, %v5
+%small10 =w and %v5, 32767
+%safe10 =w or %small10, 1
+%v10 =w rem %v1, %safe10
+%v11 =w add %a, %b
+%v12 =w shr %v10, %count
+%small13 =w and %v2, 32767
+%safe13 =w or %small13, 1
+%v13 =w rem %v0, %safe13
+%v14 =w shr %v0, %count
+%v15 =w cultw %v2, %v6
+%v16 =w sub %v9, %v1
+%small17 =w and %v8, 32767
+%safe17 =w or %small17, 1
+%v17 =w udiv %v6, %safe17
+%v18 =w xor %v0, %v9
+%v19 =w shl %v6, %count
+jnz %count, @left, @right
+@left
+%left =w add %v19, %a
+jmp @join
+@right
+%right =w xor %v19, %b
+jmp @join
+@join
+%base =w phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =w phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =w xor %acc, %v19
+%updated =w add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function l $mixed_5(l %a, l %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =l shl %a, %count
+%v1 =l extuh %count
+%v2 =l sub %b, %a
+%v3 =l or %v2, %b
+%v4 =l ceql %v2, %v2
+%v5 =l sar %v4, %count
+%v6 =l shr %v3, %count
+%v7 =l csltl %v2, %v3
+%small8 =l and %v6, 32767
+%safe8 =l or %small8, 1
+%v8 =l urem %v7, %safe8
+%v9 =l sar %b, %count
+%small10 =l and %v4, 32767
+%safe10 =l or %small10, 1
+%v10 =l udiv %v1, %safe10
+%v11 =l ceql %a, %v10
+%v12 =l extuh %count
+%v13 =l csltl %v1, %v0
+%v14 =l shl %v0, %count
+%v15 =l shl %v6, %count
+%v16 =l extuh %count
+%v17 =l cultl %v14, %v8
+%v18 =l cnel %v5, %a
+%v19 =l and %v6, %v7
+jnz %count, @left, @right
+@left
+%left =l add %v19, %a
+jmp @join
+@right
+%right =l xor %v19, %b
+jmp @join
+@join
+%base =l phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =l phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =l xor %acc, %v19
+%updated =l add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function w $mixed_6(w %a, w %b, w %count) {
+@entry
+%limit =w and %count, 7
+%small0 =w and %b, 32767
+%safe0 =w or %small0, 1
+%v0 =w div %b, %safe0
+%v1 =w csltw %v0, %a
+%v2 =w or %v1, %a
+%v3 =w mul %b, %v2
+%v4 =w shr %b, %count
+%v5 =w cultw %a, %b
+%v6 =w neg %v3
+%small7 =w and %v5, 32767
+%safe7 =w or %small7, 1
+%v7 =w rem %b, %safe7
+%v8 =w extsb %v7
+%v9 =w extuh %v3
+%v10 =w mul %b, %v0
+%v11 =w ceqw %a, %a
+%v12 =w shl %v10, %count
+%v13 =w cnew %v3, %a
+%v14 =w sar %v13, %count
+%v15 =w shr %v12, %count
+%v16 =w csltw %b, %b
+%v17 =w and %v1, %v10
+%v18 =w ceqw %v10, %v1
+%v19 =w extsb %v7
+jnz %count, @left, @right
+@left
+%left =w add %v19, %a
+jmp @join
+@right
+%right =w xor %v19, %b
+jmp @join
+@join
+%base =w phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =w phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =w xor %acc, %v19
+%updated =w add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function l $mixed_7(l %a, l %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =l ceql %b, %a
+%v1 =l sub %a, %a
+%v2 =l extuh %count
+%small3 =l and %b, 32767
+%safe3 =l or %small3, 1
+%v3 =l urem %v2, %safe3
+%small4 =l and %v3, 32767
+%safe4 =l or %small4, 1
+%v4 =l urem %a, %safe4
+%v5 =l sar %v0, %count
+%v6 =l extuh %count
+%v7 =l sar %v4, %count
+%v8 =l extsb %count
+%v9 =l ceql %v5, %a
+%small10 =l and %v9, 32767
+%safe10 =l or %small10, 1
+%v10 =l urem %v9, %safe10
+%v11 =l or %v7, %v5
+%v12 =l extsb %count
+%small13 =l and %v8, 32767
+%safe13 =l or %small13, 1
+%v13 =l udiv %v8, %safe13
+%v14 =l cultl %v2, %v3
+%small15 =l and %v1, 32767
+%safe15 =l or %small15, 1
+%v15 =l rem %v6, %safe15
+%v16 =l mul %v3, %v8
+%v17 =l cultl %v3, %v2
+%v18 =l cultl %v11, %v3
+%v19 =l extsb %count
+jnz %count, @left, @right
+@left
+%left =l add %v19, %a
+jmp @join
+@right
+%right =l xor %v19, %b
+jmp @join
+@join
+%base =l phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =l phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =l xor %acc, %v19
+%updated =l add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function w $mixed_8(w %a, w %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =w shl %a, %count
+%small1 =w and %b, 32767
+%safe1 =w or %small1, 1
+%v1 =w rem %b, %safe1
+%v2 =w csltw %b, %a
+%v3 =w or %v1, %b
+%v4 =w neg %v1
+%v5 =w mul %v2, %a
+%v6 =w csltw %v4, %v1
+%v7 =w csltw %v1, %v5
+%v8 =w shr %v6, %count
+%v9 =w csltw %a, %v5
+%v10 =w and %v9, %v6
+%small11 =w and %b, 32767
+%safe11 =w or %small11, 1
+%v11 =w div %a, %safe11
+%v12 =w cultw %v8, %v1
+%v13 =w xor %v0, %v12
+%v14 =w csltw %v7, %v5
+%v15 =w extsb %v11
+%v16 =w mul %v6, %v5
+%small17 =w and %v9, 32767
+%safe17 =w or %small17, 1
+%v17 =w udiv %a, %safe17
+%v18 =w sar %v11, %count
+%v19 =w mul %v3, %v18
+jnz %count, @left, @right
+@left
+%left =w add %v19, %a
+jmp @join
+@right
+%right =w xor %v19, %b
+jmp @join
+@join
+%base =w phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =w phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =w xor %acc, %v19
+%updated =w add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function l $mixed_9(l %a, l %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =l and %a, %b
+%small1 =l and %a, 32767
+%safe1 =l or %small1, 1
+%v1 =l rem %v0, %safe1
+%v2 =l shr %v0, %count
+%v3 =l ceql %v2, %v0
+%v4 =l shl %v0, %count
+%v5 =l extsb %count
+%v6 =l mul %v4, %a
+%small7 =l and %v4, 32767
+%safe7 =l or %small7, 1
+%v7 =l rem %v1, %safe7
+%v8 =l extsb %count
+%v9 =l add %v0, %b
+%v10 =l and %v8, %v6
+%v11 =l and %v6, %a
+%small12 =l and %v2, 32767
+%safe12 =l or %small12, 1
+%v12 =l rem %v2, %safe12
+%v13 =l and %a, %v11
+%small14 =l and %v3, 32767
+%safe14 =l or %small14, 1
+%v14 =l rem %v0, %safe14
+%small15 =l and %v1, 32767
+%safe15 =l or %small15, 1
+%v15 =l rem %v12, %safe15
+%v16 =l extuh %count
+%v17 =l sar %v4, %count
+%v18 =l or %v4, %v5
+%v19 =l add %b, %v8
+jnz %count, @left, @right
+@left
+%left =l add %v19, %a
+jmp @join
+@right
+%right =l xor %v19, %b
+jmp @join
+@join
+%base =l phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =l phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =l xor %acc, %v19
+%updated =l add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function w $mixed_10(w %a, w %b, w %count) {
+@entry
+%limit =w and %count, 7
+%small0 =w and %a, 32767
+%safe0 =w or %small0, 1
+%v0 =w rem %a, %safe0
+%v1 =w cnew %b, %v0
+%v2 =w ceqw %b, %b
+%v3 =w and %a, %a
+%v4 =w extsb %v3
+%v5 =w shl %a, %count
+%v6 =w neg %a
+%v7 =w extsb %v0
+%v8 =w cnew %v1, %v1
+%v9 =w add %v1, %a
+%v10 =w neg %v4
+%small11 =w and %v9, 32767
+%safe11 =w or %small11, 1
+%v11 =w udiv %a, %safe11
+%v12 =w mul %v9, %v4
+%v13 =w xor %b, %v1
+%v14 =w cultw %v4, %b
+%v15 =w shl %v2, %count
+%small16 =w and %v14, 32767
+%safe16 =w or %small16, 1
+%v16 =w urem %v8, %safe16
+%v17 =w ceqw %v3, %v14
+%small18 =w and %b, 32767
+%safe18 =w or %small18, 1
+%v18 =w udiv %v6, %safe18
+%v19 =w or %v3, %v5
+jnz %count, @left, @right
+@left
+%left =w add %v19, %a
+jmp @join
+@right
+%right =w xor %v19, %b
+jmp @join
+@join
+%base =w phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =w phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =w xor %acc, %v19
+%updated =w add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function l $mixed_11(l %a, l %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =l shr %a, %count
+%small1 =l and %a, 32767
+%safe1 =l or %small1, 1
+%v1 =l udiv %v0, %safe1
+%v2 =l mul %v1, %a
+%v3 =l sub %v0, %v1
+%v4 =l or %v0, %v3
+%v5 =l mul %v0, %b
+%v6 =l add %a, %v0
+%small7 =l and %v6, 32767
+%safe7 =l or %small7, 1
+%v7 =l rem %a, %safe7
+%small8 =l and %v1, 32767
+%safe8 =l or %small8, 1
+%v8 =l urem %v2, %safe8
+%v9 =l sub %v7, %v0
+%v10 =l shr %v2, %count
+%v11 =l shl %v3, %count
+%v12 =l neg %v8
+%v13 =l xor %v10, %v3
+%v14 =l shl %v8, %count
+%v15 =l cnel %v13, %v1
+%v16 =l csltl %v10, %v10
+%small17 =l and %v2, 32767
+%safe17 =l or %small17, 1
+%v17 =l urem %v9, %safe17
+%v18 =l or %v11, %a
+%small19 =l and %v4, 32767
+%safe19 =l or %small19, 1
+%v19 =l udiv %v1, %safe19
+jnz %count, @left, @right
+@left
+%left =l add %v19, %a
+jmp @join
+@right
+%right =l xor %v19, %b
+jmp @join
+@join
+%base =l phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =l phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =l xor %acc, %v19
+%updated =l add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function w $mixed_12(w %a, w %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =w cultw %a, %a
+%v1 =w shl %a, %count
+%v2 =w neg %v1
+%small3 =w and %v0, 32767
+%safe3 =w or %small3, 1
+%v3 =w udiv %v1, %safe3
+%v4 =w cultw %a, %v2
+%small5 =w and %v3, 32767
+%safe5 =w or %small5, 1
+%v5 =w udiv %v4, %safe5
+%v6 =w and %b, %v5
+%v7 =w neg %v1
+%v8 =w or %v2, %v5
+%v9 =w ceqw %v4, %v8
+%small10 =w and %v9, 32767
+%safe10 =w or %small10, 1
+%v10 =w urem %v9, %safe10
+%v11 =w and %v5, %v2
+%v12 =w shl %v2, %count
+%small13 =w and %v8, 32767
+%safe13 =w or %small13, 1
+%v13 =w div %v1, %safe13
+%v14 =w ceqw %v7, %v11
+%v15 =w neg %v8
+%v16 =w csltw %v11, %v1
+%small17 =w and %b, 32767
+%safe17 =w or %small17, 1
+%v17 =w udiv %a, %safe17
+%small18 =w and %b, 32767
+%safe18 =w or %small18, 1
+%v18 =w div %v8, %safe18
+%v19 =w extsb %v5
+jnz %count, @left, @right
+@left
+%left =w add %v19, %a
+jmp @join
+@right
+%right =w xor %v19, %b
+jmp @join
+@join
+%base =w phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =w phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =w xor %acc, %v19
+%updated =w add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function l $mixed_13(l %a, l %b, w %count) {
+@entry
+%limit =w and %count, 7
+%small0 =l and %b, 32767
+%safe0 =l or %small0, 1
+%v0 =l udiv %b, %safe0
+%small1 =l and %a, 32767
+%safe1 =l or %small1, 1
+%v1 =l div %v0, %safe1
+%v2 =l sub %v1, %v1
+%v3 =l cnel %v0, %b
+%small4 =l and %v3, 32767
+%safe4 =l or %small4, 1
+%v4 =l urem %a, %safe4
+%v5 =l shr %v3, %count
+%v6 =l shl %a, %count
+%v7 =l and %v6, %v4
+%small8 =l and %a, 32767
+%safe8 =l or %small8, 1
+%v8 =l div %v1, %safe8
+%small9 =l and %v1, 32767
+%safe9 =l or %small9, 1
+%v9 =l rem %v4, %safe9
+%small10 =l and %v4, 32767
+%safe10 =l or %small10, 1
+%v10 =l rem %v8, %safe10
+%v11 =l xor %v10, %v3
+%v12 =l sar %v5, %count
+%v13 =l sar %a, %count
+%v14 =l neg %v1
+%v15 =l or %v12, %v10
+%v16 =l extsb %count
+%v17 =l neg %v9
+%v18 =l and %v7, %v7
+%v19 =l shr %v4, %count
+jnz %count, @left, @right
+@left
+%left =l add %v19, %a
+jmp @join
+@right
+%right =l xor %v19, %b
+jmp @join
+@join
+%base =l phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =l phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =l xor %acc, %v19
+%updated =l add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function w $mixed_14(w %a, w %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =w cultw %b, %b
+%v1 =w cultw %a, %a
+%v2 =w add %v1, %v1
+%small3 =w and %v1, 32767
+%safe3 =w or %small3, 1
+%v3 =w div %v1, %safe3
+%v4 =w extsb %v3
+%v5 =w or %v0, %v2
+%v6 =w cnew %v2, %a
+%v7 =w extsb %v3
+%v8 =w shr %v1, %count
+%small9 =w and %v3, 32767
+%safe9 =w or %small9, 1
+%v9 =w urem %v8, %safe9
+%v10 =w cnew %v5, %v5
+%v11 =w add %b, %v4
+%small12 =w and %v4, 32767
+%safe12 =w or %small12, 1
+%v12 =w rem %v3, %safe12
+%v13 =w csltw %v12, %v6
+%v14 =w and %v10, %v0
+%v15 =w shr %v13, %count
+%v16 =w sub %v6, %b
+%v17 =w csltw %v8, %v10
+%v18 =w or %v15, %v9
+%v19 =w mul %v13, %v12
+jnz %count, @left, @right
+@left
+%left =w add %v19, %a
+jmp @join
+@right
+%right =w xor %v19, %b
+jmp @join
+@join
+%base =w phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =w phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =w xor %acc, %v19
+%updated =w add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function l $mixed_15(l %a, l %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =l extuh %count
+%v1 =l neg %v0
+%v2 =l csltl %v1, %a
+%v3 =l add %a, %b
+%small4 =l and %v3, 32767
+%safe4 =l or %small4, 1
+%v4 =l rem %v2, %safe4
+%v5 =l xor %v3, %v0
+%v6 =l and %v4, %v0
+%v7 =l and %v1, %v2
+%v8 =l sub %v2, %v1
+%v9 =l extsb %count
+%v10 =l shr %v8, %count
+%v11 =l shl %v8, %count
+%small12 =l and %v3, 32767
+%safe12 =l or %small12, 1
+%v12 =l udiv %b, %safe12
+%v13 =l cultl %v12, %v7
+%v14 =l shl %v2, %count
+%v15 =l csltl %v11, %v2
+%v16 =l cultl %v10, %v5
+%v17 =l shl %v3, %count
+%v18 =l ceql %b, %v1
+%v19 =l xor %v2, %a
+jnz %count, @left, @right
+@left
+%left =l add %v19, %a
+jmp @join
+@right
+%right =l xor %v19, %b
+jmp @join
+@join
+%base =l phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =l phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =l xor %acc, %v19
+%updated =l add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function w $mixed_16(w %a, w %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =w sar %b, %count
+%v1 =w shl %b, %count
+%v2 =w extuh %v1
+%v3 =w or %a, %b
+%v4 =w cnew %v0, %v1
+%v5 =w shl %v0, %count
+%v6 =w cnew %v0, %v0
+%v7 =w sar %a, %count
+%v8 =w shr %v6, %count
+%v9 =w cnew %v0, %v0
+%small10 =w and %a, 32767
+%safe10 =w or %small10, 1
+%v10 =w udiv %v4, %safe10
+%v11 =w and %v4, %v9
+%small12 =w and %v6, 32767
+%safe12 =w or %small12, 1
+%v12 =w urem %v3, %safe12
+%small13 =w and %a, 32767
+%safe13 =w or %small13, 1
+%v13 =w div %v8, %safe13
+%small14 =w and %v6, 32767
+%safe14 =w or %small14, 1
+%v14 =w udiv %v3, %safe14
+%v15 =w extsb %v5
+%v16 =w ceqw %v11, %v2
+%v17 =w or %v0, %a
+%small18 =w and %v3, 32767
+%safe18 =w or %small18, 1
+%v18 =w urem %v8, %safe18
+%v19 =w add %v7, %v0
+jnz %count, @left, @right
+@left
+%left =w add %v19, %a
+jmp @join
+@right
+%right =w xor %v19, %b
+jmp @join
+@join
+%base =w phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =w phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =w xor %acc, %v19
+%updated =w add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function l $mixed_17(l %a, l %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =l extsb %count
+%v1 =l cnel %v0, %v0
+%small2 =l and %v1, 32767
+%safe2 =l or %small2, 1
+%v2 =l rem %a, %safe2
+%v3 =l add %b, %v2
+%v4 =l mul %v3, %v2
+%v5 =l neg %v2
+%v6 =l add %v5, %v1
+%v7 =l csltl %v6, %v2
+%v8 =l shr %v4, %count
+%v9 =l cnel %a, %v7
+%v10 =l add %b, %b
+%small11 =l and %v2, 32767
+%safe11 =l or %small11, 1
+%v11 =l div %v2, %safe11
+%v12 =l sar %a, %count
+%v13 =l and %v10, %v11
+%v14 =l neg %v7
+%small15 =l and %v9, 32767
+%safe15 =l or %small15, 1
+%v15 =l udiv %v14, %safe15
+%v16 =l mul %v3, %v1
+%v17 =l add %v1, %v15
+%small18 =l and %v1, 32767
+%safe18 =l or %small18, 1
+%v18 =l urem %v15, %safe18
+%v19 =l add %v15, %v16
+jnz %count, @left, @right
+@left
+%left =l add %v19, %a
+jmp @join
+@right
+%right =l xor %v19, %b
+jmp @join
+@join
+%base =l phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =l phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =l xor %acc, %v19
+%updated =l add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function w $mixed_18(w %a, w %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =w shl %b, %count
+%small1 =w and %v0, 32767
+%safe1 =w or %small1, 1
+%v1 =w urem %a, %safe1
+%v2 =w sar %v1, %count
+%small3 =w and %a, 32767
+%safe3 =w or %small3, 1
+%v3 =w udiv %v0, %safe3
+%v4 =w sar %v0, %count
+%v5 =w cnew %a, %v4
+%v6 =w sub %a, %v1
+%v7 =w add %v0, %v2
+%small8 =w and %v4, 32767
+%safe8 =w or %small8, 1
+%v8 =w rem %v1, %safe8
+%v9 =w sub %v1, %a
+%v10 =w ceqw %v3, %v7
+%v11 =w add %v6, %v7
+%v12 =w csltw %v0, %v5
+%v13 =w neg %a
+%v14 =w extuh %v11
+%v15 =w ceqw %a, %a
+%small16 =w and %v10, 32767
+%safe16 =w or %small16, 1
+%v16 =w urem %b, %safe16
+%v17 =w csltw %v7, %v6
+%small18 =w and %v9, 32767
+%safe18 =w or %small18, 1
+%v18 =w urem %v1, %safe18
+%v19 =w mul %v10, %v12
+jnz %count, @left, @right
+@left
+%left =w add %v19, %a
+jmp @join
+@right
+%right =w xor %v19, %b
+jmp @join
+@join
+%base =w phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =w phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =w xor %acc, %v19
+%updated =w add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function l $mixed_19(l %a, l %b, w %count) {
+@entry
+%limit =w and %count, 7
+%small0 =l and %b, 32767
+%safe0 =l or %small0, 1
+%v0 =l rem %a, %safe0
+%small1 =l and %b, 32767
+%safe1 =l or %small1, 1
+%v1 =l div %b, %safe1
+%v2 =l shr %a, %count
+%v3 =l extsb %count
+%v4 =l extuh %count
+%small5 =l and %v3, 32767
+%safe5 =l or %small5, 1
+%v5 =l urem %v1, %safe5
+%v6 =l and %v0, %v5
+%small7 =l and %v1, 32767
+%safe7 =l or %small7, 1
+%v7 =l urem %v2, %safe7
+%v8 =l extsb %count
+%small9 =l and %v3, 32767
+%safe9 =l or %small9, 1
+%v9 =l rem %v8, %safe9
+%v10 =l and %v4, %v5
+%small11 =l and %a, 32767
+%safe11 =l or %small11, 1
+%v11 =l rem %v10, %safe11
+%v12 =l cultl %v8, %v2
+%small13 =l and %v11, 32767
+%safe13 =l or %small13, 1
+%v13 =l div %v12, %safe13
+%v14 =l sar %v1, %count
+%small15 =l and %b, 32767
+%safe15 =l or %small15, 1
+%v15 =l rem %a, %safe15
+%v16 =l mul %v1, %v5
+%v17 =l mul %v13, %a
+%v18 =l shl %a, %count
+%v19 =l cultl %v6, %b
+jnz %count, @left, @right
+@left
+%left =l add %v19, %a
+jmp @join
+@right
+%right =l xor %v19, %b
+jmp @join
+@join
+%base =l phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =l phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =l xor %acc, %v19
+%updated =l add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function w $mixed_20(w %a, w %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =w mul %a, %b
+%v1 =w mul %a, %v0
+%small2 =w and %b, 32767
+%safe2 =w or %small2, 1
+%v2 =w udiv %a, %safe2
+%v3 =w shr %v1, %count
+%v4 =w shl %v0, %count
+%v5 =w neg %v4
+%v6 =w sar %v0, %count
+%v7 =w neg %v4
+%v8 =w cultw %v2, %v5
+%v9 =w extsb %v8
+%v10 =w add %v4, %v5
+%v11 =w add %v4, %v2
+%v12 =w or %v0, %v5
+%v13 =w or %v6, %v6
+%v14 =w or %v7, %v11
+%v15 =w cultw %v3, %v9
+%v16 =w csltw %v13, %v15
+%v17 =w neg %v5
+%v18 =w shl %v7, %count
+%v19 =w ceqw %v18, %v9
+jnz %count, @left, @right
+@left
+%left =w add %v19, %a
+jmp @join
+@right
+%right =w xor %v19, %b
+jmp @join
+@join
+%base =w phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =w phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =w xor %acc, %v19
+%updated =w add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function l $mixed_21(l %a, l %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =l shl %b, %count
+%v1 =l shr %v0, %count
+%v2 =l csltl %a, %v1
+%v3 =l ceql %v1, %b
+%v4 =l neg %v2
+%small5 =l and %v2, 32767
+%safe5 =l or %small5, 1
+%v5 =l udiv %v4, %safe5
+%v6 =l and %v1, %b
+%v7 =l cnel %v2, %v3
+%small8 =l and %a, 32767
+%safe8 =l or %small8, 1
+%v8 =l div %a, %safe8
+%v9 =l cultl %b, %v6
+%v10 =l cnel %v5, %v9
+%v11 =l neg %v2
+%v12 =l or %a, %v0
+%v13 =l extuh %count
+%v14 =l add %b, %v7
+%v15 =l extuh %count
+%small16 =l and %v2, 32767
+%safe16 =l or %small16, 1
+%v16 =l div %v10, %safe16
+%v17 =l sub %v8, %a
+%v18 =l mul %v6, %v17
+%v19 =l sub %v6, %b
+jnz %count, @left, @right
+@left
+%left =l add %v19, %a
+jmp @join
+@right
+%right =l xor %v19, %b
+jmp @join
+@join
+%base =l phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =l phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =l xor %acc, %v19
+%updated =l add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function w $mixed_22(w %a, w %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =w extsb %b
+%v1 =w neg %v0
+%v2 =w csltw %v0, %b
+%v3 =w extuh %a
+%v4 =w cnew %b, %v3
+%v5 =w neg %b
+%small6 =w and %v0, 32767
+%safe6 =w or %small6, 1
+%v6 =w udiv %v4, %safe6
+%v7 =w and %v4, %v4
+%v8 =w add %v1, %v2
+%v9 =w sar %v4, %count
+%small10 =w and %v6, 32767
+%safe10 =w or %small10, 1
+%v10 =w udiv %v6, %safe10
+%v11 =w shl %v7, %count
+%v12 =w add %v4, %b
+%small13 =w and %v7, 32767
+%safe13 =w or %small13, 1
+%v13 =w udiv %a, %safe13
+%small14 =w and %v0, 32767
+%safe14 =w or %small14, 1
+%v14 =w udiv %v4, %safe14
+%v15 =w or %v13, %v10
+%v16 =w add %v10, %v10
+%small17 =w and %v8, 32767
+%safe17 =w or %small17, 1
+%v17 =w div %v2, %safe17
+%small18 =w and %v5, 32767
+%safe18 =w or %small18, 1
+%v18 =w rem %v4, %safe18
+%v19 =w and %b, %v5
+jnz %count, @left, @right
+@left
+%left =w add %v19, %a
+jmp @join
+@right
+%right =w xor %v19, %b
+jmp @join
+@join
+%base =w phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =w phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =w xor %acc, %v19
+%updated =w add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function l $mixed_23(l %a, l %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =l and %a, %a
+%v1 =l ceql %a, %v0
+%v2 =l shr %v1, %count
+%v3 =l mul %v2, %a
+%v4 =l extsb %count
+%v5 =l csltl %a, %v2
+%v6 =l and %a, %v3
+%v7 =l shl %v4, %count
+%v8 =l shl %v1, %count
+%v9 =l mul %v3, %v4
+%v10 =l shl %v6, %count
+%v11 =l xor %v10, %v4
+%v12 =l sub %v2, %v4
+%v13 =l extuh %count
+%v14 =l neg %v11
+%v15 =l shr %v3, %count
+%v16 =l or %v15, %b
+%v17 =l add %v5, %v15
+%v18 =l or %b, %a
+%v19 =l xor %v0, %v10
+jnz %count, @left, @right
+@left
+%left =l add %v19, %a
+jmp @join
+@right
+%right =l xor %v19, %b
+jmp @join
+@join
+%base =l phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =l phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =l xor %acc, %v19
+%updated =l add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function w $mixed_24(w %a, w %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =w shl %a, %count
+%v1 =w neg %b
+%v2 =w extuh %a
+%v3 =w extuh %v2
+%v4 =w or %v3, %v3
+%v5 =w csltw %b, %v0
+%v6 =w sub %a, %v0
+%v7 =w shl %v5, %count
+%v8 =w neg %b
+%v9 =w ceqw %b, %b
+%v10 =w add %v7, %v2
+%v11 =w sar %v6, %count
+%v12 =w cnew %v10, %v0
+%small13 =w and %v9, 32767
+%safe13 =w or %small13, 1
+%v13 =w urem %v3, %safe13
+%v14 =w ceqw %v6, %v10
+%v15 =w shr %b, %count
+%small16 =w and %v1, 32767
+%safe16 =w or %small16, 1
+%v16 =w urem %a, %safe16
+%v17 =w extsb %v7
+%small18 =w and %v15, 32767
+%safe18 =w or %small18, 1
+%v18 =w udiv %v16, %safe18
+%v19 =w or %v8, %v16
+jnz %count, @left, @right
+@left
+%left =w add %v19, %a
+jmp @join
+@right
+%right =w xor %v19, %b
+jmp @join
+@join
+%base =w phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =w phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =w xor %acc, %v19
+%updated =w add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function l $mixed_25(l %a, l %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =l mul %b, %a
+%v1 =l or %v0, %v0
+%v2 =l and %v0, %v1
+%small3 =l and %v0, 32767
+%safe3 =l or %small3, 1
+%v3 =l urem %a, %safe3
+%v4 =l cultl %b, %v1
+%v5 =l sar %v4, %count
+%v6 =l sub %v1, %v1
+%small7 =l and %v0, 32767
+%safe7 =l or %small7, 1
+%v7 =l urem %b, %safe7
+%v8 =l cnel %v4, %v6
+%v9 =l csltl %v8, %b
+%v10 =l or %a, %v7
+%v11 =l sub %v1, %v7
+%v12 =l shr %a, %count
+%v13 =l mul %v2, %v0
+%v14 =l extsb %count
+%v15 =l xor %v11, %v12
+%small16 =l and %v12, 32767
+%safe16 =l or %small16, 1
+%v16 =l rem %v12, %safe16
+%v17 =l neg %v7
+%small18 =l and %v14, 32767
+%safe18 =l or %small18, 1
+%v18 =l udiv %v1, %safe18
+%small19 =l and %v17, 32767
+%safe19 =l or %small19, 1
+%v19 =l rem %v14, %safe19
+jnz %count, @left, @right
+@left
+%left =l add %v19, %a
+jmp @join
+@right
+%right =l xor %v19, %b
+jmp @join
+@join
+%base =l phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =l phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =l xor %acc, %v19
+%updated =l add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function w $mixed_26(w %a, w %b, w %count) {
+@entry
+%limit =w and %count, 7
+%small0 =w and %b, 32767
+%safe0 =w or %small0, 1
+%v0 =w udiv %b, %safe0
+%small1 =w and %v0, 32767
+%safe1 =w or %small1, 1
+%v1 =w div %b, %safe1
+%v2 =w shr %a, %count
+%v3 =w xor %v0, %v1
+%v4 =w neg %b
+%v5 =w extsb %v2
+%small6 =w and %v2, 32767
+%safe6 =w or %small6, 1
+%v6 =w rem %b, %safe6
+%v7 =w add %v6, %v3
+%v8 =w or %a, %a
+%v9 =w sar %v8, %count
+%v10 =w xor %v5, %v5
+%v11 =w and %a, %v8
+%v12 =w neg %a
+%v13 =w mul %v4, %b
+%v14 =w add %v6, %v9
+%small15 =w and %v5, 32767
+%safe15 =w or %small15, 1
+%v15 =w udiv %v0, %safe15
+%v16 =w extsb %v1
+%v17 =w sub %b, %v5
+%v18 =w sub %v3, %a
+%small19 =w and %v17, 32767
+%safe19 =w or %small19, 1
+%v19 =w urem %v3, %safe19
+jnz %count, @left, @right
+@left
+%left =w add %v19, %a
+jmp @join
+@right
+%right =w xor %v19, %b
+jmp @join
+@join
+%base =w phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =w phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =w xor %acc, %v19
+%updated =w add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function l $mixed_27(l %a, l %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =l cultl %a, %b
+%v1 =l or %v0, %v0
+%small2 =l and %a, 32767
+%safe2 =l or %small2, 1
+%v2 =l rem %a, %safe2
+%v3 =l sar %v2, %count
+%v4 =l mul %v1, %v3
+%v5 =l ceql %v3, %v4
+%v6 =l extsb %count
+%v7 =l sub %v0, %v0
+%v8 =l cnel %v0, %v2
+%v9 =l mul %v3, %v4
+%v10 =l cnel %v1, %v4
+%v11 =l shr %v2, %count
+%v12 =l shl %v8, %count
+%v13 =l neg %v11
+%v14 =l shl %v0, %count
+%v15 =l extuh %count
+%v16 =l or %v11, %a
+%v17 =l shl %v10, %count
+%v18 =l xor %v12, %a
+%v19 =l shr %v16, %count
+jnz %count, @left, @right
+@left
+%left =l add %v19, %a
+jmp @join
+@right
+%right =l xor %v19, %b
+jmp @join
+@join
+%base =l phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =l phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =l xor %acc, %v19
+%updated =l add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function w $mixed_28(w %a, w %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =w neg %a
+%v1 =w neg %b
+%v2 =w shl %a, %count
+%small3 =w and %v1, 32767
+%safe3 =w or %small3, 1
+%v3 =w urem %v1, %safe3
+%small4 =w and %v0, 32767
+%safe4 =w or %small4, 1
+%v4 =w div %v0, %safe4
+%v5 =w and %v1, %v3
+%v6 =w csltw %v5, %v1
+%v7 =w cnew %a, %v5
+%small8 =w and %v1, 32767
+%safe8 =w or %small8, 1
+%v8 =w udiv %v6, %safe8
+%small9 =w and %v2, 32767
+%safe9 =w or %small9, 1
+%v9 =w div %v4, %safe9
+%small10 =w and %v6, 32767
+%safe10 =w or %small10, 1
+%v10 =w udiv %v1, %safe10
+%v11 =w cnew %a, %v4
+%v12 =w csltw %v3, %v2
+%v13 =w shl %v11, %count
+%small14 =w and %v4, 32767
+%safe14 =w or %small14, 1
+%v14 =w div %v12, %safe14
+%v15 =w sar %v12, %count
+%small16 =w and %v12, 32767
+%safe16 =w or %small16, 1
+%v16 =w udiv %v11, %safe16
+%v17 =w ceqw %v8, %v0
+%v18 =w extsb %v7
+%v19 =w or %v6, %v13
+jnz %count, @left, @right
+@left
+%left =w add %v19, %a
+jmp @join
+@right
+%right =w xor %v19, %b
+jmp @join
+@join
+%base =w phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =w phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =w xor %acc, %v19
+%updated =w add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function l $mixed_29(l %a, l %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =l xor %b, %a
+%v1 =l extuh %count
+%v2 =l sub %v0, %v1
+%v3 =l shr %a, %count
+%v4 =l and %b, %v3
+%v5 =l shr %v4, %count
+%v6 =l sar %v4, %count
+%small7 =l and %b, 32767
+%safe7 =l or %small7, 1
+%v7 =l rem %v6, %safe7
+%small8 =l and %a, 32767
+%safe8 =l or %small8, 1
+%v8 =l udiv %v2, %safe8
+%v9 =l mul %v3, %a
+%v10 =l sub %v7, %v6
+%v11 =l extuh %count
+%v12 =l sub %v8, %b
+%v13 =l cultl %v1, %v4
+%v14 =l csltl %v13, %v13
+%v15 =l neg %v5
+%v16 =l and %v14, %v14
+%v17 =l cnel %v6, %v4
+%v18 =l csltl %v14, %v16
+%v19 =l extsb %count
+jnz %count, @left, @right
+@left
+%left =l add %v19, %a
+jmp @join
+@right
+%right =l xor %v19, %b
+jmp @join
+@join
+%base =l phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =l phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =l xor %acc, %v19
+%updated =l add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function w $mixed_30(w %a, w %b, w %count) {
+@entry
+%limit =w and %count, 7
+%small0 =w and %b, 32767
+%safe0 =w or %small0, 1
+%v0 =w udiv %a, %safe0
+%small1 =w and %b, 32767
+%safe1 =w or %small1, 1
+%v1 =w div %v0, %safe1
+%v2 =w sub %b, %a
+%v3 =w cnew %v2, %b
+%v4 =w shl %a, %count
+%v5 =w cnew %a, %a
+%v6 =w neg %a
+%v7 =w cnew %v3, %v0
+%v8 =w extsb %v0
+%v9 =w mul %v8, %v3
+%v10 =w add %v1, %b
+%v11 =w sub %v5, %v7
+%v12 =w ceqw %b, %v8
+%v13 =w extuh %a
+%v14 =w shr %b, %count
+%v15 =w extuh %v12
+%v16 =w ceqw %b, %v10
+%v17 =w extuh %v10
+%v18 =w shr %v16, %count
+%v19 =w or %v8, %v7
+jnz %count, @left, @right
+@left
+%left =w add %v19, %a
+jmp @join
+@right
+%right =w xor %v19, %b
+jmp @join
+@join
+%base =w phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =w phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =w xor %acc, %v19
+%updated =w add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}
+
+export function l $mixed_31(l %a, l %b, w %count) {
+@entry
+%limit =w and %count, 7
+%v0 =l neg %a
+%v1 =l extuh %count
+%v2 =l mul %a, %v1
+%v3 =l csltl %v1, %b
+%v4 =l extuh %count
+%v5 =l cultl %v4, %b
+%v6 =l sar %v2, %count
+%v7 =l sub %v1, %v6
+%v8 =l xor %v7, %v3
+%v9 =l add %v6, %v0
+%v10 =l extsb %count
+%v11 =l and %v9, %b
+%v12 =l extuh %count
+%small13 =l and %v2, 32767
+%safe13 =l or %small13, 1
+%v13 =l rem %v1, %safe13
+%v14 =l extsb %count
+%v15 =l cnel %v4, %v5
+%v16 =l shr %v2, %count
+%v17 =l shl %v11, %count
+%v18 =l extsb %count
+%v19 =l shl %v2, %count
+jnz %count, @left, @right
+@left
+%left =l add %v19, %a
+jmp @join
+@right
+%right =l xor %v19, %b
+jmp @join
+@join
+%base =l phi @left %left, @right %right
+jmp @loop
+@loop
+%i =w phi @join 0, @body %next
+%acc =l phi @join %base, @body %updated
+%more =w cultw %i, %limit
+jnz %more, @body, @done
+@body
+%mixed =l xor %acc, %v19
+%updated =l add %mixed, %a
+%next =w add %i, 1
+jmp @loop
+@done
+ret %acc
+}

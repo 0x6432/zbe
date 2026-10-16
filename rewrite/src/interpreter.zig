@@ -530,3 +530,28 @@ fn exerciseDivisionError(allocator: std.mem.Allocator) !void {
 test "division exception evaluation frees frames and analysis on every allocation failure" {
     try @import("test_support.zig").checkAllocationFailures(exerciseDivisionError);
 }
+
+test "mixed programs agree with independent Python results through diamonds and loop phis" {
+    var module = try parse(@embedFile("fixtures/mixed-programs.ssa"));
+    defer module.deinit();
+    try testing.expectEqual(@as(usize, 32), module.functions.items.len);
+    var lines = std.mem.tokenizeScalar(u8, @embedFile("fixtures/mixed-programs.tsv"), '\n');
+    var case_count: usize = 0;
+    while (lines.next()) |line| {
+        if (line[0] == '#') continue;
+        var fields = std.mem.tokenizeAny(u8, line, " \t");
+        const function_index = try std.fmt.parseInt(usize, fields.next().?, 10);
+        const ty = fields.next().?;
+        const a = try std.fmt.parseInt(u64, fields.next().?, 10);
+        const b = try std.fmt.parseInt(u64, fields.next().?, 10);
+        const count = try std.fmt.parseInt(u32, fields.next().?, 10);
+        const expected = try std.fmt.parseInt(u64, fields.next().?, 10);
+        try testing.expect(fields.next() == null);
+        const word = std.mem.eql(u8, ty, "w");
+        const args: []const ir.Constant = &.{ if (word) .{ .word = @intCast(a) } else .{ .long = a }, if (word) .{ .word = @intCast(b) } else .{ .long = b }, .{ .word = count } };
+        const result = (try evaluate(testing.allocator, module.functions.items[function_index], args, .{ .max_steps = 128 })).?;
+        try testing.expectEqual(expected, if (word) @as(u64, result.word) else result.long);
+        case_count += 1;
+    }
+    try testing.expectEqual(@as(usize, 512), case_count);
+}

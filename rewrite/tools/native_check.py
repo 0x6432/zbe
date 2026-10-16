@@ -100,6 +100,21 @@ def main() -> None:
     functions.append("export function l $divide_args(l %a, l %b, l %c, l %d) {\n@entry\n%q =l div %a, %b\n%r =l rem %a, %b\n%v =l add %q, %r\n%v2 =l add %v, %c\n%out =l add %v2, %d\nret %out\n}")
     declarations.append("extern uint64_t divide_args(uint64_t, uint64_t, uint64_t, uint64_t);")
     check(f"divide_args(UINT64_C({(1 << 64) - 17}), 5, UINT64_C({1 << 35}), 7)", (1 << 35) + 2)
+    functions.append((root / "src/fixtures/mixed-programs.ssa").read_text())
+    declared = set()
+    mixed_count = 0
+    for line in (root / "src/fixtures/mixed-programs.tsv").read_text().splitlines():
+        if not line or line.startswith("#"):
+            continue
+        index, ty, a, b, count, expected = line.split()
+        name = f"mixed_{index}"
+        if name not in declared:
+            ctype = "uint32_t" if ty == "w" else "uint64_t"
+            declarations.append(f"extern {ctype} {name}({ctype}, {ctype}, uint32_t);")
+            declared.add(name)
+        check(f"{name}(UINT64_C({a}), UINT64_C({b}), UINT32_C({count}))", int(expected))
+        mixed_count += 1
+    assert mixed_count == 512 and len(declared) == 32
     functions.append((root / "src/fixtures/constant-jump.ssa").read_text())
     for name, expected in (("jconstant", 0), ("jproduct", 0), ("jnegative", 0), ("jnonzero", 1)):
         declarations.append(f"extern uint32_t {name}(void);")

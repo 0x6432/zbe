@@ -38,4 +38,4 @@ The existing standalone scalar/interpreter/oracle tests and complete native regr
 
 ## Memory boundary
 
-The IR/native compiler now supports scalar loads/stores (MEMORY.md). This evaluator has no simulated address space: a reached memory instruction consumes its step then returns `UnsupportedMemory`, propagating through internal calls and freeing all active frames. It never dereferences a numeric host address. Step exhaustion before the instruction wins; memory-free paths remain evaluable.
+The IR/native compiler now supports scalar loads/stores (MEMORY.md). An optional caller-owned `Options.memory_image` now supplies a bounded synthetic byte image shared by every internal frame (MEMORY-EVALUATION.md). Without it, a reached memory instruction consumes its step then returns `UnsupportedMemory`, propagating through internal calls and freeing all active frames. Neither mode dereferences a numeric host address. Step exhaustion before the instruction wins; memory-free paths remain evaluable. Completed writes persist after later errors; only individual failing stores are mutation-free.

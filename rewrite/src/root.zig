@@ -7,6 +7,7 @@ pub const interference = @import("interference.zig");
 pub const liveness = @import("liveness.zig");
 pub const optimize = @import("optimize.zig");
 pub const semantics = @import("semantics.zig");
+pub const memory = @import("memory.zig");
 pub const interpreter = @import("interpreter.zig");
 pub const cfg = @import("cfg.zig");
 pub const ssa = @import("ssa.zig");
@@ -24,6 +25,7 @@ test {
     _ = @import("void_calls_test.zig");
     _ = @import("indirect_calls_test.zig");
     _ = @import("memory_test.zig");
+    _ = @import("memory_eval_test.zig");
     _ = @import("amd64.zig");
     _ = @import("abi_amd64.zig");
     _ = @import("interpreter.zig");

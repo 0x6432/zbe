@@ -2,17 +2,20 @@ const std = @import("std");
 const ir = @import("ir.zig");
 const ssa = @import("ssa.zig");
 const semantics = @import("semantics.zig");
+const memory = @import("memory.zig");
 const module_validation = @import("module_validation.zig");
 const Module = @import("module.zig").Module;
 const FunctionId = @import("module.zig").FunctionId;
 
 pub const Options = struct {
     max_steps: usize = 100_000,
+    /// Borrowed for this invocation and all child frames; no host address space.
+    memory_image: ?*memory.Image = null,
     /// Total active invocation frames, including the entry function.
     max_call_depth: usize = 64,
 };
 pub const ArithmeticError = semantics.ArithmeticError;
-pub const Error = ArithmeticError || module_validation.Error || error{
+pub const Error = ArithmeticError || memory.Error || module_validation.Error || error{
     ArgumentCountMismatch,
     ArgumentTypeMismatch,
     StepLimitExceeded,
@@ -113,8 +116,22 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
             try step(&remaining);
             const instruction = block.instructions.items[frame.next_instruction];
             frame.next_instruction += 1;
-            // This evaluator owns scalar values, not a native address space.
-            if (instruction == .load or instruction == .store) return error.UnsupportedMemory;
+            switch (instruction) {
+                .load => |read| {
+                    const image = options.memory_image orelse return error.UnsupportedMemory;
+                    const address = (try resolve(frame.values, read.address)).long;
+                    const ty = frame.function.values.items[@backingInt(read.result)].scalar_type;
+                    frame.values[@backingInt(read.result)] = try image.read(read.kind, ty, address);
+                    continue;
+                },
+                .store => |store| {
+                    const image = options.memory_image orelse return error.UnsupportedMemory;
+                    const address = (try resolve(frame.values, store.address)).long;
+                    try image.write(store.kind, try resolve(frame.values, store.value), address);
+                    continue;
+                },
+                else => {},
+            }
             if (instruction == .call) {
                 const call = instruction.call;
                 const owner = module orelse return error.UnsupportedCall;

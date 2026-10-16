@@ -17,8 +17,12 @@ pub fn validate(allocator: std.mem.Allocator, module: *const Module) Error!void 
     }
     for (module.functions.items) |function| for (function.blocks.items) |block| for (block.instructions.items) |instruction| switch (instruction) {
         .call => |call| {
-            _ = module.symbols.get(call.callee) orelse return error.InvalidSymbol;
-            const callee = findFunction(module, call.callee) orelse continue;
+            const symbol = switch (call.callee) {
+                .symbol => |symbol| symbol,
+                .address => continue,
+            };
+            _ = module.symbols.get(symbol) orelse return error.InvalidSymbol;
+            const callee = findFunction(module, symbol) orelse continue;
             const result_type: ?ir.ScalarType = if (call.result) |result| function.values.items[@backingInt(result)].scalar_type else null;
             if (callee.return_type != result_type or callee.parameters.items.len != call.arguments.len) return error.CallSignatureMismatch;
             for (callee.parameters.items, call.arguments) |parameter, argument| {

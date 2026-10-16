@@ -250,10 +250,15 @@ const Parser = struct {
     }
 
     fn call(self: *Parser, block: ir.BlockId, result: ?ir.ValueId, opcode: lex.Token) Error!void {
-        // Deliberately direct, nonvariadic, base-scalar arguments only.
-        if (self.peek().kind != .global) return self.fail(.unsupported_construct, self.peek());
-        const callee_token = self.advance();
-        const callee = try self.module.symbols.intern(try self.globalName(callee_token));
+        // Nonvariadic base-scalar calls; an indirect address must be long.
+        const callee: ir.CallTarget = switch (self.peek().kind) {
+            .global => symbol: {
+                const token = self.advance();
+                break :symbol .{ .symbol = try self.module.symbols.intern(try self.globalName(token)) };
+            },
+            .temporary, .integer => .{ .address = try self.readOperand(.long) },
+            else => return self.fail(.unsupported_construct, self.peek()),
+        };
         _ = try self.expect(.lparen);
         var arguments: std.ArrayList(ir.CallArgument) = .empty;
         defer arguments.deinit(self.allocator);
@@ -266,10 +271,17 @@ const Parser = struct {
         };
         _ = try self.expect(.rparen);
         const f = self.current_function.?;
-        if (result) |value| {
-            f.defineCall(block, value, callee, arguments.items) catch |err| return self.irError(err, opcode);
-        } else {
-            f.appendVoidCall(block, callee, arguments.items) catch |err| return self.irError(err, opcode);
+        switch (callee) {
+            .symbol => |symbol| if (result) |value| {
+                f.defineCall(block, value, symbol, arguments.items) catch |err| return self.irError(err, opcode);
+            } else {
+                f.appendVoidCall(block, symbol, arguments.items) catch |err| return self.irError(err, opcode);
+            },
+            .address => |address| if (result) |value| {
+                f.defineIndirectCall(block, value, address, arguments.items) catch |err| return self.irError(err, opcode);
+            } else {
+                f.appendVoidIndirectCall(block, address, arguments.items) catch |err| return self.irError(err, opcode);
+            },
         }
     }
 

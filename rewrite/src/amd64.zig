@@ -24,7 +24,10 @@ pub fn emitWithOptions(allocator: std.mem.Allocator, module: *const Module, opti
         if (!validSymbol(module.symbols.get(function.name).?)) return error.InvalidSymbol;
         if (!options.reuse_stack_homes and !options.callee_saved_homes) _ = try Frame.init(function);
         for (function.blocks.items) |block| for (block.instructions.items) |instruction| switch (instruction) {
-            .call => |call| if (!validSymbol(module.symbols.get(call.callee).?)) return error.InvalidSymbol,
+            .call => |call| switch (call.callee) {
+                .symbol => |symbol| if (!validSymbol(module.symbols.get(symbol).?)) return error.InvalidSymbol,
+                .address => {},
+            },
             else => {},
         };
     }
@@ -170,6 +173,10 @@ const Emitter = struct {
             try self.print("\".Lzbe@{d}@b{d}\":\n", .{ index, number });
             for (block.instructions.items) |instruction| switch (instruction) {
                 .call => |call| {
+                    if (call.callee.addressOperand()) |address| {
+                        try self.load(address, .accumulator);
+                        try self.print("\tmovq %rax, %r11\n", .{});
+                    }
                     var cursor: abi.ArgumentCursor = .{};
                     for (call.arguments) |argument| {
                         // Homes survive SysV calls and never alias argument registers.
@@ -182,7 +189,10 @@ const Emitter = struct {
                             .stack => |slot| try self.print("\tmov{c} {s}, {d}(%rsp)\n", .{ suffix(ty), register(ty, .accumulator), try slot.incomingOffset() - 16 }),
                         }
                     }
-                    try self.print("\tcall {s}\n", .{self.module.symbols.get(call.callee).?});
+                    switch (call.callee) {
+                        .symbol => |symbol| try self.print("\tcall {s}\n", .{self.module.symbols.get(symbol).?}),
+                        .address => try self.print("\tcall *%r11\n", .{}),
+                    }
                     if (call.result) |result| {
                         const ty = f.values.items[@backingInt(result)].scalar_type;
                         if (!ty.isInteger()) try self.print("\tmov{c} %xmm0, {s}\n", .{ sseMove(ty), register(ty, .accumulator) });

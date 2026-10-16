@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bounded native Linux SysV direct-scalar-call regressions (not full ABI parity)."""
+"""Bounded native Linux SysV scalar-call regressions (not full ABI parity)."""
 from pathlib import Path
 import argparse
 import platform
@@ -47,6 +47,8 @@ def main() -> None:
         params = ", ".join(f"{t} %v{i}" for i, t in enumerate(types))
         callargs = params
         il.append(f"export function {result} $call_case_{n}({params}) {{\n@e\n%a ={result} call $helper_{n}({callargs})\n%b ={result} call $helper_{n}({callargs})\n%r ={result} add %a, %b\nret %r\n}}")
+        il.append(f"export function {result} $indirect_case_{n}(l %target{', ' if params else ''}{params}) {{\n@e\n%a ={result} call %target({callargs})\n%b ={result} call %target({callargs})\n%r ={result} add %a, %b\nret %r\n}}")
+        declarations.append(f"extern {CTYPES[result]} indirect_case_{n}(uint64_t{', ' if types else ''}{', '.join(CTYPES[t] for t in types)});")
         cparams = ", ".join(f"{CTYPES[t]} v{i}" for i, t in enumerate(types)) or "void"
         terms = " + ".join(f"UINT64_C({i+1}) * (uint64_t)v{i}" for i in range(len(types))) or "0"
         helpers.append(f"{CTYPES[result]} helper_{n}({cparams}) {{ return ({CTYPES[result]})(11 + {terms}); }}")
@@ -55,6 +57,7 @@ def main() -> None:
             values = [((i * 17 + n * 3 + seed) % 97) + 1 for i in range(len(types))]
             actual = ", ".join(f"({CTYPES[t]}){v}" for t, v in zip(types, values))
             check(f"call_case_{n}({actual})", 2 * (11 + sum((i + 1) * v for i, v in enumerate(values))))
+            check(f"indirect_case_{n}((uint64_t)(uintptr_t)&helper_{n}{', ' if actual else ''}{actual})", 2 * (11 + sum((i + 1) * v for i, v in enumerate(values))))
 
     # Internal recursion and mutually recursive forward definitions. Native
     # recursion is bounded by test inputs, not by interpreter limits.
@@ -273,6 +276,72 @@ ret %x
     check("zbe_check_preserved(native_void_preserved)", 0)
     check("native_void_clobber(UINT64_C(0x1234567887654321))", 0x1234567887654321)
 
+    # Indirect target addresses are native Linux AMD64 bits, never interpreter
+    # capabilities. This C conversion is explicitly platform-specific.
+    helpers += [
+        "uint64_t pointer_echo(uint64_t x) { return x; }",
+        "extern uint64_t zbe_call_clobber(void);",
+        "uint64_t callback_address(void) { return (uint64_t)(uintptr_t)&zbe_call_clobber; }",
+    ]
+    il.append("""export function l $indirect_echo(l %target) {
+@e
+%r =l call %target(l %target)
+ret %r
+}
+export function w $indirect_void_effects(l %target) {
+@e
+call $void_reset()
+call %target()
+call %target()
+%r =w call $void_count()
+ret %r
+}
+export function l $indirect_roundtrip() {
+@e
+%target =l call $callback_address()
+%r =l call %target()
+ret %r
+}
+export function l $indirect_recursive(l %self, w %n) {
+@e
+jnz %n, @step, @done
+@step
+%next =w sub %n, 1
+%child =l call %self(l %self, w %next)
+%r =l add %child, 1
+ret %r
+@done
+ret 0
+}
+export function l $indirect_bits_s(l %target, w %bits) {
+@e
+%x =s cast %bits
+%v =s call %target(s %x)
+%r =w cast %v
+%out =l extuw %r
+ret %out
+}
+export function l $indirect_bits_d(l %target, l %bits) {
+@e
+%x =d cast %bits
+%v =d call %target(d %x)
+%r =l cast %v
+ret %r
+}""")
+    declarations += ["extern uint64_t indirect_echo(uint64_t);", "extern uint32_t indirect_void_effects(uint64_t);", "extern uint64_t indirect_roundtrip(void);", "extern uint64_t indirect_recursive(uint64_t, uint32_t);", "extern uint64_t indirect_bits_s(uint64_t, uint32_t);", "extern uint64_t indirect_bits_d(uint64_t, uint64_t);"]
+    check("(indirect_echo((uint64_t)(uintptr_t)&pointer_echo) == (uint64_t)(uintptr_t)&pointer_echo)", 1)
+    check("indirect_void_effects((uint64_t)(uintptr_t)&void_tick)", 2)
+    check("indirect_roundtrip()", 17)
+    check("zbe_check_preserved(indirect_roundtrip)", 0)
+    for n in range(11):
+        check(f"indirect_recursive((uint64_t)(uintptr_t)&indirect_recursive, {n})", n)
+    for bits in (0, 0x80000000, 0x3f800000, 0x7f800000, 0xff800000, 0x7fc12345, 0xffc12345, 1):
+        check(f"indirect_bits_s((uint64_t)(uintptr_t)&zbe_identity_s, UINT32_C({bits}))", bits)
+    for bits in (0, 0x8000000000000000, 0x3ff0000000000000, 0x7ff0000000000000, 0xfff0000000000000, 0x7ff8123456789abc, 0xfff8123456789abc, 1):
+        check(f"indirect_bits_d((uint64_t)(uintptr_t)&zbe_identity_d, UINT64_C({bits}))", bits)
+
+    check("(((uint64_t)(uintptr_t)&helper_0 >> 32) != 0)", 1)
+
     assembly_helpers = """.text
 .globl zbe_call_alignment
 zbe_call_alignment:
@@ -289,9 +358,9 @@ zbe_call_clobber:
         c.write_text(headers + "\n".join(helpers + declarations) + "\nint main(void) {\n" + "\n".join(checks) + '\nreturn 0;\n}\n')
         support.write_text(assembly_helpers)
         subprocess.run([str(args.compiler.resolve()), *flags, str(src), str(asm)], check=True, timeout=90)
-        subprocess.run([args.cc, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-no-pie", str(c), str(asm), str(support), str(root / "src/fixtures/check-preserved.s"), "-o", str(binary)], check=True, timeout=90)
+        subprocess.run([args.cc, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-fPIE", "-pie", str(c), str(asm), str(support), str(root / "src/fixtures/check-preserved.s"), "-o", str(binary)], check=True, timeout=90)
         subprocess.run([str(binary)], check=True, timeout=30)
-        print(f"{len(checks)} native direct-call/ABI/effect checks passed")
+        print(f"{len(checks)} native call/ABI/effect checks passed")
         # Signature failures must not create/truncate output, including a forward
         # definition and result/count/class mismatches; externs remain contractual.
         for name, text in {

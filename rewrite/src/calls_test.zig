@@ -59,13 +59,13 @@ test "call operands obey local ordering dominance and exact base-scalar types" {
     }
     const rejected = [_][]const u8{
         "function w $f(l %p) {\n@e\n%r =w call $g(w %p)\nret %r\n}",
-        "function w $f(l %p) {\n@e\n%r =w call %p()\nret %r\n}",
+        "function w $f(w %p) {\n@e\n%r =w call %p()\nret %r\n}",
         "function w $f() {\n@e\n%r =w call $g(w 1, ...)\nret %r\n}",
         "function w $f() {\n@e\n%r =w call $g(sb 1)\nret %r\n}",
         "function w $f() {\n@e\n%r =w call $g(env 1)\nret %r\n}",
         "function w $f() {\n@e\n%r =w call $g(w 1,)\nret %r\n}",
         "function w $f() {\n@e\n%r =w call $\"quoted\"()\nret %r\n}",
-        "function $f(l %p) {\n@e\ncall %p()\nret\n}",
+        "function $f(w %p) {\n@e\ncall %p()\nret\n}",
     };
     for (rejected) |text| try testing.expectError(error.InvalidInput, parse(testing.allocator, text));
 }
@@ -86,9 +86,9 @@ test "native emission checks known call signatures and every callee symbol" {
     var module = try parse(testing.allocator, "function w $f() {\n@e\n%r =w call $external()\nret %r\n}");
     defer module.deinit();
     const call = &module.functions.items[0].blocks.items[0].instructions.items[0].call;
-    call.callee = @fromBackingInt(std.math.maxInt(u32));
+    call.callee = .{ .symbol = @fromBackingInt(std.math.maxInt(u32)) };
     try testing.expectError(error.InvalidSymbol, amd64.emit(testing.allocator, &module));
-    call.callee = try module.symbols.intern("bad;symbol");
+    call.callee = .{ .symbol = try module.symbols.intern("bad;symbol") };
     try testing.expectError(error.InvalidSymbol, amd64.emit(testing.allocator, &module));
 }
 

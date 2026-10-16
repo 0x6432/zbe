@@ -107,10 +107,22 @@ pub const IntegerPredicate = enum {
     unsigned_greater_equal,
 };
 pub const CallArgument = struct { scalar_type: ScalarType, operand: Operand };
-/// Callee belongs to the module symbol pool; argument storage belongs to Function.
-pub const DirectCall = struct { result: ?ValueId, callee: SymbolId, arguments: []const CallArgument };
+/// Symbol targets use the module pool; address operands use function-scoped IDs.
+pub const CallTarget = union(enum) {
+    symbol: SymbolId,
+    address: Operand,
+
+    pub fn addressOperand(self: CallTarget) ?Operand {
+        return switch (self) {
+            .symbol => null,
+            .address => |operand| operand,
+        };
+    }
+};
+/// Argument storage is owned by Function, not borrowed from callers.
+pub const Call = struct { result: ?ValueId, callee: CallTarget, arguments: []const CallArgument };
 pub const Instruction = union(enum) {
-    call: DirectCall,
+    call: Call,
     binary: struct { result: ValueId, op: BinaryOp, lhs: Operand, rhs: Operand },
     copy: struct { result: ValueId, operand: Operand },
     unary: struct { result: ValueId, op: UnaryOp, operand: Operand },
@@ -309,28 +321,39 @@ pub const Function = struct {
         target.instructions.appendAssumeCapacity(.{ .compare_integer = .{ .result = result, .predicate = predicate, .operand_type = operand_type, .lhs = lhs, .rhs = rhs } });
     }
 
-    /// Duplicates argument storage. Allocation/type failures leave the result
-    /// pending and retryable; publication has no fallible operations remaining.
-    pub fn defineCall(self: *Function, block_id: BlockId, result: ValueId, callee: SymbolId, arguments: []const CallArgument) BuildError!void {
+    /// Argument storage is duplicated before publication. Failed type checks or
+    /// allocations leave a scalar result pending and retryable.
+    pub fn defineCall(self: *Function, block: BlockId, result: ValueId, symbol: SymbolId, arguments: []const CallArgument) BuildError!void {
+        return self.addCall(block, result, .{ .symbol = symbol }, arguments);
+    }
+
+    pub fn defineIndirectCall(self: *Function, block: BlockId, result: ValueId, address: Operand, arguments: []const CallArgument) BuildError!void {
+        return self.addCall(block, result, .{ .address = address }, arguments);
+    }
+
+    /// A void call adds an effect, not an SSA definition or dummy value.
+    pub fn appendVoidCall(self: *Function, block: BlockId, symbol: SymbolId, arguments: []const CallArgument) BuildError!void {
+        return self.addCall(block, null, .{ .symbol = symbol }, arguments);
+    }
+
+    pub fn appendVoidIndirectCall(self: *Function, block: BlockId, address: Operand, arguments: []const CallArgument) BuildError!void {
+        return self.addCall(block, null, .{ .address = address }, arguments);
+    }
+
+    fn addCall(self: *Function, block_id: BlockId, result: ?ValueId, callee: CallTarget, arguments: []const CallArgument) BuildError!void {
         const target = try self.getBlock(block_id);
         if (target.terminator != null) return error.BlockTerminated;
-        const value = try self.pendingValue(result);
+        const value = if (result) |id| try self.pendingValue(id) else null;
+        try self.checkCallTarget(callee);
         try self.checkArguments(arguments);
         try target.instructions.ensureUnusedCapacity(self.allocator, 1);
         const owned = try self.allocator.dupe(CallArgument, arguments);
-        value.definition = .{ .instruction = .{ .block = block_id, .index = target.instructions.items.len } };
+        if (value) |definition| definition.definition = .{ .instruction = .{ .block = block_id, .index = target.instructions.items.len } };
         target.instructions.appendAssumeCapacity(.{ .call = .{ .result = result, .callee = callee, .arguments = owned } });
     }
 
-    /// Append a void-result effect, without adding an SSA value. Duplicates
-    /// arguments before publication, with the same ownership as defineCall.
-    pub fn appendVoidCall(self: *Function, block_id: BlockId, callee: SymbolId, arguments: []const CallArgument) BuildError!void {
-        const target = try self.getBlock(block_id);
-        if (target.terminator != null) return error.BlockTerminated;
-        try self.checkArguments(arguments);
-        try target.instructions.ensureUnusedCapacity(self.allocator, 1);
-        const owned = try self.allocator.dupe(CallArgument, arguments);
-        target.instructions.appendAssumeCapacity(.{ .call = .{ .result = null, .callee = callee, .arguments = owned } });
+    fn checkCallTarget(self: *const Function, target: CallTarget) ValidationError!void {
+        if (target.addressOperand()) |operand| if (try self.operandType(operand) != .long) return error.TypeMismatch;
     }
 
     fn checkArguments(self: *const Function, arguments: []const CallArgument) ValidationError!void {
@@ -434,7 +457,10 @@ pub const Function = struct {
                     }
                 }
                 switch (instruction) {
-                    .call => |call| try self.checkArguments(call.arguments),
+                    .call => |call| {
+                        try self.checkCallTarget(call.callee);
+                        try self.checkArguments(call.arguments);
+                    },
                     .binary => |binary| try self.checkBinary(ty.?, binary.op, binary.lhs, binary.rhs),
                     .copy => |copy| if (try self.operandType(copy.operand) != ty.?) return error.TypeMismatch,
                     .unary => |unary| try self.checkUnary(ty.?, unary.op, unary.operand),

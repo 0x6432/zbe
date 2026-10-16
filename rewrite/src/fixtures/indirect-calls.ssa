@@ -1,0 +1,25 @@
+# Targets are ordinary long SSA operands, not packed symbol/value references.
+export function l $indirect_use(l %target, l %x) {
+@entry
+    jmp @body
+@body
+    %r =l call %target(l %x)
+    %sum =l add %x, %r
+    ret %sum
+}
+export function $indirect_void(l %target) {
+@entry
+    jmp @body
+@body
+    call %target()
+    ret
+}
+export function w $indirect_path(w %condition, l %target) {
+@entry
+    jnz %condition, @call, @done
+@call
+    %r =w call %target()
+    ret %r
+@done
+    ret 7
+}

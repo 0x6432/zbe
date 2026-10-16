@@ -1,21 +1,21 @@
 # Direct base-scalar calls
 
-This is a deliberately limited native Linux SysV AMD64 call slice, not full QBE call/ABI support. Accepted form:
+This is a deliberately limited native Linux SysV AMD64 call slice, not full QBE call/ABI support. Direct forms below are supported; typed long-address indirect forms are documented in INDIRECT-CALLS.md:
 
 ```text
 %result =w|l|s|d call $direct_symbol(w|l|s|d operand, ...)
 call $void_symbol(w|l|s|d operand, ...)
 ```
 
-The example's ellipsis describes repetition, **not** an accepted variadic marker. Empty argument lists are supported. A result-bearing call has a scalar result even when unused. A void-result call is a statement with no dummy SSA value or result home. Known callees must match that result presence as well as the exact scalar type. Omitting a result is not permission to discard a known nonvoid return. Indirect calls, environment parameters, aggregates, ABI-extension types and variadic calls remain explicitly unsupported.
+The example's ellipsis describes repetition, **not** an accepted variadic marker. Empty argument lists are supported. A result-bearing call has a scalar result even when unused. A void-result call is a statement with no dummy SSA value or result home. Known callees must match that result presence as well as the exact scalar type. Omitting a result is not permission to discard a known nonvoid return. Environment parameters, aggregates, ABI-extension types and variadic calls remain explicitly unsupported. Indirect scalar/void calls are now supported natively with an explicit address/signature caller contract (see INDIRECT-CALLS.md).
 
 ## Owned representation and validation
 
-`Instruction.call` contains an optional result `ValueId`, module-pool callee symbol and a function-owned slice of typed arguments. `Function.defineCall` checks every argument against its declared base scalar type, reserves instruction capacity and duplicates the argument slice before publishing the result definition/instruction. Failed type checks or allocations leave a pending result retryable; capacity growth may remain. `appendVoidCall` duplicates typed arguments before publishing an effect-only instruction without changing value count. `Instruction.result()` returns `?ValueId`; consumers must not fabricate a result for `null`. `Function.deinit` frees argument slices. Public IR mutation must preserve this ownership contract; never replace an owned argument slice with borrowed storage.
+`Instruction.call` contains an optional result `ValueId`, tagged symbolic/long-address target and a function-owned slice of typed arguments. `Function.defineCall` checks every argument against its declared base scalar type, reserves instruction capacity and duplicates the argument slice before publishing the result definition/instruction. Failed type checks or allocations leave a pending result retryable; capacity growth may remain. `appendVoidCall` duplicates typed arguments before publishing an effect-only instruction without changing value count. `Instruction.result()` returns `?ValueId`; consumers must not fabricate a result for `null`. `Function.deinit` frees argument slices. Public IR mutation must preserve this ownership contract; never replace an owned argument slice with borrowed storage.
 
 Scalar SSA validation checks each argument at the instruction's use site, including local ordering and cross-block dominance. Liveness and interference include every argument use. Calls remain effectful and unknown to integer folding, even with constant arguments or unused results; argument storage is never lost by folding a call into a copy.
 
-Native emission first validates every module body before traversing any known callee's parameter IDs. Every call target must be a valid supported assembly symbol. A module-local target must match the result type, argument count and every argument's exact base scalar type; mismatch returns `CallSignatureMismatch`. Forward and recursive definitions are supported. Unknown external function signatures cannot be verified from this IR: their nonvariadic scalar SysV signature is a **caller contract**, not a linker/type-checking guarantee. Parsing alone does not perform module-level call-signature validation.
+Native emission first validates every module body before traversing any known callee's parameter IDs. Every symbolic target must be a valid supported assembly symbol; indirect targets must be long SSA operands and remain a runtime address/signature caller contract. A module-local target must match the result type, argument count and every argument's exact base scalar type; mismatch returns `CallSignatureMismatch`. Forward and recursive definitions are supported. Unknown external function signatures cannot be verified from this IR: their nonvariadic scalar SysV signature is a **caller contract**, not a linker/type-checking guarantee. Parsing alone does not perform module-level call-signature validation.
 
 ## Native argument and frame lowering
 
@@ -35,9 +35,9 @@ The standalone function evaluator has no module resolver and never invokes arbit
 
 Unit tests cover owned argument copies, failed-allocation retry, type errors, local/SSA dominance errors, unsupported forms, invalid symbols, forward known-signature mismatches, malformed later definitions, effect/folding and evaluator budget boundaries, frame-cap accounting, disjoint frame regions, and exhaustive allocation-failure cleanup through parsing/analysis/folding/all three home strategies. Independent liveness and interference oracles include call-containing loop fixtures.
 
-`python3 tools/native_call_check.py` assembles and executes **474 native call/ABI/effect checks** plus **ten signature rejection/output-preservation checks** per compiler-option combination:
+`python3 tools/native_call_check.py` assembles and executes **890 native call/ABI/effect checks** plus **ten signature rejection/output-preservation checks** per compiler-option combination:
 
-- 128 signatures × three distinct value sets, using both bank-overflow orders, empty/small/large signatures, all scalar classes/results and two successive external calls;
+- 128 direct and 128 indirect signatures × three distinct value sets, using both bank-overflow orders, empty/small/large signatures, all scalar classes/results and two successive external calls;
 - internal factorial and mutually recursive forward definitions;
 - raw floating payloads, signed zero, infinities and subnormals through argument/return moves;
 - live values of all four scalar types across an assembly helper explicitly clobbering all SysV volatile GP/SSE registers;

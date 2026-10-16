@@ -10,6 +10,8 @@
     %result =type phi @predecessor operand, @predecessor operand
     %result =type call $direct_symbol(type operand, type operand)
     call $void_symbol(type operand, type operand)
+    %result =type call %long_target(type operand, type operand)
+    call %long_target(type operand, type operand)
     %result =type copy operand
     %result =type neg operand
     %result =type cast opposite-class-same-width-operand
@@ -30,7 +32,7 @@
 The ellipsis above describes repeated parameters, **not** variadic IL. A missing function result type means void. Every actual block must end in exactly one explicit terminator; the example lists alternative instruction/terminator forms, not a single valid block. Labels occupy their own lines; instructions end at a newline or closing brace. LF and CRLF input, comments and blank lines are supported. Function export linkage is retained in the IR.
 
 - `hlt` has no operands and closes its block with target-dependent program termination, independently of the function result type. The evaluator returns `Halted`; Linux AMD64 emits `ud2`. See HALT.md.
-- Direct nonvariadic scalar-result or void-result calls with explicitly typed base-scalar arguments are accepted; empty argument lists are allowed. Void calls are effect-only statements with no result definition. Known callee result presence/type must match; omitting a nonvoid return is not permitted. Indirect/variadic/environment/aggregate/extended-ABI calls are unsupported. Native emission checks known module-local signatures; external signatures remain a caller contract. The standalone evaluator reports `UnsupportedCall` only when a call is reached; module-aware evaluation can interpret internal direct calls, but never external functions (see MODULE-EVALUATION.md). See CALLS.md.
+- Direct nonvariadic scalar-result or void-result calls with explicitly typed base-scalar arguments are accepted; empty argument lists are allowed. Void calls are effect-only statements with no result definition. Known callee result presence/type must match; omitting a nonvoid return is not permitted. Indirect calls now accept a long temporary or integer-address literal as target; address/signature validity is a native caller contract and module interpretation refuses reached address targets (see INDIRECT-CALLS.md). Variadic/environment/aggregate/extended-ABI calls are unsupported. Native emission checks known module-local signatures; external signatures remain a caller contract. The standalone evaluator reports `UnsupportedCall` only when a call is reached; module-aware evaluation can interpret internal direct calls, but never external functions (see MODULE-EVALUATION.md). See CALLS.md.
 - Types are the four base scalar types. Binary operands and copied/returned values must match their declared type exactly. Implicit mixed-width temporary conversions are not implemented.
 - `copy`, `add`, `sub`, `mul`, `div` support matching integer or floating types; bitwise operations, `udiv`, `rem` and `urem` require integer types.
 - Integer `div` truncates the signed quotient toward zero; `rem` has the dividend's sign. `udiv`/`urem` use unsigned bits. The evaluator returns `DivisionByZero` or `IntegerOverflow` for exceptional integer pairs; native AMD64 execution faults instead. See SCALAR-SEMANTICS.md for this explicit boundary.

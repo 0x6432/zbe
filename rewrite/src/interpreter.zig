@@ -20,6 +20,7 @@ pub const Error = ArithmeticError || module_validation.Error || error{
     Halted,
     UnsupportedCall,
     UnsupportedExternalCall,
+    UnsupportedIndirectCall,
     InvalidFunction,
     CallDepthLimitExceeded,
 };
@@ -114,7 +115,11 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
             if (instruction == .call) {
                 const call = instruction.call;
                 const owner = module orelse return error.UnsupportedCall;
-                const callee = module_validation.findFunction(owner, call.callee) orelse return error.UnsupportedExternalCall;
+                const symbol = switch (call.callee) {
+                    .symbol => |symbol| symbol,
+                    .address => return error.UnsupportedIndirectCall,
+                };
+                const callee = module_validation.findFunction(owner, symbol) orelse return error.UnsupportedExternalCall;
                 if (frames.items.len >= options.max_call_depth) return error.CallDepthLimitExceeded;
                 const actual = try allocator.alloc(ir.Constant, call.arguments.len);
                 defer allocator.free(actual);

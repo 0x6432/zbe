@@ -47,7 +47,10 @@ pub const Graph = struct {
                     current.unset(@backingInt(result));
                 }
                 switch (instruction) {
-                    .call => |call| for (call.arguments) |argument| addUse(&current, argument.operand),
+                    .call => |call| {
+                        if (call.callee.addressOperand()) |address| addUse(&current, address);
+                        for (call.arguments) |argument| addUse(&current, argument.operand);
+                    },
                     .copy => |c| addUse(&current, c.operand),
                     .unary => |u| addUse(&current, u.operand),
                     .binary => |bin| {
@@ -152,6 +155,7 @@ fn uses(operand: ir.Operand, value: ir.ValueId) bool {
 fn instructionUses(instruction: ir.Instruction, value: ir.ValueId) bool {
     return switch (instruction) {
         .call => |call| found: {
+            if (call.callee.addressOperand()) |address| if (uses(address, value)) break :found true;
             for (call.arguments) |argument| if (uses(argument.operand, value)) break :found true;
             break :found false;
         },
@@ -337,7 +341,7 @@ test "every interference allocation failure frees graph and analysis scratch" {
 }
 
 test "program-point oracle covers phi loops float operations and unreachable blocks" {
-    var module = try parse(testing.allocator, @embedFile("fixtures/phi-loop.ssa") ++ "\n" ++ @embedFile("fixtures/compare-loop.ssa") ++ "\n" ++ @embedFile("fixtures/float-operations.ssa") ++ "\n" ++ @embedFile("fixtures/halt.ssa") ++ "\n" ++ @embedFile("fixtures/direct-calls.ssa") ++ "\n" ++ @embedFile("fixtures/void-calls.ssa") ++ "\nfunction w $dead(w %p) {\n@entry\nret %p\n@unreachable\n%x =w copy 2\n%y =w add %p, %x\nret %y\n}");
+    var module = try parse(testing.allocator, @embedFile("fixtures/phi-loop.ssa") ++ "\n" ++ @embedFile("fixtures/compare-loop.ssa") ++ "\n" ++ @embedFile("fixtures/float-operations.ssa") ++ "\n" ++ @embedFile("fixtures/halt.ssa") ++ "\n" ++ @embedFile("fixtures/direct-calls.ssa") ++ "\n" ++ @embedFile("fixtures/void-calls.ssa") ++ "\n" ++ @embedFile("fixtures/indirect-calls.ssa") ++ "\nfunction w $dead(w %p) {\n@entry\nret %p\n@unreachable\n%x =w copy 2\n%y =w add %p, %x\nret %y\n}");
     defer module.deinit();
     for (module.functions.items) |f| try compareOracle(f);
 }

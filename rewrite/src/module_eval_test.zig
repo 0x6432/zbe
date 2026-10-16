@@ -106,9 +106,9 @@ test "module validation is target independent but validates every body and known
     try testing.expectError(error.InvalidReturn, validation.validate(testing.allocator, &module));
     module.functions.items[1].return_type = .word;
     const call = &module.functions.items[0].blocks.items[0].instructions.items[0].call;
-    call.callee = @fromBackingInt(std.math.maxInt(u32));
+    call.callee = .{ .symbol = @fromBackingInt(std.math.maxInt(u32)) };
     try testing.expectError(error.InvalidSymbol, validation.validate(testing.allocator, &module));
-    call.callee = module.functions.items[0].name;
+    call.callee = .{ .symbol = module.functions.items[0].name };
     try testing.expectError(error.CallSignatureMismatch, interpreter.evaluateModule(testing.allocator, &module, id(0), &.{}, .{}));
 }
 

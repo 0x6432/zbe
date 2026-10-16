@@ -9,6 +9,9 @@
 @block
     %result =type phi @predecessor operand, @predecessor operand
     %result =type copy operand
+    %result =type neg operand
+    %result =w|l extsb|extub|extsh|extuh word-operand
+    %result =l extsw|extuw word-operand
     %result =type add|sub|mul|and|or|xor operand, operand
     %result =w|l shl|shr|sar operand, word-count
     %result =w|l ceq[w|l]|cne[w|l]|cslt[w|l]|csle[w|l]|csgt[w|l]|csge[w|l]|cult[w|l]|cule[w|l]|cugt[w|l]|cuge[w|l] operand, operand
@@ -22,6 +25,7 @@ The ellipsis above describes repeated parameters, **not** variadic IL. A missing
 
 - Types are the four base scalar types. Binary operands and copied/returned values must match their declared type exactly. Implicit mixed-width temporary conversions are not implemented.
 - `copy`, `add`, `sub`, `mul` support matching integer or floating types; bitwise operations require integer types.
+- `neg` preserves the operand/result width. Integer negation wraps; floating negation flips only the sign bit, including signed zero and NaN payloads. Integer extensions consume word operands: byte/half extensions produce word or long, while word extensions produce long only. They sign- or zero-extend the selected low bits. These are ordinary instructions, not extended ABI parameter types.
 - Shifts require a word count, including when shifting a long. Only the low five (word) or six (long) count bits are used; `shr` is logical and `sar` is arithmetic.
 - Integer comparison opcode suffixes select operand width independently of the word/long result width. Results are exactly zero or one. For example, `%r =l csltw %a, %b` compares word operands as signed integers and produces a long. Floating comparisons are unsupported.
 - Decimal integer constants wrap modulo 2^64, with explicit low-word truncation in word contexts. An untyped immediate branch condition is retained as long; branch interpretation tests its low 32 bits.

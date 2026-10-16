@@ -15,7 +15,7 @@ The driver takes exactly two paths. It reads at most 16 MiB of IL, constructs ow
 
 - GNU assembler syntax for Linux ELF AMD64, System V integer calling convention.
 - Word/long or void functions; integer register arguments and stack arguments beyond the first six; integer/void returns.
-- Current integer copy/arithmetic/bitwise/shift/integer-comparison instructions, jumps, low-word conditional branches, and edge-specific parallel phi copies.
+- Current integer copy/arithmetic/bitwise/negation/integer-extension/shift/integer-comparison instructions, jumps, low-word conditional branches, and edge-specific parallel phi copies.
 - Every SSA value has an eight-byte stack home; phi copies use additional, non-overlapping scratch homes. This deliberately simple strategy has **no register allocation or optimization**.
 - Frame pointer is preserved, stack space rounded to 16 bytes, and only caller-saved scratch registers are used. A prototype frame-size cap of 64 KiB is explicit; large-frame probing is not implemented.
 - Export/local symbol linkage is retained. Symbols are validated, and quoted internal labels use a namespace unavailable to accepted user symbols. The assembly marks a non-executable GNU stack.
@@ -26,6 +26,6 @@ Native compiled loops have ordinary native-program behavior; the interpreter's e
 
 ## Verification
 
-The native harness consumes all 384 independent Python arithmetic/bitwise oracle cases and 832 shift/comparison oracle cases, all four constant-jump regressions, loop-carried phi swaps, eight-argument word/long ABI cases, dynamic long-condition low-word checks, conditional phi edges and duplicate-target phi edges. It assembles/links through the host C compiler and calls the exported functions from C: 1,245 result checks plus a void-function call. These include a comparison-driven sum loop and a shift whose `%cl` scratch overlaps a former incoming argument register; all incoming arguments have independent homes before scratch use. It also checks eight CLI rejection/output-preservation conditions.
+The native harness consumes all 384 independent Python arithmetic/bitwise oracle cases 832 shift/comparison oracle cases and 384 negation/extension oracle cases, all four constant-jump regressions, loop-carried phi swaps, eight-argument word/long ABI cases, dynamic long-condition low-word checks, conditional phi edges and duplicate-target phi edges. It assembles/links through the host C compiler and calls the exported functions from C: 1,629 result checks plus a void-function call. These include a comparison-driven sum loop and a shift whose `%cl` scratch overlaps a former incoming argument register; all incoming arguments have independent homes before scratch use. It also checks eight CLI rejection/output-preservation conditions.
 
 These are bounded regressions for this subset, not byte identity with C QBE, full ABI conformance, target completeness, performance evidence, or permission to replace `main`.

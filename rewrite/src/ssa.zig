@@ -53,6 +53,7 @@ pub fn validate(allocator: std.mem.Allocator, function: *const ir.Function, issu
                 try checkUse(function, &graph, &dominators, binary.rhs, id, index, issue);
             },
             .copy => |copy| try checkUse(function, &graph, &dominators, copy.operand, id, index, issue),
+            .unary => |unary| try checkUse(function, &graph, &dominators, unary.operand, id, index, issue),
             .shift => |shift| {
                 try checkUse(function, &graph, &dominators, shift.value, id, index, issue);
                 try checkUse(function, &graph, &dominators, shift.amount, id, index, issue);
@@ -263,4 +264,16 @@ test "shift counts and both comparison operands require dominance" {
         try testing.expectEqual(.non_dominating_definition, issue.?.code);
         try testing.expectEqual(@as(usize, 0), issue.?.site.instruction);
     }
+}
+
+test "unary operands obey same block ordering and cross block dominance" {
+    var module = try parse("function w $f() {\n@b\n%x =w neg %y\n%y =w copy 1\nret %x\n}");
+    defer module.deinit();
+    var issue: ?Issue = null;
+    try testing.expectError(error.InvalidSSA, validate(testing.allocator, module.functions.items[0], &issue));
+    try testing.expectEqual(.use_before_definition, issue.?.code);
+    var diamond = try parse("function l $f(w %p) {\n@entry\njnz %p, @left, @join\n@left\n%x =w copy 255\njmp @join\n@join\n%r =l extsb %x\nret %r\n}");
+    defer diamond.deinit();
+    try testing.expectError(error.InvalidSSA, validate(testing.allocator, diamond.functions.items[0], &issue));
+    try testing.expectEqual(.non_dominating_definition, issue.?.code);
 }

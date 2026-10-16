@@ -8,6 +8,15 @@ const binary_opcodes = std.StaticStringMap(ir.BinaryOp).initComptime(.{
     .{ "add", .add },     .{ "sub", .sub },   .{ "mul", .mul },
     .{ "and", .bit_and }, .{ "or", .bit_or }, .{ "xor", .bit_xor },
 });
+const unary_opcodes = std.StaticStringMap(ir.UnaryOp).initComptime(.{
+    .{ "neg", .negate },
+    .{ "extsb", .sign_extend_byte },
+    .{ "extub", .zero_extend_byte },
+    .{ "extsh", .sign_extend_half },
+    .{ "extuh", .zero_extend_half },
+    .{ "extsw", .sign_extend_word },
+    .{ "extuw", .zero_extend_word },
+});
 const shift_opcodes = std.StaticStringMap(ir.ShiftOp).initComptime(.{
     .{ "shl", .left }, .{ "shr", .logical_right }, .{ "sar", .arithmetic_right },
 });
@@ -188,6 +197,10 @@ const Parser = struct {
                 _ = self.advance();
             }
             f.definePhi(block, result, inputs.items) catch |err| return self.irError(err, opcode);
+        } else if (unary_opcodes.get(spelling)) |op| {
+            const operand_type = op.operandType(ty) catch |err| return self.irError(err, opcode);
+            const operand = try self.readOperand(operand_type);
+            f.defineUnary(block, result, op, operand) catch |err| return self.irError(err, opcode);
         } else if (shift_opcodes.get(spelling)) |op| {
             const operand = try self.readOperand(ty);
             _ = try self.expect(.comma);
@@ -541,4 +554,11 @@ test "shifts require integer values and word counts and comparisons require inte
     try expectInvalid("function l $f(l %count) {\n@b\n%x =l shl 1, %count\nret %x\n}", .type_mismatch, "%count");
     try expectInvalid("function d $f() {\n@b\n%x =d shl d_1, 1\nret %x\n}", .type_mismatch, "shl");
     try expectInvalid("function d $f() {\n@b\n%x =d ceqw 1, 1\nret %x\n}", .type_mismatch, "ceqw");
+}
+
+test "integer extensions require word operands and valid result widths" {
+    try expectInvalid("function w $f() {\n@b\n%x =w extsw 1\nret %x\n}", .type_mismatch, "extsw");
+    try expectInvalid("function s $f() {\n@b\n%x =s extub 1\nret %x\n}", .type_mismatch, "extub");
+    try expectInvalid("function l $f(l %v) {\n@b\n%x =l extuh %v\nret %x\n}", .type_mismatch, "%v");
+    try expectInvalid("function w $f(l %v) {\n@b\n%x =w neg %v\nret %x\n}", .type_mismatch, "%v");
 }

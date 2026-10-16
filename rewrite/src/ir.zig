@@ -55,6 +55,24 @@ pub const IntegerType = enum {
         };
     }
 };
+/// Integer extensions read a word even when their result is long.
+pub const UnaryOp = enum {
+    negate,
+    sign_extend_byte,
+    zero_extend_byte,
+    sign_extend_half,
+    zero_extend_half,
+    sign_extend_word,
+    zero_extend_word,
+
+    pub fn operandType(self: UnaryOp, result_type: ScalarType) error{TypeMismatch}!ScalarType {
+        return switch (self) {
+            .negate => result_type,
+            .sign_extend_byte, .zero_extend_byte, .sign_extend_half, .zero_extend_half => if (result_type.isInteger()) .word else error.TypeMismatch,
+            .sign_extend_word, .zero_extend_word => if (result_type == .long) .word else error.TypeMismatch,
+        };
+    }
+};
 pub const ShiftOp = enum { left, logical_right, arithmetic_right };
 pub const IntegerPredicate = enum {
     equal,
@@ -71,6 +89,7 @@ pub const IntegerPredicate = enum {
 pub const Instruction = union(enum) {
     binary: struct { result: ValueId, op: BinaryOp, lhs: Operand, rhs: Operand },
     copy: struct { result: ValueId, operand: Operand },
+    unary: struct { result: ValueId, op: UnaryOp, operand: Operand },
     shift: struct { result: ValueId, op: ShiftOp, value: Operand, amount: Operand },
     compare_integer: struct { result: ValueId, predicate: IntegerPredicate, operand_type: IntegerType, lhs: Operand, rhs: Operand },
 
@@ -78,6 +97,7 @@ pub const Instruction = union(enum) {
         return switch (self) {
             .binary => |binary| binary.result,
             .copy => |copy| copy.result,
+            .unary => |unary| unary.result,
             .shift => |shift| shift.result,
             .compare_integer => |comparison| comparison.result,
         };
@@ -216,6 +236,16 @@ pub const Function = struct {
         target.instructions.appendAssumeCapacity(.{ .copy = .{ .result = result, .operand = operand } });
     }
 
+    pub fn defineUnary(self: *Function, block_id: BlockId, result: ValueId, op: UnaryOp, operand: Operand) BuildError!void {
+        const target = try self.getBlock(block_id);
+        if (target.terminator != null) return error.BlockTerminated;
+        const value = try self.pendingValue(result);
+        try self.checkUnary(value.scalar_type, op, operand);
+        try target.instructions.ensureUnusedCapacity(self.allocator, 1);
+        value.definition = .{ .instruction = .{ .block = block_id, .index = target.instructions.items.len } };
+        target.instructions.appendAssumeCapacity(.{ .unary = .{ .result = result, .op = op, .operand = operand } });
+    }
+
     pub fn defineShift(self: *Function, block_id: BlockId, result: ValueId, op: ShiftOp, operand: Operand, amount: Operand) BuildError!void {
         const target = try self.getBlock(block_id);
         if (target.terminator != null) return error.BlockTerminated;
@@ -333,6 +363,7 @@ pub const Function = struct {
                 switch (instruction) {
                     .binary => |binary| try self.checkBinary(ty, binary.op, binary.lhs, binary.rhs),
                     .copy => |copy| if (try self.operandType(copy.operand) != ty) return error.TypeMismatch,
+                    .unary => |unary| try self.checkUnary(ty, unary.op, unary.operand),
                     .shift => |shift| try self.checkShift(ty, shift.value, shift.amount),
                     .compare_integer => |comparison| try self.checkIntegerCompare(ty, comparison.operand_type, comparison.lhs, comparison.rhs),
                 }
@@ -358,6 +389,10 @@ pub const Function = struct {
             .bit_and, .bit_or, .bit_xor => if (!ty.isInteger()) return error.TypeMismatch,
             else => {},
         }
+    }
+
+    fn checkUnary(self: *const Function, ty: ScalarType, op: UnaryOp, operand: Operand) ValidationError!void {
+        if (try self.operandType(operand) != try op.operandType(ty)) return error.TypeMismatch;
     }
 
     fn checkShift(self: *const Function, ty: ScalarType, value: Operand, amount: Operand) ValidationError!void {
@@ -568,4 +603,24 @@ test "phi input ownership and retry after either allocation fails" {
         f.values.items[@backingInt(result)].definition.phi.index = 99;
         try testing.expectError(error.InvalidDefinition, f.validateStructure());
     }
+}
+
+test "unary builder rejects bad types and permits retry after failed allocation" {
+    var failing = testing.FailingAllocator.init(testing.allocator, .{});
+    var f = Function.init(failing.allocator(), test_name, .long);
+    defer f.deinit();
+    const b = try f.addBlock(null);
+    const value = try f.declareValue(.long);
+    try testing.expectError(error.TypeMismatch, f.defineUnary(b, value, .sign_extend_byte, .{ .constant = .{ .long = 255 } }));
+    try testing.expect(f.values.items[@backingInt(value)].definition == .pending);
+    failing.fail_index = failing.alloc_index;
+    try testing.expectError(error.OutOfMemory, f.defineUnary(b, value, .sign_extend_byte, .{ .constant = .{ .word = 255 } }));
+    try testing.expect(f.values.items[@backingInt(value)].definition == .pending);
+    try testing.expectEqual(@as(usize, 0), f.blocks.items[0].instructions.items.len);
+    failing.fail_index = std.math.maxInt(usize);
+    try f.defineUnary(b, value, .sign_extend_byte, .{ .constant = .{ .word = 255 } });
+    try f.terminate(b, .{ .return_value = .{ .value = value } });
+    try f.validateStructure();
+    f.blocks.items[0].instructions.items[0].unary.operand = .{ .constant = .{ .long = 255 } };
+    try testing.expectError(error.TypeMismatch, f.validateStructure());
 }

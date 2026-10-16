@@ -46,6 +46,7 @@ pub fn evaluate(allocator: std.mem.Allocator, function: *const ir.Function, argu
             try step(&remaining);
             const result = switch (instruction) {
                 .copy => |copy| try resolve(values, copy.operand),
+                .unary => |unary| unaryValue(unary.op, try resolve(values, unary.operand), function.values.items[@backingInt(unary.result)].scalar_type),
                 .shift => |shift| shiftedValue(shift.op, try resolve(values, shift.value), (try resolve(values, shift.amount)).word),
                 .compare_integer => |comparison| comparisonValue(comparison.predicate, try resolve(values, comparison.lhs), try resolve(values, comparison.rhs), function.values.items[@backingInt(comparison.result)].scalar_type),
                 .binary => |binary| binaryValue(binary.op, try resolve(values, binary.lhs), try resolve(values, binary.rhs)),
@@ -76,6 +77,31 @@ fn resolve(values: []const ?ir.Constant, operand: ir.Operand) error{Uninitialize
         .constant => |constant| constant,
         .value => |value| values[@backingInt(value)] orelse error.UninitializedValue,
     };
+}
+
+fn unaryValue(op: ir.UnaryOp, operand: ir.Constant, result_type: ir.ScalarType) ir.Constant {
+    if (op == .negate) return switch (operand) {
+        .word => |bits| .{ .word = 0 -% bits },
+        .long => |bits| .{ .long = 0 -% bits },
+        .single_bits => |bits| .{ .single_bits = bits ^ 0x80000000 },
+        .double_bits => |bits| .{ .double_bits = bits ^ 0x8000000000000000 },
+    };
+    const bits = operand.word;
+    const extended: u64 = switch (op) {
+        .negate => unreachable,
+        .sign_extend_byte => signedExtension(u8, i8, bits),
+        .zero_extend_byte => bits & 0xff,
+        .sign_extend_half => signedExtension(u16, i16, bits),
+        .zero_extend_half => bits & 0xffff,
+        .sign_extend_word => signedExtension(u32, i32, bits),
+        .zero_extend_word => bits,
+    };
+    return if (result_type == .word) .{ .word = @truncate(extended) } else .{ .long = extended };
+}
+fn signedExtension(comptime U: type, comptime S: type, bits: u32) u64 {
+    const narrow: U = @truncate(bits);
+    const signed: S = @bitCast(narrow);
+    return @bitCast(@as(i64, signed));
 }
 
 fn shiftedValue(op: ir.ShiftOp, value: ir.Constant, amount: u32) ir.Constant {
@@ -369,4 +395,53 @@ fn exerciseScalarExtra(allocator: std.mem.Allocator) !void {
 
 test "scalar extension parsing and evaluation clean up every allocation failure" {
     try @import("test_support.zig").checkAllocationFailures(exerciseScalarExtra);
+}
+
+test "Python oracle checks integer negation and sign and zero extensions" {
+    var lines = std.mem.tokenizeScalar(u8, @embedFile("fixtures/unary-oracle.tsv"), '\n');
+    var case_count: usize = 0;
+    while (lines.next()) |line| {
+        if (line[0] == '#') continue;
+        var fields = std.mem.tokenizeAny(u8, line, " \t");
+        const ty = fields.next().?;
+        const opcode = fields.next().?;
+        _ = fields.next().?; // Operand width is established by the opcode.
+        const operand = fields.next().?;
+        const expected = try std.fmt.parseInt(u64, fields.next().?, 10);
+        try testing.expect(fields.next() == null);
+        const text = try std.fmt.allocPrint(testing.allocator, "function {s} $f() {{\n@entry\n%x ={s} {s} {s}\nret %x\n}}", .{ ty, ty, opcode, operand });
+        defer testing.allocator.free(text);
+        var module = try parse(text);
+        defer module.deinit();
+        const result = (try evaluate(testing.allocator, module.functions.items[0], &.{}, .{ .max_steps = 2 })).?;
+        const actual: u64 = if (std.mem.eql(u8, ty, "w")) result.word else result.long;
+        try testing.expectEqual(expected, actual);
+        case_count += 1;
+    }
+    try testing.expectEqual(@as(usize, 384), case_count);
+}
+
+test "floating negation flips only the sign bit including zero infinity and NaN payloads" {
+    var module = try parse("function s $s(s %v) {\n@b\n%r =s neg %v\nret %r\n}\nfunction d $d(d %v) {\n@b\n%r =d neg %v\nret %r\n}");
+    defer module.deinit();
+    for ([_]u32{ 0, 0x80000000, 0x3f800000, 0x7f800000, 0xff800000, 0x7fc01234, 0xff801234 }) |bits| {
+        const result = (try evaluate(testing.allocator, module.functions.items[0], &.{.{ .single_bits = bits }}, .{})).?;
+        try testing.expectEqual(bits ^ @as(u32, 0x80000000), result.single_bits);
+    }
+    for ([_]u64{ 0, 0x8000000000000000, 0x3ff0000000000000, 0x7ff0000000000000, 0xfff0000000000000, 0x7ff8000000001234, 0xfff0000000001234 }) |bits| {
+        const result = (try evaluate(testing.allocator, module.functions.items[1], &.{.{ .double_bits = bits }}, .{})).?;
+        try testing.expectEqual(bits ^ @as(u64, 0x8000000000000000), result.double_bits);
+    }
+}
+
+fn exerciseUnary(allocator: std.mem.Allocator) !void {
+    var diagnostic: ?source.Diagnostic = null;
+    var module = try frontend.parse(allocator, .{ .name = "unary", .text = "function l $f(w %x) {\n@b\n%a =l extsb %x\n%r =l neg %a\nret %r\n}" }, &diagnostic);
+    defer module.deinit();
+    const result = (try evaluate(allocator, module.functions.items[0], &.{.{ .word = 255 }}, .{})).?;
+    try testing.expectEqual(@as(u64, 1), result.long);
+}
+
+test "unary parsing and evaluation clean up every allocation failure" {
+    try @import("test_support.zig").checkAllocationFailures(exerciseUnary);
 }

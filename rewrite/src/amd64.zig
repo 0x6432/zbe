@@ -94,6 +94,20 @@ const Emitter = struct {
                     const ty = f.values.items[@backingInt(copy.result)].scalar_type;
                     try self.save(copy.result, register(ty, .accumulator));
                 },
+                .unary => |unary| {
+                    try self.load(unary.operand, .accumulator);
+                    const ty = f.values.items[@backingInt(unary.result)].scalar_type;
+                    switch (unary.op) {
+                        .negate => try self.print("\tneg{c} {s}\n", .{ suffix(ty), register(ty, .accumulator) }),
+                        .sign_extend_byte => try self.print("\tmovsb{c} %al, {s}\n", .{ suffix(ty), register(ty, .accumulator) }),
+                        .zero_extend_byte => try self.print("\tmovzbl %al, %eax\n", .{}),
+                        .sign_extend_half => try self.print("\tmovsw{c} %ax, {s}\n", .{ suffix(ty), register(ty, .accumulator) }),
+                        .zero_extend_half => try self.print("\tmovzwl %ax, %eax\n", .{}),
+                        .sign_extend_word => try self.print("\tmovslq %eax, %rax\n", .{}),
+                        .zero_extend_word => {}, // Loading a word already clears the upper half of RAX.
+                    }
+                    try self.save(unary.result, register(ty, .accumulator));
+                },
                 .shift => |shift| {
                     try self.load(shift.value, .accumulator);
                     try self.load(shift.amount, .count);
@@ -291,4 +305,18 @@ fn exerciseScalarExtra(allocator: std.mem.Allocator) !void {
 
 test "shift and comparison emission clean up every allocation failure" {
     try @import("test_support.zig").checkAllocationFailures(exerciseScalarExtra);
+}
+
+fn exerciseUnary(allocator: std.mem.Allocator) !void {
+    var diagnostic: ?source.Diagnostic = null;
+    var module = try frontend.parse(allocator, .{ .name = "unary", .text = "function l $f(w %x) {\n@b\n%a =l extsb %x\n%r =l neg %a\nret %r\n}" }, &diagnostic);
+    defer module.deinit();
+    const text = try emit(allocator, &module);
+    defer allocator.free(text);
+    try testing.expect(std.mem.indexOf(u8, text, "movsbq %al, %rax") != null);
+    try testing.expect(std.mem.indexOf(u8, text, "negq %rax") != null);
+}
+
+test "unary emission cleans up every allocation failure" {
+    try @import("test_support.zig").checkAllocationFailures(exerciseUnary);
 }

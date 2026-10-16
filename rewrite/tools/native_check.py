@@ -57,6 +57,20 @@ def main() -> None:
     declarations.append("extern uint64_t shift_args(uint64_t, uint64_t, uint64_t, uint64_t, uint32_t);")
     for amount in (0, 65):
         check(f"shift_args(3, 0, 0, UINT64_C({1 << 36}), {amount})", (3 << (amount & 63)) + (1 << 36))
+    unary_count = 0
+    for line in (root / "src/fixtures/unary-oracle.tsv").read_text().splitlines():
+        if not line or line.startswith("#"):
+            continue
+        ty, opcode, operand_ty, operand, expected = line.split()
+        name = f"unary_{unary_count}"
+        functions.append(f"export function {ty} ${name}({operand_ty} %v) {{\n@entry\n%x ={ty} {opcode} %v\nret %x\n}}")
+        ctype = "uint32_t" if ty == "w" else "uint64_t"
+        argument_ctype = "uint32_t" if operand_ty == "w" else "uint64_t"
+        declarations.append(f'extern {ctype} {name}({argument_ctype});')
+        bits = int(operand) & ((1 << (32 if operand_ty == "w" else 64)) - 1)
+        check(f"{name}(UINT64_C({bits}))", int(expected))
+        unary_count += 1
+    assert unary_count == 384
     functions.append((root / "src/fixtures/constant-jump.ssa").read_text())
     for name, expected in (("jconstant", 0), ("jproduct", 0), ("jnegative", 0), ("jnonzero", 1)):
         declarations.append(f"extern uint32_t {name}(void);")

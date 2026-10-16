@@ -242,3 +242,20 @@ Seven added tests compare every block/value query against a separate per-value u
 ### Liveness local verification
 
 Pinned Zig Debug, ReleaseSafe and ReleaseFast each passed **117/117 unit tests**. In each build mode, **both normal and `--fold-integers` paths** passed **3,370 integer/program native checks**, **3,560 floating/bit-pattern/mixed-ABI native checks**, **24 arithmetic-fault checks**, and **8 CLI checks** per path. Formatting and all eight independent generators' reproducibility checks passed. Authoritative non-overlapping log: `/data/verify-native-liveness.log`, ending `LIVENESS VERIFICATION PASSED`. Legacy source/build/tools/tests remain unchanged. Liveness CI is checked separately after publication; no main integration or release tag.
+
+
+### Liveness published CI
+
+Liveness checkpoint `de65bfddcf733739eff14365686b956edb86f41b` passed https://github.com/0x6432/zbe/actions/runs/38879251679: Debug, ReleaseSafe and ReleaseFast all succeeded. This result precedes interference below.
+
+## Owned scalar-home interference
+
+Added an independently owned, symmetric packed adjacency graph over scalar value IDs. Ordinary results conflict with values live after definition, including dead-result clobbers. Parameter and phi definitions are simultaneous bundles with pairwise conflicts, including unused results. Phi edge uses remain edge-specific; values of different scalar classes are deliberately not filtered. The graph is a conservative target-independent home relation, not a model of machine register aliases, fixed registers, early clobbers, ABI placement or calls. No emitter or IR mutation is performed. See INTERFERENCE.md.
+
+Checked graph/scratch estimates and separate liveness matrix limits each default to 64 MiB. Neither limits combined process memory or execution time. Allocation failures free the graph and all analysis scratch. Liveness and interference use the pinned standard library's current `Dynamic` bitset name instead of its deprecated alias.
+
+Nine added tests cover dead definitions, dying-source reuse, simultaneous phi results and live-through parameters, edge distinction, class-independent entry bundles, snapshot lifetime, empty frames, bounds, exact/separate limits, overflow, invalid SSA, every allocation failure, word-boundary packing, all 32 mixed programs and 32 generated cyclic CFGs. A separate forward use-before-redefinition path-search oracle checks every graph pair and degree without consuming production liveness sets or walking instructions backward.
+
+### Interference local verification
+
+Pinned Zig Debug, ReleaseSafe and ReleaseFast each passed **126/126 unit tests**. In each build mode, **both normal and `--fold-integers` paths** passed **3,370 integer/program native checks**, **3,560 floating/bit-pattern/mixed-ABI native checks**, **24 arithmetic-fault checks**, and **8 CLI checks** per path. Formatting and all eight independent generators' reproducibility checks passed. Authoritative log: `/data/verify-native-interference.log`, ending `INTERFERENCE VERIFICATION PASSED`. Legacy source/build/tools/tests remain unchanged. Interference CI is checked separately after publication; no main integration or release tag.

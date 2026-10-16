@@ -16,7 +16,7 @@ The solver starts with empty sets and iterates backward to a fixed point, visiti
 
 Each row uses an allocator-owned standard-library dynamic bitset. Construction cleans up partial rows and analysis scratch on every error. Only live-in/out rows survive construction; no IR/CFG pointers are retained.
 
-The representation uses O(blocks × values / machine-word-bits) mask storage, not a linear-space liveness algorithm. The default `max_matrix_bytes` is 64 MiB. A checked conservative estimate covers four row matrices, two scratch bitsets, row descriptors and mask headers, and returns `LivenessTooLarge` before constructing them if the cap is exceeded. This is **not** a cap on allocator overhead, separate SSA/CFG scratch, total process memory or solver execution time. There is no instruction-level liveness, interference graph, register assignment, spill insertion or emitter integration yet.
+The representation uses O(blocks × values / machine-word-bits) mask storage, not a linear-space liveness algorithm. The default `max_matrix_bytes` is 64 MiB. A checked conservative estimate covers four row matrices, two scratch bitsets, row descriptors and mask headers, and returns `LivenessTooLarge` before constructing them if the cap is exceeded. This is **not** a cap on allocator overhead, separate SSA/CFG scratch, total process memory or solver execution time. The snapshot itself exposes block boundaries, not instruction-level queries. A separate scalar-home interference analysis consumes it (see INTERFERENCE.md); register assignment, spill insertion and emitter integration are still unimplemented.
 
 ## Verification
 

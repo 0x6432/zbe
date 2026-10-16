@@ -3,7 +3,7 @@ const std = @import("std");
 const ir = @import("ir.zig");
 const cfg = @import("cfg.zig");
 const ssa = @import("ssa.zig");
-const BitSet = std.bit_set.DynamicBitSetUnmanaged;
+const BitSet = std.bit_set.Dynamic;
 pub const Error = ssa.Error || error{LivenessTooLarge};
 pub const Options = struct { max_matrix_bytes: usize = 64 * 1024 * 1024 };
 

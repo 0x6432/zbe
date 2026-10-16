@@ -29,7 +29,7 @@ def main() -> None:
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
     compiler = str(args.compiler.resolve())
     compiler_flags = (["--fold-integers"] if args.fold_integers else []) + (["--reuse-stack-homes"] if args.reuse_stack_homes else []) + (["--callee-saved-homes"] if args.callee_saved_homes else [])
-    declarations = ["#include <stdint.h>", "#include <stdio.h>"]
+    declarations = ["#include <stdint.h>", "#include <stdio.h>", "#include <string.h>"]
     checks = []
     functions = []
     traps = []
@@ -186,6 +186,13 @@ def main() -> None:
     declarations.extend(["extern uint64_t preserved_homes(void);", "extern uint32_t zbe_check_preserved(uint64_t (*)(void));"])
     check("preserved_homes()", 21)
     check("zbe_check_preserved(preserved_homes)", 0)
+    functions.append((root / "src/fixtures/halt.ssa").read_text())
+    declarations.extend(["extern void halt_direct(void);", "extern uint32_t halt_if(uint32_t);", "extern void halt_after_div(uint32_t);"])
+    check("halt_if(0)", 42)
+    termination = [("halt-direct", "halt_direct()", signal.SIGILL),
+                   ("halt-conditional", "halt_if(1)", signal.SIGILL),
+                   ("halt-after-fault", "halt_after_div(0)", signal.SIGFPE),
+                   ("halt-after-division", "halt_after_div(1)", signal.SIGILL)]
     functions.append("export function $nothing() {\n@entry\nret\n}")
     declarations.append("extern void nothing(void);")
 
@@ -197,7 +204,8 @@ def main() -> None:
         executable = work / "native-check"
         source.write_text("\n".join(functions) + "\n")
         trap_dispatch = "\n".join(traps)
-        driver.write_text("\n".join(declarations) + "\n#include <stdlib.h>\nint main(int argc, char **argv) {\nif (argc == 2) { int which = atoi(argv[1]);\n" + trap_dispatch + "\nreturn 4; }\nnothing();\n" + "\n".join(checks) + f'\nputs("{len(checks)} native integer/ABI/phi checks passed");\nreturn 0;\n}}\n')
+        termination_dispatch = "\n".join(f'if (strcmp(argv[1], "{name}") == 0) {{ {call}; return 99; }}' for name, call, _ in termination)
+        driver.write_text("\n".join(declarations) + "\n#include <stdlib.h>\nint main(int argc, char **argv) {\nif (argc == 2) {\n" + termination_dispatch + "\nint which = atoi(argv[1]);\n" + trap_dispatch + "\nreturn 4; }\nnothing();\n" + "\n".join(checks) + f'\nputs("{len(checks)} native integer/ABI/phi checks passed");\nreturn 0;\n}}\n')
         run([compiler, *compiler_flags, str(source), str(assembly)])
         chain_assembly = assembly.read_text().split("home_chain:\n", 1)[1].split(".size home_chain,", 1)[0]
         match = re.search(r"subq \$(\d+), %rsp", chain_assembly)
@@ -211,6 +219,11 @@ def main() -> None:
             if result.returncode != -signal.SIGFPE:
                 raise SystemExit(f"Native arithmetic trap {index} returned {result.returncode}, expected SIGFPE")
         print(f"{len(traps)} native integer arithmetic-fault checks passed")
+        for name, _, expected_signal in termination:
+            result = subprocess.run([str(executable), name], capture_output=True, timeout=30)
+            if result.returncode != -expected_signal:
+                raise SystemExit(f"Native termination {name} returned {result.returncode}, expected signal {expected_signal}")
+        print(f"{len(termination)} native termination/ordering checks passed")
 
         invalid = {
             "entry-edge": ((root / "src/fixtures/entry-backedge.ssa").read_text(), "EntryHasPredecessors"),

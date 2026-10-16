@@ -71,7 +71,7 @@ pub fn validate(allocator: std.mem.Allocator, function: *const ir.Function, issu
             },
         };
         switch (block.terminator.?) {
-            .jump => {},
+            .jump, .halt => {},
             .branch => |branch| try checkUse(function, &graph, &dominators, branch.condition, id, null, issue),
             .return_value => |operand| if (operand) |value| try checkUse(function, &graph, &dominators, value, id, null, issue),
         }

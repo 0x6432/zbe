@@ -52,3 +52,42 @@ test "all SSA-dependent consumers reject entry backedges before analysis or muta
     try testing.expectError(error.EntryHasPredecessors, amd64.emitWithOptions(testing.allocator, &module, .{ .reuse_stack_homes = true }));
     try testing.expectError(error.EntryHasPredecessors, amd64.emitWithOptions(testing.allocator, &module, .{ .callee_saved_homes = true }));
 }
+
+fn exerciseHalt(allocator: @import("std").mem.Allocator) !void {
+    const testing = @import("std").testing;
+    var diagnostic: ?source.Diagnostic = null;
+    var module = try frontend.parse(allocator, .{ .name = "halt", .text = @embedFile("fixtures/halt.ssa") }, &diagnostic);
+    defer module.deinit();
+    for (module.functions.items) |f| {
+        var graph = try cfg.Graph.init(allocator, f);
+        defer graph.deinit();
+        var live = try liveness.Snapshot.init(allocator, f, .{});
+        defer live.deinit();
+        var conflicts = try interference.Graph.init(allocator, f, .{});
+        defer conflicts.deinit();
+        var layout = try stack_homes.Layout.init(allocator, f, .{});
+        defer layout.deinit();
+        _ = try optimize.foldIntegerConstants(allocator, f);
+        const arguments: []const ir.Constant = if (f.parameters.items.len == 0) &.{} else &.{.{ .word = 1 }};
+        if (interpreter.evaluate(allocator, f, arguments, .{})) |_| return error.ExpectedHalt else |err| {
+            if (err != error.Halted) return err;
+        }
+        for (f.blocks.items, 0..) |block, index| {
+            if (block.terminator.? == .halt) {
+                const id: ir.BlockId = @fromBackingInt(@as(u32, @intCast(index)));
+                try testing.expectEqual(@as(usize, 0), graph.successors[index].slice().len);
+                for (f.values.items, 0..) |_, value| try testing.expect(!live.isLiveOut(id, @fromBackingInt(@as(u32, @intCast(value)))).?);
+            }
+        }
+    }
+    for ([_]amd64.Options{ .{}, .{ .reuse_stack_homes = true }, .{ .callee_saved_homes = true } }) |options| {
+        const assembly = try amd64.emitWithOptions(allocator, &module, options);
+        defer allocator.free(assembly);
+        try testing.expectEqual(@as(usize, 3), @import("std").mem.count(u8, assembly, "\tud2\n"));
+        try testing.expect(@import("std").mem.indexOf(u8, assembly, "idivl") != null);
+    }
+}
+
+test "halt analyses evaluation folding and all home modes clean up every allocation failure" {
+    try @import("test_support.zig").checkAllocationFailures(exerciseHalt);
+}

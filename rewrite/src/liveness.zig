@@ -62,7 +62,7 @@ pub const Snapshot = struct {
                 defs[index].set(@backingInt(instruction.result()));
             }
             switch (block.terminator.?) {
-                .jump => {},
+                .jump, .halt => {},
                 .branch => |b| addUse(&uses[index], defs[index], b.condition),
                 .return_value => |value| if (value) |operand| addUse(&uses[index], defs[index], operand),
             }
@@ -257,7 +257,7 @@ fn oracle(function: *const ir.Function, graph: *const cfg.Graph, block: usize, v
             }
             if (killed) continue;
             switch (current.terminator.?) {
-                .jump => {},
+                .jump, .halt => {},
                 .branch => |branch| if (matches(branch.condition, value)) return true,
                 .return_value => |operand| if (operand) |o| {
                     if (matches(o, value)) return true;
@@ -289,7 +289,7 @@ fn compareOracle(function: *const ir.Function) !void {
 }
 
 test "phi swaps loops mixed scalar instructions and diamonds match path oracle" {
-    var module = try parse(testing.allocator, diamond ++ "\n" ++ @embedFile("fixtures/phi-loop.ssa") ++ "\n" ++ @embedFile("fixtures/compare-loop.ssa") ++ "\n" ++ @embedFile("fixtures/float-operations.ssa"));
+    var module = try parse(testing.allocator, diamond ++ "\n" ++ @embedFile("fixtures/phi-loop.ssa") ++ "\n" ++ @embedFile("fixtures/compare-loop.ssa") ++ "\n" ++ @embedFile("fixtures/float-operations.ssa") ++ "\n" ++ @embedFile("fixtures/halt.ssa"));
     defer module.deinit();
     for (module.functions.items) |f| try compareOracle(f);
 }

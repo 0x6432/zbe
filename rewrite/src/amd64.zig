@@ -276,6 +276,7 @@ const Emitter = struct {
                 },
             };
             switch (block.terminator.?) {
+                .halt => try self.print("\tud2\n", .{}),
                 .jump => |target| try self.edge(id, target),
                 .branch => |branch| {
                     try self.load(branch.condition, .accumulator);

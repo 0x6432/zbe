@@ -302,3 +302,18 @@ The boundary-fix smoke initially caught two existing fixtures expecting the form
 ### Limited register homes and entry-boundary final verification
 
 The authoritative non-overlapping `/data/verify-native-preserved-homes-final.log` ended `PRESERVED HOME VERIFICATION PASSED`. Pinned Zig Debug, ReleaseSafe and ReleaseFast each passed **143/143 unit tests**. In every build mode, **all eight flag combinations** passed **3,377 integer/program native checks**, **3,560 floating/bit-pattern/mixed-ABI native checks**, **24 arithmetic-fault checks**, and **15 CLI rejection/output-preservation/flag-order checks** per combination. All 24 completions of each native suite were counted explicitly. Formatting and all eight independent generators' reproducibility checks passed. This supersedes the pre-audit 141-test run. Legacy source/build/tools/tests remain unchanged. CI is checked separately after publication; main integration and release tags remain unauthorized.
+
+### Limited register homes published CI
+
+Checkpoint `8f55f534dc74a1f62a0a56ea5d12ca6ff5e7c987` passed https://github.com/0x6432/zbe/actions/runs/38904948145: Debug, ReleaseSafe and ReleaseFast all succeeded, including 143 unit tests, all eight native flag combinations and entry-edge rejection/output-preservation coverage. This result precedes halt support below.
+
+## Explicit halt termination
+
+Added payload-free `Terminator.halt`, frontend `hlt`, operand-free structural/SSA handling, no CFG successors, no terminator liveness uses and no synthetic return value. It is valid for void or any scalar-result function. Interpretation consumes a terminator step and returns typed `Halted`, preserving budget exhaustion and preceding arithmetic-fault precedence. Linux AMD64 emits `ud2`, matching the legacy target's termination instruction, not privileged hardware `hlt`. Halting is abnormal program termination, not an ABI return or portable cross-target signal guarantee. No calls, memory or new targets are added. See HALT.md.
+
+Four added tests cover every result class, block closure/arity, conditional return versus halt, exact budget boundaries, earlier division faults and exhaustive allocation cleanup through parsing/CFG/liveness/interference/coloring/folding/evaluation/all home modes. Existing independent analysis path-search oracle tests now include the halt fixture. The native harness adds conditional return 42 and four separate termination/ordering subprocesses: direct halt, conditional halt and successful division followed by halt require SIGILL; division by zero before halt requires SIGFPE. Core dumps remain disabled and timeouts finite. Existing arithmetic, floating, ABI, bit-pattern and CLI expectations remain intact.
+
+
+### Halt local verification
+
+Pinned Zig Debug, ReleaseSafe and ReleaseFast each passed **147/147 unit tests** (fresh Debug smoke in `/data/check-halt-debug.log`, reused by the full runner; fresh release-mode results in the full log). Authoritative `/data/verify-native-halt.log` ended `HALT VERIFICATION PASSED`. In every build mode, **all eight flag combinations** passed **3,378 integer/program native checks**, **3,560 floating/bit-pattern/mixed-ABI native checks**, **24 arithmetic-fault checks**, **4 termination/ordering checks**, and **15 CLI rejection/output-preservation/flag-order checks** per combination. All 24 completions of each suite were counted. Formatting and all eight independent generators' reproducibility passed. Legacy source/build/tools/tests remain unchanged. CI is checked separately after publication; no main integration or release tag.

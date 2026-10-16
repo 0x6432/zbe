@@ -5,7 +5,7 @@ const semantics = @import("semantics.zig");
 
 pub const Options = struct { max_steps: usize = 100_000 };
 pub const ArithmeticError = semantics.ArithmeticError;
-pub const Error = ArithmeticError || ssa.Error || error{ ArgumentCountMismatch, ArgumentTypeMismatch, StepLimitExceeded, UninitializedValue };
+pub const Error = ArithmeticError || ssa.Error || error{ ArgumentCountMismatch, ArgumentTypeMismatch, StepLimitExceeded, UninitializedValue, Halted };
 
 /// Bounded reference evaluator for the current scalar subset, not target code
 /// generation. Each instruction and terminator consumes one step. Validates SSA
@@ -58,6 +58,7 @@ pub fn evaluate(allocator: std.mem.Allocator, function: *const ir.Function, argu
         }
         try step(&remaining);
         const next = switch (block.terminator.?) {
+            .halt => return error.Halted,
             .jump => |target| target,
             .branch => |branch| branch_target: {
                 const condition = try resolve(values, branch.condition);
@@ -535,4 +536,18 @@ test "floating comparisons agree with classification oracle including NaNs and s
         case_count += 1;
     }
     try testing.expectEqual(@as(usize, 2560), case_count);
+}
+
+test "halt has a typed error consumes a step and preserves preceding faults" {
+    var module = try parse(@embedFile("fixtures/halt.ssa"));
+    defer module.deinit();
+    try testing.expectError(error.StepLimitExceeded, evaluate(testing.allocator, module.functions.items[0], &.{}, .{ .max_steps = 0 }));
+    try testing.expectError(error.Halted, evaluate(testing.allocator, module.functions.items[0], &.{}, .{ .max_steps = 1 }));
+    const conditional = module.functions.items[1];
+    try testing.expectEqual(@as(u32, 42), (try evaluate(testing.allocator, conditional, &.{.{ .word = 0 }}, .{ .max_steps = 2 })).?.word);
+    try testing.expectError(error.Halted, evaluate(testing.allocator, conditional, &.{.{ .word = 1 }}, .{ .max_steps = 2 }));
+    try testing.expectError(error.StepLimitExceeded, evaluate(testing.allocator, conditional, &.{.{ .word = 1 }}, .{ .max_steps = 1 }));
+    const preceding = module.functions.items[2];
+    try testing.expectError(error.DivisionByZero, evaluate(testing.allocator, preceding, &.{.{ .word = 0 }}, .{}));
+    try testing.expectError(error.Halted, evaluate(testing.allocator, preceding, &.{.{ .word = 1 }}, .{ .max_steps = 2 }));
 }

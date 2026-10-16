@@ -38,7 +38,7 @@ pub const Graph = struct {
             successors[index] = .{};
             const edges = &successors[index];
             switch (block.terminator.?) {
-                .return_value => {},
+                .return_value, .halt => {},
                 .jump => |target| {
                     edges.targets[0] = target;
                     edges.len = 1;

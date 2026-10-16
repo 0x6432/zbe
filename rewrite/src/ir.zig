@@ -126,6 +126,7 @@ pub const Instruction = union(enum) {
     }
 };
 pub const Terminator = union(enum) {
+    halt,
     jump: BlockId,
     branch: struct { condition: Operand, taken: BlockId, not_taken: BlockId },
     return_value: ?Operand,
@@ -442,6 +443,7 @@ pub const Function = struct {
 
     fn checkTerminator(self: *const Function, terminator: Terminator) ValidationError!void {
         switch (terminator) {
+            .halt => {},
             .jump => |id| if (@backingInt(id) >= self.blocks.items.len) return error.InvalidBlock,
             .branch => |branch| {
                 if (!(try self.operandType(branch.condition)).isInteger()) return error.NonIntegerCondition;
@@ -681,4 +683,16 @@ test "floating comparison builder validates types and retries after allocation f
     try f.validateStructure();
     f.blocks.items[0].instructions.items[0].compare_float.operand_type = .double;
     try testing.expectError(error.TypeMismatch, f.validateStructure());
+}
+
+test "halt terminates void and every scalar result class without a return operand" {
+    for ([_]?ScalarType{ null, .word, .long, .single, .double }) |result_type| {
+        var f = Function.init(testing.allocator, test_name, result_type);
+        defer f.deinit();
+        const block = try f.addBlock(null);
+        try f.terminate(block, .halt);
+        try f.validateStructure();
+        try testing.expectError(error.BlockTerminated, f.terminate(block, .halt));
+        try testing.expectError(error.BlockTerminated, f.appendCopy(block, .word, one));
+    }
 }

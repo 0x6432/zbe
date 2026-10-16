@@ -1,0 +1,21 @@
+# QBE hlt terminates with a target-dependent error. Linux AMD64 uses UD2.
+export function $halt_direct() {
+@entry
+    hlt
+}
+
+export function w $halt_if(w %p) {
+@entry
+    jnz %p, @stop, @done
+@stop
+    hlt
+@done
+    ret 42
+}
+
+# Exceptional arithmetic must remain before the terminator, not be deleted.
+export function $halt_after_div(w %p) {
+@entry
+    %unused =w div 1, %p
+    hlt
+}

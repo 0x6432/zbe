@@ -63,3 +63,7 @@ Eight semantic predicates cover equal/not-equal, less/less-equal, greater/greate
 ### Shared pure operations and opt-in folding
 
 The evaluator's pure operation implementations live in `semantics.zig`; callers must first establish the IR operation type contract. Arithmetic errors remain typed, and no host floating mode is silently relaxed. `optimize.zig` reuses these bit-pattern operations but refuses floating arithmetic/comparison/widening folds and preserves invalid integer arithmetic. Independent Python expectations remain unchanged. See OPTIMIZE.md for source-order limits, SSA validation and allocation-failure atomicity.
+
+### Explicit termination
+
+`hlt` has no SSA uses or successor edges. Evaluation consumes a terminator step and returns `Halted` without terminating the host process. Preceding arithmetic errors and earlier budget exhaustion retain precedence. Native Linux AMD64 emits `ud2` (SIGILL by default), not a portable interpreter error object or the privileged hardware halt instruction. See HALT.md.

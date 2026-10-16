@@ -255,7 +255,7 @@ const Parser = struct {
             _ = try self.expect(.comma);
             const not_taken = try self.target();
             break :branch .{ .branch = .{ .condition = condition, .taken = taken, .not_taken = not_taken } };
-        } else if (std.mem.eql(u8, spelling, "ret")) .{ .return_value = if (f.return_type) |ty| try self.readOperand(ty) else null } else return self.fail(.unsupported_construct, opcode);
+        } else if (std.mem.eql(u8, spelling, "ret")) .{ .return_value = if (f.return_type) |ty| try self.readOperand(ty) else null } else if (std.mem.eql(u8, spelling, "hlt")) .halt else return self.fail(.unsupported_construct, opcode);
         f.terminate(block, term) catch |err| return self.irError(err, opcode);
     }
 
@@ -604,4 +604,14 @@ test "floating comparisons require integer results and matching operand widths" 
     try expectInvalid("function s $f(s %a) {\n@b\n%r =s ceqs %a, %a\nret %r\n}", .type_mismatch, "ceqs");
     try expectInvalid("function w $f(d %a) {\n@b\n%r =w ceqs %a, s_1\nret %r\n}", .type_mismatch, "%a");
     try expectInvalid("function l $f(s %a) {\n@b\n%r =l cod %a, d_1\nret %r\n}", .type_mismatch, "%a");
+}
+
+test "halt takes no operands and closes its block" {
+    var diagnostic: ?source.Diagnostic = null;
+    var module = try parse(testing.allocator, .{ .name = "halt", .text = @embedFile("fixtures/halt.ssa") }, &diagnostic);
+    defer module.deinit();
+    try testing.expect(module.functions.items[0].blocks.items[0].terminator.? == .halt);
+    try testing.expect(module.functions.items[1].blocks.items[1].terminator.? == .halt);
+    try expectInvalid("function $f() {\n@b\nhlt 1\n}", .unexpected_token, "1");
+    try expectInvalid("function $f() {\n@b\nhlt\nret\n}", .block_terminated, "ret");
 }

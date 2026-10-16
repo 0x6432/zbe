@@ -44,7 +44,7 @@ pub const Constant = union(enum) {
 };
 
 pub const Operand = union(enum) { value: ValueId, constant: Constant };
-pub const BinaryOp = enum { add, sub, mul, bit_and, bit_or, bit_xor };
+pub const BinaryOp = enum { add, sub, mul, bit_and, bit_or, bit_xor, signed_divide, unsigned_divide, signed_remainder, unsigned_remainder };
 pub const IntegerType = enum {
     word,
     long,
@@ -386,7 +386,7 @@ pub const Function = struct {
     fn checkBinary(self: *const Function, ty: ScalarType, op: BinaryOp, lhs: Operand, rhs: Operand) ValidationError!void {
         if (try self.operandType(lhs) != ty or try self.operandType(rhs) != ty) return error.TypeMismatch;
         switch (op) {
-            .bit_and, .bit_or, .bit_xor => if (!ty.isInteger()) return error.TypeMismatch,
+            .bit_and, .bit_or, .bit_xor, .unsigned_divide, .signed_remainder, .unsigned_remainder => if (!ty.isInteger()) return error.TypeMismatch,
             else => {},
         }
     }

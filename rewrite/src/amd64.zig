@@ -144,16 +144,32 @@ const Emitter = struct {
                     try self.load(binary.lhs, .accumulator);
                     try self.load(binary.rhs, .temporary);
                     const ty = f.values.items[@backingInt(binary.result)].scalar_type;
-                    const mnemonic: []const u8 = switch (binary.op) {
-                        .add => "add",
-                        .sub => "sub",
-                        .mul => "imul",
-                        .bit_and => "and",
-                        .bit_or => "or",
-                        .bit_xor => "xor",
-                    };
-                    try self.print("\t{s}{c} {s}, {s}\n", .{ mnemonic, suffix(ty), register(ty, .temporary), register(ty, .accumulator) });
-                    try self.save(binary.result, register(ty, .accumulator));
+                    switch (binary.op) {
+                        .signed_divide, .unsigned_divide, .signed_remainder, .unsigned_remainder => {
+                            const signed = binary.op == .signed_divide or binary.op == .signed_remainder;
+                            const remainder = binary.op == .signed_remainder or binary.op == .unsigned_remainder;
+                            if (signed) {
+                                try self.print("\t{s}\n", .{if (ty == .word) @as([]const u8, "cltd") else "cqto"});
+                            } else {
+                                try self.print("\txorl %edx, %edx\n", .{});
+                            }
+                            try self.print("\t{s}div{c} {s}\n", .{ if (signed) @as([]const u8, "i") else "", suffix(ty), register(ty, .temporary) });
+                            try self.save(binary.result, if (remainder) (if (ty == .word) @as([]const u8, "%edx") else "%rdx") else register(ty, .accumulator));
+                        },
+                        else => {
+                            const mnemonic: []const u8 = switch (binary.op) {
+                                .add => "add",
+                                .sub => "sub",
+                                .mul => "imul",
+                                .bit_and => "and",
+                                .bit_or => "or",
+                                .bit_xor => "xor",
+                                else => unreachable,
+                            };
+                            try self.print("\t{s}{c} {s}, {s}\n", .{ mnemonic, suffix(ty), register(ty, .temporary), register(ty, .accumulator) });
+                            try self.save(binary.result, register(ty, .accumulator));
+                        },
+                    }
                 },
             };
             switch (block.terminator.?) {
@@ -319,4 +335,17 @@ fn exerciseUnary(allocator: std.mem.Allocator) !void {
 
 test "unary emission cleans up every allocation failure" {
     try @import("test_support.zig").checkAllocationFailures(exerciseUnary);
+}
+
+fn exerciseDivision(allocator: std.mem.Allocator) !void {
+    var diagnostic: ?source.Diagnostic = null;
+    var module = try frontend.parse(allocator, .{ .name = "division", .text = "function l $f(l %a, l %b) {\n@entry\n%x =l div %a, %b\n%y =l rem %a, %b\n%r =l add %x, %y\nret %r\n}" }, &diagnostic);
+    defer module.deinit();
+    const text = try emit(allocator, &module);
+    defer allocator.free(text);
+    try testing.expect(std.mem.indexOf(u8, text, "cqto\n\tidivq %r10") != null);
+}
+
+test "division emission cleans up every allocation failure" {
+    try @import("test_support.zig").checkAllocationFailures(exerciseDivision);
 }

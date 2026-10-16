@@ -12,7 +12,7 @@
     %result =type neg operand
     %result =w|l extsb|extub|extsh|extuh word-operand
     %result =l extsw|extuw word-operand
-    %result =type add|sub|mul|and|or|xor operand, operand
+    %result =type add|sub|mul|div|udiv|rem|urem|and|or|xor operand, operand
     %result =w|l shl|shr|sar operand, word-count
     %result =w|l ceq[w|l]|cne[w|l]|cslt[w|l]|csle[w|l]|csgt[w|l]|csge[w|l]|cult[w|l]|cule[w|l]|cugt[w|l]|cuge[w|l] operand, operand
     jmp @block
@@ -24,7 +24,8 @@
 The ellipsis above describes repeated parameters, **not** variadic IL. A missing function result type means void. Every actual block must end in exactly one explicit terminator; the example lists alternative instruction/terminator forms, not a single valid block. Labels occupy their own lines; instructions end at a newline or closing brace. LF and CRLF input, comments and blank lines are supported. Function export linkage is retained in the IR.
 
 - Types are the four base scalar types. Binary operands and copied/returned values must match their declared type exactly. Implicit mixed-width temporary conversions are not implemented.
-- `copy`, `add`, `sub`, `mul` support matching integer or floating types; bitwise operations require integer types.
+- `copy`, `add`, `sub`, `mul`, `div` support matching integer or floating types; bitwise operations, `udiv`, `rem` and `urem` require integer types.
+- Integer `div` truncates the signed quotient toward zero; `rem` has the dividend's sign. `udiv`/`urem` use unsigned bits. The evaluator returns `DivisionByZero` or `IntegerOverflow` for exceptional integer pairs; native AMD64 execution faults instead. See SCALAR-SEMANTICS.md for this explicit boundary.
 - `neg` preserves the operand/result width. Integer negation wraps; floating negation flips only the sign bit, including signed zero and NaN payloads. Integer extensions consume word operands: byte/half extensions produce word or long, while word extensions produce long only. They sign- or zero-extend the selected low bits. These are ordinary instructions, not extended ABI parameter types.
 - Shifts require a word count, including when shifting a long. Only the low five (word) or six (long) count bits are used; `shr` is logical and `sar` is arithmetic.
 - Integer comparison opcode suffixes select operand width independently of the word/long result width. Results are exactly zero or one. For example, `%r =l csltw %a, %b` compares word operands as signed integers and produces a long. Floating comparisons are unsupported.

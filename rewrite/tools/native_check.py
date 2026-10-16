@@ -3,6 +3,8 @@
 from pathlib import Path
 import argparse
 import platform
+import resource
+import signal
 import subprocess
 import tempfile
 
@@ -19,10 +21,12 @@ def main() -> None:
     args = parser.parse_args()
     if platform.system() != "Linux" or platform.machine() not in ("x86_64", "amd64"):
         raise SystemExit("Native execution requires Linux x86_64; no result claimed.")
+    resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
     compiler = str(args.compiler.resolve())
     declarations = ["#include <stdint.h>", "#include <stdio.h>"]
     checks = []
     functions = []
+    traps = []
 
     def check(expression: str, expected: int) -> None:
         index = len(checks)
@@ -71,6 +75,31 @@ def main() -> None:
         check(f"{name}(UINT64_C({bits}))", int(expected))
         unary_count += 1
     assert unary_count == 384
+    division_count = 0
+    for line in (root / "src/fixtures/division-oracle.tsv").read_text().splitlines():
+        if not line or line.startswith("#"):
+            continue
+        ty, opcode, lhs, rhs, expected = line.split()
+        name = f"division_{division_count}"
+        functions.append(f"export function {ty} ${name}({ty} %a, {ty} %b) {{\n@entry\n%x ={ty} {opcode} %a, %b\nret %x\n}}")
+        ctype = "uint32_t" if ty == "w" else "uint64_t"
+        declarations.append(f"extern {ctype} {name}({ctype}, {ctype});")
+        check(f"{name}(UINT64_C({lhs}), UINT64_C({rhs}))", int(expected))
+        division_count += 1
+    assert division_count == 1228
+    for ty, width in (("w", 32), ("l", 64)):
+        for opcode in ("div", "udiv", "rem", "urem"):
+            name = f"trap_{opcode}_{ty}"
+            ctype = "uint32_t" if ty == "w" else "uint64_t"
+            functions.append(f"export function {ty} ${name}({ty} %a, {ty} %b) {{\n@entry\n%x ={ty} {opcode} %a, %b\nret %x\n}}")
+            declarations.append(f"extern {ctype} {name}({ctype}, {ctype});")
+            traps.append(f"if (which == {len(traps)}) {{ volatile {ctype} result = {name}(1, 0); (void)result; return 3; }}")
+            if opcode in ("div", "rem"):
+                minimum, minus_one = 1 << (width - 1), (1 << width) - 1
+                traps.append(f"if (which == {len(traps)}) {{ volatile {ctype} result = {name}(UINT64_C({minimum}), UINT64_C({minus_one})); (void)result; return 3; }}")
+    functions.append("export function l $divide_args(l %a, l %b, l %c, l %d) {\n@entry\n%q =l div %a, %b\n%r =l rem %a, %b\n%v =l add %q, %r\n%v2 =l add %v, %c\n%out =l add %v2, %d\nret %out\n}")
+    declarations.append("extern uint64_t divide_args(uint64_t, uint64_t, uint64_t, uint64_t);")
+    check(f"divide_args(UINT64_C({(1 << 64) - 17}), 5, UINT64_C({1 << 35}), 7)", (1 << 35) + 2)
     functions.append((root / "src/fixtures/constant-jump.ssa").read_text())
     for name, expected in (("jconstant", 0), ("jproduct", 0), ("jnegative", 0), ("jnonzero", 1)):
         declarations.append(f"extern uint32_t {name}(void);")
@@ -117,10 +146,17 @@ def main() -> None:
         driver = work / "driver.c"
         executable = work / "native-check"
         source.write_text("\n".join(functions) + "\n")
-        driver.write_text("\n".join(declarations) + "\nint main(void) {\nnothing();\n" + "\n".join(checks) + f'\nputs("{len(checks)} native integer/ABI/phi checks passed");\nreturn 0;\n}}\n')
+        trap_dispatch = "\n".join(traps)
+        driver.write_text("\n".join(declarations) + "\n#include <stdlib.h>\nint main(int argc, char **argv) {\nif (argc == 2) { int which = atoi(argv[1]);\n" + trap_dispatch + "\nreturn 4; }\nnothing();\n" + "\n".join(checks) + f'\nputs("{len(checks)} native integer/ABI/phi checks passed");\nreturn 0;\n}}\n')
         run([compiler, str(source), str(assembly)])
         run([args.cc, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-no-pie", str(driver), str(assembly), "-o", str(executable)])
         run([str(executable)])
+        for index in range(len(traps)):
+            result = subprocess.run([str(executable), str(index)], capture_output=True, timeout=30)
+            if result.returncode != -signal.SIGFPE:
+                raise SystemExit(f"Native arithmetic trap {index} returned {result.returncode}, expected SIGFPE")
+        print(f"{len(traps)} native integer arithmetic-fault checks passed")
+
         invalid = {
             "floating": ("export function d $bad() {\n@b\nret d_1\n}", "UnsupportedType"),
             "ssa": ("export function w $bad() {\n@entry\njnz 0, @left, @join\n@left\n%x =w copy 1\njmp @join\n@join\nret %x\n}", "InvalidSSA"),

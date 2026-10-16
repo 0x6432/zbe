@@ -3,7 +3,8 @@ const ir = @import("ir.zig");
 const ssa = @import("ssa.zig");
 
 pub const Options = struct { max_steps: usize = 100_000 };
-pub const Error = ssa.Error || error{ ArgumentCountMismatch, ArgumentTypeMismatch, StepLimitExceeded, UninitializedValue };
+pub const ArithmeticError = error{ DivisionByZero, IntegerOverflow };
+pub const Error = ArithmeticError || ssa.Error || error{ ArgumentCountMismatch, ArgumentTypeMismatch, StepLimitExceeded, UninitializedValue };
 
 /// Bounded reference evaluator for the current scalar subset, not target code
 /// generation. Each instruction and terminator consumes one step. Validates SSA
@@ -49,7 +50,7 @@ pub fn evaluate(allocator: std.mem.Allocator, function: *const ir.Function, argu
                 .unary => |unary| unaryValue(unary.op, try resolve(values, unary.operand), function.values.items[@backingInt(unary.result)].scalar_type),
                 .shift => |shift| shiftedValue(shift.op, try resolve(values, shift.value), (try resolve(values, shift.amount)).word),
                 .compare_integer => |comparison| comparisonValue(comparison.predicate, try resolve(values, comparison.lhs), try resolve(values, comparison.rhs), function.values.items[@backingInt(comparison.result)].scalar_type),
-                .binary => |binary| binaryValue(binary.op, try resolve(values, binary.lhs), try resolve(values, binary.rhs)),
+                .binary => |binary| try binaryValue(binary.op, try resolve(values, binary.lhs), try resolve(values, binary.rhs)),
             };
             values[@backingInt(instruction.result())] = result;
         }
@@ -144,17 +145,32 @@ fn compare(comptime U: type, comptime S: type, predicate: ir.IntegerPredicate, l
     };
 }
 
-fn binaryValue(op: ir.BinaryOp, lhs: ir.Constant, rhs: ir.Constant) ir.Constant {
+fn binaryValue(op: ir.BinaryOp, lhs: ir.Constant, rhs: ir.Constant) ArithmeticError!ir.Constant {
     // Structural/SSA validation and argument checks establish matching tags.
     return switch (lhs) {
-        .word => |a| .{ .word = integerValue(u32, op, a, rhs.word) },
-        .long => |a| .{ .long = integerValue(u64, op, a, rhs.long) },
+        .word => |a| .{ .word = try integerValue(u32, op, a, rhs.word) },
+        .long => |a| .{ .long = try integerValue(u64, op, a, rhs.long) },
         .single_bits => |a| .{ .single_bits = @bitCast(floatValue(f32, op, @bitCast(a), @bitCast(rhs.single_bits))) },
         .double_bits => |a| .{ .double_bits = @bitCast(floatValue(f64, op, @bitCast(a), @bitCast(rhs.double_bits))) },
     };
 }
 
-fn integerValue(comptime T: type, op: ir.BinaryOp, lhs: T, rhs: T) T {
+fn integerValue(comptime T: type, op: ir.BinaryOp, lhs: T, rhs: T) ArithmeticError!T {
+    switch (op) {
+        .signed_divide, .unsigned_divide, .signed_remainder, .unsigned_remainder => {
+            if (rhs == 0) return error.DivisionByZero;
+            if (op == .signed_divide or op == .signed_remainder) {
+                const S = @Int(.signed, @bitSizeOf(T));
+                const a: S = @bitCast(lhs);
+                const b: S = @bitCast(rhs);
+                // AMD64 idiv traps on this pair for quotient and remainder alike.
+                if (a == std.math.minInt(S) and b == -1) return error.IntegerOverflow;
+                return @bitCast(if (op == .signed_divide) @divTrunc(a, b) else @rem(a, b));
+            }
+            return if (op == .unsigned_divide) lhs / rhs else lhs % rhs;
+        },
+        else => {},
+    }
     return switch (op) {
         .add => lhs +% rhs,
         .sub => lhs -% rhs,
@@ -162,6 +178,7 @@ fn integerValue(comptime T: type, op: ir.BinaryOp, lhs: T, rhs: T) T {
         .bit_and => lhs & rhs,
         .bit_or => lhs | rhs,
         .bit_xor => lhs ^ rhs,
+        .signed_divide, .unsigned_divide, .signed_remainder, .unsigned_remainder => unreachable,
     };
 }
 
@@ -171,7 +188,8 @@ fn floatValue(comptime F: type, op: ir.BinaryOp, lhs: F, rhs: F) F {
         .add => lhs + rhs,
         .sub => lhs - rhs,
         .mul => lhs * rhs,
-        .bit_and, .bit_or, .bit_xor => unreachable, // Rejected by validation.
+        .signed_divide => lhs / rhs,
+        .bit_and, .bit_or, .bit_xor, .unsigned_divide, .signed_remainder, .unsigned_remainder => unreachable, // Rejected by validation.
     };
 }
 
@@ -444,4 +462,71 @@ fn exerciseUnary(allocator: std.mem.Allocator) !void {
 
 test "unary parsing and evaluation clean up every allocation failure" {
     try @import("test_support.zig").checkAllocationFailures(exerciseUnary);
+}
+
+test "Python oracle checks truncating signed division and dividend sign remainders" {
+    var lines = std.mem.tokenizeScalar(u8, @embedFile("fixtures/division-oracle.tsv"), '\n');
+    var case_count: usize = 0;
+    while (lines.next()) |line| {
+        if (line[0] == '#') continue;
+        var fields = std.mem.tokenizeAny(u8, line, " \t");
+        const ty = fields.next().?;
+        const opcode = fields.next().?;
+        const lhs = fields.next().?;
+        const rhs = fields.next().?;
+        const expected = try std.fmt.parseInt(u64, fields.next().?, 10);
+        try testing.expect(fields.next() == null);
+        const text = try std.fmt.allocPrint(testing.allocator, "function {s} $f() {{\n@b\n%x ={s} {s} {s}, {s}\nret %x\n}}", .{ ty, ty, opcode, lhs, rhs });
+        defer testing.allocator.free(text);
+        var module = try parse(text);
+        defer module.deinit();
+        const result = (try evaluate(testing.allocator, module.functions.items[0], &.{}, .{ .max_steps = 2 })).?;
+        const actual: u64 = if (std.mem.eql(u8, ty, "w")) result.word else result.long;
+        try testing.expectEqual(expected, actual);
+        case_count += 1;
+    }
+    try testing.expectEqual(@as(usize, 1228), case_count);
+}
+
+test "integer division exceptions are typed errors before unsafe host operations" {
+    for ([_][]const u8{ "w", "l" }) |ty| {
+        for ([_][]const u8{ "div", "udiv", "rem", "urem" }) |opcode| {
+            const text = try std.fmt.allocPrint(testing.allocator, "function {s} $f({s} %a, {s} %b) {{\n@entry\n%x ={s} {s} %a, %b\nret %x\n}}", .{ ty, ty, ty, ty, opcode });
+            defer testing.allocator.free(text);
+            var module = try parse(text);
+            defer module.deinit();
+            const word = std.mem.eql(u8, ty, "w");
+            const zero: ir.Constant = if (word) .{ .word = 0 } else .{ .long = 0 };
+            const minimum: ir.Constant = if (word) .{ .word = 0x80000000 } else .{ .long = 0x8000000000000000 };
+            const minus_one: ir.Constant = if (word) .{ .word = 0xffffffff } else .{ .long = 0xffffffffffffffff };
+            try testing.expectError(error.DivisionByZero, evaluate(testing.allocator, module.functions.items[0], &.{ minimum, zero }, .{}));
+            if (std.mem.eql(u8, opcode, "div") or std.mem.eql(u8, opcode, "rem")) {
+                try testing.expectError(error.IntegerOverflow, evaluate(testing.allocator, module.functions.items[0], &.{ minimum, minus_one }, .{}));
+            }
+        }
+    }
+}
+
+test "floating division uses strict width arithmetic rather than integer exception rules" {
+    var module = try parse("function s $s(s %a, s %b) {\n@entry\n%r =s div %a, %b\nret %r\n}\nfunction d $d(d %a, d %b) {\n@entry\n%r =d div %a, %b\nret %r\n}");
+    defer module.deinit();
+    const single = (try evaluate(testing.allocator, module.functions.items[0], &.{ .{ .single_bits = @bitCast(@as(f32, 3)) }, .{ .single_bits = @bitCast(@as(f32, 2)) } }, .{})).?;
+    try testing.expectEqual(@as(u32, @bitCast(@as(f32, 1.5))), single.single_bits);
+    const double = (try evaluate(testing.allocator, module.functions.items[1], &.{ .{ .double_bits = @bitCast(@as(f64, -1)) }, .{ .double_bits = 0 } }, .{})).?;
+    try testing.expectEqual(@as(u64, 0xfff0000000000000), double.double_bits);
+}
+
+fn exerciseDivisionError(allocator: std.mem.Allocator) !void {
+    var diagnostic: ?source.Diagnostic = null;
+    var module = try frontend.parse(allocator, .{ .name = "division", .text = "function w $f(w %b) {\n@entry\n%x =w rem 1, %b\nret %x\n}" }, &diagnostic);
+    defer module.deinit();
+    _ = evaluate(allocator, module.functions.items[0], &.{.{ .word = 0 }}, .{}) catch |err| switch (err) {
+        error.DivisionByZero => return,
+        else => return err,
+    };
+    return error.ExpectedDivisionByZero;
+}
+
+test "division exception evaluation frees frames and analysis on every allocation failure" {
+    try @import("test_support.zig").checkAllocationFailures(exerciseDivisionError);
 }

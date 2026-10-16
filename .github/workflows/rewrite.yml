@@ -32,6 +32,7 @@ jobs:
           python3 tools/generate_integer_oracle.py --check
           python3 tools/generate_scalar_oracle.py --check
           python3 tools/generate_unary_oracle.py --check
+          python3 tools/generate_division_oracle.py --check
       - name: Independent IR/frontend tests (not backend parity)
         working-directory: rewrite
         run: zig build test -Doptimize=${{ matrix.optimize }} --summary all

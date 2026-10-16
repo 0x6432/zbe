@@ -5,8 +5,10 @@ const ir = @import("ir.zig");
 const Module = @import("module.zig").Module;
 const Allocator = std.mem.Allocator;
 const binary_opcodes = std.StaticStringMap(ir.BinaryOp).initComptime(.{
-    .{ "add", .add },     .{ "sub", .sub },   .{ "mul", .mul },
-    .{ "and", .bit_and }, .{ "or", .bit_or }, .{ "xor", .bit_xor },
+    .{ "add", .add },                 .{ "sub", .sub },              .{ "mul", .mul },
+    .{ "and", .bit_and },             .{ "or", .bit_or },            .{ "xor", .bit_xor },
+    .{ "div", .signed_divide },       .{ "udiv", .unsigned_divide }, .{ "rem", .signed_remainder },
+    .{ "urem", .unsigned_remainder },
 });
 const unary_opcodes = std.StaticStringMap(ir.UnaryOp).initComptime(.{
     .{ "neg", .negate },
@@ -561,4 +563,10 @@ test "integer extensions require word operands and valid result widths" {
     try expectInvalid("function s $f() {\n@b\n%x =s extub 1\nret %x\n}", .type_mismatch, "extub");
     try expectInvalid("function l $f(l %v) {\n@b\n%x =l extuh %v\nret %x\n}", .type_mismatch, "%v");
     try expectInvalid("function w $f(l %v) {\n@b\n%x =w neg %v\nret %x\n}", .type_mismatch, "%v");
+}
+
+test "unsigned division and both remainders reject floating types" {
+    try expectInvalid("function s $f() {\n@b\n%x =s udiv s_1, s_2\nret %x\n}", .type_mismatch, "udiv");
+    try expectInvalid("function d $f() {\n@b\n%x =d rem d_1, d_2\nret %x\n}", .type_mismatch, "rem");
+    try expectInvalid("function d $f() {\n@b\n%x =d urem d_1, d_2\nret %x\n}", .type_mismatch, "urem");
 }

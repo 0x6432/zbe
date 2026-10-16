@@ -1,0 +1,12 @@
+# Invalid QBE: the first block must never be a jump target. Previously, unique
+# homes looped forever for p=1 while a reused dead home changed p and returned 7.
+# Every SSA-dependent consumer must reject this before analysis or execution.
+export function w $entry_backedge(w %p) {
+@entry
+    jnz %p, @back, @done
+@back
+    %dead =w copy 0
+    jmp @entry
+@done
+    ret 7
+}

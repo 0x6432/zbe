@@ -13,7 +13,7 @@ This is a **target-independent, conservative scalar-home graph**, not a machine 
 - All validated blocks, including unreachable ones, are considered. Actual CFG edges and the SSA verifier's unreachable-use policy are unchanged.
 - Edges are class-independent, including between integer and floating values. A future target allocator may filter for disjoint register banks. This graph does not model physical register aliases, instruction early clobbers, two-address constraints, fixed registers, call clobbers, ABI placement or spill scratch.
 
-The implementation walks each block backward from owned block live-out sets, adds terminator uses, connects each definition to the current live set, removes the definition and adds its operands. It handles phi and parameter bundles explicitly. No IR is rewritten and generated assembly is unchanged. The graph itself performs no coloring or emitter work. A separate opt-in stack-home layout consumes it (see STACK-HOMES.md); physical register assignment and spill insertion remain unimplemented.
+The implementation walks each block backward from owned block live-out sets, adds terminator uses, connects each definition to the current live set, removes the definition and adds its operands. It handles phi and parameter bundles explicitly. No IR is rewritten and generated assembly is unchanged. The graph itself performs no coloring or emitter work. A separate opt-in stack-home layout consumes it (see STACK-HOMES.md); a limited callee-saved-register consumer is described in PRESERVED-HOMES.md. A full machine allocator and spill-insertion pass remain unimplemented.
 
 ## Resource accounting
 

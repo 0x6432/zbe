@@ -143,7 +143,7 @@ test "floating arithmetic has explicit width and copy retains signed zero" {
 }
 
 test "exact instruction budgets bound both finite and infinite execution" {
-    var module = try parse("function w $finite() {\n@b\n%x =w copy 1\nret %x\n}\nfunction $loop() {\n@b\njmp @b\n}\nfunction $void() {\n@b\nret\n}");
+    var module = try parse("function w $finite() {\n@b\n%x =w copy 1\nret %x\n}\nfunction $loop() {\n@entry\njmp @b\n@b\njmp @b\n}\nfunction $void() {\n@b\nret\n}");
     defer module.deinit();
     try testing.expectError(error.StepLimitExceeded, evaluate(testing.allocator, module.functions.items[0], &.{}, .{ .max_steps = 0 }));
     try testing.expectError(error.StepLimitExceeded, evaluate(testing.allocator, module.functions.items[0], &.{}, .{ .max_steps = 1 }));

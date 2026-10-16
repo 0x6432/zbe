@@ -18,4 +18,4 @@ Without the flag, the new driver retains its unfurled path. This option is not a
 
 Tests check 2,444 independently generated constant arithmetic/shift/comparison/division results, chained propagation, low-word branches, conservative layout order, invocation isolation, unchanged floating operations, preserved arithmetic faults, invalid SSA, failure atomicity and cleanup. Both native harnesses can run with `--fold-integers`; the integer harness checks dynamic and compile-time arithmetic-fault operands separately.
 
-The separate `--reuse-stack-homes` option runs interference coloring after folding; it does not expand what this folding pass optimizes. Both flags may be combined in either order, and all four pipelines are checked by the native harnesses. See STACK-HOMES.md.
+The separate `--reuse-stack-homes` option runs interference coloring after folding; it does not expand what this folding pass optimizes. The flags may also be combined with the limited `--callee-saved-homes` option, in any order; all eight flag combinations are checked by the native harnesses. See STACK-HOMES.md.

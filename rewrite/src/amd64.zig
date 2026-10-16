@@ -5,7 +5,10 @@ const stack_homes = @import("stack_homes.zig");
 const Module = @import("module.zig").Module;
 pub const Error = stack_homes.Error || error{ InvalidSymbol, DuplicateSymbol, FrameTooLarge };
 
-pub const Options = struct { reuse_stack_homes: bool = false };
+pub const Options = struct {
+    reuse_stack_homes: bool = false,
+    callee_saved_homes: bool = false,
+};
 
 /// Experimental Linux ELF/System V base-scalar slice. Every SSA value has a stack
 /// home; this is not instruction selection/register allocation parity with QBE.
@@ -19,7 +22,7 @@ pub fn emitWithOptions(allocator: std.mem.Allocator, module: *const Module, opti
         const name = module.symbols.get(function.name) orelse return error.InvalidSymbol;
         if (!validSymbol(name)) return error.InvalidSymbol;
         for (module.functions.items[0..index]) |previous| if (previous.name == function.name) return error.DuplicateSymbol;
-        if (!options.reuse_stack_homes) _ = try Frame.init(function);
+        if (!options.reuse_stack_homes and !options.callee_saved_homes) _ = try Frame.init(function);
         var issue: ?ssa.Issue = null;
         try ssa.validate(allocator, function, &issue);
     }
@@ -34,6 +37,7 @@ pub fn emitWithOptions(allocator: std.mem.Allocator, module: *const Module, opti
 const Frame = struct {
     bytes: usize,
     scratch_base: usize,
+    saved_base: usize,
 
     fn init(function: *const ir.Function) error{FrameTooLarge}!Frame {
         var max_phis: usize = 0;
@@ -42,16 +46,42 @@ const Frame = struct {
     }
 
     fn fromCounts(values: usize, phis: usize, parameters: usize) error{FrameTooLarge}!Frame {
+        return withSavedCounts(values, phis, parameters, 0);
+    }
+
+    fn withSavedCounts(values: usize, phis: usize, parameters: usize, saved: usize) error{FrameTooLarge}!Frame {
         const count = std.math.add(usize, values, phis) catch return error.FrameTooLarge;
-        const raw = std.math.mul(usize, count, 8) catch return error.FrameTooLarge;
+        const total = std.math.add(usize, count, saved) catch return error.FrameTooLarge;
+        const raw = std.math.mul(usize, total, 8) catch return error.FrameTooLarge;
         const rounded = std.math.add(usize, raw, 15) catch return error.FrameTooLarge;
         const bytes = rounded & ~@as(usize, 15);
         // Explicit prototype limit; large-frame probing is not implemented.
         if (bytes > 64 * 1024) return error.FrameTooLarge;
         if (parameters > 6 and parameters - 6 > (std.math.maxInt(i32) - 16) / 8) return error.FrameTooLarge;
-        return .{ .bytes = bytes, .scratch_base = values * 8 };
+        return .{ .bytes = bytes, .scratch_base = values * 8, .saved_base = count * 8 };
     }
 };
+
+const Preserved = enum {
+    rbx,
+    r12,
+    r13,
+    r14,
+    r15,
+
+    fn name(self: Preserved, ty: ir.ScalarType) []const u8 {
+        const narrow = ty == .word or ty == .single;
+        return switch (self) {
+            .rbx => if (narrow) "%ebx" else "%rbx",
+            .r12 => if (narrow) "%r12d" else "%r12",
+            .r13 => if (narrow) "%r13d" else "%r13",
+            .r14 => if (narrow) "%r14d" else "%r14",
+            .r15 => if (narrow) "%r15d" else "%r15",
+        };
+    }
+};
+const preserved_registers = [_]Preserved{ .rbx, .r12, .r13, .r14, .r15 };
+const Home = union(enum) { stack_offset: usize, preserved: Preserved };
 
 const Scratch = enum { accumulator, temporary, count };
 const ArgumentRegisters = struct { word: []const u8, long: []const u8 };
@@ -67,6 +97,7 @@ const Emitter = struct {
     allocator: std.mem.Allocator,
     options: Options,
     homes: ?[]const stack_homes.SlotId = null,
+    saved_count: usize = 0,
     current: *const ir.Function = undefined,
     ordinal: usize = 0,
     frame: Frame = undefined,
@@ -79,18 +110,22 @@ const Emitter = struct {
     fn function(self: *Emitter, f: *const ir.Function, index: usize) Error!void {
         self.current = f;
         self.ordinal = index;
-        var layout: ?stack_homes.Layout = if (self.options.reuse_stack_homes) try stack_homes.Layout.init(self.allocator, f, .{}) else null;
+        var layout: ?stack_homes.Layout = if (self.options.reuse_stack_homes or self.options.callee_saved_homes) try stack_homes.Layout.init(self.allocator, f, .{}) else null;
         defer if (layout) |*owned| owned.deinit();
         self.homes = if (layout) |owned| owned.slots else null;
         defer self.homes = null;
+        self.saved_count = if (self.options.callee_saved_homes) @min(preserved_registers.len, layout.?.slot_count) else 0;
         if (layout) |owned| {
             var max_phis: usize = 0;
             for (f.blocks.items) |block| max_phis = @max(max_phis, block.phis.items.len);
-            self.frame = try Frame.fromCounts(owned.slot_count, max_phis, f.parameters.items.len);
+            self.frame = try Frame.withSavedCounts(owned.slot_count - self.saved_count, max_phis, f.parameters.items.len, self.saved_count);
         } else self.frame = try Frame.init(f);
         const name = self.module.symbols.get(f.name).?;
         try self.print("{s} {s}\n.type {s}, @function\n{s}:\n\tpushq %rbp\n\tmovq %rsp, %rbp\n", .{ if (f.linkage == .exported) @as([]const u8, ".globl") else ".local", name, name, name });
         if (self.frame.bytes != 0) try self.print("\tsubq ${d}, %rsp\n", .{self.frame.bytes});
+        for (preserved_registers[0..self.saved_count], 0..) |preserved, i| {
+            try self.print("\tmovq {s}, -{d}(%rbp)\n", .{ preserved.name(.long), self.frame.saved_base + (i + 1) * 8 });
+        }
         var gp: usize = 0;
         var fp: usize = 0;
         var stack: usize = 0;
@@ -255,6 +290,9 @@ const Emitter = struct {
                         const ty = f.return_type.?;
                         if (!ty.isInteger()) try self.print("\tmov{c} {s}, %xmm0\n", .{ sseMove(ty), register(ty, .accumulator) });
                     }
+                    for (preserved_registers[0..self.saved_count], 0..) |preserved, i| {
+                        try self.print("\tmovq -{d}(%rbp), {s}\n", .{ self.frame.saved_base + (i + 1) * 8, preserved.name(.long) });
+                    }
                     try self.print("\tleave\n\tret\n", .{});
                 },
             }
@@ -286,7 +324,10 @@ const Emitter = struct {
         const ty = try self.current.operandType(operand);
         const target = register(ty, scratch);
         switch (operand) {
-            .value => |value| try self.print("\tmov{c} -{d}(%rbp), {s}\n", .{ suffix(ty), self.home(value), target }),
+            .value => |value| switch (self.location(value)) {
+                .stack_offset => |offset| try self.print("\tmov{c} -{d}(%rbp), {s}\n", .{ suffix(ty), offset, target }),
+                .preserved => |preserved| try self.print("\tmov{c} {s}, {s}\n", .{ suffix(ty), preserved.name(ty), target }),
+            },
             .constant => |constant| switch (constant) {
                 .word => |bits| try self.print("\tmovl $0x{x}, {s}\n", .{ bits, target }),
                 .long => |bits| try self.print("\tmovabsq $0x{x}, {s}\n", .{ bits, target }),
@@ -298,13 +339,17 @@ const Emitter = struct {
 
     fn save(self: *Emitter, value: ir.ValueId, reg: []const u8) Error!void {
         const ty = self.current.values.items[@backingInt(value)].scalar_type;
-        try self.print("\tmov{c} {s}, -{d}(%rbp)\n", .{ suffix(ty), reg, self.home(value) });
+        switch (self.location(value)) {
+            .stack_offset => |offset| try self.print("\tmov{c} {s}, -{d}(%rbp)\n", .{ suffix(ty), reg, offset }),
+            .preserved => |preserved| try self.print("\tmov{c} {s}, {s}\n", .{ suffix(ty), reg, preserved.name(ty) }),
+        }
     }
 
-    fn home(self: *const Emitter, value: ir.ValueId) usize {
+    fn location(self: *const Emitter, value: ir.ValueId) Home {
         const ordinal: usize = @backingInt(value);
         const slot = if (self.homes) |homes| @as(usize, @backingInt(homes[ordinal])) else ordinal;
-        return (slot + 1) * 8;
+        if (slot < self.saved_count) return .{ .preserved = preserved_registers[slot] };
+        return .{ .stack_offset = (slot - self.saved_count + 1) * 8 };
     }
 };
 fn suffix(ty: ir.ScalarType) u8 {
@@ -543,4 +588,76 @@ test "reused frame limit applies to homes rather than original value count" {
     const assembly = try emitWithOptions(testing.allocator, &module, .{ .reuse_stack_homes = true });
     defer testing.allocator.free(assembly);
     try testing.expect(std.mem.indexOf(u8, assembly, "subq $16, %rsp") != null);
+}
+
+test "preserved register homes use width-aware moves and save only used registers" {
+    var module = try parse("function l $f(w %a) {\n@b\n%s =s cast %a\n%d =d exts %s\n%x =l cast %d\nret %x\n}");
+    defer module.deinit();
+    const assembly = try emitWithOptions(testing.allocator, &module, .{ .callee_saved_homes = true });
+    defer testing.allocator.free(assembly);
+    try testing.expect(std.mem.indexOf(u8, assembly, "movq %rbx, -8(%rbp)") != null);
+    try testing.expect(std.mem.indexOf(u8, assembly, "movq -8(%rbp), %rbx") != null);
+    try testing.expect(std.mem.indexOf(u8, assembly, "movl %edi, %ebx") != null);
+    try testing.expect(std.mem.indexOf(u8, assembly, "movq %rbx, %rax") != null);
+    try testing.expect(std.mem.indexOf(u8, assembly, "%r12") == null);
+    const combined = try emitWithOptions(testing.allocator, &module, .{ .callee_saved_homes = true, .reuse_stack_homes = true });
+    defer testing.allocator.free(combined);
+    try testing.expectEqualSlices(u8, assembly, combined);
+}
+
+test "preserved homes keep ordinary stack phi scratch and saved areas disjoint" {
+    var module = try parse(@embedFile("fixtures/preserved-homes.ssa"));
+    defer module.deinit();
+    var layout = try stack_homes.Layout.init(testing.allocator, module.functions.items[0], .{});
+    defer layout.deinit();
+    try testing.expect(layout.slot_count > preserved_registers.len);
+    const assembly = try emitWithOptions(testing.allocator, &module, .{ .callee_saved_homes = true });
+    defer testing.allocator.free(assembly);
+    const stack_count = layout.slot_count - preserved_registers.len;
+    const saved_base = (stack_count + 7) * 8;
+    for (preserved_registers, 0..) |preserved, i| {
+        const store = try std.fmt.allocPrint(testing.allocator, "movq {s}, -{d}(%rbp)", .{ preserved.name(.long), saved_base + (i + 1) * 8 });
+        defer testing.allocator.free(store);
+        const restore = try std.fmt.allocPrint(testing.allocator, "movq -{d}(%rbp), {s}", .{ saved_base + (i + 1) * 8, preserved.name(.long) });
+        defer testing.allocator.free(restore);
+        try testing.expect(std.mem.indexOf(u8, assembly, store) != null);
+        try testing.expect(std.mem.indexOf(u8, assembly, restore) != null);
+    }
+    const expected = (try @import("interpreter.zig").evaluate(testing.allocator, module.functions.items[0], &.{}, .{})).?;
+    try testing.expectEqual(@as(u64, 21), expected.long);
+}
+
+test "all return paths restore preserved registers and empty functions allocate none" {
+    var module = try parse("function w $branch(w %p) {\n@entry\njnz %p, @a, @b\n@a\nret 1\n@b\nret %p\n}\nfunction $empty() {\n@entry\nret\n}");
+    defer module.deinit();
+    const assembly = try emitWithOptions(testing.allocator, &module, .{ .callee_saved_homes = true });
+    defer testing.allocator.free(assembly);
+    try testing.expectEqual(@as(usize, 2), std.mem.count(u8, assembly, "movq -8(%rbp), %rbx\n\tleave\n\tret"));
+    const empty = assembly[std.mem.indexOf(u8, assembly, "empty:\n").?..];
+    try testing.expect(std.mem.indexOf(u8, empty, "%rbx") == null);
+    try testing.expect(std.mem.indexOf(u8, empty, "subq $") == null);
+    try testing.expectError(error.FrameTooLarge, Frame.withSavedCounts(8192, 0, 0, 1));
+    try testing.expectError(error.FrameTooLarge, Frame.withSavedCounts(0, 0, 0, std.math.maxInt(usize)));
+}
+
+fn exercisePreservedHomes(allocator: std.mem.Allocator) !void {
+    var diagnostic: ?source.Diagnostic = null;
+    var module = try frontend.parse(allocator, .{ .name = "preserved-homes", .text = @embedFile("fixtures/preserved-homes.ssa") ++ "\nfunction s $bits(w %a) {\n@b\n%s =s cast %a\nret %s\n}" }, &diagnostic);
+    defer module.deinit();
+    const assembly = try emitWithOptions(allocator, &module, .{ .callee_saved_homes = true });
+    defer allocator.free(assembly);
+    try testing.expect(std.mem.indexOf(u8, assembly, "%r15") != null);
+}
+test "preserved-register emission frees every failed allocation across functions" {
+    try @import("test_support.zig").checkAllocationFailures(exercisePreservedHomes);
+}
+
+test "floating and void returns restore homes without clobbering result registers" {
+    var module = try parse("function d $floating(d %a) {\n@b\nret %a\n}\nfunction $nothing() {\n@b\n%dead =w copy 1\nret\n}");
+    defer module.deinit();
+    const assembly = try emitWithOptions(testing.allocator, &module, .{ .callee_saved_homes = true });
+    defer testing.allocator.free(assembly);
+    try testing.expect(std.mem.indexOf(u8, assembly, "movq %rax, %xmm0\n\tmovq -8(%rbp), %rbx\n\tleave\n\tret") != null);
+    const nothing = assembly[std.mem.indexOf(u8, assembly, "nothing:\n").?..];
+    try testing.expect(std.mem.indexOf(u8, nothing, "movl %eax, %ebx\n\tmovq -8(%rbp), %rbx\n\tleave\n\tret") != null);
 }

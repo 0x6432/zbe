@@ -1,6 +1,6 @@
 # Zig-native backend rewrite
 
-**Status: experimental base-scalar Linux AMD64 compiler slice, plus scalar frontend/verifier/interpreter. Not a complete QBE backend.** This directory is a new implementation, not a wrapper around or a mechanical cleanup of the existing C-shaped port. Its parser accepts only the documented scalar subset. The experimental driver emits Linux AMD64 integer and single/double scalar assembly. Most IL/ABI/target support, optimizations and register allocation are still missing. An opt-in conservative integer constant folder is implemented, not a complete optimizer. Passing its tests does not establish QBE compatibility or replace the legacy backend.
+**Status: experimental base-scalar Linux AMD64 compiler slice, plus scalar frontend/verifier/interpreter. Not a complete QBE backend.** This directory is a new implementation, not a wrapper around or a mechanical cleanup of the existing C-shaped port. Its parser accepts only the documented scalar subset. The experimental driver emits Linux AMD64 integer and single/double scalar assembly. Most IL/ABI/target support, optimizations and full register allocation are still missing. An opt-in conservative integer constant folder is implemented, not a complete optimizer. Passing its tests does not establish QBE compatibility or replace the legacy backend.
 
 Work lives on `rewrite/zig-native`. The existing compiler, build and regression suite remain the reference implementation and are unchanged by this foundation.
 
@@ -27,13 +27,13 @@ The independent build exports `zbe_native` without linking libc or importing the
 - Source spans, typed diagnostics, allocation-free lexer and transactional scalar parser with forward block resolution.
 - Structural/type checks, owned CFG snapshots, dominators and explicit scalar SSA use/phi-edge validation.
 - Owned block-boundary liveness snapshots with phi-edge uses, checked matrix limits and an independent path-search oracle.
-- Owned, bounded scalar-home interference graphs, independently checked at program points; no register assignment.
+- Owned, bounded scalar-home interference graphs, independently checked at program points; no machine-specific constraints in the graph.
 - Bounded scalar interpreter and independent integer/dominance oracle checks.
-- Experimental stack-homed Linux AMD64 base-scalar emitter and driver, tested by assembling/linking/executing from C; opt-in deterministic interference-colored stack-home reuse.
+- Experimental stack-homed Linux AMD64 base-scalar emitter and driver, tested by assembling/linking/executing from C; opt-in deterministic interference-colored stack-home reuse and a limited five-callee-saved-register home mode.
 - Opt-in SSA-validated, source-order integer/bit-pattern constant folding with preserved arithmetic faults.
 - Explicit errors for invalid builders; allocation-failure and ownership tests.
 - Correct low-32-bit constant branch semantics, including long operands.
 
 There are no compile-wide mutable globals, pointer-packed references, C-layout requirements, or calls into the existing backend in this core. This is a design direction, not a claim that all future compiler code can avoid low-level operations.
 
-See [STACK-HOMES.md](STACK-HOMES.md) for optional layout reuse, [INTERFERENCE.md](INTERFERENCE.md) for conservative graph contracts, [LIVENESS.md](LIVENESS.md) for analysis boundaries and resource limits, [OPTIMIZE.md](OPTIMIZE.md) for the conservative opt-in pass, [NATIVE-AMD64.md](NATIVE-AMD64.md) for the native slice, [SCALAR-SEMANTICS.md](SCALAR-SEMANTICS.md) for analysis/evaluation contracts, [FRONTEND.md](FRONTEND.md) for the exact supported subset and limitations, [DESIGN.md](DESIGN.md) for ownership and implementation milestones and [HANDOFF.md](HANDOFF.md) for the current verification record.
+See [PRESERVED-HOMES.md](PRESERVED-HOMES.md) for limited register homes, [STACK-HOMES.md](STACK-HOMES.md) for optional layout reuse, [INTERFERENCE.md](INTERFERENCE.md) for conservative graph contracts, [LIVENESS.md](LIVENESS.md) for analysis boundaries and resource limits, [OPTIMIZE.md](OPTIMIZE.md) for the conservative opt-in pass, [NATIVE-AMD64.md](NATIVE-AMD64.md) for the native slice, [SCALAR-SEMANTICS.md](SCALAR-SEMANTICS.md) for analysis/evaluation contracts, [FRONTEND.md](FRONTEND.md) for the exact supported subset and limitations, [DESIGN.md](DESIGN.md) for ownership and implementation milestones and [HANDOFF.md](HANDOFF.md) for the current verification record.

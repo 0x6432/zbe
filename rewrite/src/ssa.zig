@@ -10,7 +10,7 @@ pub const UseSite = union(enum) {
     phi_input: struct { phi: usize, input: usize },
 };
 pub const Issue = struct { code: Code, value: ir.ValueId, block: ir.BlockId, site: UseSite };
-pub const Error = cfg.Error || error{InvalidSSA};
+pub const Error = cfg.Error || error{ InvalidSSA, EntryHasPredecessors };
 
 /// Validate dominance and local ordering for the current scalar IR vocabulary.
 /// Phi operands are checked at the end of their incoming predecessor edge.
@@ -21,6 +21,9 @@ pub fn validate(allocator: std.mem.Allocator, function: *const ir.Function, issu
     issue.* = null;
     var graph = try cfg.Graph.init(allocator, function);
     defer graph.deinit();
+    // Parameters are defined once on invocation, not on a CFG backedge.
+    // QBE forbids every jump to the first block, including from dead blocks.
+    if (graph.predecessors(@fromBackingInt(@as(u32, 0))).?.len != 0) return error.EntryHasPredecessors;
     var dominators = try cfg.Dominators.init(allocator, &graph);
     defer dominators.deinit();
     for (function.blocks.items, 0..) |block, number| {
@@ -249,8 +252,8 @@ test "phi edge dominance rejects values from the wrong predecessor" {
     try testing.expectEqual(@as(u32, 3), @backingInt(issue.?.block));
 }
 
-test "entry phi is rejected even with an entry backedge" {
-    var module = try parse("function w $f() {\n@entry\n%x =w phi @entry 0\njnz %x, @entry, @exit\n@exit\nret %x\n}");
+test "entry phi is rejected independently of an entry backedge" {
+    var module = try parse("function w $f() {\n@entry\n%x =w phi @exit 0\njmp @exit\n@exit\nret %x\n}");
     defer module.deinit();
     var issue: ?Issue = null;
     try testing.expectError(error.InvalidSSA, validate(testing.allocator, module.functions.items[0], &issue));
@@ -291,5 +294,24 @@ test "both floating comparison operands require dominating definitions" {
         var issue: ?Issue = null;
         try testing.expectError(error.InvalidSSA, validate(testing.allocator, module.functions.items[0], &issue));
         try testing.expectEqual(.non_dominating_definition, issue.?.code);
+    }
+}
+
+test "entry block cannot have self conditional or unreachable predecessors" {
+    const cases = [_][]const u8{
+        "function $f() {\n@entry\njmp @entry\n}",
+        "function w $f(w %p) {\n@entry\njnz %p, @entry, @done\n@done\nret %p\n}",
+        "function w $f(w %p) {\n@entry\nret %p\n@dead\njmp @entry\n}",
+    };
+    for (cases) |text| {
+        var diagnostic: ?source.Diagnostic = null;
+        var module = try frontend.parse(testing.allocator, .{ .name = "entry-edge", .text = text }, &diagnostic);
+        defer module.deinit();
+        var graph = try cfg.Graph.init(testing.allocator, module.functions.items[0]);
+        defer graph.deinit();
+        try testing.expect(graph.predecessors(@fromBackingInt(@as(u32, 0))).?.len != 0);
+        var issue: ?Issue = null;
+        try testing.expectError(error.EntryHasPredecessors, validate(testing.allocator, module.functions.items[0], &issue));
+        try testing.expect(issue == null); // This is a CFG policy error, not a value-use issue.
     }
 }

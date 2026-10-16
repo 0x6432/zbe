@@ -12,6 +12,7 @@ Snapshots do not borrow function storage, and their exposed slices are read-only
 
 `ssa.validate(allocator, &function, &issue)` checks structure/types and every instruction/terminator operand:
 
+- The first block must have no CFG predecessors, including self edges and edges from unreachable blocks. This matches QBE's prohibition on jumping to the entry block and keeps once-per-invocation parameter definitions separate from loop bodies. Violations return `EntryHasPredecessors`, without a value-use issue. General CFG/dominator snapshots still support such graphs.
 - Parameters are available throughout the function.
 - An instruction definition in the same block must precede its use strictly; self-use and forward use are rejected.
 - A cross-block definition must dominate its reachable use. Phi results are available at block entry.

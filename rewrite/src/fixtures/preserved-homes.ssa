@@ -1,0 +1,25 @@
+# Seven simultaneous phi results force five preserved registers plus stack homes.
+# Integer folding cannot assume loop phi values constant.
+export function l $preserved_homes() {
+@entry
+    jmp @loop
+@loop
+    %i =w phi @entry 1, @body %next
+    %a =l phi @entry 1, @body %b
+    %b =l phi @entry 2, @body %c
+    %c =l phi @entry 3, @body %d
+    %d =l phi @entry 4, @body %e
+    %e =l phi @entry 5, @body %f
+    %f =l phi @entry 6, @body %a
+    jnz %i, @body, @done
+@body
+    %next =w sub %i, 1
+    jmp @loop
+@done
+    %ab =l add %a, %b
+    %cd =l add %c, %d
+    %ef =l add %e, %f
+    %abcd =l add %ab, %cd
+    %result =l add %abcd, %ef
+    ret %result
+}

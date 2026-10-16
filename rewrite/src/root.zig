@@ -32,3 +32,23 @@ test {
     _ = @import("ir.zig");
     _ = @import("module.zig");
 }
+
+test "all SSA-dependent consumers reject entry backedges before analysis or mutation" {
+    const std = @import("std");
+    const testing = std.testing;
+    var diagnostic: ?source.Diagnostic = null;
+    var module = try frontend.parse(testing.allocator, .{ .name = "invalid-entry", .text = @embedFile("fixtures/entry-backedge.ssa") }, &diagnostic);
+    defer module.deinit();
+    const f = module.functions.items[0];
+    var issue: ?ssa.Issue = null;
+    try testing.expectError(error.EntryHasPredecessors, ssa.validate(testing.allocator, f, &issue));
+    try testing.expectError(error.EntryHasPredecessors, liveness.Snapshot.init(testing.allocator, f, .{}));
+    try testing.expectError(error.EntryHasPredecessors, interference.Graph.init(testing.allocator, f, .{}));
+    try testing.expectError(error.EntryHasPredecessors, stack_homes.Layout.init(testing.allocator, f, .{}));
+    try testing.expectError(error.EntryHasPredecessors, interpreter.evaluate(testing.allocator, f, &.{.{ .word = 1 }}, .{}));
+    try testing.expectError(error.EntryHasPredecessors, optimize.foldIntegerConstants(testing.allocator, f));
+    try testing.expect(f.blocks.items[1].instructions.items[0] == .copy);
+    try testing.expectError(error.EntryHasPredecessors, amd64.emit(testing.allocator, &module));
+    try testing.expectError(error.EntryHasPredecessors, amd64.emitWithOptions(testing.allocator, &module, .{ .reuse_stack_homes = true }));
+    try testing.expectError(error.EntryHasPredecessors, amd64.emitWithOptions(testing.allocator, &module, .{ .callee_saved_homes = true }));
+}

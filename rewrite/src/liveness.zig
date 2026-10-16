@@ -348,7 +348,7 @@ test "64 generated cyclic CFGs agree with per-value use-before-definition search
             if (index == count - 1 and seed % 2 == 0) {
                 try f.terminate(b, .{ .return_value = .{ .value = local } });
             } else {
-                try f.terminate(b, .{ .branch = .{ .condition = .{ .value = if (state & 1 == 0) local else parameter }, .taken = blocks[(index + 1) % count], .not_taken = blocks[state % count] } });
+                try f.terminate(b, .{ .branch = .{ .condition = .{ .value = if (state & 1 == 0) local else parameter }, .taken = blocks[1 + index % (count - 1)], .not_taken = blocks[1 + state % (count - 1)] } });
             }
         }
         try compareOracle(&f);

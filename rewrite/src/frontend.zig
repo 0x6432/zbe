@@ -86,7 +86,7 @@ const Parser = struct {
         };
         _ = try self.expect(.rparen);
         _ = try self.expect(.lbrace);
-        try self.declareBlocks();
+        try self.declareBody();
         self.skipLines();
         var block: ?ir.BlockId = null;
         while (self.peek().kind != .rbrace) {
@@ -115,9 +115,9 @@ const Parser = struct {
         f.validateStructure() catch |err| return self.irError(err, close);
     }
 
-    /// Declare only line-initial label definitions, not branch operands. Branches
-    /// may target later blocks without storing raw pointers or dummy terminators.
-    fn declareBlocks(self: *Parser) Error!void {
+    /// Predeclare typed temporary and label definitions, not operands. This
+    /// resolves loop backedges and layout-independent SSA forward references.
+    fn declareBody(self: *Parser) Error!void {
         var at_line_start = true;
         var index = self.index;
         const f = self.current_function.?;
@@ -132,6 +132,13 @@ const Parser = struct {
                 const symbol = try self.module.symbols.intern(name);
                 const id = f.addBlock(symbol) catch |err| return self.irError(err, token);
                 self.blocks.putAssumeCapacity(name, id);
+            } else if (at_line_start and token.kind == .temporary) {
+                try self.reserveValue(token);
+                if (index + 2 >= self.tokens.len) return self.fail(.unexpected_token, self.tokens[self.tokens.len - 1]);
+                if (self.tokens[index + 1].kind != .equal) return self.fail(.unexpected_token, self.tokens[index + 1]);
+                const ty = try self.scalarType(self.tokens[index + 2]);
+                const value = f.declareValue(ty) catch |err| return self.irError(err, token);
+                self.values.putAssumeCapacity(self.nameText(token), value);
             }
             at_line_start = token.kind == .newline;
         }
@@ -140,23 +147,33 @@ const Parser = struct {
 
     fn instruction(self: *Parser, block: ir.BlockId) Error!void {
         const destination = self.advance();
-        try self.reserveValue(destination);
+        const result = self.values.get(self.nameText(destination)).?;
         _ = try self.expect(.equal);
         const ty = try self.takeType();
         const opcode = try self.expect(.identifier);
         const spelling = self.tokenText(opcode);
         const f = self.current_function.?;
-        const result = if (std.mem.eql(u8, spelling, "copy")) copy: {
+        if (std.mem.eql(u8, spelling, "copy")) {
             const operand = try self.readOperand(ty);
-            break :copy f.appendCopy(block, ty, operand) catch |err| return self.irError(err, opcode);
-        } else binary: {
+            f.defineCopy(block, result, operand) catch |err| return self.irError(err, opcode);
+        } else if (std.mem.eql(u8, spelling, "phi")) {
+            var inputs: std.ArrayList(ir.PhiInput) = .empty;
+            defer inputs.deinit(self.allocator);
+            while (true) {
+                const predecessor = try self.target();
+                const value = try self.readOperand(ty);
+                try inputs.append(self.allocator, .{ .predecessor = predecessor, .value = value });
+                if (self.peek().kind != .comma) break;
+                _ = self.advance();
+            }
+            f.definePhi(block, result, inputs.items) catch |err| return self.irError(err, opcode);
+        } else {
             const op = binary_opcodes.get(spelling) orelse return self.fail(.unsupported_construct, opcode);
             const lhs = try self.readOperand(ty);
             _ = try self.expect(.comma);
             const rhs = try self.readOperand(ty);
-            break :binary f.appendBinary(block, ty, op, lhs, rhs) catch |err| return self.irError(err, opcode);
-        };
-        self.values.putAssumeCapacity(self.nameText(destination), result);
+            f.defineBinary(block, result, op, lhs, rhs) catch |err| return self.irError(err, opcode);
+        }
     }
 
     fn terminator(self: *Parser, block: ir.BlockId) Error!void {
@@ -214,7 +231,10 @@ const Parser = struct {
     }
 
     fn takeType(self: *Parser) Error!ir.ScalarType {
-        const token = self.advance();
+        return self.scalarType(self.advance());
+    }
+
+    fn scalarType(self: *Parser, token: lex.Token) Error!ir.ScalarType {
         if (token.kind != .identifier) return self.fail(.unsupported_construct, token);
         const text = self.tokenText(token);
         if (text.len == 1) return switch (text[0]) {
@@ -275,6 +295,7 @@ const Parser = struct {
             error.InvalidReturn => self.fail(.invalid_return, token),
             error.MissingTerminator => self.fail(.missing_terminator, token),
             error.BlockTerminated => self.fail(.block_terminated, token),
+            error.PhiAfterInstructions => self.fail(.phi_after_instruction, token),
             else => self.fail(.invalid_ir, token),
         };
     }
@@ -473,4 +494,14 @@ test "all fixture truncations and deterministic byte mutations are memory safe" 
         defer module.deinit();
         for (module.functions.items) |f| try f.validateStructure();
     }
+}
+
+test "phi syntax predeclares backedge values and rejects late phi nodes" {
+    var diagnostic: ?source.Diagnostic = null;
+    var module = try parse(testing.allocator, .{ .name = "phi-loop", .text = @embedFile("fixtures/phi-loop.ssa") }, &diagnostic);
+    defer module.deinit();
+    try module.functions.items[0].validateStructure();
+    try testing.expectEqual(@as(usize, 3), module.functions.items[0].blocks.items[1].phis.items.len);
+    try expectInvalid("function w $f() {\n@entry\njmp @b\n@b\n%x =w copy 1\n%y =w phi @entry 2\nret %y\n}", .phi_after_instruction, "phi");
+    try expectInvalid("function w $f() {\n@entry\njmp @b\n@b\n%x =w phi @entry d_2\nret %x\n}", .type_mismatch, "d_2");
 }

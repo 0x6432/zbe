@@ -47,6 +47,7 @@ pub const Diagnostic = struct {
         type_mismatch,
         missing_terminator,
         block_terminated,
+        phi_after_instruction,
         invalid_return,
         invalid_ir,
     };

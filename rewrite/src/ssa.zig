@@ -2,16 +2,19 @@ const std = @import("std");
 const ir = @import("ir.zig");
 const cfg = @import("cfg.zig");
 
-pub const Issue = struct {
-    code: enum { use_before_definition, non_dominating_definition, unreachable_cross_block_use },
-    value: ir.ValueId,
-    block: ir.BlockId,
-    instruction_index: ?usize, // Null identifies a terminator use.
+pub const Code = enum { use_before_definition, non_dominating_definition, unreachable_cross_block_use, invalid_phi_predecessors };
+pub const UseSite = union(enum) {
+    instruction: usize,
+    terminator,
+    phi: usize,
+    phi_input: struct { phi: usize, input: usize },
 };
+pub const Issue = struct { code: Code, value: ir.ValueId, block: ir.BlockId, site: UseSite };
 pub const Error = cfg.Error || error{InvalidSSA};
 
 /// Validate dominance and local ordering for the current scalar IR vocabulary.
-/// No phi exists yet. Unreachable blocks permit parameters and ordered local
+/// Phi operands are checked at the end of their incoming predecessor edge.
+/// Unreachable blocks permit parameters and ordered local
 /// uses, but reject cross-block uses rather than inventing unreachable dominance.
 /// Analysis owns its scratch storage and does not mutate the function.
 pub fn validate(allocator: std.mem.Allocator, function: *const ir.Function, issue: *?Issue) Error!void {
@@ -22,6 +25,28 @@ pub fn validate(allocator: std.mem.Allocator, function: *const ir.Function, issu
     defer dominators.deinit();
     for (function.blocks.items, 0..) |block, number| {
         const id: ir.BlockId = @fromBackingInt(@as(u32, @intCast(number)));
+        const predecessors = graph.predecessors(id).?;
+        for (block.phis.items, 0..) |phi, phi_index| {
+            if (number == 0 or phi.inputs.len != predecessors.len) {
+                issue.* = .{ .code = .invalid_phi_predecessors, .value = phi.result, .block = id, .site = .{ .phi = phi_index } };
+                return error.InvalidSSA;
+            }
+            for (phi.inputs, 0..) |input, input_index| {
+                var duplicate = false;
+                for (phi.inputs[0..input_index]) |earlier| {
+                    if (earlier.predecessor == input.predecessor) duplicate = true;
+                }
+                if (duplicate or std.mem.indexOfScalar(ir.BlockId, predecessors, input.predecessor) == null) {
+                    issue.* = .{ .code = .invalid_phi_predecessors, .value = phi.result, .block = id, .site = .{ .phi_input = .{ .phi = phi_index, .input = input_index } } };
+                    return error.InvalidSSA;
+                }
+                checkUse(function, &graph, &dominators, input.value, input.predecessor, null, issue) catch |err| {
+                    issue.*.?.block = id;
+                    issue.*.?.site = .{ .phi_input = .{ .phi = phi_index, .input = input_index } };
+                    return err;
+                };
+            }
+        }
         for (block.instructions.items, 0..) |instruction, index| switch (instruction) {
             .binary => |binary| {
                 try checkUse(function, &graph, &dominators, binary.lhs, id, index, issue);
@@ -42,21 +67,28 @@ fn checkUse(function: *const ir.Function, graph: *const cfg.Graph, dominators: *
         .constant => return,
         .value => |value| value,
     };
-    switch (function.values.items[@backingInt(value)].definition) {
+    const site: UseSite = if (index) |number| .{ .instruction = number } else .terminator;
+    const defining_block = switch (function.values.items[@backingInt(value)].definition) {
+        .pending => unreachable, // Structure validation rejects unfinished values.
         .parameter => return,
-        .instruction => |definition| {
-            const use_index = index orelse function.blocks.items[@backingInt(block)].instructions.items.len;
-            const code: @FieldType(Issue, "code") = if (definition.block == block) local: {
+        .phi => |definition| definition.block,
+        .instruction => |definition| local: {
+            if (definition.block == block) {
+                const use_index = index orelse function.blocks.items[@backingInt(block)].instructions.items.len;
                 if (definition.index < use_index) return;
-                break :local .use_before_definition;
-            } else if (!graph.reachable[@backingInt(block)]) .unreachable_cross_block_use else dominance: {
-                if (dominators.dominates(definition.block, block)) return;
-                break :dominance .non_dominating_definition;
-            };
-            issue.* = .{ .code = code, .value = value, .block = block, .instruction_index = index };
-            return error.InvalidSSA;
+                issue.* = .{ .code = .use_before_definition, .value = value, .block = block, .site = site };
+                return error.InvalidSSA;
+            }
+            break :local definition.block;
         },
-    }
+    };
+    if (defining_block == block) return; // A phi is available at block entry.
+    const code: Code = if (!graph.reachable[@backingInt(block)]) .unreachable_cross_block_use else dominance: {
+        if (dominators.dominates(defining_block, block)) return;
+        break :dominance .non_dominating_definition;
+    };
+    issue.* = .{ .code = code, .value = value, .block = block, .site = site };
+    return error.InvalidSSA;
 }
 
 const testing = std.testing;
@@ -83,7 +115,7 @@ test "textually earlier definition on one branch does not dominate the join" {
     try testing.expectError(error.InvalidSSA, validate(testing.allocator, module.functions.items[0], &issue));
     try testing.expectEqual(.non_dominating_definition, issue.?.code);
     try testing.expectEqual(@as(u32, 3), @backingInt(issue.?.block));
-    try testing.expect(issue.?.instruction_index == null);
+    try testing.expect(issue.?.site == .terminator);
 }
 
 test "self-reference and forward local uses fail despite valid backlinks" {
@@ -142,14 +174,14 @@ test "both binary operands and branch conditions require dominance" {
     const value = join.instructions.items[0].binary.rhs;
     var issue: ?Issue = null;
     try testing.expectError(error.InvalidSSA, validate(testing.allocator, f, &issue));
-    try testing.expectEqual(@as(?usize, 0), issue.?.instruction_index);
+    try testing.expectEqual(@as(usize, 0), issue.?.site.instruction);
     join.instructions.items[0].binary.rhs = .{ .constant = .{ .word = 1 } };
     join.instructions.items[0].binary.lhs = value;
     try testing.expectError(error.InvalidSSA, validate(testing.allocator, f, &issue));
-    try testing.expectEqual(@as(?usize, 0), issue.?.instruction_index);
+    try testing.expectEqual(@as(usize, 0), issue.?.site.instruction);
     join.instructions.items[0].binary.lhs = .{ .constant = .{ .word = 1 } };
     try testing.expectError(error.InvalidSSA, validate(testing.allocator, f, &issue));
-    try testing.expect(issue.?.instruction_index == null);
+    try testing.expect(issue.?.site == .terminator);
     join.terminator.?.branch.condition = .{ .constant = .{ .word = 1 } };
     try validate(testing.allocator, f, &issue);
 }
@@ -171,4 +203,43 @@ fn exerciseInvalid(allocator: std.mem.Allocator) !void {
 
 test "invalid SSA paths free analysis under every allocation failure" {
     try @import("test_support.zig").checkAllocationFailures(exerciseInvalid);
+}
+
+const diamond_phi = "function w $f(w %p) {\n@entry\njnz %p, @left, @right\n@left\n%l =w copy 1\njmp @join\n@right\n%r =w copy 2\njmp @join\n@join\n%x =w phi @left %l, @right %r\nret %x\n}";
+
+test "phi predecessor coverage rejects missing, repeated and extraneous edges" {
+    const variants = [_][]const u8{
+        "@left %l",
+        "@left %l, @left %l",
+        "@entry 0, @right %r",
+    };
+    for (variants) |inputs| {
+        const text = try std.mem.replaceOwned(u8, testing.allocator, diamond_phi, "@left %l, @right %r", inputs);
+        defer testing.allocator.free(text);
+        var module = try parse(text);
+        defer module.deinit();
+        var issue: ?Issue = null;
+        try testing.expectError(error.InvalidSSA, validate(testing.allocator, module.functions.items[0], &issue));
+        try testing.expectEqual(.invalid_phi_predecessors, issue.?.code);
+    }
+}
+
+test "phi edge dominance rejects values from the wrong predecessor" {
+    const text = try std.mem.replaceOwned(u8, testing.allocator, diamond_phi, "@left %l, @right %r", "@left %r, @right %r");
+    defer testing.allocator.free(text);
+    var module = try parse(text);
+    defer module.deinit();
+    var issue: ?Issue = null;
+    try testing.expectError(error.InvalidSSA, validate(testing.allocator, module.functions.items[0], &issue));
+    try testing.expectEqual(.non_dominating_definition, issue.?.code);
+    try testing.expectEqual(@as(usize, 0), issue.?.site.phi_input.input);
+    try testing.expectEqual(@as(u32, 3), @backingInt(issue.?.block));
+}
+
+test "entry phi is rejected even with an entry backedge" {
+    var module = try parse("function w $f() {\n@entry\n%x =w phi @entry 0\njnz %x, @entry, @exit\n@exit\nret %x\n}");
+    defer module.deinit();
+    var issue: ?Issue = null;
+    try testing.expectError(error.InvalidSSA, validate(testing.allocator, module.functions.items[0], &issue));
+    try testing.expectEqual(.invalid_phi_predecessors, issue.?.code);
 }

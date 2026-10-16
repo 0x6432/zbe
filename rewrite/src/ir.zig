@@ -61,13 +61,19 @@ pub const Terminator = union(enum) {
     branch: struct { condition: Operand, taken: BlockId, not_taken: BlockId },
     return_value: ?Operand,
 };
+pub const PhiInput = struct { predecessor: BlockId, value: Operand };
+pub const Phi = struct { result: ValueId, inputs: []const PhiInput };
+
 const Definition = union(enum) {
+    pending,
+    phi: struct { block: BlockId, index: usize },
     parameter: usize,
     instruction: struct { block: BlockId, index: usize },
 };
 const Value = struct { scalar_type: ScalarType, definition: Definition };
 const Block = struct {
     label: ?SymbolId,
+    phis: std.ArrayList(Phi) = .empty,
     instructions: std.ArrayList(Instruction) = .empty,
     terminator: ?Terminator = null,
 };
@@ -76,6 +82,8 @@ pub const ValidationError = error{
     InvalidBlock,
     InvalidValue,
     InvalidDefinition,
+    InvalidPhi,
+    PhiAfterInstructions,
     TypeMismatch,
     NonIntegerCondition,
     InvalidReturn,
@@ -102,7 +110,11 @@ pub const Function = struct {
     }
 
     pub fn deinit(self: *Function) void {
-        for (self.blocks.items) |*block| block.instructions.deinit(self.allocator);
+        for (self.blocks.items) |*block| {
+            for (block.phis.items) |phi| self.allocator.free(phi.inputs);
+            block.phis.deinit(self.allocator);
+            block.instructions.deinit(self.allocator);
+        }
         self.blocks.deinit(self.allocator);
         self.values.deinit(self.allocator);
         self.parameters.deinit(self.allocator);
@@ -149,6 +161,57 @@ pub const Function = struct {
         return result;
     }
 
+    /// Reserve a typed value for forward references. Finish it with a define
+    /// builder before validation. Failed define calls leave it pending/retryable.
+    pub fn declareValue(self: *Function, ty: ScalarType) BuildError!ValueId {
+        const id = try self.nextValueId();
+        try self.values.append(self.allocator, .{ .scalar_type = ty, .definition = .pending });
+        return id;
+    }
+
+    pub fn defineBinary(self: *Function, block_id: BlockId, result: ValueId, op: BinaryOp, lhs: Operand, rhs: Operand) BuildError!void {
+        const target = try self.getBlock(block_id);
+        if (target.terminator != null) return error.BlockTerminated;
+        const value = try self.pendingValue(result);
+        try self.checkBinary(value.scalar_type, op, lhs, rhs);
+        try target.instructions.ensureUnusedCapacity(self.allocator, 1);
+        value.definition = .{ .instruction = .{ .block = block_id, .index = target.instructions.items.len } };
+        target.instructions.appendAssumeCapacity(.{ .binary = .{ .result = result, .op = op, .lhs = lhs, .rhs = rhs } });
+    }
+
+    pub fn defineCopy(self: *Function, block_id: BlockId, result: ValueId, operand: Operand) BuildError!void {
+        const target = try self.getBlock(block_id);
+        if (target.terminator != null) return error.BlockTerminated;
+        const value = try self.pendingValue(result);
+        if (try self.operandType(operand) != value.scalar_type) return error.TypeMismatch;
+        try target.instructions.ensureUnusedCapacity(self.allocator, 1);
+        value.definition = .{ .instruction = .{ .block = block_id, .index = target.instructions.items.len } };
+        target.instructions.appendAssumeCapacity(.{ .copy = .{ .result = result, .operand = operand } });
+    }
+
+    pub fn definePhi(self: *Function, block_id: BlockId, result: ValueId, inputs: []const PhiInput) BuildError!void {
+        const target = try self.getBlock(block_id);
+        if (target.terminator != null) return error.BlockTerminated;
+        if (target.instructions.items.len != 0) return error.PhiAfterInstructions;
+        const value = try self.pendingValue(result);
+        if (inputs.len == 0) return error.InvalidPhi;
+        for (inputs) |input| {
+            if (@backingInt(input.predecessor) >= self.blocks.items.len) return error.InvalidBlock;
+            if (try self.operandType(input.value) != value.scalar_type) return error.TypeMismatch;
+        }
+        try target.phis.ensureUnusedCapacity(self.allocator, 1);
+        const owned = try self.allocator.dupe(PhiInput, inputs);
+        value.definition = .{ .phi = .{ .block = block_id, .index = target.phis.items.len } };
+        target.phis.appendAssumeCapacity(.{ .result = result, .inputs = owned });
+    }
+
+    fn pendingValue(self: *Function, id: ValueId) ValidationError!*Value {
+        if (@backingInt(id) >= self.values.items.len) return error.InvalidValue;
+        const value = &self.values.items[@backingInt(id)];
+        if (value.definition != .pending) return error.InvalidDefinition;
+        return value;
+    }
+
     pub fn terminate(self: *Function, block_id: BlockId, terminator: Terminator) ValidationError!void {
         const target = try self.getBlock(block_id);
         if (target.terminator != null) return error.BlockTerminated;
@@ -167,7 +230,7 @@ pub const Function = struct {
     }
 
     /// Checks structure/types only. Also call ssa.validate for current scalar
-    /// use ordering/dominance. Phi nodes and full IL verification remain future work.
+    /// use ordering/dominance and phi edges. Full IL verification remains future work.
     pub fn validateStructure(self: *const Function) ValidationError!void {
         if (self.blocks.items.len == 0) return error.NoBlocks;
         for (self.parameters.items, 0..) |id, index| {
@@ -179,6 +242,12 @@ pub const Function = struct {
         }
         // Validate reverse links too, so orphaned or duplicate values cannot hide.
         for (self.values.items, 0..) |value, number| switch (value.definition) {
+            .pending => return error.InvalidDefinition,
+            .phi => |definition| {
+                if (@backingInt(definition.block) >= self.blocks.items.len) return error.InvalidDefinition;
+                const phis = self.blocks.items[@backingInt(definition.block)].phis.items;
+                if (definition.index >= phis.len or @backingInt(phis[definition.index].result) != number) return error.InvalidDefinition;
+            },
             .parameter => |index| {
                 if (index >= self.parameters.items.len or @backingInt(self.parameters.items[index]) != number)
                     return error.InvalidDefinition;
@@ -191,6 +260,20 @@ pub const Function = struct {
             },
         };
         for (self.blocks.items, 0..) |b, number| {
+            for (b.phis.items, 0..) |phi, index| {
+                const ty = try self.operandType(.{ .value = phi.result });
+                switch (self.values.items[@backingInt(phi.result)].definition) {
+                    .phi => |definition| {
+                        if (@backingInt(definition.block) != number or definition.index != index) return error.InvalidDefinition;
+                    },
+                    else => return error.InvalidDefinition,
+                }
+                if (phi.inputs.len == 0) return error.InvalidPhi;
+                for (phi.inputs) |input| {
+                    if (@backingInt(input.predecessor) >= self.blocks.items.len) return error.InvalidBlock;
+                    if (try self.operandType(input.value) != ty) return error.TypeMismatch;
+                }
+            }
             for (b.instructions.items, 0..) |instruction, index| {
                 const result = instruction.result();
                 const ty = try self.operandType(.{ .value = result });
@@ -387,4 +470,45 @@ test "copy is typed and participates in definition validation" {
     try f.validateStructure();
     try testing.expectEqual(value, f.blocks.items[0].instructions.items[0].result());
     try testing.expectEqual(@as(u64, 0x7ff8000000000042), f.blocks.items[0].instructions.items[0].copy.operand.constant.double_bits);
+}
+
+test "forward declarations must be completed and cannot be redefined" {
+    var f = Function.init(testing.allocator, test_name, .word);
+    defer f.deinit();
+    const b = try f.addBlock(null);
+    const value = try f.declareValue(.word);
+    try f.terminate(b, .{ .return_value = .{ .value = value } });
+    try testing.expectError(error.InvalidDefinition, f.validateStructure());
+    f.blocks.items[0].terminator = null;
+    try testing.expectError(error.TypeMismatch, f.defineCopy(b, value, .{ .constant = .{ .long = 1 } }));
+    try testing.expect(f.values.items[@backingInt(value)].definition == .pending);
+    try f.defineCopy(b, value, one);
+    try testing.expectError(error.InvalidDefinition, f.defineCopy(b, value, one));
+    try f.terminate(b, .{ .return_value = .{ .value = value } });
+    try f.validateStructure();
+}
+
+test "phi input ownership and retry after either allocation fails" {
+    for (0..2) |failure_offset| {
+        var failing = testing.FailingAllocator.init(testing.allocator, .{});
+        var f = Function.init(failing.allocator(), test_name, .word);
+        defer f.deinit();
+        const entry = try f.addBlock(null);
+        const join = try f.addBlock(null);
+        const result = try f.declareValue(.word);
+        var inputs = [_]PhiInput{.{ .predecessor = entry, .value = one }};
+        failing.fail_index = failing.alloc_index + failure_offset;
+        try testing.expectError(error.OutOfMemory, f.definePhi(join, result, &inputs));
+        try testing.expect(f.values.items[@backingInt(result)].definition == .pending);
+        try testing.expectEqual(@as(usize, 0), f.blocks.items[@backingInt(join)].phis.items.len);
+        failing.fail_index = std.math.maxInt(usize);
+        try f.definePhi(join, result, &inputs);
+        inputs[0].value = .{ .constant = .{ .word = 99 } };
+        try testing.expectEqual(@as(u32, 1), f.blocks.items[@backingInt(join)].phis.items[0].inputs[0].value.constant.word);
+        try f.terminate(entry, .{ .jump = join });
+        try f.terminate(join, .{ .return_value = .{ .value = result } });
+        try f.validateStructure();
+        f.values.items[@backingInt(result)].definition.phi.index = 99;
+        try testing.expectError(error.InvalidDefinition, f.validateStructure());
+    }
 }

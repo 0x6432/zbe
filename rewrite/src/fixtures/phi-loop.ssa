@@ -1,0 +1,15 @@
+# Phi assignments are simultaneous: a/b swap on every loop backedge.
+export function w $swap(w %n) {
+@entry
+    jmp @loop
+@loop
+    %i =w phi @entry %n, @body %next
+    %a =w phi @entry 1, @body %b
+    %b =w phi @entry 2, @body %a
+    jnz %i, @body, @done
+@body
+    %next =w sub %i, 1
+    jmp @loop
+@done
+    ret %a
+}

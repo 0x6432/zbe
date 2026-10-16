@@ -7,6 +7,7 @@
 ```text
 [export] function [w|l|s|d] $name([type %parameter, ...]) {
 @block
+    %result =type phi @predecessor operand, @predecessor operand
     %result =type copy operand
     %result =type add|sub|mul|and|or|xor operand, operand
     jmp @block
@@ -21,12 +22,13 @@ The ellipsis above describes repeated parameters, **not** variadic IL. A missing
 - `copy`, `add`, `sub`, `mul` support matching integer or floating types; bitwise operations require integer types.
 - Decimal integer constants wrap modulo 2^64, with explicit low-word truncation in word contexts. An untyped immediate branch condition is retained as long; branch interpretation tests its low 32 bits.
 - Floating literals retain their `s_`/`d_` width, including decimal/hex spellings, signed zero, infinity and plain NaN. Numeric conversion uses Zig, not libc. NaN payload spellings are scanned intact but **rejected explicitly by this parser** until payload semantics are implemented.
-- Forward **block targets** are resolved by a declaration pass. Temporary definitions must appear textually before use, even across blocks. Parameters and blocks are scoped per function; duplicate function/block/value names are rejected.
-- The lexer returns borrowed raw spans, including string escapes and quoted global names; it does not silently decode/rewrite names. Quoted globals, strings as operands, aggregates, data, memory operations, calls, phi, varargs, extended ABI types and unimplemented opcodes are explicitly rejected by the parser.
+- Phi nodes precede ordinary instructions in a block. The parser retains typed predecessor/value pairs; `ssa.validate` checks predecessor coverage and incoming-edge dominance.
+- Forward **block targets** are resolved by a declaration pass. Temporary result types are predeclared, so loop backedges and layout-independent forward references are accepted; scalar SSA validation must establish actual definition availability. Parameters and blocks are scoped per function; duplicate function/block/value names are rejected.
+- The lexer returns borrowed raw spans, including string escapes and quoted global names; it does not silently decode/rewrite names. Quoted globals, strings as operands, aggregates, data, memory operations, calls, varargs, extended ABI types and unimplemented opcodes are explicitly rejected by the parser.
 
 ## Not a full verifier or compiler
 
-Parsing checks syntax and the current IR's structural/type invariants. It does **not** prove SSA dominance or validate phi edges. In particular, a textually earlier definition in a non-dominating block is not yet rejected. Call `ssa.validate` for current scalar ordering/dominance checks before using parsed IR as verified SSA. The bounded interpreter does this automatically. Phi-edge/full-IL validation is still future work; see SCALAR-SEMANTICS.md.
+Parsing checks syntax and the current IR's structural/type invariants. It does **not** prove SSA dominance or validate phi edges. In particular, a textually earlier definition in a non-dominating block is not yet rejected. Call `ssa.validate` for current scalar ordering/dominance checks before using parsed IR as verified SSA. The bounded interpreter does this automatically. Current scalar phi-edge coverage and dominance are checked by `ssa.validate`; full-IL verification remains future work. See SCALAR-SEMANTICS.md.
 
 The new API is not yet a drop-in QBE parser: strict malformed-number rejection is intentional and does not emulate legacy scanf prefix recovery; diagnostic codes are not a promise of the old CLI's exact messages. The legacy CLI and compatibility modes are unchanged.
 

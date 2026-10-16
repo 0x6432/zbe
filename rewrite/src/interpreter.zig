@@ -19,10 +19,29 @@ pub fn evaluate(allocator: std.mem.Allocator, function: *const ir.Function, argu
     defer allocator.free(values);
     @memset(values, null);
     for (function.parameters.items, arguments) |parameter, argument| values[@backingInt(parameter)] = argument;
+    var max_phis: usize = 0;
+    for (function.blocks.items) |block| max_phis = @max(max_phis, block.phis.items.len);
+    const phi_values = try allocator.alloc(ir.Constant, max_phis);
+    defer allocator.free(phi_values);
+    var previous: ?ir.BlockId = null;
     var remaining = options.max_steps;
     var current: ir.BlockId = @fromBackingInt(@as(u32, 0));
     while (true) {
         const block = &function.blocks.items[@backingInt(current)];
+        // Read all incoming values before writing any phi result (parallel SSA
+        // assignment), including swaps and cycles over loop backedges.
+        for (block.phis.items, 0..) |phi, index| {
+            try step(&remaining);
+            const predecessor = previous orelse return error.UninitializedValue;
+            const incoming = incoming: {
+                for (phi.inputs) |input| {
+                    if (input.predecessor == predecessor) break :incoming input.value;
+                }
+                return error.UninitializedValue;
+            };
+            phi_values[index] = try resolve(values, incoming);
+        }
+        for (block.phis.items, phi_values[0..block.phis.items.len]) |phi, value| values[@backingInt(phi.result)] = value;
         for (block.instructions.items) |instruction| {
             try step(&remaining);
             const result = switch (instruction) {
@@ -32,14 +51,16 @@ pub fn evaluate(allocator: std.mem.Allocator, function: *const ir.Function, argu
             values[@backingInt(instruction.result())] = result;
         }
         try step(&remaining);
-        switch (block.terminator.?) {
-            .jump => |target| current = target,
-            .branch => |branch| {
+        const next = switch (block.terminator.?) {
+            .jump => |target| target,
+            .branch => |branch| branch_target: {
                 const condition = try resolve(values, branch.condition);
-                current = if (try condition.branchTaken()) branch.taken else branch.not_taken;
+                break :branch_target if (try condition.branchTaken()) branch.taken else branch.not_taken;
             },
             .return_value => |operand| return if (operand) |value| try resolve(values, value) else null,
-        }
+        };
+        previous = current;
+        current = next;
     }
 }
 
@@ -214,4 +235,51 @@ test "384 Python arbitrary-precision oracle cases agree through parser and evalu
         case_count += 1;
     }
     try testing.expectEqual(@as(usize, 384), case_count);
+}
+
+test "phi loop swaps are simultaneous and consume exact step budgets" {
+    var module = try parse(@embedFile("fixtures/phi-loop.ssa"));
+    defer module.deinit();
+    const f = module.functions.items[0];
+    try testing.expectEqual(@as(usize, 3), f.blocks.items[1].phis.items.len);
+    for (0..6) |count| {
+        const budget = 6 + 6 * count;
+        const arguments: []const ir.Constant = &.{.{ .word = @intCast(count) }};
+        const result = try evaluate(testing.allocator, f, arguments, .{ .max_steps = budget });
+        try testing.expectEqual(@as(u32, if (count % 2 == 0) 1 else 2), result.?.word);
+        try testing.expectError(error.StepLimitExceeded, evaluate(testing.allocator, f, arguments, .{ .max_steps = budget - 1 }));
+    }
+}
+
+test "diamond phi reads the value on its incoming edge, not at the join" {
+    var module = try parse("function w $choose(w %p) {\n@entry\njnz %p, @left, @right\n@left\n%l =w copy 10\njmp @join\n@right\n%r =w copy 20\njmp @join\n@join\n%x =w phi @left %l, @right %r\nret %x\n}");
+    defer module.deinit();
+    const f = module.functions.items[0];
+    try testing.expectEqual(@as(u32, 20), (try evaluate(testing.allocator, f, &.{.{ .word = 0 }}, .{})).?.word);
+    try testing.expectEqual(@as(u32, 10), (try evaluate(testing.allocator, f, &.{.{ .word = 1 }}, .{})).?.word);
+}
+
+fn exercisePhi(allocator: std.mem.Allocator) !void {
+    var diagnostic: ?source.Diagnostic = null;
+    var module = try frontend.parse(allocator, .{ .name = "phi-loop", .text = @embedFile("fixtures/phi-loop.ssa") }, &diagnostic);
+    defer module.deinit();
+    const result = try evaluate(allocator, module.functions.items[0], &.{.{ .word = 3 }}, .{});
+    try testing.expectEqual(@as(u32, 2), result.?.word);
+}
+
+test "every phi parsing, validation and evaluation allocation failure cleans up" {
+    try @import("test_support.zig").checkAllocationFailures(exercisePhi);
+}
+
+test "layout-independent forward value definitions pass dominance verification" {
+    var module = try parse("function w $f() {\n@entry\njmp @definition\n@use\nret %x\n@definition\n%x =w copy 9\njmp @use\n}");
+    defer module.deinit();
+    try testing.expectEqual(@as(u32, 9), (try evaluate(testing.allocator, module.functions.items[0], &.{}, .{})).?.word);
+}
+
+test "floating phi selection retains payload bits without arithmetic conversion" {
+    var module = try parse("function d $f(w %p, d %a, d %b) {\n@entry\njnz %p, @left, @right\n@left\njmp @join\n@right\njmp @join\n@join\n%x =d phi @left %a, @right %b\nret %x\n}");
+    defer module.deinit();
+    const result = try evaluate(testing.allocator, module.functions.items[0], &.{ .{ .word = 1 }, .{ .double_bits = 0xfff8000000001234 }, .{ .double_bits = 0x8000000000000000 } }, .{});
+    try testing.expectEqual(@as(u64, 0xfff8000000001234), result.?.double_bits);
 }

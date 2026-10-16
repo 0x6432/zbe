@@ -12,6 +12,8 @@ const binary_opcodes = std.StaticStringMap(ir.BinaryOp).initComptime(.{
 });
 const unary_opcodes = std.StaticStringMap(ir.UnaryOp).initComptime(.{
     .{ "neg", .negate },
+    .{ "cast", .bitcast },
+    .{ "exts", .widen_float },
     .{ "extsb", .sign_extend_byte },
     .{ "extub", .zero_extend_byte },
     .{ "extsh", .sign_extend_half },
@@ -569,4 +571,11 @@ test "unsigned division and both remainders reject floating types" {
     try expectInvalid("function s $f() {\n@b\n%x =s udiv s_1, s_2\nret %x\n}", .type_mismatch, "udiv");
     try expectInvalid("function d $f() {\n@b\n%x =d rem d_1, d_2\nret %x\n}", .type_mismatch, "rem");
     try expectInvalid("function d $f() {\n@b\n%x =d urem d_1, d_2\nret %x\n}", .type_mismatch, "urem");
+}
+
+test "casts require the opposite same-width class and widening requires single input" {
+    try expectInvalid("function w $f(w %v) {\n@b\n%r =w cast %v\nret %r\n}", .type_mismatch, "%v");
+    try expectInvalid("function l $f(s %v) {\n@b\n%r =l cast %v\nret %r\n}", .type_mismatch, "%v");
+    try expectInvalid("function s $f(s %v) {\n@b\n%r =s exts %v\nret %r\n}", .type_mismatch, "exts");
+    try expectInvalid("function d $f(d %v) {\n@b\n%r =d exts %v\nret %r\n}", .type_mismatch, "%v");
 }

@@ -112,6 +112,8 @@ const Emitter = struct {
                         } else {
                             try self.print("\tmovabsq $0x8000000000000000, %r10\n\txorq %r10, %rax\n", .{});
                         },
+                        .bitcast => {}, // Raw bits already occupy a same-width GP scratch register.
+                        .widen_float => try self.print("\tmovd %eax, %xmm0\n\tcvtss2sd %xmm0, %xmm0\n\tmovq %xmm0, %rax\n", .{}),
                         .sign_extend_byte => try self.print("\tmovsb{c} %al, {s}\n", .{ suffix(ty), register(ty, .accumulator) }),
                         .zero_extend_byte => try self.print("\tmovzbl %al, %eax\n", .{}),
                         .sign_extend_half => try self.print("\tmovsw{c} %ax, {s}\n", .{ suffix(ty), register(ty, .accumulator) }),
@@ -409,4 +411,19 @@ test "floating literal and direct IR payloads are loaded as exact integer bits" 
     defer testing.allocator.free(text);
     try testing.expect(std.mem.indexOf(u8, text, "movl $0x80000000, %eax") != null);
     try testing.expect(std.mem.indexOf(u8, text, "movabsq $0x7ff0000000001234, %rax") != null);
+}
+
+fn exerciseConversions(allocator: std.mem.Allocator) !void {
+    var diagnostic: ?source.Diagnostic = null;
+    var module = try frontend.parse(allocator, .{ .name = "conversion", .text = "function l $f(w %v) {\n@entry\n%s =s cast %v\n%d =d exts %s\n%r =l cast %d\nret %r\n}" }, &diagnostic);
+    defer module.deinit();
+    const result = (try @import("interpreter.zig").evaluate(allocator, module.functions.items[0], &.{.{ .word = 0x3f800000 }}, .{})).?;
+    try testing.expectEqual(@as(u64, 0x3ff0000000000000), result.long);
+    const text = try emit(allocator, &module);
+    defer allocator.free(text);
+    try testing.expect(std.mem.indexOf(u8, text, "cvtss2sd %xmm0, %xmm0") != null);
+}
+
+test "cast and widening parsing evaluation and emission clean up allocation failures" {
+    try @import("test_support.zig").checkAllocationFailures(exerciseConversions);
 }

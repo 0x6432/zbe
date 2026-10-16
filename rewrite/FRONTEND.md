@@ -10,6 +10,8 @@
     %result =type phi @predecessor operand, @predecessor operand
     %result =type copy operand
     %result =type neg operand
+    %result =type cast opposite-class-same-width-operand
+    %result =d exts single-operand
     %result =w|l extsb|extub|extsh|extuh word-operand
     %result =l extsw|extuw word-operand
     %result =type add|sub|mul|div|udiv|rem|urem|and|or|xor operand, operand
@@ -27,6 +29,7 @@ The ellipsis above describes repeated parameters, **not** variadic IL. A missing
 - `copy`, `add`, `sub`, `mul`, `div` support matching integer or floating types; bitwise operations, `udiv`, `rem` and `urem` require integer types.
 - Integer `div` truncates the signed quotient toward zero; `rem` has the dividend's sign. `udiv`/`urem` use unsigned bits. The evaluator returns `DivisionByZero` or `IntegerOverflow` for exceptional integer pairs; native AMD64 execution faults instead. See SCALAR-SEMANTICS.md for this explicit boundary.
 - `neg` preserves the operand/result width. Integer negation wraps; floating negation flips only the sign bit, including signed zero and NaN payloads. Integer extensions consume word operands: byte/half extensions produce word or long, while word extensions produce long only. They sign- or zero-extend the selected low bits. These are ordinary instructions, not extended ABI parameter types.
+- `cast` preserves raw bits across word/single or long/double classes in either direction. It is not numeric conversion. `exts` widens a single to double, exactly for finite values. Double-to-single `truncd` and numeric integer/float conversions are still unsupported.
 - Shifts require a word count, including when shifting a long. Only the low five (word) or six (long) count bits are used; `shr` is logical and `sar` is arithmetic.
 - Integer comparison opcode suffixes select operand width independently of the word/long result width. Results are exactly zero or one. For example, `%r =l csltw %a, %b` compares word operands as signed integers and produces a long. Floating comparisons are unsupported.
 - Decimal integer constants wrap modulo 2^64, with explicit low-word truncation in word contexts. An untyped immediate branch condition is retained as long; branch interpretation tests its low 32 bits.

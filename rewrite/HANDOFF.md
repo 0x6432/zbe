@@ -180,3 +180,22 @@ Because basic floating types are now supported, the CLI rejection fixture now re
 ### Native floating local verification
 
 Pinned Zig Debug, ReleaseSafe and ReleaseFast each passed **95/95 unit tests**, **3,370 integer/program native result checks**, **616 floating/bit-pattern/mixed-ABI native checks**, **12 native arithmetic-fault checks**, and **8 CLI rejection/output-preservation checks**. Formatting and all six independent generators' reproducibility passed. Current-environment log: `/data/verify-native-floats.log`. All float expectations are bounded to the documented environment/operation subset; this is not full floating/ABI/QBE conformance. Legacy source/build/tools/tests remain unchanged. Remote CI is checked separately after publication.
+
+
+### Native floating published CI
+
+Source checkpoint `ba6fadebeb479a51105ad10ef3c5ab47409ce3cb` passed GitHub run https://github.com/0x6432/zbe/actions/runs/38870276587. The complete run is confirmed successful, not merely locally verified.
+
+## Bit-preserving casts and exact floating widening
+
+Added same-width `cast` across integer/floating classes and `exts` single-to-double widening through the existing semantic unary path, with shared type contracts, structural validation, evaluation and native emission. A new reproducible 384-case fixture tests all four cast directions (including signed zero/infinity/NaN payloads) and finite/infinity widening boundaries. Additional tests cover bad classes/widths and allocation-failure cleanup across parsing/evaluation/emission.
+
+Precision narrowing remains deliberately unsupported. Prior inspection found that upstream `doc/il.txt` describes `truncd` as toward-zero, while the unchanged AMD64 C reference emits `cvtsd2ss`. A separate bounded probe with input `0x1.0000018p0` under FE_TONEAREST returned `0x3f800001`, not toward-zero `0x3f800000`. No reference code, oracle or legacy behavior was changed, and no new narrowing semantics were silently selected.
+
+### Recovery after sandbox rollback
+
+The sandbox reverted to local checkpoint `1a95cea` after an interrupted publication attempt. GitHub still contained the complete published chain through `ba6fade`; the clean worktree was restored with a fast-forward, without recreating or duplicating those commits. The unpushed conversion source/tests were recovered from the active session record and are being freshly verified in this environment. Previous local verification/probe logs were not retained across the rollback; do not infer they exist at their historical paths. Main remains at `ab50bae01ee280b836bd86f2a8d23866912f19bc`; no release tag was created.
+
+### Recovered cast/widening verification
+
+Fresh verification after recovery passed in Debug, ReleaseSafe and ReleaseFast: **98/98 unit tests**, **3,370 integer/program native checks**, **1,000 floating/bit-pattern/mixed-ABI native checks**, **12 native arithmetic-fault checks**, and **8 CLI checks per mode**. Formatting and all seven generators' reproducibility passed. Current-environment log: `/data/verify-native-conversions-recovered.log`; runner and PID file share that prefix. Legacy source/build/tools/tests are unchanged. The floating checkpoint is confirmed green on GitHub; conversion CI is checked separately after this source checkpoint is pushed.

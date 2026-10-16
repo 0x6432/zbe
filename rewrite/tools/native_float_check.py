@@ -47,6 +47,28 @@ def main() -> None:
         ty, op, a, b, expected = line.split()
         width = 32 if ty == "s" else 64
         check(f"b{width}(fp_{op}_{ty}(f{width}(UINT{width}_C({a})), f{width}(UINT{width}_C({b}))))", int(expected))
+    conversion_functions = set()
+    conversion_cases = 0
+    ctypes = {"w": "uint32_t", "l": "uint64_t", "s": "float", "d": "double"}
+    for line in (root / "src/fixtures/conversion-oracle.tsv").read_text().splitlines():
+        if not line or line.startswith("#"):
+            continue
+        result_ty, opcode, source_ty, bits, expected = line.split()
+        name = f"convert_{opcode}_{result_ty}"
+        if name not in conversion_functions:
+            functions.append(f"export function {result_ty} ${name}({source_ty} %v) {{\n@b\n%r ={result_ty} {opcode} %v\nret %r\n}}")
+            declarations.append(f"extern {ctypes[result_ty]} {name}({ctypes[source_ty]});")
+            conversion_functions.add(name)
+        width = 32 if source_ty in ("w", "s") else 64
+        argument = f"UINT{width}_C({bits})"
+        if source_ty in ("s", "d"):
+            argument = f"f{width}({argument})"
+        expression = f"{name}({argument})"
+        if result_ty in ("s", "d"):
+            expression = f"b{32 if result_ty == 's' else 64}({expression})"
+        check(expression, int(expected))
+        conversion_cases += 1
+    assert conversion_cases == 384 and len(conversion_functions) == 5
     # Exercise both register banks and their independent exhaustion. Stack slots
     # retain declaration order across floating and integer overflow arguments.
     for ty, ctype in (("s", "float"), ("d", "double")):

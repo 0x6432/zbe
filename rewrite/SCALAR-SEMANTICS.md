@@ -47,3 +47,8 @@ Dominance tests compare with a separate vertex-removal/reachability oracle on 51
 ### Exact floating oracle
 
 `generate_float_oracle.py --check` reproduces 512 finite-input binary32/binary64 add/sub/mul/div results using exact Python fractions and explicit IEEE round-to-nearest, ties-to-even encoding. It never uses host floating arithmetic to produce expected bits. Cases include signed zero, normal/subnormal boundaries, underflow and overflow; zero division and NaN arithmetic are not assigned payload expectations in this fixture. Interpreter and native harnesses compare exact bits under the tested default environment. Native copy/negation/phi tests separately cover infinity and NaN payload movement without arithmetic. These checks do not establish non-default rounding-mode, exception-flag, signaling-NaN arithmetic or cross-platform conformance.
+
+
+### Explicit bitcasts and exact widening
+
+Same-width `cast` changes word/single or long/double class without changing any bit, including signed zeros, infinities and NaN payloads. `exts` converts single to double; finite input values are exactly representable. An additional 384-case reproducible conversion fixture checks 256 casts (all four directions) and 128 widening values, including subnormal and infinity boundaries, without asserting signaling-NaN widening payloads. Numeric integer/float conversions and `truncd` remain unsupported. See NATIVE-AMD64.md for the observed documentation/reference narrowing discrepancy.

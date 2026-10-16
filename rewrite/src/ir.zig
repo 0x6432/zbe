@@ -58,6 +58,8 @@ pub const IntegerType = enum {
 /// Integer extensions read a word even when their result is long.
 pub const UnaryOp = enum {
     negate,
+    bitcast,
+    widen_float,
     sign_extend_byte,
     zero_extend_byte,
     sign_extend_half,
@@ -68,6 +70,13 @@ pub const UnaryOp = enum {
     pub fn operandType(self: UnaryOp, result_type: ScalarType) error{TypeMismatch}!ScalarType {
         return switch (self) {
             .negate => result_type,
+            .bitcast => switch (result_type) {
+                .word => .single,
+                .long => .double,
+                .single => .word,
+                .double => .long,
+            },
+            .widen_float => if (result_type == .double) .single else error.TypeMismatch,
             .sign_extend_byte, .zero_extend_byte, .sign_extend_half, .zero_extend_half => if (result_type.isInteger()) .word else error.TypeMismatch,
             .sign_extend_word, .zero_extend_word => if (result_type == .long) .word else error.TypeMismatch,
         };

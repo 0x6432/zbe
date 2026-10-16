@@ -87,9 +87,20 @@ fn unaryValue(op: ir.UnaryOp, operand: ir.Constant, result_type: ir.ScalarType) 
         .single_bits => |bits| .{ .single_bits = bits ^ 0x80000000 },
         .double_bits => |bits| .{ .double_bits = bits ^ 0x8000000000000000 },
     };
+    if (op == .bitcast) return switch (result_type) {
+        .word => .{ .word = operand.single_bits },
+        .long => .{ .long = operand.double_bits },
+        .single => .{ .single_bits = operand.word },
+        .double => .{ .double_bits = operand.long },
+    };
+    if (op == .widen_float) {
+        @setFloatMode(.strict);
+        const value: f32 = @bitCast(operand.single_bits);
+        return .{ .double_bits = @bitCast(@as(f64, value)) };
+    }
     const bits = operand.word;
     const extended: u64 = switch (op) {
-        .negate => unreachable,
+        .negate, .bitcast, .widen_float => unreachable,
         .sign_extend_byte => signedExtension(u8, i8, bits),
         .zero_extend_byte => bits & 0xff,
         .sign_extend_half => signedExtension(u16, i16, bits),
@@ -584,4 +595,40 @@ test "floating arithmetic agrees with exact rational rounding oracle" {
         case_count += 1;
     }
     try testing.expectEqual(@as(usize, 512), case_count);
+}
+
+test "casts preserve every bit and single precision widening matches exact oracle" {
+    var lines = std.mem.tokenizeScalar(u8, @embedFile("fixtures/conversion-oracle.tsv"), '\n');
+    var case_count: usize = 0;
+    while (lines.next()) |line| {
+        if (line[0] == '#') continue;
+        var fields = std.mem.tokenizeAny(u8, line, " \t");
+        const result_ty = fields.next().?;
+        const opcode = fields.next().?;
+        const source_ty = fields.next().?;
+        const bits = try std.fmt.parseInt(u64, fields.next().?, 10);
+        const expected = try std.fmt.parseInt(u64, fields.next().?, 10);
+        try testing.expect(fields.next() == null);
+        const text = try std.fmt.allocPrint(testing.allocator, "function {s} $f({s} %a) {{\n@b\n%r ={s} {s} %a\nret %r\n}}", .{ result_ty, source_ty, result_ty, opcode });
+        defer testing.allocator.free(text);
+        var module = try parse(text);
+        defer module.deinit();
+        const arg: ir.Constant = switch (source_ty[0]) {
+            'w' => .{ .word = @intCast(bits) },
+            'l' => .{ .long = bits },
+            's' => .{ .single_bits = @intCast(bits) },
+            'd' => .{ .double_bits = bits },
+            else => return error.InvalidFixtureType,
+        };
+        const result = (try evaluate(testing.allocator, module.functions.items[0], &.{arg}, .{ .max_steps = 2 })).?;
+        const actual: u64 = switch (result) {
+            .word => |v| v,
+            .long => |v| v,
+            .single_bits => |v| v,
+            .double_bits => |v| v,
+        };
+        try testing.expectEqual(expected, actual);
+        case_count += 1;
+    }
+    try testing.expectEqual(@as(usize, 384), case_count);
 }

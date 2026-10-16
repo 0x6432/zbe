@@ -1,4 +1,4 @@
-//! Independent Zig-native core and experimental integer-only AMD64 slice.
+//! Independent Zig-native core and experimental base-scalar AMD64 slice.
 //! No legacy module is imported and no compilation delegates to the old port.
 pub const amd64 = @import("amd64.zig");
 pub const interpreter = @import("interpreter.zig");

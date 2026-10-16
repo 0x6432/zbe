@@ -7,6 +7,7 @@
 | `copy`, `unary`, numeric `convert` | operand |
 | `binary`, integer/float comparison | lhs, rhs |
 | `shift` | value, amount |
+| `allocate` | long byte size |
 | `load` | address |
 | `store` | value, address |
 | `blit` | source, destination, including for zero byte count |

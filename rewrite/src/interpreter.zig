@@ -25,6 +25,7 @@ pub const Error = semantics.ConversionError || ArithmeticError || memory.Error |
     UnsupportedExternalCall,
     UnsupportedIndirectCall,
     UnsupportedMemory,
+    UnsupportedAllocation,
     InvalidFunction,
     CallDepthLimitExceeded,
 };
@@ -117,6 +118,7 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
             const instruction = block.instructions.items[frame.next_instruction];
             frame.next_instruction += 1;
             switch (instruction) {
+                .allocate => return error.UnsupportedAllocation,
                 .blit => |blit| {
                     const image = options.memory_image orelse return error.UnsupportedMemory;
                     const src = (try resolve(frame.values, blit.source)).long;
@@ -186,6 +188,7 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
 
 fn scalarInstruction(function: *const ir.Function, values: []const ?ir.Constant, instruction: ir.Instruction) Error!ir.Constant {
     return switch (instruction) {
+        .allocate => error.UnsupportedAllocation,
         .load, .store, .blit => error.UnsupportedMemory,
         .call => error.UnsupportedCall,
         .copy => |copy| try resolve(values, copy.operand),

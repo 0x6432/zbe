@@ -20,6 +20,7 @@ test "instruction use iterator covers each fixed variant in source order without
         .{ .instruction = .{ .shift = .{ .result = result, .op = .left, .value = a, .amount = b } }, .expected = &.{ a, b } },
         .{ .instruction = .{ .compare_float = .{ .result = result, .predicate = .unordered, .operand_type = .double, .lhs = a, .rhs = b } }, .expected = &.{ a, b } },
         .{ .instruction = .{ .compare_integer = .{ .result = result, .predicate = .signed_less, .operand_type = .long, .lhs = a, .rhs = b } }, .expected = &.{ a, b } },
+        .{ .instruction = .{ .allocate = .{ .result = result, .size = b, .alignment = .sixteen } }, .expected = &.{b} },
         .{ .instruction = .{ .load = .{ .result = result, .kind = .long, .address = b } }, .expected = &.{b} },
         .{ .instruction = .{ .store = .{ .kind = .long, .value = a, .address = b } }, .expected = &.{ a, b } },
         .{ .instruction = .{ .blit = .{ .source = a, .destination = b, .byte_count = 0 } }, .expected = &.{ a, b } },

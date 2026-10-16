@@ -159,6 +159,20 @@ pub const LoadKind = enum {
         };
     }
 };
+pub const AllocationAlignment = enum {
+    four,
+    eight,
+    sixteen,
+
+    pub fn bytes(self: AllocationAlignment) u5 {
+        return switch (self) {
+            .four => 4,
+            .eight => 8,
+            .sixteen => 16,
+        };
+    }
+};
+
 pub const StoreKind = enum {
     byte,
     half,
@@ -192,6 +206,7 @@ pub const CallTarget = union(enum) {
 /// Argument storage is owned by Function, not borrowed from callers.
 pub const Call = struct { result: ?ValueId, callee: CallTarget, arguments: []const CallArgument };
 pub const Instruction = union(enum) {
+    allocate: struct { result: ValueId, size: Operand, alignment: AllocationAlignment },
     /// Nonnegative signed-word byte count, not a packed reference field.
     blit: struct { source: Operand, destination: Operand, byte_count: u31 },
     load: struct { result: ValueId, kind: LoadKind, address: Operand },
@@ -208,6 +223,7 @@ pub const Instruction = union(enum) {
     /// Stores, blits and void calls have effects, not dummy value definitions.
     pub fn result(self: Instruction) ?ValueId {
         return switch (self) {
+            .allocate => |allocation| allocation.result,
             .load => |load| load.result,
             .store, .blit => null,
             .call => |call| call.result,
@@ -226,6 +242,7 @@ pub const Instruction = union(enum) {
     pub fn operands(self: Instruction) OperandIterator {
         return switch (self) {
             .blit => |b| .{ .first = b.source, .second = b.destination },
+            .allocate => |a| .{ .first = a.size },
             .load => |l| .{ .first = l.address },
             .store => |s| .{ .first = s.value, .second = s.address },
             .call => |c| .{ .first = c.callee.addressOperand(), .arguments = c.arguments },
@@ -392,6 +409,16 @@ pub const Function = struct {
         if (target.terminator != null) return error.BlockTerminated;
         if (try self.operandType(source) != .long or try self.operandType(destination) != .long) return error.TypeMismatch;
         try target.instructions.append(self.allocator, .{ .blit = .{ .source = source, .destination = destination, .byte_count = byte_count } });
+    }
+
+    pub fn defineAllocate(self: *Function, block: BlockId, result: ValueId, size: Operand, alignment: AllocationAlignment) BuildError!void {
+        const target = try self.getBlock(block);
+        if (target.terminator != null) return error.BlockTerminated;
+        const value = try self.pendingValue(result);
+        if (value.scalar_type != .long or try self.operandType(size) != .long) return error.TypeMismatch;
+        try target.instructions.ensureUnusedCapacity(self.allocator, 1);
+        value.definition = .{ .instruction = .{ .block = block, .index = target.instructions.items.len } };
+        target.instructions.appendAssumeCapacity(.{ .allocate = .{ .result = result, .size = size, .alignment = alignment } });
     }
 
     pub fn defineLoad(self: *Function, block: BlockId, result: ValueId, kind: LoadKind, address: Operand) BuildError!void {
@@ -615,6 +642,9 @@ pub const Function = struct {
                 switch (instruction) {
                     .blit => |blit| {
                         if (try self.operandType(blit.source) != .long or try self.operandType(blit.destination) != .long) return error.TypeMismatch;
+                    },
+                    .allocate => |allocation| {
+                        if (ty.? != .long or try self.operandType(allocation.size) != .long) return error.TypeMismatch;
                     },
                     .load => |load| {
                         if (!load.kind.accepts(ty.?) or try self.operandType(load.address) != .long) return error.TypeMismatch;

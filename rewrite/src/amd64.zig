@@ -43,6 +43,7 @@ const Frame = struct {
     bytes: usize,
     scratch_base: usize,
     saved_base: usize,
+    outgoing_bytes: usize = 0,
 
     fn init(function: *const ir.Function) error{FrameTooLarge}!Frame {
         var max_phis: usize = 0;
@@ -63,11 +64,14 @@ const Frame = struct {
             else => {},
         };
         const outgoing = std.math.mul(usize, slots, 8) catch return error.FrameTooLarge;
-        const raw = std.math.add(usize, self.bytes, outgoing) catch return error.FrameTooLarge;
+        const outgoing_rounded = std.math.add(usize, outgoing, 15) catch return error.FrameTooLarge;
+        const outgoing_aligned = outgoing_rounded & ~@as(usize, 15);
+        const raw = std.math.add(usize, self.bytes, outgoing_aligned) catch return error.FrameTooLarge;
         const rounded = std.math.add(usize, raw, 15) catch return error.FrameTooLarge;
         const bytes = rounded & ~@as(usize, 15);
         if (bytes > 64 * 1024) return error.FrameTooLarge;
         self.bytes = bytes;
+        self.outgoing_bytes = outgoing_aligned;
     }
 
     fn fromCounts(values: usize, phis: usize, parameters: usize) error{FrameTooLarge}!Frame {
@@ -184,6 +188,7 @@ const Emitter = struct {
             const id: ir.BlockId = @fromBackingInt(@as(u32, @intCast(number)));
             try self.print("\".Lzbe@{d}@b{d}\":\n", .{ index, number });
             for (block.instructions.items) |instruction| switch (instruction) {
+                .allocate => |allocation| try self.allocate(allocation.result, allocation.size, allocation.alignment),
                 .convert => |conversion| try self.convert(conversion.result, conversion.op, conversion.operand),
                 .blit => |blit| {
                     if (blit.byte_count == 0) continue;
@@ -426,6 +431,17 @@ const Emitter = struct {
             try self.save(phi.result, register(ty, .accumulator));
         }
         try self.print("\tjmp \".Lzbe@{d}@b{d}\"\n", .{ self.ordinal, @backingInt(to) });
+    }
+
+    fn allocate(self: *Emitter, result: ir.ValueId, size: ir.Operand, alignment: ir.AllocationAlignment) Error!void {
+        // Over-aligning to 16 satisfies all three IL alignments and keeps calls
+        // aligned. Each execution moves RSP; constants in loops are not hoisted.
+        std.debug.assert(16 % @as(usize, alignment.bytes()) == 0);
+        try self.load(size, .accumulator);
+        const value = @backingInt(result);
+        try self.print("\taddq $15, %rax\n\tjnc \".Lzbe@{d}@allocround{d}\"\n\tud2\n\".Lzbe@{d}@allocround{d}\":\n\tandq $-16, %rax\n\".Lzbe@{d}@allocpage{d}\":\n\tcmpq $4096, %rax\n\tjb \".Lzbe@{d}@allocrest{d}\"\n\tsubq $4096, %rsp\n\ttestb $0, (%rsp)\n\tsubq $4096, %rax\n\tjmp \".Lzbe@{d}@allocpage{d}\"\n\".Lzbe@{d}@allocrest{d}\":\n\ttestq %rax, %rax\n\tje \".Lzbe@{d}@allocdone{d}\"\n\tsubq %rax, %rsp\n\ttestb $0, (%rsp)\n\".Lzbe@{d}@allocdone{d}\":\n\tleaq {d}(%rsp), %rax\n", .{ self.ordinal, value, self.ordinal, value, self.ordinal, value, self.ordinal, value, self.ordinal, value, self.ordinal, value, self.ordinal, value, self.ordinal, value, self.frame.outgoing_bytes });
+        // Keep outgoing argument slots below every live dynamic allocation.
+        try self.save(result, "%rax");
     }
 
     fn convert(self: *Emitter, result: ir.ValueId, op: ir.ConvertOp, operand: ir.Operand) Error!void {
@@ -847,4 +863,16 @@ fn exerciseFrameProbes(allocator: std.mem.Allocator) !void {
 }
 test "maximum fixed frame probe output cleans every failed allocation" {
     try @import("test_support.zig").checkAllocationFailures(exerciseFrameProbes);
+}
+
+test "dynamic allocation bases use aligned outgoing reservations even for one overflow slot" {
+    var module = try parse("function l $f(l %n) {\n@e\n%p =l alloc16 %n\n%r =l call $sink(l %p,l 1,l 2,l 3,l 4,l 5,l 6)\nret %r\n}");
+    defer module.deinit();
+    var frame = try Frame.init(module.functions.items[0]);
+    try frame.addOutgoing(module.functions.items[0]);
+    try testing.expectEqual(@as(usize, 16), frame.outgoing_bytes);
+    try testing.expectEqual(@as(usize, 0), frame.bytes % 16);
+    const assembly = try emit(testing.allocator, &module);
+    defer testing.allocator.free(assembly);
+    try testing.expect(std.mem.indexOf(u8, assembly, "leaq 16(%rsp), %rax") != null);
 }

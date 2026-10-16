@@ -197,6 +197,7 @@ fn matches(operand: ir.Operand, value: ir.ValueId) bool {
 fn instructionUses(instruction: ir.Instruction, value: ir.ValueId) bool {
     return switch (instruction) {
         .blit => |blit| matches(blit.source, value) or matches(blit.destination, value),
+        .allocate => |allocation| matches(allocation.size, value),
         .load => |load| matches(load.address, value),
         .store => |store| matches(store.value, value) or matches(store.address, value),
         .call => |call| found: {
@@ -284,7 +285,7 @@ fn compareOracle(function: *const ir.Function) !void {
 }
 
 test "phi swaps loops mixed scalar instructions and diamonds match path oracle" {
-    var module = try parse(testing.allocator, diamond ++ "\n" ++ @embedFile("fixtures/phi-loop.ssa") ++ "\n" ++ @embedFile("fixtures/compare-loop.ssa") ++ "\n" ++ @embedFile("fixtures/float-operations.ssa") ++ "\n" ++ @embedFile("fixtures/halt.ssa") ++ "\n" ++ @embedFile("fixtures/direct-calls.ssa") ++ "\n" ++ @embedFile("fixtures/void-calls.ssa") ++ "\n" ++ @embedFile("fixtures/indirect-calls.ssa") ++ "\n" ++ @embedFile("fixtures/scalar-memory.ssa") ++ "\n" ++ @embedFile("fixtures/blit.ssa") ++ "\n" ++ @embedFile("fixtures/signed-conversions.ssa") ++ "\n" ++ @embedFile("fixtures/signed-conversion-loop.ssa") ++ "\n" ++ @embedFile("fixtures/unsigned-conversions.ssa") ++ "\n" ++ @embedFile("fixtures/unsigned-conversion-loop.ssa") ++ "\n" ++ @embedFile("fixtures/low-word-operations.ssa") ++ "\n" ++ @embedFile("fixtures/low-word-contexts.ssa"));
+    var module = try parse(testing.allocator, diamond ++ "\n" ++ @embedFile("fixtures/phi-loop.ssa") ++ "\n" ++ @embedFile("fixtures/compare-loop.ssa") ++ "\n" ++ @embedFile("fixtures/float-operations.ssa") ++ "\n" ++ @embedFile("fixtures/halt.ssa") ++ "\n" ++ @embedFile("fixtures/direct-calls.ssa") ++ "\n" ++ @embedFile("fixtures/void-calls.ssa") ++ "\n" ++ @embedFile("fixtures/indirect-calls.ssa") ++ "\n" ++ @embedFile("fixtures/scalar-memory.ssa") ++ "\n" ++ @embedFile("fixtures/blit.ssa") ++ "\n" ++ @embedFile("fixtures/signed-conversions.ssa") ++ "\n" ++ @embedFile("fixtures/signed-conversion-loop.ssa") ++ "\n" ++ @embedFile("fixtures/unsigned-conversions.ssa") ++ "\n" ++ @embedFile("fixtures/unsigned-conversion-loop.ssa") ++ "\n" ++ @embedFile("fixtures/low-word-operations.ssa") ++ "\n" ++ @embedFile("fixtures/low-word-contexts.ssa") ++ "\n" ++ @embedFile("fixtures/native-allocations.ssa"));
     defer module.deinit();
     for (module.functions.items) |f| try compareOracle(f);
 }

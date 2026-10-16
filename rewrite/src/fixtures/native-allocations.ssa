@@ -1,0 +1,188 @@
+export function l $alloc_checksum4(l %size,l %seed) {
+@entry
+%ptr =l alloc4 %size
+jmp @write
+@write
+%i =l phi @entry 0, @writebody %next
+%more =w cultl %i, %size
+jnz %more, @writebody, @written
+@writebody
+%address =l add %ptr, %i
+%byte =w add %seed, %i
+storeb %byte, %address
+%next =l add %i, 1
+jmp @write
+@written
+jmp @read
+@read
+%j =l phi @written 0, @readbody %inc
+%sum =l phi @written 0, @readbody %added
+%again =w cultl %j, %size
+jnz %again, @readbody, @done
+@readbody
+%readptr =l add %ptr, %j
+%value =l loadub %readptr
+%added =l add %sum, %value
+%inc =l add %j, 1
+jmp @read
+@done
+%alignment =l and %ptr, 15
+%result =l xor %sum, %alignment
+ret %result
+}
+export function l $alloc_checksum8(l %size,l %seed) {
+@entry
+%ptr =l alloc8 %size
+jmp @write
+@write
+%i =l phi @entry 0, @writebody %next
+%more =w cultl %i, %size
+jnz %more, @writebody, @written
+@writebody
+%address =l add %ptr, %i
+%byte =w add %seed, %i
+storeb %byte, %address
+%next =l add %i, 1
+jmp @write
+@written
+jmp @read
+@read
+%j =l phi @written 0, @readbody %inc
+%sum =l phi @written 0, @readbody %added
+%again =w cultl %j, %size
+jnz %again, @readbody, @done
+@readbody
+%readptr =l add %ptr, %j
+%value =l loadub %readptr
+%added =l add %sum, %value
+%inc =l add %j, 1
+jmp @read
+@done
+%alignment =l and %ptr, 15
+%result =l xor %sum, %alignment
+ret %result
+}
+export function l $alloc_checksum16(l %size,l %seed) {
+@entry
+%ptr =l alloc16 %size
+jmp @write
+@write
+%i =l phi @entry 0, @writebody %next
+%more =w cultl %i, %size
+jnz %more, @writebody, @written
+@writebody
+%address =l add %ptr, %i
+%byte =w add %seed, %i
+storeb %byte, %address
+%next =l add %i, 1
+jmp @write
+@written
+jmp @read
+@read
+%j =l phi @written 0, @readbody %inc
+%sum =l phi @written 0, @readbody %added
+%again =w cultl %j, %size
+jnz %again, @readbody, @done
+@readbody
+%readptr =l add %ptr, %j
+%value =l loadub %readptr
+%added =l add %sum, %value
+%inc =l add %j, 1
+jmp @read
+@done
+%alignment =l and %ptr, 15
+%result =l xor %sum, %alignment
+ret %result
+}
+export function l $alloc_fresh(l %n) {
+@entry
+jmp @loop
+@loop
+%i =l phi @entry 0, @advance %next
+%previous =l phi @entry 0, @advance %ptr
+%sum =l phi @entry 0, @advance %added
+%more =w cultl %i, %n
+jnz %more, @body, @done
+@body
+%ptr =l alloc4 1
+storeb %i, %ptr
+%first =w ceql %i, 0
+jnz %first, @advance, @check
+@check
+%old =l loadub %previous
+%before =l sub %i, 1
+%expected =l and %before, 255
+%kept =w ceql %old, %expected
+%different =w cnel %ptr, %previous
+%good =w and %kept, %different
+jnz %good, @advance, @failed
+@advance
+%byte =l loadub %ptr
+%added =l add %sum, %byte
+%next =l add %i, 1
+jmp @loop
+@failed
+ret 18446744073709551615
+@done
+ret %sum
+}
+export function l $alloc_outgoing(l %size) {
+@entry
+%ptr =l alloc8 %size
+%other =l alloc16 1
+storeb 17, %ptr
+storeb 23, %other
+%called =l call $alloc_mutate(l %ptr,l %other,l 1,l 2,l 3,l 4,l 5,l 6,l 7,l 8,d d_2.5)
+%x =l loadub %ptr
+%y =l loadub %other
+%sum0 =l add %x, %y
+%sum1 =l add %sum0, %called
+%sum2 =l add %sum1, %size
+ret %sum2
+}
+export function l $alloc_outgoing_wrapper() {
+@entry
+%r =l call $alloc_outgoing(l 1)
+ret %r
+}
+export function l $alloc_indirect(l %target,l %size) {
+@entry
+%ptr =l alloc16 %size
+storeb 9, %ptr
+%called =l call %target(l %ptr,l 1,l 2,l 3,l 4,l 5,l 6,l 7)
+%x =l loadub %ptr
+%sum0 =l add %called, %x
+%sum1 =l add %sum0, %size
+ret %sum1
+}
+export function l $alloc_recursive(l %n) {
+@entry
+%ptr =l alloc16 16
+storel %n, %ptr
+%base =w ceql %n, 0
+jnz %base, @done, @recurse
+@recurse
+%next =l sub %n, 1
+%child =l call $alloc_recursive(l %next)
+%original =l loadl %ptr
+%result =l add %child, %original
+ret %result
+@done
+%zero =l loadl %ptr
+ret %zero
+}
+export function l $alloc_guard(l %size) {
+@entry
+%unused =l alloc16 %size
+ret 42
+}
+export function l $alloc_guard8192() {
+@entry
+%r =l call $alloc_guard(l 8192)
+ret %r
+}
+export function l $alloc_guard12288() {
+@entry
+%r =l call $alloc_guard(l 12288)
+ret %r
+}

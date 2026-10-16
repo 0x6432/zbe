@@ -10,6 +10,9 @@ const binary_opcodes = std.StaticStringMap(ir.BinaryOp).initComptime(.{
     .{ "div", .signed_divide },       .{ "udiv", .unsigned_divide }, .{ "rem", .signed_remainder },
     .{ "urem", .unsigned_remainder },
 });
+const allocation_opcodes = std.StaticStringMap(ir.AllocationAlignment).initComptime(.{
+    .{ "alloc4", .four }, .{ "alloc8", .eight }, .{ "alloc16", .sixteen },
+});
 const unary_opcodes = std.StaticStringMap(ir.UnaryOp).initComptime(.{
     .{ "neg", .negate },
     .{ "cast", .bitcast },
@@ -226,6 +229,9 @@ const Parser = struct {
         const f = self.current_function.?;
         if (std.mem.eql(u8, spelling, "call")) {
             try self.call(block, result, opcode);
+        } else if (allocation_opcodes.get(spelling)) |alignment| {
+            const size = try self.readOperand(.long);
+            f.defineAllocate(block, result, size, alignment) catch |err| return self.irError(err, opcode);
         } else if (load_opcodes.get(spelling)) |kind| {
             const address = try self.readOperand(.long);
             f.defineLoad(block, result, kind, address) catch |err| return self.irError(err, opcode);
@@ -530,7 +536,7 @@ test "diagnostics reject undefined and duplicate names at their source spans" {
 
 test "malformed syntax, types and unsupported IL never silently lower" {
     try expectInvalid("data $x = { w 1 }", .unsupported_construct, "data");
-    try expectInvalid("function w $f() {\n@b\n%x =w alloc8 8\nret %x\n}", .unsupported_construct, "alloc8");
+    try expectInvalid("function w $f() {\n@b\n%x =w alloc8 8\nret %x\n}", .type_mismatch, "alloc8");
     try expectInvalid("function $f(...) {\n@b\nret\n}", .unsupported_construct, "...");
     try expectInvalid("function w $\"quoted\"() {\n@b\nret 0\n}", .unsupported_construct, "$\"quoted\"");
     try expectInvalid("function w $f() {\n@b\nret d_1\n}", .type_mismatch, "d_1");

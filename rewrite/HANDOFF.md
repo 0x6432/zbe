@@ -872,3 +872,19 @@ Scope, whitespace, credential and legacy-isolation checks passed. Origin remains
 credential-free. The byte-string follow-up in `/data/zbe-byte-string-followup-design.txt`
 is proposal-only, not implemented or verified. No main merge or release tag occurred.
 Publication CI is checked separately at the exact pushed code SHA.
+
+### Symbolic-data exact-SHA CI confirmed green
+
+Code checkpoint `5c87942ff440de5f6ac890d6d418b66c84f40035` passed Debug,
+ReleaseSafe and ReleaseFast in the first workflow attempt:
+https://github.com/0x6432/zbe/actions/runs/38978254422 . All three independent
+unit-test and native-matrix steps completed successfully; no rerun or relaxation
+was needed. Exact-SHA evidence is saved in `/data/data-relocations-ci-result.json`
+and `/data/watch-data-relocations-ci.log`. This documentation-only record skips
+redundant CI. Source was unchanged throughout the authoritative local and CI runs.
+No main merge, tag, interpreter globals or full backend/ABI/data parity is claimed.
+
+Next bounded proposal is owned byte strings in b-data groups with explicit safe
+escape decoding, no implicit terminator and numeric-only assembly emission. It
+must preserve failure-atomic byte ownership, payload bounds, independent byte
+expectations and existing unsupported-class/output-preservation checks.

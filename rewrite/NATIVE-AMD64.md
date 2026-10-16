@@ -28,7 +28,7 @@ The driver takes two paths and optionally preceding `--fold-integers`, `--reuse-
 - Frame pointer is preserved, stack space rounded to 16 bytes, and only caller-saved scratch registers are used for computation; optional callee-saved homes are separately saved/restored. A prototype frame-size cap of 64 KiB is explicit; large-frame probing is not implemented.
 - Export/local symbol linkage is retained. Symbols are validated, and quoted internal labels use a namespace unavailable to accepted user symbols. The assembly marks a non-executable GNU stack.
 
-Aggregate/ABI-extension types, precision narrowing and unsigned numeric conversions, unsupported call forms, allocation/atomics, data/global definitions, varargs, debug/unwind metadata, other instruction families, other platforms and other targets are unsupported. There is no fallback to the old port. Backend failures return no partial assembly from the library API. The module and IR are not modified by emission.
+Aggregate/ABI-extension types, precision narrowing, unsupported call forms, allocation/atomics, data/global definitions, varargs, debug/unwind metadata, other instruction families, other platforms and other targets are unsupported. There is no fallback to the old port. Backend failures return no partial assembly from the library API. The module and IR are not modified by emission.
 
 Native compiled loops have ordinary native-program behavior; the interpreter's execution budget is **not** inserted into emitted programs. The native test harness uses process timeouts. Debug/ReleaseSafe/ReleaseFast describe how the compiler tool is built, not IL optimization levels.
 
@@ -62,4 +62,4 @@ Typed loads and effect-only stores now lower through full-width long addresses, 
 
 ## Signed numeric conversions
 
-Signed word/long to single/double and single/double to signed word/long now use width-specific SSE conversions (SIGNED-CONVERSIONS.md). Float-to-signed truncates toward zero; the evaluator checks finite/range domains before host integer casts, but native invalid conversions retain ISA/environment-dependent behavior outside the defined-value claim. The numeric harness adds 521 defined results and twelve rejection/output-preservation checks per option combination. Unsigned numeric conversions and the `truncd` discrepancy remain unresolved.
+Signed word/long to single/double and single/double to signed word/long now use width-specific SSE conversions (SIGNED-CONVERSIONS.md). Float-to-signed truncates toward zero; the evaluator checks finite/range domains before host integer casts, but native invalid conversions retain ISA/environment-dependent behavior outside the defined-value claim. The numeric harness now combines signed and unsigned cases: 1,554 defined results and twenty rejection/output-preservation checks per option combination. Unsigned conversion uses explicit high-half algorithms (UNSIGNED-CONVERSIONS.md). The `truncd` discrepancy remains unresolved.

@@ -172,19 +172,7 @@ const Emitter = struct {
             const id: ir.BlockId = @fromBackingInt(@as(u32, @intCast(number)));
             try self.print("\".Lzbe@{d}@b{d}\":\n", .{ index, number });
             for (block.instructions.items) |instruction| switch (instruction) {
-                .convert => |conversion| {
-                    try self.load(conversion.operand, .accumulator);
-                    const ty = f.values.items[@backingInt(conversion.result)].scalar_type;
-                    const source_type = try conversion.op.operandType(ty);
-                    if (source_type.isInteger()) {
-                        try self.print("\tcvtsi2{s}{c} {s}, %xmm0\n", .{ if (ty == .single) @as([]const u8, "ss") else "sd", suffix(source_type), register(source_type, .accumulator) });
-                        try self.print("\tmov{c} %xmm0, {s}\n", .{ sseMove(ty), register(ty, .accumulator) });
-                    } else {
-                        try self.print("\tmov{c} {s}, %xmm0\n", .{ sseMove(source_type), register(source_type, .accumulator) });
-                        try self.print("\tcvtt{s}2si{c} %xmm0, {s}\n", .{ if (source_type == .single) @as([]const u8, "ss") else "sd", suffix(ty), register(ty, .accumulator) });
-                    }
-                    try self.save(conversion.result, register(ty, .accumulator));
-                },
+                .convert => |conversion| try self.convert(conversion.result, conversion.op, conversion.operand),
                 .blit => |blit| {
                     if (blit.byte_count == 0) continue;
                     try self.load(blit.source, .accumulator);
@@ -426,6 +414,45 @@ const Emitter = struct {
             try self.save(phi.result, register(ty, .accumulator));
         }
         try self.print("\tjmp \".Lzbe@{d}@b{d}\"\n", .{ self.ordinal, @backingInt(to) });
+    }
+
+    fn convert(self: *Emitter, result: ir.ValueId, op: ir.ConvertOp, operand: ir.Operand) Error!void {
+        try self.load(operand, .accumulator);
+        const ty = self.current.values.items[@backingInt(result)].scalar_type;
+        const source_type = try op.operandType(ty);
+        const float_type = if (source_type.isInteger()) ty else source_type;
+        const precision: []const u8 = if (float_type == .single) "ss" else "sd";
+        switch (op) {
+            .signed_word_to_float, .signed_long_to_float, .unsigned_word_to_float => {
+                // Unsigned words arrive zero-extended in RAX, so signed
+                // 64-bit conversion covers the whole unsigned-word domain.
+                const width = if (op == .unsigned_word_to_float) ir.ScalarType.long else source_type;
+                try self.print("\tcvtsi2{s}{c} {s}, %xmm0\n", .{ precision, suffix(width), register(width, .accumulator) });
+            },
+            .unsigned_long_to_float => {
+                // High-half integers cannot be converted as signed i64.
+                // Sticky halving then exact doubling gives nearest-even
+                // results without losing a rounding-relevant low bit.
+                const value = @backingInt(result);
+                try self.print("\ttestq %rax, %rax\n\tjns \".Lzbe@{d}@uif{d}\"\n\tmovq %rax, %r10\n\tandl $1, %r10d\n\tshrq $1, %rax\n\torq %r10, %rax\n\tcvtsi2{s}q %rax, %xmm0\n\tadd{s} %xmm0, %xmm0\n\tjmp \".Lzbe@{d}@uifdone{d}\"\n\".Lzbe@{d}@uif{d}\":\n\tcvtsi2{s}q %rax, %xmm0\n\".Lzbe@{d}@uifdone{d}\":\n", .{ self.ordinal, value, precision, precision, self.ordinal, value, self.ordinal, value, precision, self.ordinal, value });
+            },
+            .single_to_signed_integer, .double_to_signed_integer, .single_to_unsigned_integer, .double_to_unsigned_integer => {
+                try self.print("\tmov{c} {s}, %xmm0\n", .{ sseMove(source_type), register(source_type, .accumulator) });
+                const unsigned = op == .single_to_unsigned_integer or op == .double_to_unsigned_integer;
+                if (unsigned and ty == .long) {
+                    const value = @backingInt(result);
+                    // The upper-half subtraction is exact (Sterbenz),
+                    // and its result fits signed i64 for defined inputs.
+                    const threshold: u64 = if (source_type == .single) 0x5f000000 else 0x43e0000000000000;
+                    try self.print("\tmovabsq ${d}, %r10\n\tmov{c} {s}, %xmm1\n\tucomi{s} %xmm1, %xmm0\n\tjb \".Lzbe@{d}@fui{d}\"\n\tsub{s} %xmm1, %xmm0\n\tcvtt{s}2siq %xmm0, %rax\n\tbtcq $63, %rax\n\tjmp \".Lzbe@{d}@fuidone{d}\"\n\".Lzbe@{d}@fui{d}\":\n\tcvtt{s}2siq %xmm0, %rax\n\".Lzbe@{d}@fuidone{d}\":\n", .{ threshold, sseMove(source_type), if (source_type == .single) @as([]const u8, "%r10d") else "%r10", precision, self.ordinal, value, precision, precision, self.ordinal, value, self.ordinal, value, precision, self.ordinal, value });
+                } else {
+                    const width = if (unsigned) ir.ScalarType.long else ty;
+                    try self.print("\tcvtt{s}2si{c} %xmm0, {s}\n", .{ precision, suffix(width), register(width, .accumulator) });
+                }
+            },
+        }
+        if (source_type.isInteger()) try self.print("\tmov{c} %xmm0, {s}\n", .{ sseMove(ty), register(ty, .accumulator) });
+        try self.save(result, register(ty, .accumulator));
     }
 
     fn load(self: *Emitter, operand: ir.Operand, scratch: Scratch) Error!void {

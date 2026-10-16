@@ -29,6 +29,7 @@ test {
     _ = @import("blit_test.zig");
     _ = @import("operands_test.zig");
     _ = @import("signed_conversions_test.zig");
+    _ = @import("unsigned_conversions_test.zig");
     _ = @import("amd64.zig");
     _ = @import("abi_amd64.zig");
     _ = @import("interpreter.zig");

@@ -157,6 +157,10 @@ pub const ConversionError = error{ConversionOutOfRange};
 pub fn convertedValue(op: ir.ConvertOp, operand: ir.Constant, result_type: ir.ScalarType) ConversionError!ir.Constant {
     @setFloatMode(.strict);
     return switch (op) {
+        .unsigned_word_to_float => integerToFloat(operand.word, result_type),
+        .unsigned_long_to_float => integerToFloat(operand.long, result_type),
+        .single_to_unsigned_integer => floatToUnsignedInteger(@as(f32, @bitCast(operand.single_bits)), result_type),
+        .double_to_unsigned_integer => floatToUnsignedInteger(@as(f64, @bitCast(operand.double_bits)), result_type),
         .signed_word_to_float => integerToFloat(@as(i32, @bitCast(operand.word)), result_type),
         .signed_long_to_float => integerToFloat(@as(i64, @bitCast(operand.long)), result_type),
         .single_to_signed_integer => floatToInteger(@as(f32, @bitCast(operand.single_bits)), result_type),
@@ -184,4 +188,19 @@ fn floatToInteger(value: anytype, result_type: ir.ScalarType) ConversionError!ir
         .{ .word = @bitCast(@as(i32, @intCast(signed))) }
     else
         .{ .long = @bitCast(signed) };
+}
+
+fn floatToUnsignedInteger(value: anytype, result_type: ir.ScalarType) ConversionError!ir.Constant {
+    @setFloatMode(.strict);
+    const wide: f64 = value;
+    if (!std.math.isFinite(wide)) return error.ConversionOutOfRange;
+    const truncated = @trunc(wide);
+    const limit: f64 = if (result_type == .word) 0x1p32 else 0x1p64;
+    // Negative fractions that truncate to negative zero are valid unsigned zero.
+    if (truncated < 0 or truncated >= limit) return error.ConversionOutOfRange;
+    const unsigned: u64 = @intFromFloat(truncated);
+    return if (result_type == .word)
+        .{ .word = @intCast(unsigned) }
+    else
+        .{ .long = unsigned };
 }

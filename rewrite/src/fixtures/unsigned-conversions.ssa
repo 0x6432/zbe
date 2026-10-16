@@ -1,0 +1,40 @@
+export function s $unsigned_uwtof_s(w %v) {
+@e
+%r =s uwtof %v
+ret %r
+}
+export function w $unsigned_stoui_w(s %v) {
+@e
+%r =w stoui %v
+ret %r
+}
+export function d $unsigned_uwtof_d(w %v) {
+@e
+%r =d uwtof %v
+ret %r
+}
+export function w $unsigned_dtoui_w(d %v) {
+@e
+%r =w dtoui %v
+ret %r
+}
+export function s $unsigned_ultof_s(l %v) {
+@e
+%r =s ultof %v
+ret %r
+}
+export function l $unsigned_stoui_l(s %v) {
+@e
+%r =l stoui %v
+ret %r
+}
+export function d $unsigned_ultof_d(l %v) {
+@e
+%r =d ultof %v
+ret %r
+}
+export function l $unsigned_dtoui_l(d %v) {
+@e
+%r =l dtoui %v
+ret %r
+}

@@ -696,6 +696,8 @@ const store_opcodes = std.StaticStringMap(ir.StoreKind).initComptime(.{
 });
 
 const conversion_opcodes = std.StaticStringMap(ir.ConvertOp).initComptime(.{
-    .{ "swtof", .signed_word_to_float },     .{ "sltof", .signed_long_to_float },
-    .{ "stosi", .single_to_signed_integer }, .{ "dtosi", .double_to_signed_integer },
+    .{ "uwtof", .unsigned_word_to_float },     .{ "ultof", .unsigned_long_to_float },
+    .{ "stoui", .single_to_unsigned_integer }, .{ "dtoui", .double_to_unsigned_integer },
+    .{ "swtof", .signed_word_to_float },       .{ "sltof", .signed_long_to_float },
+    .{ "stosi", .single_to_signed_integer },   .{ "dtosi", .double_to_signed_integer },
 });

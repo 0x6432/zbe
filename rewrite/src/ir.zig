@@ -88,13 +88,17 @@ pub const ConvertOp = enum {
     signed_long_to_float,
     single_to_signed_integer,
     double_to_signed_integer,
+    unsigned_word_to_float,
+    unsigned_long_to_float,
+    single_to_unsigned_integer,
+    double_to_unsigned_integer,
 
     pub fn operandType(self: ConvertOp, result_type: ScalarType) error{TypeMismatch}!ScalarType {
         return switch (self) {
-            .signed_word_to_float => if (!result_type.isInteger()) .word else error.TypeMismatch,
-            .signed_long_to_float => if (!result_type.isInteger()) .long else error.TypeMismatch,
-            .single_to_signed_integer => if (result_type.isInteger()) .single else error.TypeMismatch,
-            .double_to_signed_integer => if (result_type.isInteger()) .double else error.TypeMismatch,
+            .signed_word_to_float, .unsigned_word_to_float => if (!result_type.isInteger()) .word else error.TypeMismatch,
+            .signed_long_to_float, .unsigned_long_to_float => if (!result_type.isInteger()) .long else error.TypeMismatch,
+            .single_to_signed_integer, .single_to_unsigned_integer => if (result_type.isInteger()) .single else error.TypeMismatch,
+            .double_to_signed_integer, .double_to_unsigned_integer => if (result_type.isInteger()) .double else error.TypeMismatch,
         };
     }
 };

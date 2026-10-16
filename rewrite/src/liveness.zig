@@ -280,7 +280,7 @@ fn compareOracle(function: *const ir.Function) !void {
 }
 
 test "phi swaps loops mixed scalar instructions and diamonds match path oracle" {
-    var module = try parse(testing.allocator, diamond ++ "\n" ++ @embedFile("fixtures/phi-loop.ssa") ++ "\n" ++ @embedFile("fixtures/compare-loop.ssa") ++ "\n" ++ @embedFile("fixtures/float-operations.ssa") ++ "\n" ++ @embedFile("fixtures/halt.ssa") ++ "\n" ++ @embedFile("fixtures/direct-calls.ssa") ++ "\n" ++ @embedFile("fixtures/void-calls.ssa") ++ "\n" ++ @embedFile("fixtures/indirect-calls.ssa") ++ "\n" ++ @embedFile("fixtures/scalar-memory.ssa") ++ "\n" ++ @embedFile("fixtures/blit.ssa") ++ "\n" ++ @embedFile("fixtures/signed-conversions.ssa") ++ "\n" ++ @embedFile("fixtures/signed-conversion-loop.ssa"));
+    var module = try parse(testing.allocator, diamond ++ "\n" ++ @embedFile("fixtures/phi-loop.ssa") ++ "\n" ++ @embedFile("fixtures/compare-loop.ssa") ++ "\n" ++ @embedFile("fixtures/float-operations.ssa") ++ "\n" ++ @embedFile("fixtures/halt.ssa") ++ "\n" ++ @embedFile("fixtures/direct-calls.ssa") ++ "\n" ++ @embedFile("fixtures/void-calls.ssa") ++ "\n" ++ @embedFile("fixtures/indirect-calls.ssa") ++ "\n" ++ @embedFile("fixtures/scalar-memory.ssa") ++ "\n" ++ @embedFile("fixtures/blit.ssa") ++ "\n" ++ @embedFile("fixtures/signed-conversions.ssa") ++ "\n" ++ @embedFile("fixtures/signed-conversion-loop.ssa") ++ "\n" ++ @embedFile("fixtures/unsigned-conversions.ssa") ++ "\n" ++ @embedFile("fixtures/unsigned-conversion-loop.ssa"));
     defer module.deinit();
     for (module.functions.items) |f| try compareOracle(f);
 }

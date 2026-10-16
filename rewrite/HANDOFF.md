@@ -939,3 +939,19 @@ only the documented obsolete b-string negative inputs changed to h-string forms,
 retaining all assertion/count contracts. Scope, whitespace, credential and legacy
 isolation checks passed. No main merge, tag or backend/ABI parity claim was made.
 Publication CI will be checked independently for the exact pushed code SHA.
+
+### Byte-string exact-SHA CI confirmed green
+
+Code checkpoint `56895a347864ec1744964d1cc80ebd386ec00bcd` passed Debug,
+ReleaseSafe and ReleaseFast on the first workflow attempt:
+https://github.com/0x6432/zbe/actions/runs/38980600520 . All three unit-test and
+native-matrix steps completed successfully, with no rerun or relaxed expectations.
+Exact-SHA evidence is saved in `/data/data-strings-ci-result.json` and
+`/data/watch-data-strings-ci.log`. This documentation-only record skips redundant
+CI and does not validate future source changes. Source stayed frozen throughout
+local full verification and publication CI; no main merge or release tag occurred.
+
+Next bounded proposal: all-zero raw-bit data lowering to writable ELF BSS, with
+negative-zero/symbolic items kept in PROGBITS, independent linked byte/section/
+size/binding checks and cap-sized sparse-object regressions. No new interpreter
+global model, cross-object layout promise or performance superiority is implied.

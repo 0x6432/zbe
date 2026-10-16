@@ -1,15 +1,18 @@
 const std = @import("std");
 const symbols = @import("symbols.zig");
 const ir = @import("ir.zig");
+const data = @import("data.zig");
 
 pub const FunctionId = enum(u32) { _ };
+pub const DataId = enum(u32) { _ };
 
 /// Independent compilation ownership boundary; no global compiler state.
-/// Function pointers remain stable when the module's handle table grows.
+/// Function/data pointers remain stable when their handle tables grow.
 pub const Module = struct {
     allocator: std.mem.Allocator,
     symbols: symbols.Pool,
     functions: std.ArrayList(*ir.Function) = .empty,
+    data: std.ArrayList(*data.Data) = .empty,
 
     pub fn init(allocator: std.mem.Allocator) Module {
         return .{ .allocator = allocator, .symbols = symbols.Pool.init(allocator) };
@@ -21,6 +24,11 @@ pub const Module = struct {
             self.allocator.destroy(function);
         }
         self.functions.deinit(self.allocator);
+        for (self.data.items) |object| {
+            object.deinit();
+            self.allocator.destroy(object);
+        }
+        self.data.deinit(self.allocator);
         self.symbols.deinit();
         self.* = undefined;
     }
@@ -29,6 +37,9 @@ pub const Module = struct {
         for (self.functions.items) |function| {
             if (std.mem.eql(u8, self.symbols.get(function.name).?, name)) return error.DuplicateFunction;
         }
+        for (self.data.items) |object| {
+            if (std.mem.eql(u8, self.symbols.get(object.name).?, name)) return error.DuplicateSymbol;
+        }
         const number = std.math.cast(u32, self.functions.items.len) orelse return error.TooManyFunctions;
         const name_id = try self.symbols.intern(name);
         try self.functions.ensureUnusedCapacity(self.allocator, 1);
@@ -36,6 +47,35 @@ pub const Module = struct {
         function.* = ir.Function.init(self.allocator, name_id, result);
         self.functions.appendAssumeCapacity(function);
         return @fromBackingInt(@intCast(number));
+    }
+
+    pub fn addData(self: *Module, name: []const u8) !DataId {
+        for (self.functions.items) |function| {
+            if (std.mem.eql(u8, self.symbols.get(function.name).?, name)) return error.DuplicateSymbol;
+        }
+        for (self.data.items) |object| {
+            if (std.mem.eql(u8, self.symbols.get(object.name).?, name)) return error.DuplicateSymbol;
+        }
+        const number = std.math.cast(u32, self.data.items.len) orelse return error.TooManyData;
+        const name_id = try self.symbols.intern(name);
+        try self.data.ensureUnusedCapacity(self.allocator, 1);
+        const object = try self.allocator.create(data.Data);
+        object.* = data.Data.init(self.allocator, name_id);
+        self.data.appendAssumeCapacity(object);
+        return @fromBackingInt(number);
+    }
+    pub fn getData(self: *Module, id: DataId) ?*data.Data {
+        const index = @backingInt(id);
+        return if (index < self.data.items.len) self.data.items[index] else null;
+    }
+    /// Payload only, not alignment gaps, allocator metadata or output size.
+    pub fn dataSize(self: *const Module) data.Error!usize {
+        var total: usize = 0;
+        for (self.data.items) |object| {
+            total = std.math.add(usize, total, try object.validate()) catch return error.DataTooLarge;
+            if (total > data.max_module_bytes) return error.DataTooLarge;
+        }
+        return total;
     }
 
     pub fn getFunction(self: *Module, id: FunctionId) ?*ir.Function {

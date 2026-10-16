@@ -28,7 +28,7 @@ The driver takes two paths and optionally preceding `--fold-integers`, `--reuse-
 - Frame pointer is preserved, stack space rounded to 16 bytes, and only caller-saved scratch registers are used for computation; optional callee-saved homes are separately saved/restored. A prototype frame-size cap of 64 KiB is explicit; fixed reservation now probes each page before descending farther (FRAME-PROBES.md).
 - Export/local symbol linkage is retained. Symbols are validated, and quoted internal labels use a namespace unavailable to accepted user symbols. The assembly marks a non-executable GNU stack.
 
-Aggregate/ABI-extension types, precision narrowing, unsupported call forms, atomics, data/global definitions, varargs, debug/unwind metadata, other instruction families, other platforms and other targets are unsupported. There is no fallback to the old port. Backend failures return no partial assembly from the library API. The module and IR are not modified by emission.
+Aggregate/ABI-extension types, precision narrowing, unsupported call forms, atomics, unsupported data/string/relocation forms, varargs, debug/unwind metadata, other instruction families, other platforms and other targets are unsupported. There is no fallback to the old port. Backend failures return no partial assembly from the library API. The module and IR are not modified by emission.
 
 Native compiled loops have ordinary native-program behavior; the interpreter's execution budget is **not** inserted into emitted programs. The native test harness uses process timeouts. Debug/ReleaseSafe/ReleaseFast describe how the compiler tool is built, not IL optimization levels.
 
@@ -54,11 +54,11 @@ Same-width `cast` uses raw-bit moves across integer/SSE ABI classes. `exts` uses
 Floating predicates use explicit ordered/unordered SSE flag handling rather than treating floating flags as integer comparisons. Equality/less/less-equal exclude unordered results, inequality includes unordered results, and ordered/unordered test parity explicitly. Native tests cover both integer result widths, both floating operand widths, signed zeros, infinities and quiet/signaling NaN operands. Truth-value coverage does not establish floating exception-flag equivalence or behavior with unmasked exceptions.
 
 
-All ten native harnesses accept `--fold-integers`, `--reuse-stack-homes` and `--callee-saved-homes`, forwarding them to the experimental compiler. CI executes each harness in all eight flag combinations in every compiler build mode, retaining all result, arithmetic-fault and output-preservation expectations. See OPTIMIZE.md for the folding pass's conservative scope and failure-atomic per-function contract and STACK-HOMES.md for layout ownership and analysis limits, and PRESERVED-HOMES.md for limited physical homes and the explicit full-width register-preservation adapter. No new IL optimization level or legacy compatibility behavior is implied.
+All eleven native harnesses accept `--fold-integers`, `--reuse-stack-homes` and `--callee-saved-homes`, forwarding them to the experimental compiler. CI executes each harness in all eight flag combinations in every compiler build mode, retaining all result, arithmetic-fault and output-preservation expectations. See OPTIMIZE.md for the folding pass's conservative scope and failure-atomic per-function contract and STACK-HOMES.md for layout ownership and analysis limits, and PRESERVED-HOMES.md for limited physical homes and the explicit full-width register-preservation adapter. No new IL optimization level or legacy compatibility behavior is implied.
 
 ## Scalar memory subset
 
-Typed loads and effect-only stores now lower through full-width long addresses, with exact access widths, integer signed/unsigned extensions and raw floating bits. The memory harness adds 55,198 scalar-memory outcomes, two guard-page fault-retention checks and eight rejection/output-preservation checks per option combination. Native addresses are caller contracts, not a sandbox; interpreters require an explicitly supplied bounded synthetic image or opt-in stack model to execute memory, otherwise refusing it without host dereferencing (MEMORY-EVALUATION.md). Constant-length effect-only blits now have compact `rep movsb` lowering and a separate 3,041-result/two-fault/twelve-rejection harness (BLITS.md). Native dynamic stack allocation is now supported separately (NATIVE-ALLOCATIONS.md); global data and atomic operations remain unsupported. See MEMORY.md.
+Typed loads and effect-only stores now lower through full-width long addresses, with exact access widths, integer signed/unsigned extensions and raw floating bits. The memory harness adds 55,198 scalar-memory outcomes, two guard-page fault-retention checks and eight rejection/output-preservation checks per option combination. Native addresses are caller contracts, not a sandbox; interpreters require an explicitly supplied bounded synthetic image or opt-in stack model to execute memory, otherwise refusing it without host dereferencing (MEMORY-EVALUATION.md). Constant-length effect-only blits now have compact `rep movsb` lowering and a separate 3,041-result/two-fault/twelve-rejection harness (BLITS.md). Native dynamic stack allocation is now supported separately (NATIVE-ALLOCATIONS.md); numeric/zero-fill global data are implemented separately (DATA.md); atomic operations remain unsupported. See MEMORY.md.
 
 ## Signed numeric conversions
 
@@ -87,7 +87,17 @@ full-width RIP-relative `leaq`, never an implicit load or truncated immediate.
 Module validation checks operand symbol IDs and the emitter checks spellings,
 including phi/terminator/unreachable uses. Executable PIE/non-PIE linking is
 covered separately; GOT/shared-object interposition, TLS, symbol-offset literals,
-data definitions and full PIC/ABI support are not added. Interpreters explicitly
+relocation initializers and full PIC/ABI support are not added. Numeric/zero-fill
+data definitions are implemented separately (DATA.md). Interpreters explicitly
 refuse reached symbol-address resolution. See SYMBOL-ADDRESSES.md. The tenth
 native harness adds independent linked object/function address, initialized
 memory, phi, mixed call and preservation checks in both executable link modes.
+
+
+## Owned packed data
+
+Numeric/zero-fill module data now emit writable ELF objects, checked alignment and
+exact size/binding metadata. The eleventh harness compares independent bytes and
+compiled/C mutations in PIE/non-PIE executables, plus data-only links and rejection
+output preservation. This adds no interpreter global resolver or full data-language
+parity. See DATA.md for exact syntax, limits, ownership and verification scope.

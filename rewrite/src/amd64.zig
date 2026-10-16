@@ -20,6 +20,7 @@ pub fn emit(allocator: std.mem.Allocator, module: *const Module) Error![]u8 {
 
 pub fn emitWithOptions(allocator: std.mem.Allocator, module: *const Module, options: Options) Error![]u8 {
     try module_validation.validate(allocator, module);
+    for (module.data.items) |object| if (!validSymbol(module.symbols.get(object.name).?)) return error.InvalidSymbol;
     for (module.functions.items) |function| {
         if (!validSymbol(module.symbols.get(function.name).?)) return error.InvalidSymbol;
         if (!options.reuse_stack_homes and !options.callee_saved_homes) _ = try Frame.init(function);
@@ -45,6 +46,10 @@ pub fn emitWithOptions(allocator: std.mem.Allocator, module: *const Module, opti
     }
     var emitter: Emitter = .{ .output = .init(allocator), .module = module, .allocator = allocator, .options = options };
     defer emitter.output.deinit();
+    if (module.data.items.len != 0) {
+        try emitter.print(".data\n", .{});
+        for (module.data.items) |object| try emitter.dataDefinition(object);
+    }
     try emitter.print(".text\n", .{});
     for (module.functions.items, 0..) |function, index| try emitter.function(function, index);
     try emitter.print(".section .note.GNU-stack,\"\",@progbits\n", .{});
@@ -144,6 +149,23 @@ const Emitter = struct {
     fn print(self: *Emitter, comptime format: []const u8, args: anytype) Error!void {
         // The allocating writer's only backing failure is allocator exhaustion.
         self.output.writer.print(format, args) catch return error.OutOfMemory;
+    }
+
+    fn dataDefinition(self: *Emitter, object: *const @import("data.zig").Data) Error!void {
+        const name = self.module.symbols.get(object.name).?;
+        try self.print(".balign {d}\n", .{object.alignment.bytes()});
+        if (object.linkage == .exported) try self.print(".globl {s}\n", .{name});
+        try self.print(".type {s}, @object\n{s}:\n", .{ name, name });
+        for (object.items.items) |item| switch (item) {
+            .byte => |bits| try self.print("\t.byte {d}\n", .{bits}),
+            .half => |bits| try self.print("\t.short {d}\n", .{bits}),
+            .word, .single_bits => |bits| try self.print("\t.long {d}\n", .{bits}),
+            .long, .double_bits => |bits| try self.print("\t.quad {d}\n", .{bits}),
+            .zero => |count| if (count != 0) {
+                try self.print("\t.zero {d}\n", .{count});
+            },
+        };
+        try self.print(".size {s}, .-{s}\n", .{ name, name });
     }
 
     /// Frame construction established the aligned, bounded extent. Touch each

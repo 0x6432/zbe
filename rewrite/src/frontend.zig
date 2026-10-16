@@ -2,6 +2,7 @@ const std = @import("std");
 const source = @import("source.zig");
 const lex = @import("lexer.zig");
 const ir = @import("ir.zig");
+const data = @import("data.zig");
 const Module = @import("module.zig").Module;
 const Allocator = std.mem.Allocator;
 const binary_opcodes = std.StaticStringMap(ir.BinaryOp).initComptime(.{
@@ -60,7 +61,7 @@ fn floatComparisonOpcode(spelling: []const u8) ?FloatComparisonOpcode {
     const predicate = float_comparison_predicates.get(spelling[0 .. spelling.len - 1]) orelse return null;
     return .{ .predicate = predicate, .operand_type = ty };
 }
-pub const Error = Allocator.Error || error{ InvalidInput, TooManySymbols, TooManyFunctions, TooManyValues, TooManyBlocks };
+pub const Error = Allocator.Error || error{ InvalidInput, TooManySymbols, TooManyFunctions, TooManyData, DataTooLarge, InvalidDataSize, TooManyValues, TooManyBlocks };
 
 /// Parse the documented scalar subset into an independently owned module.
 /// Input is borrowed only during this call. On failure all partial IR is freed;
@@ -91,7 +92,14 @@ pub fn parse(allocator: Allocator, input: source.Source, diagnostic: *?source.Di
     defer parser.blocks.deinit(allocator);
     parser.skipLines();
     while (parser.peek().kind != .eof) {
-        try parser.function();
+        const start = parser.index;
+        if (parser.word("export")) {
+            _ = parser.advance();
+            parser.skipLines();
+        }
+        const is_data = parser.word("data");
+        parser.index = start;
+        if (is_data) try parser.dataDefinition() else try parser.function();
         parser.skipLines();
     }
     return parser.module;
@@ -108,6 +116,84 @@ const Parser = struct {
     values: std.StringHashMapUnmanaged(ir.ValueId) = .empty,
     blocks: std.StringHashMapUnmanaged(ir.BlockId) = .empty,
 
+    fn dataDefinition(self: *Parser) Error!void {
+        const exported = self.word("export");
+        if (exported) {
+            _ = self.advance();
+            self.skipLines();
+        }
+        _ = self.advance(); // Contextual `data` dispatch established by parse.
+        self.skipLines();
+        const name_token = try self.expect(.global);
+        self.skipLines();
+        const id = self.module.addData(try self.globalName(name_token)) catch |err| switch (err) {
+            error.DuplicateSymbol => return self.fail(.duplicate_symbol, name_token),
+            else => |resource| return resource,
+        };
+        const object = self.module.getData(id).?;
+        object.linkage = if (exported) .exported else .internal;
+        _ = try self.expect(.equal);
+        self.skipLines();
+        if (self.word("align")) {
+            _ = self.advance();
+            self.skipLines();
+            const token = try self.expect(.integer);
+            self.skipLines();
+            const count = std.fmt.parseInt(u64, self.tokenText(token), 10) catch return self.fail(.invalid_alignment, token);
+            object.alignment = data.Alignment.fromBytes(count) catch return self.fail(.invalid_alignment, token);
+        }
+        _ = try self.expect(.lbrace);
+        self.skipLines();
+        while (self.peek().kind != .rbrace) {
+            const kind_token = try self.expect(.identifier);
+            const spelling = self.tokenText(kind_token);
+            if (spelling.len != 1 or std.mem.indexOfScalar(u8, "bhwlsdz", spelling[0]) == null)
+                return self.fail(.unsupported_construct, kind_token);
+            const kind = spelling[0];
+            self.skipLines();
+            var count: usize = 0;
+            while (self.peek().kind != .comma and self.peek().kind != .rbrace) {
+                const token = self.advance();
+                const item: data.Item = if (kind == 'z') zero: {
+                    if (count != 0 or token.kind != .integer) return self.fail(.unexpected_token, token);
+                    const text = self.tokenText(token);
+                    if (text[0] == '-') return self.fail(.invalid_integer, token);
+                    const n = std.fmt.parseInt(u32, text, 10) catch return self.fail(.invalid_integer, token);
+                    break :zero .{ .zero = n };
+                } else if (kind == 's' or kind == 'd') floating: {
+                    if (token.kind != (if (kind == 's') lex.Kind.single else lex.Kind.double)) return self.fail(.type_mismatch, token);
+                    const text = std.mem.trim(u8, self.tokenText(token)[2..], " \t\r\n\x0b\x0c");
+                    if (std.mem.indexOfScalar(u8, text, '(') != null) return self.fail(.unsupported_construct, token);
+                    break :floating if (kind == 's')
+                        .{ .single_bits = @bitCast(parseFloating(f32, text) catch return self.fail(.invalid_float, token)) }
+                    else
+                        .{ .double_bits = @bitCast(parseFloating(f64, text) catch return self.fail(.invalid_float, token)) };
+                } else integer: {
+                    if (token.kind == .global or token.kind == .string) return self.fail(.unsupported_construct, token);
+                    if (token.kind != .integer) return self.fail(.type_mismatch, token);
+                    const bits = lex.integerBits(self.tokenText(token)) catch return self.fail(.invalid_integer, token);
+                    break :integer switch (kind) {
+                        'b' => .{ .byte = @truncate(bits) },
+                        'h' => .{ .half = @truncate(bits) },
+                        'w' => .{ .word = @truncate(bits) },
+                        'l' => .{ .long = bits },
+                        else => unreachable,
+                    };
+                };
+                try object.append(item);
+                count += 1;
+                self.skipLines();
+            }
+            if (count == 0) return self.fail(.unexpected_token, self.peek());
+            if (self.peek().kind == .comma) {
+                _ = self.advance();
+                self.skipLines();
+            }
+        }
+        _ = self.advance();
+        _ = try self.module.dataSize();
+    }
+
     fn function(self: *Parser) Error!void {
         self.values.clearRetainingCapacity();
         self.blocks.clearRetainingCapacity();
@@ -120,6 +206,7 @@ const Parser = struct {
         const name = try self.globalName(name_token);
         const id = self.module.addFunction(name, result) catch |err| switch (err) {
             error.DuplicateFunction => return self.fail(.duplicate_function, name_token),
+            error.DuplicateSymbol => return self.fail(.duplicate_symbol, name_token),
             else => |resource| return resource,
         };
         const f = self.module.getFunction(id).?;
@@ -536,7 +623,7 @@ test "diagnostics reject undefined and duplicate names at their source spans" {
 }
 
 test "malformed syntax, types and unsupported IL never silently lower" {
-    try expectInvalid("data $x = { w 1 }", .unsupported_construct, "data");
+    try expectInvalid("data $x = { l $other }", .unsupported_construct, "$other");
     try expectInvalid("function w $f() {\n@b\n%x =w alloc8 8\nret %x\n}", .type_mismatch, "alloc8");
     try expectInvalid("function $f(...) {\n@b\nret\n}", .unsupported_construct, "...");
     try expectInvalid("function w $\"quoted\"() {\n@b\nret 0\n}", .unsupported_construct, "$\"quoted\"");

@@ -3,12 +3,18 @@ const std = @import("std");
 const ir = @import("ir.zig");
 const ssa = @import("ssa.zig");
 const Module = @import("module.zig").Module;
-pub const Error = ssa.Error || error{ InvalidSymbol, DuplicateSymbol, CallSignatureMismatch };
+pub const Error = ssa.Error || @import("data.zig").Error || error{ InvalidSymbol, DuplicateSymbol, CallSignatureMismatch, CalledDataSymbol };
 
 /// Validate all bodies before following callee parameter IDs. Externals remain
 /// contractual, but their symbol IDs must belong to this module's pool.
 /// This does not impose a target assembler's symbol spelling restrictions.
 pub fn validate(allocator: std.mem.Allocator, module: *const Module) Error!void {
+    _ = try module.dataSize();
+    for (module.data.items, 0..) |object, index| {
+        _ = module.symbols.get(object.name) orelse return error.InvalidSymbol;
+        for (module.data.items[0..index]) |previous| if (previous.name == object.name) return error.DuplicateSymbol;
+        for (module.functions.items) |function| if (function.name == object.name) return error.DuplicateSymbol;
+    }
     for (module.functions.items, 0..) |function, index| {
         _ = module.symbols.get(function.name) orelse return error.InvalidSymbol;
         for (module.functions.items[0..index]) |previous| if (previous.name == function.name) return error.DuplicateSymbol;
@@ -35,6 +41,7 @@ pub fn validate(allocator: std.mem.Allocator, module: *const Module) Error!void 
                 .address => continue,
             };
             _ = module.symbols.get(symbol) orelse return error.InvalidSymbol;
+            for (module.data.items) |object| if (object.name == symbol) return error.CalledDataSymbol;
             const callee = findFunction(module, symbol) orelse continue;
             const result_type: ?ir.ScalarType = if (call.result) |result| function.values.items[@backingInt(result)].scalar_type else null;
             if (callee.return_type != result_type or callee.parameters.items.len != call.arguments.len) return error.CallSignatureMismatch;

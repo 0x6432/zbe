@@ -740,3 +740,64 @@ explicit bounded alignment/size, executable AMD64 emission and independent byte
 expectations. Strings/relocation initializers/TLS/full data or ABI parity and a
 persistent interpreter global-memory model remain outside that proposed scope.
 No main merge or release tag was performed.
+
+## Owned numeric/zero-fill data milestone (in progress)
+
+Added module-owned stable Data pointers/typed DataId, packed numeric raw-bit items
+and bounded zero runs, explicit alignment1..64/default8 and checked16MiB/object,
+64MiB/module payload limits. The frontend supports exported/local definitions,
+matching integer/float groups, multiline whitespace and trailing commas. It rejects
+strings, quoted names, relocations/offsets, TLS/section/common and mismatched float
+field syntax. Module validation rechecks size caches/limits, IDs and cross-kind
+namespace duplicates, and rejects direct calls to known data objects. AMD64 emits
+writable aligned ELF object definitions with exact size/binding directives; ordinary
+symbol addresses retain existing full-width executable lowering. Data-only modules
+are supported. No implicit interpreter globals, host pointer lookup, Image growth,
+GOT/shared-object policy or full data/ABI parity is claimed (DATA.md).
+
+Seven new tests passed with the existing suite: **248/248 Debug** in
+`/data/check-data-debug.log`. Initial compilation found a shadowed Alignment helper
+parameter and an incorrect test-only Image.init argument list; both were corrected
+before the successful run. Tests include independent parsed bytes, atomic retry,
+stable ownership, hostile edits/caps/names/IDs, direct data-call rejection, retained
+Image writes and exhaustive allocation-failure cleanup for builders/parser/emitter.
+A subsequent pre-full-run test strengthens exact accepted aggregate-limit emission.
+
+The independent Python data-byte generator supplies ten objects and1,896 expected
+bytes; its initial harness metadata sum was corrected from a hand-count to the
+actual independently generated1,896 before execution. Eight-option Debug native
+smoke passed in `/data/check-native-data.log`: **7,856 non-PIE +7,866 PIE** defined
+checks per combination, **20 ELF size/binding/alignment**, **2 data-only links** and
+**48 data rejection/output-preservation** checks. The unchanged symbol harness
+expectations also passed all eight options. Only two obsolete numeric-data negative
+inputs (frontend and symbol CLI) changed to still-unsupported symbolic initializers;
+all prior count/output-preservation contracts and independent generators are kept.
+
+CI now includes the thirteenth generator and eleventh native harness, with option
+banners for precise termination diagnosis. Full three-mode/eight-option verification
+and publication CI have not yet been claimed. Legacy work remains isolated; no main
+merge or release tag was performed.
+
+### Owned-data authoritative local verification
+
+`/data/verify-owned-data.sh` was generated directly from the current rewrite CI
+steps and ran serially without source changes or overlapping builds/harnesses.
+`/data/verify-owned-data.log` ended **OWNED DATA VERIFICATION PASSED**, exit 0.
+**248/248 unit tests** passed in each of Debug, ReleaseSafe and ReleaseFast.
+All **24** mode/option combinations passed all **eleven** native harnesses.
+Mechanically counted **34 distinct completion groups**: 33 occurred exactly 24
+times each, while the 2,032 linked-symbol group occurred 48 times (two links per
+combination). Existing arithmetic-fault, termination, memory-fault, guard-page,
+overflow trap, negative-control and rejection expectations all remained intact.
+
+Per combination, new data checks were 7,856 non-PIE plus 7,866 PIE results, 20 linked
+ELF metadata records, 2 data-only links and 48 rejection/output-preservation checks.
+Formatting and all **thirteen** independent generator checks passed. All twelve
+pre-existing generators and every pre-existing fixture/oracle file are unchanged.
+Only the two obsolete numeric-data negatives were replaced as documented above;
+their counts and output-preservation assertions were retained. Scope, whitespace,
+credential and legacy-isolation checks passed; origin remains credential-free.
+
+Publication CI will be checked separately at the exact pushed SHA. The sandbox-only
+`/data/zbe-relocation-followup-design.txt` is an unimplemented proposal, not data
+relocation functionality. No source changes for that follow-up have begun.

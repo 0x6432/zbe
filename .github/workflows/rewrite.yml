@@ -41,6 +41,7 @@ jobs:
           python3 tools/generate_signed_conversion_oracle.py --check
           python3 tools/generate_unsigned_conversion_oracle.py --check
           python3 tools/generate_low_word_oracle.py --check
+          python3 tools/generate_data_oracle.py --check
       - name: Independent IR/frontend tests (not backend parity)
         working-directory: rewrite
         run: zig build test -Doptimize=${{ matrix.optimize }} --summary all
@@ -49,6 +50,7 @@ jobs:
         run: |
           zig build -Doptimize=${{ matrix.optimize }} --summary all
           for flags in "" "--fold-integers" "--reuse-stack-homes" "--fold-integers --reuse-stack-homes" "--callee-saved-homes" "--fold-integers --callee-saved-homes" "--reuse-stack-homes --callee-saved-homes" "--fold-integers --reuse-stack-homes --callee-saved-homes"; do
+            printf "Native options: %s\n" "$flags"
             python3 tools/native_check.py $flags
             python3 tools/native_float_check.py $flags
             python3 tools/native_call_check.py $flags
@@ -59,4 +61,5 @@ jobs:
             python3 tools/native_frame_check.py $flags
             python3 tools/native_allocation_check.py $flags
             python3 tools/native_symbol_check.py $flags
+            python3 tools/native_data_check.py $flags
           done

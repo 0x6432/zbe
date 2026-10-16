@@ -1,10 +1,10 @@
 const std = @import("std");
 const ir = @import("ir.zig");
 const abi = @import("abi_amd64.zig");
-const ssa = @import("ssa.zig");
+const module_validation = @import("module_validation.zig");
 const stack_homes = @import("stack_homes.zig");
 const Module = @import("module.zig").Module;
-pub const Error = stack_homes.Error || abi.Error || error{ InvalidSymbol, DuplicateSymbol, FrameTooLarge, CallSignatureMismatch };
+pub const Error = stack_homes.Error || abi.Error || module_validation.Error || error{FrameTooLarge};
 
 pub const Options = struct {
     reuse_stack_homes: bool = false,
@@ -19,29 +19,12 @@ pub fn emit(allocator: std.mem.Allocator, module: *const Module) Error![]u8 {
 }
 
 pub fn emitWithOptions(allocator: std.mem.Allocator, module: *const Module, options: Options) Error![]u8 {
-    for (module.functions.items, 0..) |function, index| {
-        const name = module.symbols.get(function.name) orelse return error.InvalidSymbol;
-        if (!validSymbol(name)) return error.InvalidSymbol;
-        for (module.functions.items[0..index]) |previous| if (previous.name == function.name) return error.DuplicateSymbol;
-        if (!options.reuse_stack_homes and !options.callee_saved_homes) _ = try Frame.init(function);
-        var issue: ?ssa.Issue = null;
-        try ssa.validate(allocator, function, &issue);
-    }
-    // Validate every body before following another function's parameter IDs.
+    try module_validation.validate(allocator, module);
     for (module.functions.items) |function| {
+        if (!validSymbol(module.symbols.get(function.name).?)) return error.InvalidSymbol;
+        if (!options.reuse_stack_homes and !options.callee_saved_homes) _ = try Frame.init(function);
         for (function.blocks.items) |block| for (block.instructions.items) |instruction| switch (instruction) {
-            .call => |call| {
-                const callee_name = module.symbols.get(call.callee) orelse return error.InvalidSymbol;
-                if (!validSymbol(callee_name)) return error.InvalidSymbol;
-                for (module.functions.items) |callee| {
-                    if (callee.name != call.callee) continue;
-                    const result_type = function.values.items[@backingInt(call.result)].scalar_type;
-                    if (callee.return_type != result_type or callee.parameters.items.len != call.arguments.len) return error.CallSignatureMismatch;
-                    for (callee.parameters.items, call.arguments) |parameter, argument| {
-                        if (callee.values.items[@backingInt(parameter)].scalar_type != argument.scalar_type) return error.CallSignatureMismatch;
-                    }
-                }
-            },
+            .call => |call| if (!validSymbol(module.symbols.get(call.callee).?)) return error.InvalidSymbol,
             else => {},
         };
     }

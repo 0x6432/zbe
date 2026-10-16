@@ -28,7 +28,7 @@ Native recursion follows ordinary process stack limits. Only regression inputs/t
 
 ## Evaluator boundary
 
-The standalone function evaluator has no module resolver and never invokes arbitrary host functions. A **reached** call consumes one instruction step and returns `UnsupportedCall`. An unreachable call does not prevent evaluation of a call-free path. Budget exhaustion before the call still wins; preceding arithmetic faults retain precedence. Internal-call interpretation is future work, not silently delegated to native execution.
+The standalone function evaluator has no module resolver and never invokes arbitrary host functions. A **reached** call consumes one instruction step and returns `UnsupportedCall`. An unreachable call does not prevent evaluation of a call-free path. Budget exhaustion before the call still wins; preceding arithmetic faults retain precedence. The separate `evaluateModule` entry point now interprets module-local calls using an explicit owned frame stack and shared step/depth limits; undefined externals return `UnsupportedExternalCall`. See MODULE-EVALUATION.md. Neither API delegates to native execution.
 
 ## Bounded verification
 

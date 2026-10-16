@@ -2,74 +2,164 @@ const std = @import("std");
 const ir = @import("ir.zig");
 const ssa = @import("ssa.zig");
 const semantics = @import("semantics.zig");
+const module_validation = @import("module_validation.zig");
+const Module = @import("module.zig").Module;
+const FunctionId = @import("module.zig").FunctionId;
 
-pub const Options = struct { max_steps: usize = 100_000 };
+pub const Options = struct {
+    max_steps: usize = 100_000,
+    /// Total active invocation frames, including the entry function.
+    max_call_depth: usize = 64,
+};
 pub const ArithmeticError = semantics.ArithmeticError;
-pub const Error = ArithmeticError || ssa.Error || error{ ArgumentCountMismatch, ArgumentTypeMismatch, StepLimitExceeded, UninitializedValue, Halted, UnsupportedCall };
+pub const Error = ArithmeticError || module_validation.Error || error{
+    ArgumentCountMismatch,
+    ArgumentTypeMismatch,
+    StepLimitExceeded,
+    UninitializedValue,
+    Halted,
+    UnsupportedCall,
+    UnsupportedExternalCall,
+    InvalidFunction,
+    CallDepthLimitExceeded,
+};
 
-/// Bounded reference evaluator for the current scalar subset, not target code
-/// generation. Each instruction and terminator consumes one step. Validates SSA
-/// on every call; execution storage is owned by this invocation, not the IR.
+/// Standalone scalar evaluator. Reached calls remain UnsupportedCall because
+/// this API supplies no module resolver. Never executes arbitrary host code.
 pub fn evaluate(allocator: std.mem.Allocator, function: *const ir.Function, arguments: []const ir.Constant, options: Options) Error!?ir.Constant {
     var issue: ?ssa.Issue = null;
     try ssa.validate(allocator, function, &issue);
-    if (arguments.len != function.parameters.items.len) return error.ArgumentCountMismatch;
-    for (function.parameters.items, arguments) |parameter, argument| {
-        if (function.values.items[@backingInt(parameter)].scalar_type != argument.scalarType()) return error.ArgumentTypeMismatch;
-    }
-    const values = try allocator.alloc(?ir.Constant, function.values.items.len);
-    defer allocator.free(values);
-    @memset(values, null);
-    for (function.parameters.items, arguments) |parameter, argument| values[@backingInt(parameter)] = argument;
-    var max_phis: usize = 0;
-    for (function.blocks.items) |block| max_phis = @max(max_phis, block.phis.items.len);
-    const phi_values = try allocator.alloc(ir.Constant, max_phis);
-    defer allocator.free(phi_values);
-    var previous: ?ir.BlockId = null;
-    var remaining = options.max_steps;
-    var current: ir.BlockId = @fromBackingInt(@as(u32, 0));
-    while (true) {
-        const block = &function.blocks.items[@backingInt(current)];
-        // Read all incoming values before writing any phi result (parallel SSA
-        // assignment), including swaps and cycles over loop backedges.
-        for (block.phis.items, 0..) |phi, index| {
-            try step(&remaining);
-            const predecessor = previous orelse return error.UninitializedValue;
-            const incoming = incoming: {
-                for (phi.inputs) |input| {
-                    if (input.predecessor == predecessor) break :incoming input.value;
-                }
-                return error.UninitializedValue;
-            };
-            phi_values[index] = try resolve(values, incoming);
+    return execute(allocator, null, function, arguments, options);
+}
+
+/// Validate every module body/signature once, then execute internal direct calls
+/// with an explicit owned frame stack. One shared step budget spans all frames;
+/// external targets are never called. Function IDs belong to this module.
+pub fn evaluateModule(allocator: std.mem.Allocator, module: *const Module, entry: FunctionId, arguments: []const ir.Constant, options: Options) Error!?ir.Constant {
+    const index = @backingInt(entry);
+    if (index >= module.functions.items.len) return error.InvalidFunction;
+    try module_validation.validate(allocator, module);
+    return execute(allocator, module, module.functions.items[index], arguments, options);
+}
+
+const Frame = struct {
+    function: *const ir.Function,
+    values: []?ir.Constant,
+    phi_values: []ir.Constant,
+    block: ir.BlockId = @fromBackingInt(@as(u32, 0)),
+    previous: ?ir.BlockId = null,
+    entered: bool = false,
+    next_instruction: usize = 0,
+    return_destination: ?ir.ValueId,
+
+    fn init(allocator: std.mem.Allocator, function: *const ir.Function, arguments: []const ir.Constant, destination: ?ir.ValueId) Error!Frame {
+        if (arguments.len != function.parameters.items.len) return error.ArgumentCountMismatch;
+        for (function.parameters.items, arguments) |parameter, argument| {
+            if (function.values.items[@backingInt(parameter)].scalar_type != argument.scalarType()) return error.ArgumentTypeMismatch;
         }
-        for (block.phis.items, phi_values[0..block.phis.items.len]) |phi, value| values[@backingInt(phi.result)] = value;
-        for (block.instructions.items) |instruction| {
+        const values = try allocator.alloc(?ir.Constant, function.values.items.len);
+        errdefer allocator.free(values);
+        @memset(values, null);
+        for (function.parameters.items, arguments) |parameter, argument| values[@backingInt(parameter)] = argument;
+        var max_phis: usize = 0;
+        for (function.blocks.items) |block| max_phis = @max(max_phis, block.phis.items.len);
+        const phis = try allocator.alloc(ir.Constant, max_phis);
+        return .{ .function = function, .values = values, .phi_values = phis, .return_destination = destination };
+    }
+
+    fn deinit(self: *Frame, allocator: std.mem.Allocator) void {
+        allocator.free(self.values);
+        allocator.free(self.phi_values);
+        self.* = undefined;
+    }
+};
+
+fn appendFrame(allocator: std.mem.Allocator, frames: *std.ArrayList(Frame), function: *const ir.Function, arguments: []const ir.Constant, destination: ?ir.ValueId) Error!void {
+    var frame = try Frame.init(allocator, function, arguments, destination);
+    errdefer frame.deinit(allocator);
+    try frames.append(allocator, frame);
+}
+
+fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *const ir.Function, arguments: []const ir.Constant, options: Options) Error!?ir.Constant {
+    if (options.max_call_depth == 0) return error.CallDepthLimitExceeded;
+    var frames: std.ArrayList(Frame) = .empty;
+    defer {
+        for (frames.items) |*frame| frame.deinit(allocator);
+        frames.deinit(allocator);
+    }
+    try appendFrame(allocator, &frames, function, arguments, null);
+    var remaining = options.max_steps;
+    while (true) {
+        // Do not retain this pointer across appendFrame: the handle array may
+        // grow/move, whereas each invocation's separately owned values stay put.
+        const frame = &frames.items[frames.items.len - 1];
+        const block = &frame.function.blocks.items[@backingInt(frame.block)];
+        if (!frame.entered) {
+            for (block.phis.items, 0..) |phi, index| {
+                try step(&remaining);
+                const predecessor = frame.previous orelse return error.UninitializedValue;
+                const incoming = incoming: {
+                    for (phi.inputs) |input| if (input.predecessor == predecessor) break :incoming input.value;
+                    return error.UninitializedValue;
+                };
+                frame.phi_values[index] = try resolve(frame.values, incoming);
+            }
+            for (block.phis.items, frame.phi_values[0..block.phis.items.len]) |phi, value| frame.values[@backingInt(phi.result)] = value;
+            frame.entered = true;
+        }
+        if (frame.next_instruction < block.instructions.items.len) {
             try step(&remaining);
-            const result = switch (instruction) {
-                .call => return error.UnsupportedCall, // Never invoke arbitrary host code.
-                .copy => |copy| try resolve(values, copy.operand),
-                .unary => |unary| semantics.unaryValue(unary.op, try resolve(values, unary.operand), function.values.items[@backingInt(unary.result)].scalar_type),
-                .shift => |shift| semantics.shiftedValue(shift.op, try resolve(values, shift.value), (try resolve(values, shift.amount)).word),
-                .compare_float => |comparison| semantics.floatComparisonValue(comparison.predicate, try resolve(values, comparison.lhs), try resolve(values, comparison.rhs), function.values.items[@backingInt(comparison.result)].scalar_type),
-                .compare_integer => |comparison| semantics.comparisonValue(comparison.predicate, try resolve(values, comparison.lhs), try resolve(values, comparison.rhs), function.values.items[@backingInt(comparison.result)].scalar_type),
-                .binary => |binary| try semantics.binaryValue(binary.op, try resolve(values, binary.lhs), try resolve(values, binary.rhs)),
-            };
-            values[@backingInt(instruction.result())] = result;
+            const instruction = block.instructions.items[frame.next_instruction];
+            frame.next_instruction += 1;
+            if (instruction == .call) {
+                const call = instruction.call;
+                const owner = module orelse return error.UnsupportedCall;
+                const callee = module_validation.findFunction(owner, call.callee) orelse return error.UnsupportedExternalCall;
+                if (frames.items.len >= options.max_call_depth) return error.CallDepthLimitExceeded;
+                const actual = try allocator.alloc(ir.Constant, call.arguments.len);
+                defer allocator.free(actual);
+                for (call.arguments, actual) |argument, *value| value.* = try resolve(frame.values, argument.operand);
+                try appendFrame(allocator, &frames, callee, actual, call.result);
+                continue; // The old frame pointer may now be invalid.
+            }
+            frame.values[@backingInt(instruction.result())] = try scalarInstruction(frame.function, frame.values, instruction);
+            continue;
         }
         try step(&remaining);
         const next = switch (block.terminator.?) {
             .halt => return error.Halted,
             .jump => |target| target,
             .branch => |branch| branch_target: {
-                const condition = try resolve(values, branch.condition);
+                const condition = try resolve(frame.values, branch.condition);
                 break :branch_target if (try condition.branchTaken()) branch.taken else branch.not_taken;
             },
-            .return_value => |operand| return if (operand) |value| try resolve(values, value) else null,
+            .return_value => |operand| {
+                const value = if (operand) |v| try resolve(frame.values, v) else null;
+                var completed = frames.pop().?;
+                const destination = completed.return_destination;
+                completed.deinit(allocator);
+                if (frames.items.len == 0) return value;
+                frames.items[frames.items.len - 1].values[@backingInt(destination.?)] = value orelse return error.InvalidReturn;
+                continue;
+            },
         };
-        previous = current;
-        current = next;
+        frame.previous = frame.block;
+        frame.block = next;
+        frame.entered = false;
+        frame.next_instruction = 0;
     }
+}
+
+fn scalarInstruction(function: *const ir.Function, values: []const ?ir.Constant, instruction: ir.Instruction) Error!ir.Constant {
+    return switch (instruction) {
+        .call => error.UnsupportedCall,
+        .copy => |copy| try resolve(values, copy.operand),
+        .unary => |unary| semantics.unaryValue(unary.op, try resolve(values, unary.operand), function.values.items[@backingInt(unary.result)].scalar_type),
+        .shift => |shift| semantics.shiftedValue(shift.op, try resolve(values, shift.value), (try resolve(values, shift.amount)).word),
+        .compare_float => |comparison| semantics.floatComparisonValue(comparison.predicate, try resolve(values, comparison.lhs), try resolve(values, comparison.rhs), function.values.items[@backingInt(comparison.result)].scalar_type),
+        .compare_integer => |comparison| semantics.comparisonValue(comparison.predicate, try resolve(values, comparison.lhs), try resolve(values, comparison.rhs), function.values.items[@backingInt(comparison.result)].scalar_type),
+        .binary => |binary| try semantics.binaryValue(binary.op, try resolve(values, binary.lhs), try resolve(values, binary.rhs)),
+    };
 }
 
 fn step(remaining: *usize) error{StepLimitExceeded}!void {

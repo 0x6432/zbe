@@ -631,3 +631,23 @@ then checking Actions for that exact pushed SHA and recording actual results.
 Do not merge main or create a release tag. A credential-free format-patch of the
 local checkpoint is also retained outside the repository for handoff. No further
 feature milestone was started.
+
+### Interpreter stack allocation published CI
+
+After the user explicitly authorized transient token authentication, code
+checkpoint `f97b69a68afb0f687157d19cc3dcd35f2e838e1b` was pushed successfully to
+`rewrite/zig-native`. The credential-free origin URL is unchanged; authentication
+was confined to the command environment, not repository files, remote URLs,
+patches or logs.
+
+Exact-SHA workflow https://github.com/0x6432/zbe/actions/runs/38958864614 completed
+**successfully**: **Debug, ReleaseSafe and ReleaseFast all completed successfully**,
+including their independent test and native execution steps. Confirmed through
+the completed workflow and all three jobs APIs, not inferred from the earlier
+queued/running states. This verifies the new interpreter allocation checkpoint,
+not just the earlier native-allocation milestone. The local full-matrix results
+recorded above remain unchanged.
+
+This follow-up is documentation-only and skips redundant CI. No source change,
+main merge or release tag was made. The previous publication/authentication
+blocker is resolved; no further feature milestone was started.

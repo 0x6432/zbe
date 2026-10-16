@@ -1011,3 +1011,20 @@ credential-free. No main merge, release tag, new interpreter globals or complete
 backend/data/ABI parity is implied. Publication CI follows at the exact code SHA.
 The scalar-symbol-addend proposal in `/data/zbe-scalar-symbol-addend-followup-design.txt`
 is unimplemented and unverified; no source for that follow-up has begun.
+
+### BSS exact-SHA publication CI confirmed
+
+Code `7b71f64a39a27b2f038c30c036547a60cc975a53` passed all three jobs on its
+first attempt: Debug, ReleaseSafe and ReleaseFast, run
+https://github.com/0x6432/zbe/actions/runs/38982929621 . The run's head SHA was
+checked exactly; all jobs completed successfully. Evidence is saved in
+`/data/data-bss-ci-result.json` and `/data/watch-data-bss-ci.log`. Source stayed
+frozen during local full verification and publication CI. This documentation-only
+record skips redundant CI; it does not validate later changes.
+
+Next bounded slice: a distinct long `symbol_offset` operand with a checked i32
+addend, compact RIP-relative lowering and ordinary scalar operand coverage.
+Combined symbol/displacement reach remains an assembler/linker contract, not a
+promise every admitted offset links at every placement. Existing i64 data
+initializers stay unchanged. No interpreter symbol resolver, main merge or release
+tag is authorized or implied.

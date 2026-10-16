@@ -227,3 +227,18 @@ An earlier integration smoke runner overlapped the first full runner, which coul
 ### Integer folding local verification
 
 Pinned Zig Debug, ReleaseSafe and ReleaseFast passed **110/110 unit tests**. Debug was additionally executed directly without run-step caching (`/data/verify-fold-debug-direct.log`, ending `All 110 tests passed`). The authoritative non-overlapping full log is `/data/verify-native-folding-final.log`: in each compiler build mode, **both normal and `--fold-integers` paths** passed **3,370 integer/program native checks**, **3,560 floating/bit-pattern/mixed-ABI native checks**, **24 arithmetic-fault checks**, and **8 CLI checks** per path. Formatting and all eight generators' reproducibility passed. Legacy source/build/tools/tests remain unchanged. CI for the optimizer is checked separately after publication; no release tag or main integration is authorized.
+
+
+### Integer folding published CI
+
+Optimizer checkpoint `625b18a8561f1dd8c0f854398fad78cc6f7cbb28` passed https://github.com/0x6432/zbe/actions/runs/38878495385: Debug, ReleaseSafe and ReleaseFast all succeeded, including both normal and constant-folded native harness paths. This result precedes liveness below.
+
+## Owned block-boundary liveness
+
+Added independently owned scalar liveness snapshots with standard-library dynamic bitsets, allocator cleanup, checked matrix-storage estimates and bounded queries. Entry parameters and phi results are entry definitions; phi operands are predecessor-edge uses. Both reachable and unreachable blocks are analyzed without inventing edges. Snapshots do not retain IR or CFG pointers and must be rebuilt after mutation. The 64 MiB default matrix cap does not bound separate SSA/CFG scratch or solver runtime. See LIVENESS.md for exact contracts. No register assignment, spill insertion or emitter integration is implemented.
+
+Seven added tests compare every block/value query against a separate per-value use-before-definition path-search oracle on representative scalar/phi fixtures, 64 generated cyclic CFGs and the 32-function mixed corpus. Tests also cover edge-specific phi inputs, snapshot lifetime after module destruction, unreachable local uses, zero-value frames, limits/overflow, invalid SSA and exhaustive allocation-failure cleanup.
+
+### Liveness local verification
+
+Pinned Zig Debug, ReleaseSafe and ReleaseFast each passed **117/117 unit tests**. In each build mode, **both normal and `--fold-integers` paths** passed **3,370 integer/program native checks**, **3,560 floating/bit-pattern/mixed-ABI native checks**, **24 arithmetic-fault checks**, and **8 CLI checks** per path. Formatting and all eight independent generators' reproducibility checks passed. Authoritative non-overlapping log: `/data/verify-native-liveness.log`, ending `LIVENESS VERIFICATION PASSED`. Legacy source/build/tools/tests remain unchanged. Liveness CI is checked separately after publication; no main integration or release tag.

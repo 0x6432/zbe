@@ -26,6 +26,7 @@ The independent build exports `zbe_native` without linking libc or importing the
 - Tagged scalar constants and operands, typed copy/phi, integer/floating arithmetic subset, integer bitwise/extension operations and negation, typed shifts, signed/unsigned integer comparisons and ordered/unordered floating comparisons, branch/jump/return terminators.
 - Source spans, typed diagnostics, allocation-free lexer and transactional scalar parser with forward block resolution.
 - Structural/type checks, owned CFG snapshots, dominators and explicit scalar SSA use/phi-edge validation.
+- Owned block-boundary liveness snapshots with phi-edge uses, checked matrix limits and an independent path-search oracle.
 - Bounded scalar interpreter and independent integer/dominance oracle checks.
 - Experimental stack-homed Linux AMD64 base-scalar emitter and driver, tested by assembling/linking/executing from C.
 - Opt-in SSA-validated, source-order integer/bit-pattern constant folding with preserved arithmetic faults.
@@ -34,4 +35,4 @@ The independent build exports `zbe_native` without linking libc or importing the
 
 There are no compile-wide mutable globals, pointer-packed references, C-layout requirements, or calls into the existing backend in this core. This is a design direction, not a claim that all future compiler code can avoid low-level operations.
 
-See [OPTIMIZE.md](OPTIMIZE.md) for the conservative opt-in pass, [NATIVE-AMD64.md](NATIVE-AMD64.md) for the native slice, [SCALAR-SEMANTICS.md](SCALAR-SEMANTICS.md) for analysis/evaluation contracts, [FRONTEND.md](FRONTEND.md) for the exact supported subset and limitations, [DESIGN.md](DESIGN.md) for ownership and implementation milestones and [HANDOFF.md](HANDOFF.md) for the current verification record.
+See [LIVENESS.md](LIVENESS.md) for analysis boundaries and resource limits, [OPTIMIZE.md](OPTIMIZE.md) for the conservative opt-in pass, [NATIVE-AMD64.md](NATIVE-AMD64.md) for the native slice, [SCALAR-SEMANTICS.md](SCALAR-SEMANTICS.md) for analysis/evaluation contracts, [FRONTEND.md](FRONTEND.md) for the exact supported subset and limitations, [DESIGN.md](DESIGN.md) for ownership and implementation milestones and [HANDOFF.md](HANDOFF.md) for the current verification record.

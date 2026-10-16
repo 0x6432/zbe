@@ -8,6 +8,7 @@
 [export] function [w|l|s|d] $name([type %parameter, ...]) {
 @block
     %result =type phi @predecessor operand, @predecessor operand
+    %result =type call $direct_symbol(type operand, type operand)
     %result =type copy operand
     %result =type neg operand
     %result =type cast opposite-class-same-width-operand
@@ -28,6 +29,7 @@
 The ellipsis above describes repeated parameters, **not** variadic IL. A missing function result type means void. Every actual block must end in exactly one explicit terminator; the example lists alternative instruction/terminator forms, not a single valid block. Labels occupy their own lines; instructions end at a newline or closing brace. LF and CRLF input, comments and blank lines are supported. Function export linkage is retained in the IR.
 
 - `hlt` has no operands and closes its block with target-dependent program termination, independently of the function result type. The evaluator returns `Halted`; Linux AMD64 emits `ud2`. See HALT.md.
+- Direct nonvariadic calls with a scalar result and explicitly typed base-scalar arguments are accepted; empty argument lists are allowed. Void/indirect/variadic/environment/aggregate/extended-ABI calls are unsupported. Native emission checks known module-local signatures; external signatures remain a caller contract. The evaluator reports `UnsupportedCall` only when a call is reached. See CALLS.md.
 - Types are the four base scalar types. Binary operands and copied/returned values must match their declared type exactly. Implicit mixed-width temporary conversions are not implemented.
 - `copy`, `add`, `sub`, `mul`, `div` support matching integer or floating types; bitwise operations, `udiv`, `rem` and `urem` require integer types.
 - Integer `div` truncates the signed quotient toward zero; `rem` has the dividend's sign. `udiv`/`urem` use unsigned bits. The evaluator returns `DivisionByZero` or `IntegerOverflow` for exceptional integer pairs; native AMD64 execution faults instead. See SCALAR-SEMANTICS.md for this explicit boundary.
@@ -40,7 +42,7 @@ The ellipsis above describes repeated parameters, **not** variadic IL. A missing
 - Floating literals retain their `s_`/`d_` width, including decimal/hex spellings, signed zero, infinity and plain NaN. Numeric conversion uses Zig, not libc. NaN payload spellings are scanned intact but **rejected explicitly by this parser** until payload semantics are implemented.
 - Phi nodes precede ordinary instructions in a block. The parser retains typed predecessor/value pairs; `ssa.validate` checks predecessor coverage and incoming-edge dominance.
 - Forward **block targets** are resolved by a declaration pass. Temporary result types are predeclared, so loop backedges and layout-independent forward references are accepted; scalar SSA validation must establish actual definition availability. Parameters and blocks are scoped per function; duplicate function/block/value names are rejected.
-- The lexer returns borrowed raw spans, including string escapes and quoted global names; it does not silently decode/rewrite names. Quoted globals, strings as operands, aggregates, data, memory operations, calls, varargs, extended ABI types and unimplemented opcodes are explicitly rejected by the parser.
+- The lexer returns borrowed raw spans, including string escapes and quoted global names; it does not silently decode/rewrite names. Quoted globals, strings as operands, aggregates, data, memory operations, unsupported call forms, varargs, extended ABI types and unimplemented opcodes are explicitly rejected by the parser.
 
 ## Not a full verifier or compiler
 

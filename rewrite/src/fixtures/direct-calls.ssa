@@ -1,0 +1,27 @@
+# Forward module-local scalar call plus a reachable external call in a loop.
+export function l $call_forward(l %x) {
+@entry
+    %r =l call $increment(l %x)
+    %s =l add %x, %r
+    ret %s
+}
+function l $increment(l %x) {
+@entry
+    %r =l add %x, 1
+    ret %r
+}
+export function l $call_loop(w %count, l %seed) {
+@entry
+    jmp @loop
+@loop
+    %n =w phi @entry %count, @body %next
+    %acc =l phi @entry %seed, @body %sum
+    jnz %n, @body, @done
+@body
+    %r =l call $external_identity(l %acc, s s_1.5, w %n, d d_2.5)
+    %sum =l add %r, %acc
+    %next =w sub %n, 1
+    jmp @loop
+@done
+    ret %acc
+}

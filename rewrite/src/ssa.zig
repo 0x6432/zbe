@@ -51,6 +51,7 @@ pub fn validate(allocator: std.mem.Allocator, function: *const ir.Function, issu
             }
         }
         for (block.instructions.items, 0..) |instruction, index| switch (instruction) {
+            .call => |call| for (call.arguments) |argument| try checkUse(function, &graph, &dominators, argument.operand, id, index, issue),
             .binary => |binary| {
                 try checkUse(function, &graph, &dominators, binary.lhs, id, index, issue);
                 try checkUse(function, &graph, &dominators, binary.rhs, id, index, issue);

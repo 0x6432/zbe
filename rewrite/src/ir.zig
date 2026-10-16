@@ -106,7 +106,11 @@ pub const IntegerPredicate = enum {
     unsigned_greater,
     unsigned_greater_equal,
 };
+pub const CallArgument = struct { scalar_type: ScalarType, operand: Operand };
+/// Callee belongs to the module symbol pool; argument storage belongs to Function.
+pub const DirectCall = struct { result: ValueId, callee: SymbolId, arguments: []const CallArgument };
 pub const Instruction = union(enum) {
+    call: DirectCall,
     binary: struct { result: ValueId, op: BinaryOp, lhs: Operand, rhs: Operand },
     copy: struct { result: ValueId, operand: Operand },
     unary: struct { result: ValueId, op: UnaryOp, operand: Operand },
@@ -116,6 +120,7 @@ pub const Instruction = union(enum) {
 
     pub fn result(self: Instruction) ValueId {
         return switch (self) {
+            .call => |call| call.result,
             .binary => |binary| binary.result,
             .copy => |copy| copy.result,
             .unary => |unary| unary.result,
@@ -183,6 +188,10 @@ pub const Function = struct {
         for (self.blocks.items) |*block| {
             for (block.phis.items) |phi| self.allocator.free(phi.inputs);
             block.phis.deinit(self.allocator);
+            for (block.instructions.items) |instruction| switch (instruction) {
+                .call => |call| self.allocator.free(call.arguments),
+                else => {},
+            };
             block.instructions.deinit(self.allocator);
         }
         self.blocks.deinit(self.allocator);
@@ -299,6 +308,23 @@ pub const Function = struct {
         target.instructions.appendAssumeCapacity(.{ .compare_integer = .{ .result = result, .predicate = predicate, .operand_type = operand_type, .lhs = lhs, .rhs = rhs } });
     }
 
+    /// Duplicates argument storage. Allocation/type failures leave the result
+    /// pending and retryable; publication has no fallible operations remaining.
+    pub fn defineCall(self: *Function, block_id: BlockId, result: ValueId, callee: SymbolId, arguments: []const CallArgument) BuildError!void {
+        const target = try self.getBlock(block_id);
+        if (target.terminator != null) return error.BlockTerminated;
+        const value = try self.pendingValue(result);
+        try self.checkArguments(arguments);
+        try target.instructions.ensureUnusedCapacity(self.allocator, 1);
+        const owned = try self.allocator.dupe(CallArgument, arguments);
+        value.definition = .{ .instruction = .{ .block = block_id, .index = target.instructions.items.len } };
+        target.instructions.appendAssumeCapacity(.{ .call = .{ .result = result, .callee = callee, .arguments = owned } });
+    }
+
+    fn checkArguments(self: *const Function, arguments: []const CallArgument) ValidationError!void {
+        for (arguments) |argument| if (try self.operandType(argument.operand) != argument.scalar_type) return error.TypeMismatch;
+    }
+
     pub fn definePhi(self: *Function, block_id: BlockId, result: ValueId, inputs: []const PhiInput) BuildError!void {
         const target = try self.getBlock(block_id);
         if (target.terminator != null) return error.BlockTerminated;
@@ -394,6 +420,7 @@ pub const Function = struct {
                     else => return error.InvalidDefinition,
                 }
                 switch (instruction) {
+                    .call => |call| try self.checkArguments(call.arguments),
                     .binary => |binary| try self.checkBinary(ty, binary.op, binary.lhs, binary.rhs),
                     .copy => |copy| if (try self.operandType(copy.operand) != ty) return error.TypeMismatch,
                     .unary => |unary| try self.checkUnary(ty, unary.op, unary.operand),

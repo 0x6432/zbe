@@ -202,7 +202,24 @@ const Parser = struct {
         const opcode = try self.expect(.identifier);
         const spelling = self.tokenText(opcode);
         const f = self.current_function.?;
-        if (std.mem.eql(u8, spelling, "copy")) {
+        if (std.mem.eql(u8, spelling, "call")) {
+            // Deliberately direct, nonvariadic, base-scalar, nonvoid calls only.
+            if (self.peek().kind != .global) return self.fail(.unsupported_construct, self.peek());
+            const callee_token = self.advance();
+            const callee = try self.module.symbols.intern(try self.globalName(callee_token));
+            _ = try self.expect(.lparen);
+            var arguments: std.ArrayList(ir.CallArgument) = .empty;
+            defer arguments.deinit(self.allocator);
+            if (self.peek().kind != .rparen) while (true) {
+                const argument_type = try self.takeType();
+                const operand = try self.readOperand(argument_type);
+                try arguments.append(self.allocator, .{ .scalar_type = argument_type, .operand = operand });
+                if (self.peek().kind != .comma) break;
+                _ = self.advance();
+            };
+            _ = try self.expect(.rparen);
+            f.defineCall(block, result, callee, arguments.items) catch |err| return self.irError(err, opcode);
+        } else if (std.mem.eql(u8, spelling, "copy")) {
             const operand = try self.readOperand(ty);
             f.defineCopy(block, result, operand) catch |err| return self.irError(err, opcode);
         } else if (std.mem.eql(u8, spelling, "phi")) {

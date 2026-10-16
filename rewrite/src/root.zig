@@ -18,6 +18,7 @@ pub const ir = @import("ir.zig");
 pub const Module = @import("module.zig").Module;
 
 test {
+    _ = @import("calls_test.zig");
     _ = @import("amd64.zig");
     _ = @import("abi_amd64.zig");
     _ = @import("interpreter.zig");

@@ -47,4 +47,5 @@ jobs:
           for flags in "" "--fold-integers" "--reuse-stack-homes" "--fold-integers --reuse-stack-homes" "--callee-saved-homes" "--fold-integers --callee-saved-homes" "--reuse-stack-homes --callee-saved-homes" "--fold-integers --reuse-stack-homes --callee-saved-homes"; do
             python3 tools/native_check.py $flags
             python3 tools/native_float_check.py $flags
+            python3 tools/native_call_check.py $flags
           done

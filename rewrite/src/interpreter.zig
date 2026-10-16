@@ -5,7 +5,7 @@ const semantics = @import("semantics.zig");
 
 pub const Options = struct { max_steps: usize = 100_000 };
 pub const ArithmeticError = semantics.ArithmeticError;
-pub const Error = ArithmeticError || ssa.Error || error{ ArgumentCountMismatch, ArgumentTypeMismatch, StepLimitExceeded, UninitializedValue, Halted };
+pub const Error = ArithmeticError || ssa.Error || error{ ArgumentCountMismatch, ArgumentTypeMismatch, StepLimitExceeded, UninitializedValue, Halted, UnsupportedCall };
 
 /// Bounded reference evaluator for the current scalar subset, not target code
 /// generation. Each instruction and terminator consumes one step. Validates SSA
@@ -47,6 +47,7 @@ pub fn evaluate(allocator: std.mem.Allocator, function: *const ir.Function, argu
         for (block.instructions.items) |instruction| {
             try step(&remaining);
             const result = switch (instruction) {
+                .call => return error.UnsupportedCall, // Never invoke arbitrary host code.
                 .copy => |copy| try resolve(values, copy.operand),
                 .unary => |unary| semantics.unaryValue(unary.op, try resolve(values, unary.operand), function.values.items[@backingInt(unary.result)].scalar_type),
                 .shift => |shift| semantics.shiftedValue(shift.op, try resolve(values, shift.value), (try resolve(values, shift.amount)).word),

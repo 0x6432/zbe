@@ -33,7 +33,7 @@ Word/long arithmetic wraps at 32/64 bits. Shifts use a word count masked to five
 
 Integer division uses a signed quotient truncated toward zero; signed remainder has the dividend's sign. Unsigned quotient/remainder use the full operand bit patterns. The evaluator returns `DivisionByZero` for an integer zero divisor and `IntegerOverflow` for signed minimum divided by minus one, for both quotient and remainder. It checks these before invoking host arithmetic. These are explicit evaluator errors, not a claim that QBE assigns portable values or errors to exceptional arithmetic. The Linux AMD64 prototype emits `div`/`idiv`, so these pairs instead raise a native arithmetic fault (tested as SIGFPE). Floating division retains strict host IEEE arithmetic and is not subject to integer exception checks.
 
-There are no memory operations, calls, recursion, globals or side-effect emulation in this evaluator. It is a semantic test tool for the implemented subset, not a replacement CLI or a path that delegates execution to the old compiler.
+There are no memory operations, call execution, recursion, globals or side-effect emulation in this evaluator. Native direct scalar calls are represented/verified in IR, but a reached call consumes its step and returns `UnsupportedCall`; a call-free path through a function containing calls can still be evaluated. There is no host-function invocation or module-aware call interpreter (see CALLS.md). It is a semantic test tool for the implemented subset, not a replacement CLI or a path that delegates execution to the old compiler.
 
 ## Independent checks
 

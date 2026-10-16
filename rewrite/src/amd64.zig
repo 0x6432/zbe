@@ -4,15 +4,15 @@ const abi = @import("abi_amd64.zig");
 const ssa = @import("ssa.zig");
 const stack_homes = @import("stack_homes.zig");
 const Module = @import("module.zig").Module;
-pub const Error = stack_homes.Error || abi.Error || error{ InvalidSymbol, DuplicateSymbol, FrameTooLarge };
+pub const Error = stack_homes.Error || abi.Error || error{ InvalidSymbol, DuplicateSymbol, FrameTooLarge, CallSignatureMismatch };
 
 pub const Options = struct {
     reuse_stack_homes: bool = false,
     callee_saved_homes: bool = false,
 };
 
-/// Experimental Linux ELF/System V base-scalar slice. Every SSA value has a stack
-/// home; this is not instruction selection/register allocation parity with QBE.
+/// Experimental Linux ELF/System V base-scalar slice. Values have persistent
+/// stack/preserved homes; no instruction selection/register allocation parity.
 /// Caller owns the returned assembly. Invalid input never returns partial text.
 pub fn emit(allocator: std.mem.Allocator, module: *const Module) Error![]u8 {
     return emitWithOptions(allocator, module, .{});
@@ -26,6 +26,24 @@ pub fn emitWithOptions(allocator: std.mem.Allocator, module: *const Module, opti
         if (!options.reuse_stack_homes and !options.callee_saved_homes) _ = try Frame.init(function);
         var issue: ?ssa.Issue = null;
         try ssa.validate(allocator, function, &issue);
+    }
+    // Validate every body before following another function's parameter IDs.
+    for (module.functions.items) |function| {
+        for (function.blocks.items) |block| for (block.instructions.items) |instruction| switch (instruction) {
+            .call => |call| {
+                const callee_name = module.symbols.get(call.callee) orelse return error.InvalidSymbol;
+                if (!validSymbol(callee_name)) return error.InvalidSymbol;
+                for (module.functions.items) |callee| {
+                    if (callee.name != call.callee) continue;
+                    const result_type = function.values.items[@backingInt(call.result)].scalar_type;
+                    if (callee.return_type != result_type or callee.parameters.items.len != call.arguments.len) return error.CallSignatureMismatch;
+                    for (callee.parameters.items, call.arguments) |parameter, argument| {
+                        if (callee.values.items[@backingInt(parameter)].scalar_type != argument.scalar_type) return error.CallSignatureMismatch;
+                    }
+                }
+            },
+            else => {},
+        };
     }
     var emitter: Emitter = .{ .output = .init(allocator), .module = module, .allocator = allocator, .options = options };
     defer emitter.output.deinit();
@@ -44,6 +62,26 @@ const Frame = struct {
         var max_phis: usize = 0;
         for (function.blocks.items) |block| max_phis = @max(max_phis, block.phis.items.len);
         return fromCounts(function.values.items.len, max_phis, function.parameters.items.len);
+    }
+
+    /// Outgoing arguments occupy the bottom of the aligned frame, below all
+    /// homes, phi scratch and preserved originals. RSP stays aligned at calls.
+    fn addOutgoing(self: *Frame, function: *const ir.Function) (error{FrameTooLarge} || abi.Error)!void {
+        var slots: usize = 0;
+        for (function.blocks.items) |block| for (block.instructions.items) |instruction| switch (instruction) {
+            .call => |call| {
+                var cursor: abi.ArgumentCursor = .{};
+                for (call.arguments) |argument| _ = try cursor.next(argument.scalar_type);
+                slots = @max(slots, cursor.stack_used);
+            },
+            else => {},
+        };
+        const outgoing = std.math.mul(usize, slots, 8) catch return error.FrameTooLarge;
+        const raw = std.math.add(usize, self.bytes, outgoing) catch return error.FrameTooLarge;
+        const rounded = std.math.add(usize, raw, 15) catch return error.FrameTooLarge;
+        const bytes = rounded & ~@as(usize, 15);
+        if (bytes > 64 * 1024) return error.FrameTooLarge;
+        self.bytes = bytes;
     }
 
     fn fromCounts(values: usize, phis: usize, parameters: usize) error{FrameTooLarge}!Frame {
@@ -115,6 +153,7 @@ const Emitter = struct {
             for (f.blocks.items) |block| max_phis = @max(max_phis, block.phis.items.len);
             self.frame = try Frame.withSavedCounts(owned.slot_count - self.saved_count, max_phis, f.parameters.items.len, self.saved_count);
         } else self.frame = try Frame.init(f);
+        try self.frame.addOutgoing(f);
         const name = self.module.symbols.get(f.name).?;
         try self.print("{s} {s}\n.type {s}, @function\n{s}:\n\tpushq %rbp\n\tmovq %rsp, %rbp\n", .{ if (f.linkage == .exported) @as([]const u8, ".globl") else ".local", name, name, name });
         if (self.frame.bytes != 0) try self.print("\tsubq ${d}, %rsp\n", .{self.frame.bytes});
@@ -147,6 +186,24 @@ const Emitter = struct {
             const id: ir.BlockId = @fromBackingInt(@as(u32, @intCast(number)));
             try self.print("\".Lzbe@{d}@b{d}\":\n", .{ index, number });
             for (block.instructions.items) |instruction| switch (instruction) {
+                .call => |call| {
+                    var cursor: abi.ArgumentCursor = .{};
+                    for (call.arguments) |argument| {
+                        // Homes survive SysV calls and never alias argument registers.
+                        // Loading uses only RAX, leaving already marshaled arguments intact.
+                        try self.load(argument.operand, .accumulator);
+                        const ty = argument.scalar_type;
+                        switch (try cursor.next(ty)) {
+                            .general => |reg| try self.print("\tmov{c} {s}, {s}\n", .{ suffix(ty), register(ty, .accumulator), reg.name(if (ty == .word) .word else .long) }),
+                            .vector => |reg| try self.print("\tmov{c} {s}, {s}\n", .{ sseMove(ty), register(ty, .accumulator), reg.name() }),
+                            .stack => |slot| try self.print("\tmov{c} {s}, {d}(%rsp)\n", .{ suffix(ty), register(ty, .accumulator), try slot.incomingOffset() - 16 }),
+                        }
+                    }
+                    try self.print("\tcall {s}\n", .{self.module.symbols.get(call.callee).?});
+                    const ty = f.values.items[@backingInt(call.result)].scalar_type;
+                    if (!ty.isInteger()) try self.print("\tmov{c} %xmm0, {s}\n", .{ sseMove(ty), register(ty, .accumulator) });
+                    try self.save(call.result, register(ty, .accumulator));
+                },
                 .copy => |copy| {
                     try self.load(copy.operand, .accumulator);
                     const ty = f.values.items[@backingInt(copy.result)].scalar_type;

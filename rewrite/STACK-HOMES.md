@@ -8,7 +8,7 @@ The graph includes dead-result writes and simultaneous parameter/phi bundles, so
 
 ## Emitter and CLI
 
-The existing `amd64.emit(allocator, module)` keeps the original unique-home behavior. `amd64.emitWithOptions(allocator, module, .{ .reuse_stack_homes = true })` enables coloring. Emission never modifies the IR and returns no partial assembly on failure. Analysis/layout storage is function-local and released after emission, including on allocation failure. The 64 KiB frame cap applies to **colored homes plus phi scratch, any saved originals and the maximum outgoing call-stack area**, still rounded to 16 bytes; it is not removed and large-frame probing remains unsupported.
+The existing `amd64.emit(allocator, module)` keeps the original unique-home behavior. `amd64.emitWithOptions(allocator, module, .{ .reuse_stack_homes = true })` enables coloring. Emission never modifies the IR and returns no partial assembly on failure. Analysis/layout storage is function-local and released after emission, including on allocation failure. The 64 KiB frame cap applies to **colored homes plus phi scratch, any saved originals and the maximum outgoing call-stack area**, still rounded to 16 bytes; it is not removed. Fixed reservation now probes each page before descending farther, without changing the layout (FRAME-PROBES.md).
 
 ```sh
 ./zig-out/bin/zbe-native --reuse-stack-homes input.ssa output.s

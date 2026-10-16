@@ -80,7 +80,7 @@ const Frame = struct {
         const raw = std.math.mul(usize, total, 8) catch return error.FrameTooLarge;
         const rounded = std.math.add(usize, raw, 15) catch return error.FrameTooLarge;
         const bytes = rounded & ~@as(usize, 15);
-        // Explicit prototype limit; large-frame probing is not implemented.
+        // Explicit prototype limit; reservation probes do not remove the cap.
         if (bytes > 64 * 1024) return error.FrameTooLarge;
         if (parameters > 6 and parameters - 6 > (std.math.maxInt(i32) - 16) / 8) return error.FrameTooLarge;
         return .{ .bytes = bytes, .scratch_base = values * 8, .saved_base = count * 8 };
@@ -126,6 +126,18 @@ const Emitter = struct {
         self.output.writer.print(format, args) catch return error.OutOfMemory;
     }
 
+    /// Frame construction established the aligned, bounded extent. Touch each
+    /// new stack page before descending farther; flags are dead in the prologue.
+    fn reserveFrame(self: *Emitter, frame: Frame) Error!void {
+        std.debug.assert(frame.bytes % 16 == 0 and frame.bytes <= 64 * 1024);
+        var remaining = frame.bytes;
+        while (remaining != 0) {
+            const step = @min(remaining, 4096);
+            try self.print("\tsubq ${d}, %rsp\n\ttestb $0, (%rsp)\n", .{step});
+            remaining -= step;
+        }
+    }
+
     fn function(self: *Emitter, f: *const ir.Function, index: usize) Error!void {
         self.current = f;
         self.ordinal = index;
@@ -142,7 +154,7 @@ const Emitter = struct {
         try self.frame.addOutgoing(f);
         const name = self.module.symbols.get(f.name).?;
         try self.print("{s} {s}\n.type {s}, @function\n{s}:\n\tpushq %rbp\n\tmovq %rsp, %rbp\n", .{ if (f.linkage == .exported) @as([]const u8, ".globl") else ".local", name, name, name });
-        if (self.frame.bytes != 0) try self.print("\tsubq ${d}, %rsp\n", .{self.frame.bytes});
+        try self.reserveFrame(self.frame);
         for (preserved_registers[0..self.saved_count], 0..) |preserved, i| {
             try self.print("\tmovq {s}, -{d}(%rbp)\n", .{ preserved.name(.long), self.frame.saved_base + (i + 1) * 8 });
         }
@@ -795,4 +807,44 @@ test "floating and void returns restore homes without clobbering result register
     try testing.expect(std.mem.indexOf(u8, assembly, "movq %rax, %xmm0\n\tmovq -8(%rbp), %rbx\n\tleave\n\tret") != null);
     const nothing = assembly[std.mem.indexOf(u8, assembly, "nothing:\n").?..];
     try testing.expect(std.mem.indexOf(u8, nothing, "movl %eax, %ebx\n\tmovq -8(%rbp), %rbx\n\tleave\n\tret") != null);
+}
+
+test "fixed frame reservation descends and touches every bounded page including the remainder" {
+    var module = Module.init(testing.allocator);
+    defer module.deinit();
+    for ([_]usize{ 0, 16, 4080, 4096, 4112, 8192, 65536 }) |bytes| {
+        var emitter: Emitter = .{ .output = .init(testing.allocator), .module = &module, .allocator = testing.allocator, .options = .{} };
+        defer emitter.output.deinit();
+        try emitter.reserveFrame(try Frame.fromCounts(bytes / 8, 0, 0));
+        const assembly = try emitter.output.toOwnedSlice();
+        defer testing.allocator.free(assembly);
+        var lines = std.mem.tokenizeScalar(u8, assembly, '\n');
+        var total: usize = 0;
+        var touches: usize = 0;
+        while (lines.next()) |line| {
+            try testing.expect(std.mem.startsWith(u8, line, "\tsubq $"));
+            const comma = std.mem.indexOfScalar(u8, line, ',').?;
+            const step = try std.fmt.parseInt(usize, line[7..comma], 10);
+            try testing.expect(step > 0 and step <= 4096 and step % 16 == 0);
+            total += step;
+            try testing.expectEqualStrings("\ttestb $0, (%rsp)", lines.next().?);
+            touches += 1;
+        }
+        try testing.expectEqual(bytes, total);
+        try testing.expectEqual((bytes + 4095) / 4096, touches);
+    }
+}
+
+fn exerciseFrameProbes(allocator: std.mem.Allocator) !void {
+    var module = Module.init(allocator);
+    defer module.deinit();
+    var emitter: Emitter = .{ .output = .init(allocator), .module = &module, .allocator = allocator, .options = .{} };
+    defer emitter.output.deinit();
+    try emitter.reserveFrame(try Frame.fromCounts(8192, 0, 0));
+    const assembly = try emitter.output.toOwnedSlice();
+    defer allocator.free(assembly);
+    try testing.expectEqual(@as(usize, 16), std.mem.count(u8, assembly, "testb $0, (%rsp)"));
+}
+test "maximum fixed frame probe output cleans every failed allocation" {
+    try @import("test_support.zig").checkAllocationFailures(exerciseFrameProbes);
 }

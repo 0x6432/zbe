@@ -25,7 +25,7 @@ The driver takes two paths and optionally preceding `--fold-integers`, `--reuse-
 - Floating copy/negation, scalar SSE add/sub/mul/div, and bit-preserving edge phi copies. Single/double homes retain raw bits; moves and negation do not pass through arithmetic conversion.
 - Current integer copy/arithmetic/division/remainder/bitwise/negation/integer-extension/shift/integer-comparison instructions, jumps, low-word conditional branches, explicit `hlt` lowered to `ud2`, and edge-specific parallel phi copies.
 - By default every SSA value has an eight-byte stack home; phi copies use additional, non-overlapping scratch homes. Default emission assigns unique homes. Opt-in `--reuse-stack-homes` greedily colors scalar interference into shared homes (see STACK-HOMES.md). Opt-in `--callee-saved-homes` additionally puts the first five colors in saved/restored GP registers, with remaining colors on the stack (see PRESERVED-HOMES.md). This is not a complete register allocator. A separate opt-in prepass performs conservative integer constant folding without deleting instructions.
-- Frame pointer is preserved, stack space rounded to 16 bytes, and only caller-saved scratch registers are used for computation; optional callee-saved homes are separately saved/restored. A prototype frame-size cap of 64 KiB is explicit; large-frame probing is not implemented.
+- Frame pointer is preserved, stack space rounded to 16 bytes, and only caller-saved scratch registers are used for computation; optional callee-saved homes are separately saved/restored. A prototype frame-size cap of 64 KiB is explicit; fixed reservation now probes each page before descending farther (FRAME-PROBES.md).
 - Export/local symbol linkage is retained. Symbols are validated, and quoted internal labels use a namespace unavailable to accepted user symbols. The assembly marks a non-executable GNU stack.
 
 Aggregate/ABI-extension types, precision narrowing, unsupported call forms, allocation/atomics, data/global definitions, varargs, debug/unwind metadata, other instruction families, other platforms and other targets are unsupported. There is no fallback to the old port. Backend failures return no partial assembly from the library API. The module and IR are not modified by emission.
@@ -54,7 +54,7 @@ Same-width `cast` uses raw-bit moves across integer/SSE ABI classes. `exts` uses
 Floating predicates use explicit ordered/unordered SSE flag handling rather than treating floating flags as integer comparisons. Equality/less/less-equal exclude unordered results, inequality includes unordered results, and ordered/unordered test parity explicitly. Native tests cover both integer result widths, both floating operand widths, signed zeros, infinities and quiet/signaling NaN operands. Truth-value coverage does not establish floating exception-flag equivalence or behavior with unmasked exceptions.
 
 
-All seven native harnesses accept `--fold-integers`, `--reuse-stack-homes` and `--callee-saved-homes`, forwarding them to the experimental compiler. CI executes each harness in all eight flag combinations in every compiler build mode, retaining all result, arithmetic-fault and output-preservation expectations. See OPTIMIZE.md for the folding pass's conservative scope and failure-atomic per-function contract and STACK-HOMES.md for layout ownership and analysis limits, and PRESERVED-HOMES.md for limited physical homes and the explicit full-width register-preservation adapter. No new IL optimization level or legacy compatibility behavior is implied.
+All eight native harnesses accept `--fold-integers`, `--reuse-stack-homes` and `--callee-saved-homes`, forwarding them to the experimental compiler. CI executes each harness in all eight flag combinations in every compiler build mode, retaining all result, arithmetic-fault and output-preservation expectations. See OPTIMIZE.md for the folding pass's conservative scope and failure-atomic per-function contract and STACK-HOMES.md for layout ownership and analysis limits, and PRESERVED-HOMES.md for limited physical homes and the explicit full-width register-preservation adapter. No new IL optimization level or legacy compatibility behavior is implied.
 
 ## Scalar memory subset
 
@@ -68,3 +68,8 @@ Signed word/long to single/double and single/double to signed word/long now use 
 ## Explicit low-word operand projections
 
 Long temporaries used in word contexts load their low 32 bits from their original homes without changing the long source or creating a new definition. A seventh harness checks 2,114 outcomes, two retained arithmetic faults and eight rejection/output-preservation cases per option combination, including word call/stack arguments, indirect callbacks, phi edges, loops, raw casts, stores and original long uses after calls. Implicit reverse extension remains invalid. See LOW-WORD.md.
+
+
+## Bounded fixed-frame reservation
+
+Fixed frames now descend at most 4,096 bytes per step with an in-frame read probe before every next descent, including the remainder. Zero frames remain untouched; final layout, alignment and the 64 KiB cap are unchanged. The eighth harness checks ordinary results/preserved registers plus two protected-stack faults and two test-only unprobed negative controls per option combination. This is not dynamic allocation support or complete stack-clash hardening. See FRAME-PROBES.md.

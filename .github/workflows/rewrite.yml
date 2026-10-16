@@ -56,4 +56,5 @@ jobs:
             python3 tools/native_blit_check.py $flags
             python3 tools/native_numeric_check.py $flags
             python3 tools/native_low_word_check.py $flags
+            python3 tools/native_frame_check.py $flags
           done

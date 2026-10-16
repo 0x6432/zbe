@@ -801,3 +801,20 @@ credential and legacy-isolation checks passed; origin remains credential-free.
 Publication CI will be checked separately at the exact pushed SHA. The sandbox-only
 `/data/zbe-relocation-followup-design.txt` is an unimplemented proposal, not data
 relocation functionality. No source changes for that follow-up have begun.
+
+### Owned-data exact-SHA CI confirmed green
+
+Published code checkpoint `07e440fb054e8d6b74f6314c1b215ec8c32defab` passed all three
+jobs (Debug, ReleaseSafe, ReleaseFast) in its first workflow attempt:
+https://github.com/0x6432/zbe/actions/runs/38975218317 . Each independent test and
+native-matrix step completed successfully. No rerun, relaxed test or timeout change
+was needed. Exact-SHA evidence is saved in `/data/owned-data-ci-result.json` and
+`/data/watch-owned-data-ci.log`. The local248-test/24-combination result remains
+recorded above. Working tree was clean after the code push. This documentation-only
+record skips redundant CI; it does not claim validation of future source changes.
+
+Next bounded milestone is typed long symbolic data initializers (pointer tables),
+with signed addends, module symbol validation and executable PIE/non-PIE checks.
+Numeric oracle bytes remain independent and unchanged. Strings, narrow/TLS/GOT
+relocations and interpreter global resolution stay outside that proposed scope.
+No main merge, release tag or full QBE/data/ABI claim was made.

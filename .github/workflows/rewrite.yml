@@ -1,0 +1,31 @@
+name: Zig-native rewrite foundation
+
+on:
+  push:
+    branches: [rewrite/zig-native]
+    paths: ['rewrite/**', '.github/workflows/rewrite.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  foundation:
+    name: Foundation (${{ matrix.optimize }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        optimize: [Debug, ReleaseSafe, ReleaseFast]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.18.0-dev.35+5e754304d
+      - name: Formatting
+        working-directory: rewrite
+        run: zig fmt --check build.zig src
+      - name: Independent core tests (not backend parity)
+        working-directory: rewrite
+        run: zig build test -Doptimize=${{ matrix.optimize }} --summary all

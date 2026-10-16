@@ -955,3 +955,59 @@ Next bounded proposal: all-zero raw-bit data lowering to writable ELF BSS, with
 negative-zero/symbolic items kept in PROGBITS, independent linked byte/section/
 size/binding checks and cap-sized sparse-object regressions. No new interpreter
 global model, cross-object layout promise or performance superiority is implied.
+
+## Exact zero-data BSS milestone (in progress)
+
+Added allocation-free raw-bit all-zero classification. Numeric/float bit fields
+must be exactly0, byte slices every byte0, zero runs and empty data are zero;
+symbolic initializers always stay unknown/nonzero. After ordinary module/target
+validation, AMD64 chooses writable `.bss` for all-zero objects and emits one compact
+zero run, while negative floating zeros, relocations and nonzero content remain
+in `.data`. Alignment/export/type/size, packed payload bytes, owned IR and scalar
+semantics are unchanged. No cross-object layout, interpreter globals, `.comm`/TLS
+or performance superiority is promised (DATA-BSS.md).
+
+Four new tests passed with the suite: **263/263 Debug** in
+`/data/check-bss-debug.log`. The initial compile exposed a runtime selection passed
+to the comptime formatting parameter; it was corrected to select between two
+literal-format calls before the successful run. Tests cover bit classification,
+negative zeros, byte ownership/read-only emission, metadata, validation precedence
+and exhaustive parser/emitter allocation cleanup.
+
+Eight-option Debug smoke passed in `/data/check-native-bss.log`: **877 non-PIE
++885 PIE** byte/address/mutation results and16 ELF section/size/binding checks per
+combination. Two data-only executable regressions per combination each use exactly
+64MiB payload (four16MiB objects), verify every initial byte and all bytes after end
+mutations, require NOBITS extents/alignment and ELF file size at most128KiB. The new
+ELF reader initially expected decimal sizes; readelf displays16MiB as0x1000000,
+so it was corrected to accept the actual decimal/hex formats without changing the
+size assertion. Existing numeric, relocation and string native harnesses also
+passed all eight options. Every prior generator/fixture/oracle is unchanged; CI
+adds the fourteenth native harness and retains all fourteen generators.
+
+Full three-mode/eight-option verification follows. No full-matrix or exact-SHA CI
+success is assumed yet, and no main merge or release tag occurred.
+
+### BSS authoritative local verification
+
+The CI-derived serial `/data/verify-data-bss.sh` completed **DATA BSS VERIFICATION
+PASSED**, exit0, in `/data/verify-data-bss.log`. Source stayed frozen throughout.
+Debug reused its unchanged **263/263** smoke result (explicit cached execution);
+ReleaseSafe and ReleaseFast freshly passed **263/263** each. All **24** native
+mode/option combinations passed all **fourteen** harnesses. Mechanical completion
+counts matched **50 distinct groups**:49 exactly24 times, plus the existing2,032
+linked-symbol group48 times for its two executable links. Earlier defined results,
+arithmetic/termination/memory/overflow faults, guard tests, negative controls and
+rejection/output-preservation groups all stayed intact.
+
+Per combination, new checks were877 non-PIE +885 PIE BSS results,16 ELF section/
+size/binding/alignment records and2 cap-sized sparse-file/runtime regressions.
+The file-footprint bound is **at most128KiB**, matching the harness comparison;
+it is not a general artifact-size/performance claim. All **fourteen** independent
+generators and formatting passed. All pre-existing generators and fixture/oracle
+files remain unchanged, with no rejection substitutions needed for this lowering.
+Scope, whitespace, credential and legacy-isolation checks passed. Origin remains
+credential-free. No main merge, release tag, new interpreter globals or complete
+backend/data/ABI parity is implied. Publication CI follows at the exact code SHA.
+The scalar-symbol-addend proposal in `/data/zbe-scalar-symbol-addend-followup-design.txt`
+is unimplemented and unverified; no source for that follow-up has begun.

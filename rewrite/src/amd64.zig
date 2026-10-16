@@ -52,7 +52,6 @@ pub fn emitWithOptions(allocator: std.mem.Allocator, module: *const Module, opti
     var emitter: Emitter = .{ .output = .init(allocator), .module = module, .allocator = allocator, .options = options };
     defer emitter.output.deinit();
     if (module.data.items.len != 0) {
-        try emitter.print(".data\n", .{});
         for (module.data.items) |object| try emitter.dataDefinition(object);
     }
     try emitter.print(".text\n", .{});
@@ -158,30 +157,36 @@ const Emitter = struct {
 
     fn dataDefinition(self: *Emitter, object: *const @import("data.zig").Data) Error!void {
         const name = self.module.symbols.get(object.name).?;
+        const zero = object.isAllZero();
+        if (zero) try self.print(".bss\n", .{}) else try self.print(".data\n", .{});
         try self.print(".balign {d}\n", .{object.alignment.bytes()});
         if (object.linkage == .exported) try self.print(".globl {s}\n", .{name});
         try self.print(".type {s}, @object\n{s}:\n", .{ name, name });
-        for (object.items.items) |item| switch (item) {
-            .byte => |bits| try self.print("\t.byte {d}\n", .{bits}),
-            .half => |bits| try self.print("\t.short {d}\n", .{bits}),
-            .word, .single_bits => |bits| try self.print("\t.long {d}\n", .{bits}),
-            .long, .double_bits => |bits| try self.print("\t.quad {d}\n", .{bits}),
-            .bytes => |bytes| for (bytes, 0..) |byte, index| {
-                if (index % 16 == 0) try self.print("\t.byte ", .{}) else try self.print(",", .{});
-                try self.print("{d}", .{byte});
-                if (index % 16 == 15 or index + 1 == bytes.len) try self.print("\n", .{});
-            },
-            .symbol_address => |reference| {
-                try self.print("\t.quad {s}", .{self.module.symbols.get(reference.symbol).?});
-                if (reference.addend > 0) try self.print("+{d}", .{reference.addend});
-                // Printing the signed minimum directly never negates/overflows it.
-                if (reference.addend < 0) try self.print("{d}", .{reference.addend});
-                try self.print("\n", .{});
-            },
-            .zero => |count| if (count != 0) {
-                try self.print("\t.zero {d}\n", .{count});
-            },
-        };
+        if (zero) {
+            if (object.byte_len != 0) try self.print("\t.zero {d}\n", .{object.byte_len});
+        } else {
+            for (object.items.items) |item| switch (item) {
+                .byte => |bits| try self.print("\t.byte {d}\n", .{bits}),
+                .half => |bits| try self.print("\t.short {d}\n", .{bits}),
+                .word, .single_bits => |bits| try self.print("\t.long {d}\n", .{bits}),
+                .long, .double_bits => |bits| try self.print("\t.quad {d}\n", .{bits}),
+                .bytes => |bytes| for (bytes, 0..) |byte, index| {
+                    if (index % 16 == 0) try self.print("\t.byte ", .{}) else try self.print(",", .{});
+                    try self.print("{d}", .{byte});
+                    if (index % 16 == 15 or index + 1 == bytes.len) try self.print("\n", .{});
+                },
+                .symbol_address => |reference| {
+                    try self.print("\t.quad {s}", .{self.module.symbols.get(reference.symbol).?});
+                    if (reference.addend > 0) try self.print("+{d}", .{reference.addend});
+                    // Printing the signed minimum directly never negates/overflows it.
+                    if (reference.addend < 0) try self.print("{d}", .{reference.addend});
+                    try self.print("\n", .{});
+                },
+                .zero => |count| if (count != 0) {
+                    try self.print("\t.zero {d}\n", .{count});
+                },
+            };
+        }
         try self.print(".size {s}, .-{s}\n", .{ name, name });
     }
 

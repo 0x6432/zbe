@@ -1,0 +1,16 @@
+export data $bss_numbers = align 64 { b 0, h 0, w 0, l 0 }
+export data $bss_bytes = align 32 { b "\0\000\x00" }
+data $bss_empty = align 16 {}
+export data $bss_positive = { s s_0, d d_0 }
+export data $bss_negative = { s s_-0, d d_-0 }
+export data $bss_nonzero = { z 63, b 1, z 65 }
+export data $bss_pointer = { l $bss_bytes }
+data $bss_mixed = { b 0, h 0, w 0, l 0, s s_0, d d_0, z 7, b "\0" }
+export function l $bss_empty_address() {
+@e
+ret $bss_empty
+}
+export function l $bss_mixed_address() {
+@e
+ret $bss_mixed
+}

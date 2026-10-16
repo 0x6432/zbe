@@ -78,6 +78,31 @@ pub const Data = struct {
         try self.items.append(self.allocator, stored);
         self.byte_len = total;
     }
+    /// Raw-bit classification, not floating equality or linker resolution.
+    /// Consumers validate the module first; public ownership must remain valid.
+    pub fn isAllZero(self: *const Data) bool {
+        for (self.items.items) |item| switch (item) {
+            .byte => |bits| if (bits != 0) {
+                return false;
+            },
+            .half => |bits| if (bits != 0) {
+                return false;
+            },
+            .word, .single_bits => |bits| if (bits != 0) {
+                return false;
+            },
+            .long, .double_bits => |bits| if (bits != 0) {
+                return false;
+            },
+            .bytes => |bytes| for (bytes) |byte| {
+                if (byte != 0) return false;
+            },
+            .zero => {},
+            .symbol_address => return false,
+        };
+        return true;
+    }
+
     /// Public storage may have been edited: never trust the cached size.
     pub fn validate(self: *const Data) Error!usize {
         var total: usize = 0;

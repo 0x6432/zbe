@@ -54,7 +54,7 @@ Same-width `cast` uses raw-bit moves across integer/SSE ABI classes. `exts` uses
 Floating predicates use explicit ordered/unordered SSE flag handling rather than treating floating flags as integer comparisons. Equality/less/less-equal exclude unordered results, inequality includes unordered results, and ordered/unordered test parity explicitly. Native tests cover both integer result widths, both floating operand widths, signed zeros, infinities and quiet/signaling NaN operands. Truth-value coverage does not establish floating exception-flag equivalence or behavior with unmasked exceptions.
 
 
-All thirteen native harnesses accept `--fold-integers`, `--reuse-stack-homes` and `--callee-saved-homes`, forwarding them to the experimental compiler. CI executes each harness in all eight flag combinations in every compiler build mode, retaining all result, arithmetic-fault and output-preservation expectations. See OPTIMIZE.md for the folding pass's conservative scope and failure-atomic per-function contract and STACK-HOMES.md for layout ownership and analysis limits, and PRESERVED-HOMES.md for limited physical homes and the explicit full-width register-preservation adapter. No new IL optimization level or legacy compatibility behavior is implied.
+All fourteen native harnesses accept `--fold-integers`, `--reuse-stack-homes` and `--callee-saved-homes`, forwarding them to the experimental compiler. CI executes each harness in all eight flag combinations in every compiler build mode, retaining all result, arithmetic-fault and output-preservation expectations. See OPTIMIZE.md for the folding pass's conservative scope and failure-atomic per-function contract and STACK-HOMES.md for layout ownership and analysis limits, and PRESERVED-HOMES.md for limited physical homes and the explicit full-width register-preservation adapter. No new IL optimization level or legacy compatibility behavior is implied.
 
 ## Scalar memory subset
 
@@ -112,3 +112,12 @@ There is no implicit terminator, interpreter global resolver or all-GAS escape
 compatibility claim. The thirteenth native harness independently compares all-byte
 content, whole-object mutations, ELF extents and injection exclusions in PIE and
 non-PIE executables (DATA-STRINGS.md).
+
+
+## Exact all-zero data
+
+Validated all-zero raw-bit objects now lower to writable ELF BSS; negative-zero
+and symbolic objects stay in file-backed data. The fourteenth native harness
+independently checks bytes, writes, ELF section kinds and cap-sized sparse objects
+in PIE/non-PIE. No cross-object layout, interpreter-global or performance-parity
+promise is introduced (DATA-BSS.md).

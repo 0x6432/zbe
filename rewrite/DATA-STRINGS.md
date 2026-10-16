@@ -47,7 +47,8 @@ assembly/source/token allocations. Empty strings may still consume item metadata
 AMD64 emission writes bounded-width numeric `.byte` lines only, never raw `.ascii`
 source or escape spellings. Quotes, backslashes, newlines, comment markers and
 assembler-like payload bytes cannot become directives/symbol definitions. The
-existing checked data-name policy, writable `.data`, alignment, exact ELF sizes
+existing checked data-name policy, writable `.data`/zero-only `.bss` (DATA-BSS.md),
+alignment, exact ELF sizes
 and PIE/non-PIE executable contracts remain unchanged. This does not implement a
 sandbox, memory permissions model, full data language or shared-object policy.
 

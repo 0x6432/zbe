@@ -59,10 +59,11 @@ with explicit decoding, copied ownership and no implicit terminators.
 
 ## Linux AMD64 emission
 
-Data are writable `.data` objects, emitted with checked `.balign`, optional
+Data are writable ELF objects: exact all-zero content uses `.bss`, while other
+content uses `.data` (DATA-BSS.md). Objects retain checked `.balign`, optional
 `.globl` for exported linkage, ELF `.type @object` and exact `.size` metadata.
 Numeric fields use `.byte`, `.short`, `.long` or `.quad` raw-bit directives;
-positive zero runs use `.zero`. No padding is inserted inside objects. Object
+positive zero runs use `.zero`; all-zero BSS objects use one compact zero run. No padding is inserted inside objects. Object
 alignment may introduce gaps between definitions. Every name, including unused
 data, passes target symbol-spelling checks before any assembly is returned.
 Data-only modules are valid compilation units. Emission does not modify IR.

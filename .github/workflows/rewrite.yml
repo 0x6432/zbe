@@ -32,3 +32,8 @@ jobs:
       - name: Independent IR/frontend tests (not backend parity)
         working-directory: rewrite
         run: zig build test -Doptimize=${{ matrix.optimize }} --summary all
+      - name: Experimental Linux AMD64 integer execution
+        working-directory: rewrite
+        run: |
+          zig build -Doptimize=${{ matrix.optimize }} --summary all
+          python3 tools/native_check.py

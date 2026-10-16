@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+"""Assemble/link/execute the experimental Linux AMD64 integer slice."""
+from pathlib import Path
+import argparse
+import platform
+import subprocess
+import tempfile
+
+
+def run(args: list[str], **kwargs) -> subprocess.CompletedProcess:
+    return subprocess.run(args, check=True, timeout=90, **kwargs)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    root = Path(__file__).resolve().parents[1]
+    parser.add_argument("--compiler", type=Path, default=root / "zig-out/bin/zbe-native")
+    parser.add_argument("--cc", default="cc")
+    args = parser.parse_args()
+    if platform.system() != "Linux" or platform.machine() not in ("x86_64", "amd64"):
+        raise SystemExit("Native execution requires Linux x86_64; no result claimed.")
+    compiler = str(args.compiler.resolve())
+    declarations = ["#include <stdint.h>", "#include <stdio.h>"]
+    checks = []
+    functions = []
+
+    def check(expression: str, expected: int) -> None:
+        index = len(checks)
+        checks.append(f'if ((uint64_t)({expression}) != UINT64_C({expected})) {{ fprintf(stderr, "native check {index} failed\\n"); return 1; }}')
+
+    for line in (root / "src/fixtures/integer-oracle.tsv").read_text().splitlines():
+        if line.startswith("#") or not line:
+            continue
+        ty, operation, lhs, rhs, expected = line.split()
+        mnemonic = {"bit_and": "and", "bit_or": "or", "bit_xor": "xor"}.get(operation, operation)
+        name = f"oracle_{len(functions)}"
+        functions.append(f"export function {ty} ${name}() {{\n@entry\n%x ={ty} {mnemonic} {lhs}, {rhs}\nret %x\n}}")
+        declarations.append(f'extern {"uint32_t" if ty == "w" else "uint64_t"} {name}(void);')
+        check(f"{name}()", int(expected))
+    assert len(functions) == 384
+    functions.append((root / "src/fixtures/constant-jump.ssa").read_text())
+    for name, expected in (("jconstant", 0), ("jproduct", 0), ("jnegative", 0), ("jnonzero", 1)):
+        declarations.append(f"extern uint32_t {name}(void);")
+        check(f"{name}()", expected)
+    functions.append((root / "src/fixtures/phi-loop.ssa").read_text())
+    declarations.append("extern uint32_t swap(uint32_t);")
+    for count in range(8):
+        check(f"swap({count})", 1 if count % 2 == 0 else 2)
+
+    for ty, ctype in (("w", "uint32_t"), ("l", "uint64_t")):
+        name = f"arguments_{ty}"
+        parameters = ", ".join(f"{ty} %p{i}" for i in range(8))
+        body = [f"%s1 ={ty} add %p0, %p1"]
+        body.extend(f"%s{i} ={ty} add %s{i-1}, %p{i}" for i in range(2, 8))
+        functions.append(f"export function {ty} ${name}({parameters}) {{\n@entry\n" + "\n".join(body) + "\nret %s7\n}")
+        declarations.append(f"extern {ctype} {name}(" + ", ".join([ctype] * 8) + ");")
+        values = [0xFFFFFFFF, 2, 3, 4, 5, 6, 0x80000000, 9]
+        if ty == "l":
+            values[0] = 1 << 40
+            values[6] = 0xFFFFFFFFFFFFFFFF
+        mask = (1 << (32 if ty == "w" else 64)) - 1
+        check(name + "(" + ", ".join(f"UINT64_C({v})" for v in values) + ")", sum(values) & mask)
+
+    functions.append("export function w $long_condition(l %p) {\n@entry\njnz %p, @yes, @no\n@yes\nret 1\n@no\nret 0\n}")
+    declarations.append("extern uint32_t long_condition(uint64_t);")
+    for bits in (1 << 40, (1 << 40) | 1, 0xFFFFFFFF00000000, 0x80000000):
+        check(f"long_condition(UINT64_C({bits}))", int(bool(bits & 0xFFFFFFFF)))
+
+    functions.append("export function w $critical_edge(w %p) {\n@entry\njnz %p, @join, @right\n@right\n%r =w copy 7\njmp @join\n@join\n%x =w phi @entry 3, @right %r\nret %x\n}")
+    declarations.append("extern uint32_t critical_edge(uint32_t);")
+    check("critical_edge(0)", 7)
+    check("critical_edge(1)", 3)
+    functions.append("export function w $same_target(w %p) {\n@entry\njnz %p, @join, @join\n@join\n%x =w phi @entry 42\nret %x\n}")
+    declarations.append("extern uint32_t same_target(uint32_t);")
+    check("same_target(0)", 42)
+    check("same_target(1)", 42)
+    functions.append("export function $nothing() {\n@entry\nret\n}")
+    declarations.append("extern void nothing(void);")
+
+    with tempfile.TemporaryDirectory(prefix="zbe-native-check-") as directory:
+        work = Path(directory)
+        source = work / "input.ssa"
+        assembly = work / "output.s"
+        driver = work / "driver.c"
+        executable = work / "native-check"
+        source.write_text("\n".join(functions) + "\n")
+        driver.write_text("\n".join(declarations) + "\nint main(void) {\nnothing();\n" + "\n".join(checks) + f'\nputs("{len(checks)} native integer/ABI/phi checks passed");\nreturn 0;\n}}\n')
+        run([compiler, str(source), str(assembly)])
+        run([args.cc, "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-no-pie", str(driver), str(assembly), "-o", str(executable)])
+        run([str(executable)])
+        invalid = {
+            "floating": ("export function d $bad() {\n@b\nret d_1\n}", "UnsupportedType"),
+            "ssa": ("export function w $bad() {\n@entry\njnz 0, @left, @join\n@left\n%x =w copy 1\njmp @join\n@join\nret %x\n}", "InvalidSSA"),
+            "syntax": ("export function w $bad() {\n@b\nret %missing\n}", "unknown_value"),
+        }
+        for name, (text, diagnostic) in invalid.items():
+            bad_source = work / f"{name}.ssa"
+            bad_output = work / f"{name}.s"
+            bad_source.write_text(text)
+            result = subprocess.run([compiler, str(bad_source), str(bad_output)], capture_output=True, text=True, timeout=30)
+            if result.returncode == 0 or bad_output.exists() or diagnostic not in result.stderr:
+                raise SystemExit(f"Invalid {name} input was accepted, created output, or had the wrong diagnostic")
+            bad_output.write_text("preserve-existing-output")
+            result = subprocess.run([compiler, str(bad_source), str(bad_output)], capture_output=True, text=True, timeout=30)
+            if result.returncode == 0 or bad_output.read_text() != "preserve-existing-output":
+                raise SystemExit(f"Invalid {name} input overwrote an existing output")
+        usage = subprocess.run([compiler], capture_output=True, text=True, timeout=30)
+        if usage.returncode != 2 or "usage:" not in usage.stderr:
+            raise SystemExit("Usage check failed")
+        original = source.read_bytes()
+        same = subprocess.run([compiler, str(source), str(source)], capture_output=True, text=True, timeout=30)
+        if same.returncode == 0 or source.read_bytes() != original:
+            raise SystemExit("Same-path output overwrote its input")
+        print("8 CLI rejection/output-preservation checks passed")
+
+
+if __name__ == "__main__":
+    main()

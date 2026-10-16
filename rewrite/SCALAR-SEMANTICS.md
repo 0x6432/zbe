@@ -1,6 +1,6 @@
 # Scalar CFG, SSA and evaluation
 
-This layer verifies and interprets **only the current scalar IR vocabulary**. It is not a completed compiler, full QBE verifier, optimizer or machine backend.
+This layer verifies and interprets **only the current scalar IR vocabulary**. It is not a completed compiler, full QBE verifier or optimizer. The separate experimental integer-only Linux AMD64 emitter is described in NATIVE-AMD64.md.
 
 ## Owned CFG snapshots
 

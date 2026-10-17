@@ -1378,3 +1378,71 @@ before implementation. Proposal: `/data/zbe-variadic-call-followup-design.txt`.
 Environment-call ideas in `/data/zbe-environment-call-followup-design.txt` remain
 unselected questions, not implemented functionality. No main merge, release tag,
 full ABI/backend parity or performance claim is authorized.
+
+## Variadic scalar call sites only (in progress)
+
+Following first-attempt green typed-subword CI, added external/indirect marked
+scalar/void call sites only. Call.variadic_start records a checked named-prefix
+index, never an operand or implicit promotion. Function definitions remain
+nonvariadic; any marked known direct call is CallSignatureMismatch, even unused/
+unreachable. Variadic headers, vastart/vaarg, aggregates, environment calls and
+interpreter host invocation remain unsupported. C default promotions remain the
+IL caller's explicit extension/widening responsibility, not hidden conversions.
+
+Typed CallOptions and common Function.appendCall preserve existing builder APIs
+as wrappers and copied argument ownership. Result/target/argument/index checks
+precede publication; out-of-range public metadata returns InvalidVariadicMarker.
+Parser permits one marker with explicit commas, including initial/final/sole
+markers. Native lowering writes AL from the existing saturated SSE cursor after
+all argument loads, immediately before call, including named floats and AL0.
+R11 targets, return homing, frame/probe/dynamic allocation and nonvariadic emission
+remain unchanged. No new operand-use or scalar class is introduced.
+
+Six focused tests passed296/296 in Debug and built the executable without source
+or test corrections. They cover prefix grammar/no implicit promotion, common
+builder ownership/failure retry, forged indices, unsupported bodies/known-call
+mismatch, exact AL ordering/count/saturation and otherwise identical nonvariadic
+assembly in four home options, evaluator refusal/safe/budget paths, effects and
+exhaustive OOM cleanup. The new fixture joins both independent analysis corpora.
+Evidence: `/data/check-variadic-calls-debug.log` and its exit0 record.
+
+The new native harness passed all8 Debug option sets without corrections:561
+checks per PIE/nonPIE link,2 no-TEXTREL and32 rejection/output-preservation cases
+per combination. C stdarg expectations are independent promoted weighted values;
+raw assembly probes assert AL separately, including poisoned final integer loads.
+Coverage includes all base/subword returns, mixed named/variable bank overflow,
+zero tails, indirect targets, snprintf, void/unused effects, phi loops, preserved
+originals and a16-byte dynamic object below a48-byte outgoing reservation.
+Evidence: `/data/check-variadic-calls-native.log` and its exit0 record.
+
+Scope/credential/legacy/whitespace checks passed. All74 prior fixture/generator/
+native-harness files except the separately checked newly valid subword negative
+remain unchanged versus d8b4723. Exactly two old newly valid marked-call negatives
+(one unit, one subword harness) became duplicate-marker negatives, preserving
+both groups' assertion counts. No existing oracle was broadened/weakened. The
+new17th harness is added to the existing CI loop; original timeout stays intact.
+The authoritative full matrix follows frozen source. Debug may reuse unchanged
+296 smoke; actual cache/fresh status will be recorded. No full-matrix/exact-SHA CI
+result is assumed, nor full variadic ABI/backend parity or performance.
+
+### Variadic call-site full local verification passed
+
+The frozen authoritative runner completed exit0 with
+VARIADIC CALL VERIFICATION PASSED. Debug reused the unchanged296-test smoke;
+ReleaseSafe and ReleaseFast each freshly passed296/296. All24 combinations
+(three modes times eight option sets) passed all17 native harnesses. Formatting
+and all14 independent generator checks passed. All59 completion groups were
+counted:55 appeared24 times; the linked-symbol, scalar-offset, subword ABI and
+new variadic defined-result groups appeared48 times for their two links. The
+new harness contributed561 defined results per PIE/nonPIE link,2 no-TEXTREL and
+32 rejection/output-preservation checks per combination. No source correction,
+assertion reduction, timeout change or generator/oracle replacement was needed.
+
+Evidence: /data/verify-variadic-calls.sh, .log, .pid and .exit;
+/data/variadic-calls-verification-counts.json. Final review confirmed credential-
+free origin, legacy isolation, allowed-path scope and no credential patterns.
+The two newly valid old syntax negatives are exactly the duplicate-marker
+replacements described above; all other prior fixture/generator/native-harness
+files remain unchanged. Exact pushed-SHA CI is still pending; local success does
+not imply CI success or complete variadic ABI/backend parity. Source remains
+frozen through exact-SHA CI, including post-job steps.

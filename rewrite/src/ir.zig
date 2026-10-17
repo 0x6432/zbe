@@ -266,7 +266,15 @@ pub const CallTarget = union(enum) {
     }
 };
 /// Argument storage is owned by Function, not borrowed from callers.
-pub const Call = struct { result: ?ValueId, callee: CallTarget, arguments: []const CallArgument, result_subword: ?SubwordType = null };
+pub const CallOptions = struct { result_abi: ?AbiType = null, variadic_start: ?usize = null };
+pub const Call = struct {
+    result: ?ValueId,
+    callee: CallTarget,
+    arguments: []const CallArgument,
+    result_subword: ?SubwordType = null,
+    /// Named argument count before ..., not an operand or an implicit promotion.
+    variadic_start: ?usize = null,
+};
 pub const Instruction = union(enum) {
     allocate: struct { result: ValueId, size: Operand, alignment: AllocationAlignment },
     /// Nonnegative signed-word byte count, not a packed reference field.
@@ -370,6 +378,7 @@ pub const ValidationError = error{
     TypeMismatch,
     NonIntegerCondition,
     InvalidReturn,
+    InvalidVariadicMarker,
     BlockTerminated,
     MissingTerminator,
     NoBlocks,
@@ -574,41 +583,45 @@ pub const Function = struct {
     /// Argument storage is duplicated before publication. Failed type checks or
     /// allocations leave a scalar result pending and retryable.
     pub fn defineCall(self: *Function, block: BlockId, result: ValueId, symbol: SymbolId, arguments: []const CallArgument) BuildError!void {
-        return self.addCall(block, result, .{ .symbol = symbol }, arguments, null);
+        return self.appendCall(block, result, .{ .symbol = symbol }, arguments, .{});
     }
 
     pub fn defineIndirectCall(self: *Function, block: BlockId, result: ValueId, address: Operand, arguments: []const CallArgument) BuildError!void {
-        return self.addCall(block, result, .{ .address = address }, arguments, null);
+        return self.appendCall(block, result, .{ .address = address }, arguments, .{});
     }
 
     /// A void call adds an effect, not an SSA definition or dummy value.
     pub fn appendVoidCall(self: *Function, block: BlockId, symbol: SymbolId, arguments: []const CallArgument) BuildError!void {
-        return self.addCall(block, null, .{ .symbol = symbol }, arguments, null);
+        return self.appendCall(block, null, .{ .symbol = symbol }, arguments, .{});
     }
 
     pub fn appendVoidIndirectCall(self: *Function, block: BlockId, address: Operand, arguments: []const CallArgument) BuildError!void {
-        return self.addCall(block, null, .{ .address = address }, arguments, null);
+        return self.appendCall(block, null, .{ .address = address }, arguments, .{});
     }
 
     pub fn defineCallAbi(self: *Function, block: BlockId, result: ValueId, symbol: SymbolId, result_type: AbiType, arguments: []const CallArgument) BuildError!void {
-        return self.addCall(block, result, .{ .symbol = symbol }, arguments, result_type);
+        return self.appendCall(block, result, .{ .symbol = symbol }, arguments, .{ .result_abi = result_type });
     }
 
     pub fn defineIndirectCallAbi(self: *Function, block: BlockId, result: ValueId, address: Operand, result_type: AbiType, arguments: []const CallArgument) BuildError!void {
-        return self.addCall(block, result, .{ .address = address }, arguments, result_type);
+        return self.appendCall(block, result, .{ .address = address }, arguments, .{ .result_abi = result_type });
     }
 
-    fn addCall(self: *Function, block_id: BlockId, result: ?ValueId, callee: CallTarget, arguments: []const CallArgument, result_abi: ?AbiType) BuildError!void {
+    /// Common checked scalar/void, direct/indirect call construction. Arguments
+    /// transfer only by owned copy; options are validated before publication.
+    pub fn appendCall(self: *Function, block_id: BlockId, result: ?ValueId, callee: CallTarget, arguments: []const CallArgument, options: CallOptions) BuildError!void {
+        const result_abi = options.result_abi;
         const target = try self.getBlock(block_id);
         if (target.terminator != null) return error.BlockTerminated;
         const value = if (result) |id| try self.pendingValue(id) else null;
         if (result_abi) |ty| if (value == null or value.?.scalar_type != ty.scalar()) return error.TypeMismatch;
         try self.checkCallTarget(callee);
         try self.checkArguments(arguments);
+        if (options.variadic_start) |prefix| if (prefix > arguments.len) return error.InvalidVariadicMarker;
         try target.instructions.ensureUnusedCapacity(self.allocator, 1);
         const owned = try self.allocator.dupe(CallArgument, arguments);
         if (value) |definition| definition.definition = .{ .instruction = .{ .block = block_id, .index = target.instructions.items.len } };
-        target.instructions.appendAssumeCapacity(.{ .call = .{ .result = result, .callee = callee, .arguments = owned, .result_subword = if (result_abi) |ty| ty.subword() else null } });
+        target.instructions.appendAssumeCapacity(.{ .call = .{ .result = result, .callee = callee, .arguments = owned, .result_subword = if (result_abi) |ty| ty.subword() else null, .variadic_start = options.variadic_start } });
     }
 
     fn checkCallTarget(self: *const Function, target: CallTarget) ValidationError!void {
@@ -742,6 +755,7 @@ pub const Function = struct {
                         if (try self.operandType(store.value) != store.kind.valueType() or try self.operandType(store.address) != .long) return error.TypeMismatch;
                     },
                     .call => |call| {
+                        if (call.variadic_start) |prefix| if (prefix > call.arguments.len) return error.InvalidVariadicMarker;
                         if (call.result_subword != null and ty != .word) return error.TypeMismatch;
                         try self.checkCallTarget(call.callee);
                         try self.checkArguments(call.arguments);

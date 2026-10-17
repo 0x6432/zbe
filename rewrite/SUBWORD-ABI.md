@@ -37,7 +37,7 @@ Incoming/outgoing classification therefore still uses the word GP bank, six GP
 registers independently of eight SSE registers, then declaration-ordered8-byte
 stack slots. Return transport remains the low word of RAX. Outgoing reservations,
 R11 indirect targets, fixed/dynamic frames, phi scratch and preserved homes are
-unchanged. This does not add aggregates, varargs, environment arguments, complete
+unchanged. This does not itself add aggregates, varargs, environment arguments, complete
 C ABI validation, another target/platform or native address safety.
 
 ## Explicit metadata and checked ownership
@@ -98,3 +98,8 @@ The native harness checks1033 defined-bit results per link (PIE and non-PIE),
 2 executable no-TEXTREL conditions and40 rejection/output-preservation cases per
 option combination. The complete matrix and exact-SHA CI results are recorded in
 HANDOFF.md; these bounded results do not establish full ABI compatibility.
+
+External/indirect variadic scalar call sites now have a checked named-argument
+prefix marker and final AMD64 AL setup (VARIADIC-CALLS.md). Variadic function
+bodies, va_list operations and interpreter host calls remain unsupported; C
+default promotions are explicit caller responsibilities, not inserted conversions.

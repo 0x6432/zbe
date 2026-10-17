@@ -68,4 +68,5 @@ jobs:
             python3 tools/native_bss_check.py $flags
           python3 tools/native_offset_check.py $flags
           python3 tools/native_subword_check.py $flags
+          python3 tools/native_variadic_check.py $flags
           done

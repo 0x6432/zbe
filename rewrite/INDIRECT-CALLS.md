@@ -7,7 +7,7 @@ The native Linux AMD64 slice accepts scalar-result and void calls through a **lo
 call %long_target(w|l|s|d argument, ...)
 ```
 
-The ellipsis describes repetition, not variadic IL. Direct `$symbol` calls remain supported. A word or floating target is a type error. The indirect-call extension itself did not add function-address/global operands elsewhere in the language (these are now supported separately as long symbol-address operands; SYMBOL-ADDRESSES.md), memory operations (the later scalar memory slice is documented in MEMORY.md), aggregates, environment arguments, variadic ABI support, shared-library machinery or another target.
+The ellipsis describes repetition; actual marked variadic call sites are supported separately in VARIADIC-CALLS.md. Direct `$symbol` calls remain supported. A word or floating target is a type error. The indirect-call extension itself did not add function-address/global operands elsewhere in the language (these are now supported separately as long symbol-address operands; SYMBOL-ADDRESSES.md), memory operations (the later scalar memory slice is documented in MEMORY.md), aggregates, environment arguments, variadic ABI support, shared-library machinery or another target.
 
 ## Representation, ownership and validation
 
@@ -15,7 +15,7 @@ The ellipsis describes repetition, not variadic IL. Direct `$symbol` calls remai
 
 Indirect targets are ordinary SSA uses: structural validation requires long, SSA checks ordering/dominance, and liveness/interference include the target even if it appears nowhere in the argument list. Independent use-search oracles include target-only fixtures. Integer folding retains calls as effects and does not reinterpret a numeric address as a symbol or execute it.
 
-Module validation checks known symbolic signatures as before, but cannot prove the identity, executability or signature of an indirect address. The caller must supply a valid function address with the declared nonvariadic base-scalar SysV argument/result contract. Omitting a result asserts a void contract. **Generated native programs are not sandboxed**: an invalid address or incompatible function signature may fault or cause arbitrary invalid native behavior. Accepting an address literal for compilation is not a runtime validity guarantee. Null-address fixtures are never executed natively.
+Module validation checks known symbolic signatures as before, but cannot prove the identity, executability or signature of an indirect address. The caller must supply a valid function address with the declared scalar SysV argument/result contract, including any variadic call marker. Omitting a result asserts a void contract. **Generated native programs are not sandboxed**: an invalid address or incompatible function signature may fault or cause arbitrary invalid native behavior. Accepting an address literal for compilation is not a runtime validity guarantee. Null-address fixtures are never executed natively.
 
 ## AMD64 lowering
 

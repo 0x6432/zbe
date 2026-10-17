@@ -1,0 +1,55 @@
+data $vararg_format_text = { b "%u %.1f\000" }
+export function l $vararg_sum() {
+@entry
+    %a =l call $vararg_accumulate(w 3, ..., w 7, l 9, d d_2)
+    %target =l copy $vararg_accumulate
+    %b =l call %target(w 3, ..., w 7, l 9, d d_2)
+    %sum =l add %a, %b
+    ret %sum
+}
+export function w $vararg_format(l %output) {
+@entry
+    %count =w call $snprintf(l %output, l 64, l $vararg_format_text, ..., w 123, d d_1.5)
+    ret %count
+}
+export function w $vararg_effects() {
+@entry
+    call $vararg_record(w 1, ..., w 17, d d_2)
+    %unused =l call $vararg_accumulate(w 3, ..., w 7, l 9, d d_2)
+    ret 9
+}
+export function l $vararg_allocated() {
+@entry
+    %object =l alloc16 16
+    storel 4294967297, %object
+    %result =l call $vararg_many(w 10, ..., l 1, l 2, l 3, l 4, l 5, l 6, l 7, l 8, l 9, l 10)
+    %kept =l loadl %object
+    %sum =l add %kept, %result
+    ret %sum
+}
+export function w $vararg_phi(w %count) {
+@entry
+    jmp @loop
+@loop
+    %i =w phi @entry 0, @body %next
+    %sum =w phi @entry 0, @body %newsum
+    %more =w cultw %i, %count
+    jnz %more, @body, @done
+@body
+    %result =l call $vararg_accumulate(w 3, ..., w 7, l 9, d d_2)
+    %low =w copy %result
+    %newsum =w add %sum, %low
+    %next =w add %i, 1
+    jmp @loop
+@done
+    ret %sum
+}
+export function w $vararg_safe(w %take, l %callback) {
+@entry
+    jnz %take, @invoke, @done
+@invoke
+    %result =w call %callback(w 253, ...)
+    ret %result
+@done
+    ret 42
+}

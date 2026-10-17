@@ -21,3 +21,8 @@ This classifier does **not** itself implement aggregates, ABI annotations, varar
 Four unit tests check all width-aware GP/vector names, cursor isolation, checked displacement limits/failure atomicity, and every one of **65,536 sixteen-argument integer-versus-floating class signatures**. The latter recounts each prefix independently, derives overflow position from saturated class counts, and checks the result tag before reading its payload. Scalar widths alternate within each class; this is exhaustive over those class patterns, not all four-type sequences or every possible signature length. Existing weighted mixed-ABI native cases cover distinct actual values and both overflow bank orders.
 
 All eight compiler-option combinations retain the full integer, floating, raw-bit, phi, arithmetic-fault, termination and CLI regression suites in all three compiler build modes. No new supported language operation or full-ABI claim is implied by this extraction.
+
+External/indirect variadic scalar call sites now have a checked named-argument
+prefix marker and final AMD64 AL setup (VARIADIC-CALLS.md). Variadic function
+bodies, va_list operations and interpreter host calls remain unsupported; C
+default promotions are explicit caller responsibilities, not inserted conversions.

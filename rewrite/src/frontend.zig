@@ -400,7 +400,7 @@ const Parser = struct {
     }
 
     fn call(self: *Parser, block: ir.BlockId, result: ?ir.ValueId, opcode: lex.Token, result_abi: ?ir.AbiType) Error!void {
-        // Nonvariadic scalar ABI calls; an indirect address must be long.
+        // Scalar ABI call sites; an indirect address must be long.
         const callee: ir.CallTarget = switch (self.peek().kind) {
             .global => symbol: {
                 const token = self.advance();
@@ -412,27 +412,23 @@ const Parser = struct {
         _ = try self.expect(.lparen);
         var arguments: std.ArrayList(ir.CallArgument) = .empty;
         defer arguments.deinit(self.allocator);
+        var variadic_start: ?usize = null;
         if (self.peek().kind != .rparen) while (true) {
-            const argument_type = try self.takeAbiType();
-            const operand = try self.readOperand(argument_type.scalar());
-            try arguments.append(self.allocator, ir.CallArgument.init(argument_type, operand));
+            if (self.peek().kind == .ellipsis) {
+                const marker = self.advance();
+                if (variadic_start != null) return self.fail(.unsupported_construct, marker);
+                variadic_start = arguments.items.len;
+            } else {
+                const argument_type = try self.takeAbiType();
+                const operand = try self.readOperand(argument_type.scalar());
+                try arguments.append(self.allocator, ir.CallArgument.init(argument_type, operand));
+            }
             if (self.peek().kind != .comma) break;
             _ = self.advance();
         };
         _ = try self.expect(.rparen);
         const f = self.current_function.?;
-        switch (callee) {
-            .symbol => |symbol| if (result) |value| {
-                f.defineCallAbi(block, value, symbol, result_abi.?, arguments.items) catch |err| return self.irError(err, opcode);
-            } else {
-                f.appendVoidCall(block, symbol, arguments.items) catch |err| return self.irError(err, opcode);
-            },
-            .address => |address| if (result) |value| {
-                f.defineIndirectCallAbi(block, value, address, result_abi.?, arguments.items) catch |err| return self.irError(err, opcode);
-            } else {
-                f.appendVoidIndirectCall(block, address, arguments.items) catch |err| return self.irError(err, opcode);
-            },
-        }
+        f.appendCall(block, result, callee, arguments.items, .{ .result_abi = result_abi, .variadic_start = variadic_start }) catch |err| return self.irError(err, opcode);
     }
 
     fn terminator(self: *Parser, block: ir.BlockId) Error!void {

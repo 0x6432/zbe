@@ -58,3 +58,8 @@ calls.
 Typed sb/ub/sh/uh scalar ABI annotations retain word SSA classes and unspecified
 upper bits, with explicit extension instructions and exact internal signature
 checks (SUBWORD-ABI.md). This does not add aggregates, varargs or host invocation.
+
+External/indirect variadic scalar call sites now have a checked named-argument
+prefix marker and final AMD64 AL setup (VARIADIC-CALLS.md). Variadic function
+bodies, va_list operations and interpreter host calls remain unsupported; C
+default promotions are explicit caller responsibilities, not inserted conversions.

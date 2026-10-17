@@ -311,6 +311,9 @@ const Emitter = struct {
                             .stack => |slot| try self.print("\tmov{c} {s}, {d}(%rsp)\n", .{ suffix(ty), register(ty, .accumulator), try slot.incomingOffset() - 16 }),
                         }
                     }
+                    // AL counts occupied SSE argument registers, including named
+                    // arguments. Set it last: ordinary RAX loads may poison AL.
+                    if (call.variadic_start != null) try self.print("\tmovb ${d}, %al\n", .{cursor.vector_used});
                     switch (call.callee) {
                         .symbol => |symbol| try self.print("\tcall {s}\n", .{self.module.symbols.get(symbol).?}),
                         .address => try self.print("\tcall *%r11\n", .{}),

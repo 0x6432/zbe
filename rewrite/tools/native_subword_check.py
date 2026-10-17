@@ -178,7 +178,7 @@ for(unsigned i=0;i<256;++i) {
         bad.extend(['function sb $f(sb %x) {\n@e\n%r =sb add %x, 1\nret %r\n}',
                     'function w $f(s %x) {\n@e\n%r =sb call $g(sb %x)\nret 0\n}',
                     'function l $f(sb %x) {\n@e\n%r =l copy %x\nret %r\n}',
-                    'function w $f() {\n@e\n%x =sb call $g(sb 1, ...)\nret 0\n}'])
+                    'function w $f() {\n@e\n%x =sb call $g(sb 1, ..., ...)\nret 0\n}'])
         assert len(bad)==20
         for text in bad:
             src.write_text(text)

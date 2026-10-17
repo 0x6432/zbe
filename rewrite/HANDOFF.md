@@ -1354,3 +1354,27 @@ generators and assertions remain intact. Evidence: `/data/verify-subword-abi.log
 its `.exit` and `/data/subword-abi-verification-counts.json`. Documentation now
 corrects the native harness count to16. Exact-SHA publication CI is next, not yet
 confirmed green. No main merge, release tag or full ABI/backend parity is implied.
+
+### Typed subword ABI exact-SHA CI confirmed green
+
+Code checkpoint `2ad59cb554ed822101633a4e3a7e209cb33121aa` passed
+https://github.com/0x6432/zbe/actions/runs/39011804238 on its first attempt.
+Debug, ReleaseSafe and ReleaseFast all completed successfully, including post-job
+steps. No rerun, source correction, timeout change or weakened assertion was
+needed. Source stayed frozen through the full local matrix and complete exact-
+SHA CI. Evidence: `/data/subword-abi-ci-result.json` and
+`/data/watch-subword-abi-ci.log`. This documentation-only record skips redundant
+CI and is not verification of future changes. The worktree was clean after code
+publication, with origin remaining credential-free and legacy isolation intact.
+
+Next reviewed bounded proposal: external/indirect variadic call sites only,
+recording a checked named-argument prefix index and setting AL to the occupied
+SSE argument-register count after marshalling. Keep variadic function definitions,
+vastart/vaarg, aggregates, environment calls and host interpretation unsupported.
+Explicit IL types remain caller contracts; never invent C default promotions.
+Review AL0/named-SSE/>8-SSE ordering, R11 preservation, exact defined-nonvariadic
+signature refusal, owned typed construction and independent C/assembly oracles
+before implementation. Proposal: `/data/zbe-variadic-call-followup-design.txt`.
+Environment-call ideas in `/data/zbe-environment-call-followup-design.txt` remain
+unselected questions, not implemented functionality. No main merge, release tag,
+full ABI/backend parity or performance claim is authorized.

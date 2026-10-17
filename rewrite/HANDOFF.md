@@ -1974,3 +1974,38 @@ Origin remains credential-free https://github.com/0x6432/zbe.git; fetched remote
 was still caffdff with no divergence. Recheck fetch/ancestor before actual push.
 Only rewrite/zig-native is authorized. Exact pushed-SHA CI remains pending, not
 claimed green. Source stays unchanged through the entire CI run/post-job steps.
+
+### Quoted globals: b28e65f exact-SHA CI first-attempt green; @ hardening selected
+
+Code checkpoint b28e65f4068c2427b9459a47e4f0bab787d56238 was pushed only to
+rewrite/zig-native. Exact-SHA run
+https://github.com/0x6432/zbe/actions/runs/39049729245
+completed successfully on attempt1, including every post-job step. ReleaseFast
+ran16:30:49Z–16:40:10Z, Debug16:30:49Z–16:45:28Z and ReleaseSafe16:30:49Z–16:38:12Z
+on2026-10-17. No rerun, cancellation, timeout change or source edit during CI.
+Evidence: /data/quoted-globals-ci-result.json and /data/watch-quoted-globals-ci.log.
+These actual results cover the committed321-test/all21-harness matrix, not every
+possible printable-name combination. No complete global/ELF/backend parity claim.
+
+Additional isolated review during CI discovered a further boundary outside the
+118-name native corpus. Reserved @PLT/@GOT/@TLS-style spellings can be interpreted
+as relocation suffixes despite quotes, and @@ combinations can create ELF linker
+version aliases/multiple definitions rather than independent literal names.
+A combinatorial punctuation/quote/backslash probe assembled but failed linking
+with @ version spellings; attempted expression-only octal escaping did not retain
+consistent symbol identity and is not adopted. Evidence: /data/probe-combined-
+quoted-symbols*.log, /data/probe-expression-quoted-symbols.log and /data/probe-safe-
+combined-symbols.log. They changed no zbe source or executable during CI.
+
+Selected an immediate bounded hardening follow-up: reject decoded @ anywhere in
+frontend/native portable names (including escaped/forged metadata), retaining
+Pool's arbitrary-key/target-independent module contract. This is deliberately
+fail-closed, not a blacklist claimed to cover all future assembler relocations.
+Ordinary punctuation, quotes, backslashes and trailing-backslash aliases remain.
+The two newly introduced @ positive cases will become explicit rejection cases;
+no legacy numeric oracle/generator or earlier independent harness is weakened.
+Current b28e65f still accepts them; hardening is not implemented/verified yet.
+An isolated no-@ combinatorial probe passed1168 exact ELF names and2336 runtime
+predicates across PIE/nonPIE without TEXTREL; this is feasibility evidence only.
+No source change starts until this whole CI completion, now established. A fresh
+full matrix and exact-SHA CI are required for the hardening change separately.

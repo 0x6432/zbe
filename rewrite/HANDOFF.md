@@ -1446,3 +1446,25 @@ replacements described above; all other prior fixture/generator/native-harness
 files remain unchanged. Exact pushed-SHA CI is still pending; local success does
 not imply CI success or complete variadic ABI/backend parity. Source remains
 frozen through exact-SHA CI, including post-job steps.
+
+### Variadic call-site exact-SHA CI confirmed green
+
+Code checkpoint5420af7b0c25073b1c1d03c93e9d9b303eb5fc84 passed
+https://github.com/0x6432/zbe/actions/runs/39014243336 on its first attempt.
+Debug, ReleaseSafe and ReleaseFast completed successfully, including post-job
+steps. No rerun/source correction/timeout change/weakened assertion was needed.
+Source stayed frozen through local verification and complete CI. Evidence:
+/data/variadic-calls-ci-result.json and /data/watch-variadic-calls-ci.log.
+This documentation-only record skips redundant CI. Worktree was clean after
+publication; origin remains credential-free and legacy isolation unchanged.
+
+Next reviewed bounded milestone splits the larger variadic-body proposal:
+native scalar vaarg consumers only, using a caller-supplied Linux AMD64 va_list
+descriptor in ordinary functions. Keep variadic headers/vastart unsupported;
+no new frame/prologue ownership until descriptor consumption is independently
+verified. Reached interpreter vaarg consumes its normal step then refuses with
+UnsupportedVariadicOperation, without descriptor resolution or host pointers.
+Review /data/zbe-vaarg-consumer-followup-design.txt for exact scope, raw-width,
+effect/aliasing, independent C/hand-layout and OOM expectations. Broader native
+variadic-body/environment proposals remain unimplemented. No main merge, release
+tag, complete ABI/backend parity or performance claim is authorized.

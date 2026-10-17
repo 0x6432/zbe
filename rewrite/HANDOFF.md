@@ -1163,3 +1163,37 @@ scans passed. This is opt-in initialized numeric/zero/string simulation, not
 symbolic relocation/function-pointer support, persistent module state, native
 address safety, full ABI/backend parity or performance superiority. Publication
 and exact code-SHA CI follow; local success is not assumed to imply CI success.
+
+### Initialized globals exact-SHA CI confirmed after post-step retry
+
+Code `d33666e901186668e36dea973dbeec3616accfdd` is confirmed green, run
+https://github.com/0x6432/zbe/actions/runs/38987731463 , attempt2. Debug and
+ReleaseSafe succeeded in attempt1. ReleaseFast's formatting, all generator/unit
+and native execution steps also completed successfully in attempt1, but its
+`Post Run mlugg/setup-zig@v2` remained in progress when the job reached its20-minute
+limit. GitHub's annotation explicitly reports maximum execution time20m0s; the
+job/run ended cancelled (including cancellation grace). Its completed job-log
+endpoint returned HTTP404, so no detailed cache/log root cause is asserted.
+
+Only that cancelled ReleaseFast job was rerun at the **unchanged code SHA**.
+It completed successfully in attempt2. Overall run success and the latest result
+for each of the three job names were checked; earlier Debug/ReleaseSafe successes
+were retained, not silently relabelled as reruns. No source, generator, harness,
+check or timeout changed to obtain green. Source stayed frozen throughout local
+full verification and both publication attempts.
+
+Evidence: `/data/interpreter-globals-ci-attempt1.json`,
+`/data/interpreter-globals-ci-annotations.json`,
+`/data/interpreter-globals-ci-rerun-result.json` and
+`/data/watch-interpreter-globals-ci-rerun.log`. The first local watcher expired at
+its20-minute polling bound before remote cancellation completed; no success was
+claimed from that timeout. A separate finite retry watcher recorded actual green.
+This documentation-only record skips redundant CI and does not verify future work.
+
+Next bounded proposal: resolve existing symbolic data initializers only to defined
+module Data objects in this opt-in synthetic model. Forward/self/mutual addresses
+are not recursive initializer execution; function/external relocations remain
+explicitly refused. Signed i64 arithmetic, complete layout/preflight, byte order,
+ownership and error cleanup must remain checked. Proposal-only design is in
+`/data/zbe-interpreter-data-relocations-followup-design.txt`. No main merge,
+release tag, full interpreter relocation/ABI/backend parity or performance claim.

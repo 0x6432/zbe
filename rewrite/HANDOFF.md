@@ -1688,3 +1688,23 @@ explicit refusals. No complete ABI/backend parity is claimed.
 This code is ready for branch publication and exact-SHA CI. No new CI result is
 claimed here. Keep source frozen until all three jobs, including post-job steps,
 finish; append the actual run URL, SHA and conclusions afterward.
+
+### Native variadic definitions: published exact-SHA CI confirmed green
+
+Code checkpoint da2daabe80f3239dfb2cf1d28949955042bb22c6 is published on
+rewrite/zig-native. Exact-SHA run:
+https://github.com/0x6432/zbe/actions/runs/39040325476
+completed successfully on its first attempt. Debug, ReleaseSafe and ReleaseFast
+all completed successfully, including all post-job steps. The Debug cache post-
+job step remained active after native verification and subsequently succeeded;
+no timeout change, cancellation, rerun or source correction was needed.
+
+Evidence: /data/variadic-functions-ci-result.json and
+/data/watch-variadic-functions-ci.log. Together with the full local308-test,
+24-combination/all19-harness matrix recorded above, this is the new verified
+native scalar variadic definitions/vastart checkpoint. This documentation-only
+record skips redundant CI; it does not change verified source. Interpreter
+variadic calls/operations, environments, aggregates, broader targets and complete
+ABI/backend parity remain outside this milestone. A later environment-call
+proposal exists only in /data/zbe-environment-call-followup-design.txt and must be
+reviewed/selected separately before implementation; it is not implemented here.

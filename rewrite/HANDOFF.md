@@ -1824,3 +1824,153 @@ including quoting/backslashes and symbolic+4 relocations, without TEXTREL. Evide
 /data/probe-quoted-elf-symbols-result.json/.log/.exit0. It changed no worktree source
 or executable and is not a zbe feature/verification claim. Review/select it
 separately before implementation; compiler-private label isolation must remain.
+
+## Next bounded milestone selected: printable-ASCII quoted global names
+
+After c50d892 local/exact-SHA green and published record caffdff, selected the
+reviewed quoted-global proposal. Decode names using the existing bounded byte-
+string escape vocabulary, validate printable ASCII/nonempty/not-dot and reserve
+compiler-private .Lzbe@ namespace. Canonical decoded names share module-pool IDs
+with bare spelling; this deliberately owned logical-name model is not a claim
+about the reference parser's raw-lexeme internal identity. No Unicode/control/NUL
+names, arbitrary assembler expressions, new relocation forms or other targets.
+Native formatting quotes/escapes every non-bare spelling in all symbol contexts;
+existing bare output remains unchanged. Do not interpolate raw source quotes.
+Five newly valid old native negatives and their unit counterparts will become
+empty-quoted-name negatives without changing counts/oracles. The old target-
+independence test's now-supported printable punctuation name will gain a newline
+so it remains semantically target-independent but natively invalid. Preserve
+private labels, ownership/failure cleanup, synthetic globals and no host lookup.
+The isolated assembler probe described above is supporting design evidence only;
+new zbe unit/native/full-matrix/exact-SHA CI success must be established separately.
+
+### Quoted globals: corrected unit/native smoke passed; full matrix begins
+
+Implemented bounded decoded printable-ASCII canonical names in every existing
+global-name context. Parser temporary decoding interns stable pool bytes before
+freeing the decoder result; known calls and duplicate definitions share decoded
+identity. One checked typed GNU-assembly formatter covers all labels/metadata/
+calls/RIP operands/data references, retains exact bare output and reserves private
+.Lzbe@ names. No new operand identity, host lookup, control/Unicode/NUL names,
+relocation grammar or target/ABI parity is claimed. The new fixture joins both
+independent analysis corpora; tests cover owned input lifetime/canonical aliases,
+malformed names/forged metadata, exact bare-versus-quoted-bare assembly, synthetic
+globals/both byte orders and exhaustive allocating cleanup.
+
+First compile failed for a new mutable binding that should be const and a decode
+catch branch returning the unnarrowed source error set. Corrected the binding and
+returned explicit OutOfMemory, leaving malformed decoding mapped to the original
+token's unsupported_construct. Also corrected a new test's mistaken expectation
+of an explicit .local data directive: internal data already obtains local ELF
+binding without that directive. No first-compile success is claimed. Evidence:
+/data/check-quoted-globals-debug-first-compile.log/.exit1.
+
+First complete unit run passed319/320, with one stale old direct-callee spelling
+negative: bad;symbol is now a supported quoted assembly name. Its expectError
+helper discarded the successful owned assembly, producing one leak report—not
+an established production OOM leak. Changed only that negative name to include
+a newline, keeping the assertion. Evidence:
+/data/check-quoted-globals-debug-first-run.log/.exit1. The initially queued native
+runner exited1 before invoking a harness because that unit prerequisite failed;
+/data/check-quoted-globals-native-blocked.exit records that, not a native failure.
+
+Corrected serial smoke built Debug, passed all8 native option sets and320/320 unit
+tests (4min), including the full allocation-failure sweep. Evidence:
+/data/check-quoted-globals-combined.sh/.log/.pid/.exit0. The21st independent native
+harness passed308 runtime results per PIE/nonPIE link,120 decoded ELF symbol
+identity/binding/type/size observations,2 no-TEXTREL and24 rejection/output-
+preservation cases per option.20 punctuation/space/quote/backslash/directive-
+looking names, independent external assembly, quoted function/data references,
+scalar negative and i64-extreme data addends, mutation/sentinels, phi, direct/
+indirect/env/variadic calls and preserved originals are covered. No runtime or
+native-oracle corrections followed; result counts were checked exactly.
+
+All83 prior fixture/generator/native-harness paths were audited: exactly five
+newly valid quoted-name negatives became empty-name negatives, all other bytes
+unchanged. Their unit counterparts, one additional quoted direct-call negative,
+the frontend exact diagnostic/span, and the two now-supported printable hostile-
+name unit cases retain assertion counts with genuinely invalid names. Two unit
+arrays needed formatting-only padding after shortening names. Scope, credentials,
+whitespace and legacy isolation passed; all numeric oracle/generator expectations
+remain unchanged. CI adds only the21st harness inside its existing eight-option
+loop; timeout stays unchanged. Source now freezes through the authoritative
+three-mode/eight-option/all21-harness matrix and subsequent exact-SHA CI including
+post-job steps. No full-matrix or new CI success is claimed yet.
+
+### Quoted globals: expanded review found and corrected trailing-backslash gap
+
+The first full matrix passed fresh Debug320/320 and proceeded into native options,
+but an independent all-single-printable-ASCII assembler probe exposed a GNU x86
+operand-scanner defect for quoted names ending in backslash. Previous20-name
+smoke covered interior backslashes, not that suffix. Stopped the superseded runner
+and all descendants before source edits. Its EXIT trap happened to write0 after
+termination; it has NO final completion marker and is NOT full verification.
+Evidence: /data/verify-quoted-globals-superseded.log/.exit and
+/data/quoted-globals-verification-superseded.txt. No completed matrix/CI is claimed.
+
+Isolated experiments showed adding +0 or parentheses does not fix that scanner,
+whereas .set directives retain exact names and private aliases work in operands.
+A second standalone probe passed196 exact ELF names and392 runtime predicates,
+including every single printable ASCII name except reserved dot; a separate
+undefined external function/data alias test passed PIE/nonPIE without TEXTREL.
+The external probe initially used an unquoted @ in its private alias, which GNU
+as rejects; its corrected ordinary private labels passed. These are assembler
+feasibility checks only, not zbe results. Evidence: /data/probe-single-ascii-*
+and /data/probe-external-backslash-alias.log/.exit0.
+
+Added checked typed instruction-reference formatting: only backslash-suffixed
+names get quoted private SymbolId-based .set aliases at actual emission sites.
+Definitions/metadata/data relocations keep their exact ELF spellings; unused
+arbitrary Pool keys are not emitted. No new map, signature/SSA identity, byte
+trimming, native pointer model or bare-symbol output change. New fixture paths
+exercise repeated references, direct calls and offset loads; the existing OOM
+sweep includes them. A321st unit test checks alias emission/unused invalid Pool
+keys. Native coverage now includes118 names with every supported single ASCII
+character, raw numeric/quote/backslash/leading/trailing punctuation names,708 ELF
+identity/metadata observations and1778 runtime results per link; all previous
+checks are retained. Independent external address oracles use their own ordinary
+assembler aliases, not the production formatter.
+
+The first corrected build exposed Zig's capture-shadowing rule: new helper
+reference collided with an existing relocation payload capture. Renamed only
+that new helper to symbolReference; no old capture/diagnostic/oracle changes.
+Evidence: /data/check-quoted-globals-alias-first-compile.log/.exit1. Corrected
+smoke is running; fresh authoritative matrix and exact-SHA CI remain pending.
+
+### Quoted globals: corrected full local verification passed; publication pending
+
+Corrected alias smoke passed all8 option combinations and fresh321/321 Debug
+unit tests (4min); /data/check-quoted-globals-alias.log/.exit0 ends with
+QUOTED GLOBAL ALIAS SMOKE PASSED. Expanded native checks passed1778 results per
+PIE/nonPIE link,708 ELF symbol identity/binding/type/size observations,2 executable
+no-TEXTREL and24 rejection/output-preservation cases per option. All118 names,
+including every supported single printable ASCII character and trailing slash/
+quote/backslash/numeric boundaries, are represented independently. This corrected
+smoke supersedes the earlier20-name smoke; no prior coverage was removed.
+
+Fresh authoritative runner /data/verify-quoted-globals.sh/.log/.pid/.exit0 ended
+QUOTED GLOBAL VERIFICATION PASSED. Formatting and all14 independent generator
+checks passed. All24 combinations (Debug/ReleaseSafe/ReleaseFast x every folding/
+stack-reuse/preserved-home option set) passed all21 native harnesses. Debug reused
+the same-source321-test successful smoke cache; ReleaseSafe freshly passed321/321
+in6s and ReleaseFast freshly passed321/321 in8s. Do not describe the Debug matrix
+unit execution as fresh; its preceding corrected smoke was fresh.
+
+/data/audit-quoted-globals.py passed exact completion counts:74 groups,66 appearing
+24 times and8 dual-link groups appearing48 times. New runtime total85344 is1778
+per link x2 links x24 combinations;16992 ELF observations are708 x24. Existing
+arithmetic/floating/call/memory/blit/conversion/projection/frame/allocation/symbol/
+data/string/BSS/offset/subword/variadic/vaarg/variadic-body/environment, fault,
+negative-control and rejection groups all retained their exact expected counts.
+Evidence: /data/quoted-globals-verification-counts.json. No inference from a partial
+log/zero-only exit status, no weakening of numeric oracles or test timeouts.
+
+All83 prior protected fixture/generator/native-harness paths audited against
+caffdff: exactly five previously unsupported quoted-name negative cases changed
+to empty-quoted names, all other protected bytes unchanged. Exact unit-negative
+substitutions/formatting, changed-path isolation, credential-pattern scan,
+whitespace and legacy ab50bae source/build/tools/tests isolation all passed.
+Origin remains credential-free https://github.com/0x6432/zbe.git; fetched remote
+was still caffdff with no divergence. Recheck fetch/ancestor before actual push.
+Only rewrite/zig-native is authorized. Exact pushed-SHA CI remains pending, not
+claimed green. Source stays unchanged through the entire CI run/post-job steps.

@@ -47,7 +47,7 @@ A direct call to a defined data object is rejected with `CalledDataSymbol` rathe
 than treated as an unknown external function. Indirect address calls still carry
 the existing native caller contract, not pointer provenance or executable checks.
 
-Quoted definitions, unsupported string classes/escapes, general symbolic relocation forms,
+Unsupported quoted-name bytes/escapes (QUOTED-GLOBALS.md), unsupported string classes/escapes, general symbolic relocation forms,
 thread/TLS, extern/common/section linkages and aggregate/full-data syntax remain
 unsupported. This is not complete QBE data-language compatibility.
 
@@ -108,3 +108,8 @@ Opt-in initialized globals use a separate owned synthetic model
 (INTERPRETER-DATA-RELOCATIONS.md). Defaults still refuse symbols; function/external
 addresses remain unsupported. Image ownership and native linker/stack behavior
 do not change.
+
+Bounded printable-ASCII quoted globals decode to owned canonical symbol names
+across definitions/calls/scalar operands/data relocations (QUOTED-GLOBALS.md).
+Native formatting escapes non-bare names while preserving existing bare output
+and the private-label namespace; no host lookup or full identifier/target parity.

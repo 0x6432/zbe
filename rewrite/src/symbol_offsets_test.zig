@@ -130,7 +130,7 @@ test "scalar displacement syntax rejects overflow wrong classes malformed addend
         "function l $f() {\n@e\nret $target+$other\n}",
         "function l $f() {\n@e\nret $target+d_1\n}",
         "function l $f() {\n@e\nret $target+1+2\n}",
-        "function l $f() {\n@e\nret $\"quoted\"+1\n}",
+        "function l $f() {\n@e\nret $\"\"+1\n}",
         "function w $f() {\n@e\nret $target+0\n}",
         "function s $f() {\n@e\nret $target+0\n}",
         "function d $f() {\n@e\nret $target+0\n}",

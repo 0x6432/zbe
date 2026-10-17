@@ -549,8 +549,16 @@ const Parser = struct {
 
     fn globalName(self: *Parser, token: lex.Token) Error![]const u8 {
         const name = self.nameText(token);
-        if (name[0] == '"') return self.fail(.unsupported_construct, token);
-        return name;
+        if (name[0] != '"') return name;
+        const decoded = @import("byte_strings.zig").decode(self.allocator, name, name.len) catch |err| switch (err) {
+            error.OutOfMemory => return error.OutOfMemory,
+            else => return self.fail(.unsupported_construct, token),
+        };
+        defer self.allocator.free(decoded);
+        if (!@import("symbols.zig").validPortableName(decoded)) return self.fail(.unsupported_construct, token);
+        // Return pool-owned stable bytes, never the just-freed decoder buffer.
+        const id = try self.module.symbols.intern(decoded);
+        return self.module.symbols.get(id).?;
     }
 
     fn lineEnd(self: *Parser) Error!void {
@@ -692,7 +700,7 @@ test "malformed syntax, types and unsupported IL never silently lower" {
     try expectInvalid("data $x = { w $other }", .unsupported_construct, "$other");
     try expectInvalid("function w $f() {\n@b\n%x =w alloc8 8\nret %x\n}", .type_mismatch, "alloc8");
     try expectInvalid("function $f(..., ...) {\n@b\nret\n}", .unexpected_token, ",");
-    try expectInvalid("function w $\"quoted\"() {\n@b\nret 0\n}", .unsupported_construct, "$\"quoted\"");
+    try expectInvalid("function w $\"\"() {\n@b\nret 0\n}", .unsupported_construct, "$\"\"");
     try expectInvalid("function w $f() {\n@b\nret d_1\n}", .type_mismatch, "d_1");
     try expectInvalid("function s $f() {\n@b\nret s_nan(payload)\n}", .unsupported_construct, "s_nan(payload)");
     try expectInvalid("function $f() {\n@b\njnz d_1, @b, @b\n}", .type_mismatch, "jnz");

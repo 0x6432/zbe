@@ -103,7 +103,7 @@ ret %result
         bad += [r'data $x = { b "'+escape+r'" }' for escape in (r'\q',r'\8',r'\400',r'\777',r'\x',r'\x0',r'\xGG',r'\u0041')]
         bad += ['data $x = { b "a\nb" }','data $x = { b "a\rb" }','data $x = { b "a\\\nb" }',
                 'data $x = { b "unterminated }',r'data $x = { b "trailing\" }',
-                'function l $f() {\n@e\nret "string"\n}',r'data $"quoted" = { b "str" }',
+                'function l $f() {\n@e\nret "string"\n}',r'data $"" = { b "str" }',
                 'data $x = { b "a"+1 }','data $x = { z 16777216, b "a" }','data $x = { b "a" w 1 }']
         assert len(bad)==24,len(bad)
         for text in bad:

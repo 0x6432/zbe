@@ -94,7 +94,7 @@ test "module validation is target independent but validates every body and known
     defer module.deinit();
     try validation.validate(testing.allocator, &module);
     const original = module.functions.items[0].name;
-    module.functions.items[0].name = try module.symbols.intern("semantic name;not assembler");
+    module.functions.items[0].name = try module.symbols.intern("semantic name;\nnot assembler");
     try validation.validate(testing.allocator, &module);
     try testing.expectEqual(@as(u32, 42), (try interpreter.evaluateModule(testing.allocator, &module, id(0), &.{}, .{})).?.word);
     try testing.expectError(error.InvalidSymbol, @import("amd64.zig").emit(testing.allocator, &module));

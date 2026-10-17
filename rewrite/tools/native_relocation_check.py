@@ -125,7 +125,7 @@ int main(int argc,char **argv) {
         bad=[
             'data $x = { b $target }','data $x = { h $target }','data $x = { w $target }',
             'data $x = { s $target }','data $x = { d $target }','data $x = { z $target }',
-            'data $x = { l $"quoted" }','data $x = { l thread $target }',
+            'data $x = { l $"" }','data $x = { l thread $target }',
             'data $x = { l $target+9223372036854775808 }','data $x = { l $target+-9223372036854775809 }',
             'data $x = { l $target+18446744073709551616 }','data $x = { l $target+d_1 }',
             'data $x = { l $target+$other }','data $x = { l $target - 8 }','data $x = { l $target++8 }',

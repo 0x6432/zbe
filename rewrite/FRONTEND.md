@@ -56,7 +56,7 @@ are supported separately (VARIADIC-FUNCTIONS.md); external/indirect variadic cal
 - Floating literals retain their `s_`/`d_` width, including decimal/hex spellings, signed zero, infinity and plain NaN. Numeric conversion uses Zig, not libc. NaN payload spellings are scanned intact but **rejected explicitly by this parser** until payload semantics are implemented.
 - Phi nodes precede ordinary instructions in a block. The parser retains typed predecessor/value pairs; `ssa.validate` checks predecessor coverage and incoming-edge dominance.
 - Forward **block targets** are resolved by a declaration pass. Temporary result types are predeclared, so loop backedges and layout-independent forward references are accepted; scalar SSA validation must establish actual definition availability. Parameters and blocks are scoped per function; duplicate function/block/value names are rejected.
-- The lexer returns borrowed raw spans, including string escapes and quoted global names; it does not silently decode/rewrite names. Quoted globals, strings as operands, aggregates, unsupported string classes/escapes and general relocation forms in data, unsupported memory operations, unsupported call forms, aggregate ABI forms and combined environment/variadic forms, non-scalar ABI types and unimplemented opcodes are explicitly rejected by the parser.
+- The lexer returns borrowed raw spans, including string escapes and quoted global names; it does not silently decode/rewrite names. Unsupported quoted-name bytes/escapes, strings as operands, aggregates, unsupported string classes/escapes and general relocation forms in data, unsupported memory operations, unsupported call forms, aggregate ABI forms and combined environment/variadic forms, non-scalar ABI types and unimplemented opcodes are explicitly rejected by the parser.
 
 Numeric/zero-fill data definitions are accepted outside functions; fields are packed,
 alignment defaults to eight and sizes are bounded. See DATA.md for exact group,
@@ -87,3 +87,8 @@ Nonvariadic scalar environment calls now have a distinct hidden long operand/
 parameter and Linux AMD64 RAX mapping, without shifting ordinary ABI arguments
 (ENVIRONMENT-CALLS.md). Root/module interpreter mapping remains synthetic and
 bounded; environment+varargs and aggregates remain unsupported.
+
+Bounded printable-ASCII quoted globals decode to owned canonical symbol names
+across definitions/calls/scalar operands/data relocations (QUOTED-GLOBALS.md).
+Native formatting escapes non-bare names while preserving existing bare output
+and the private-label namespace; no host lookup or full identifier/target parity.

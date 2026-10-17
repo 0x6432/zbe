@@ -24,7 +24,8 @@ data $bytes = { b "A\000B" 255 "\x41", h 8755 }
 Unknown/truncated/out-of-range escapes, escaped physical line breaks and Unicode
 escape forms are rejected with `invalid_string`. This deliberately documented
 subset is not a promise to reproduce C/GNU assembler string-recovery or all QBE
-spellings. Quoted global names, string operands inside functions and strings in
+spellings. Quoted global names reuse this decoder in a separate bounded slice
+(QUOTED-GLOBALS.md); string operands inside functions and strings in
 half/word/long/single/double/zero groups remain unsupported.
 
 ## Ownership, bounds and safe emission

@@ -1,10 +1,10 @@
 # Checked long scalar symbol-plus-offset operands
 
-Ordinary scalar operands accept an unquoted `$symbol+N`, where N is one checked
+Ordinary scalar operands accept `$symbol+N` with a bare or bounded quoted global name (QUOTED-GLOBALS.md), where N is one checked
 signed decimal **i32** addend (including zero). A negative addend is written
 `$symbol+-8`; `$symbol-8` is not subtraction syntax. Spaces around `+` are allowed,
 but a scalar operand cannot continue across a physical newline. Chained arithmetic,
-quoted symbols, TLS/extern expressions and float or symbolic addends are rejected.
+TLS/extern expressions and float or symbolic addends are rejected.
 Numeric integer operands retain their existing wrapping rules; checked address
 addends do not wrap. Data initializer addends remain separately checked **i64**
 (DATA-RELOCATIONS.md), with their existing multiline/item grammar unchanged.

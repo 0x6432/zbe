@@ -1,6 +1,6 @@
 # Typed long symbolic data initializers
 
-A long data group may contain an unquoted `$symbol` optionally followed by `+`
+A long data group may contain a bare or bounded quoted `$symbol` (QUOTED-GLOBALS.md) optionally followed by `+`
 and a **signed 64-bit decimal addend**. Numeric long items and symbolic items can
 be mixed in the same group. Each symbolic initializer occupies exactly eight
 packed bytes. Definitions, numeric groups, zero runs, alignment/linkage and size
@@ -29,7 +29,7 @@ Use `$symbol+-8` to request a negative addend. A separated lone `-` is invalid.
 Ordinary scalar `$symbol+offset` operands have a separate checked **i32** addend
 and line-local grammar (SYMBOL-OFFSETS.md); these data addends remain i64.
 
-Byte/half/word/single/double/zero symbolic initializers, quoted names,
+Byte/half/word/single/double/zero symbolic initializers,
 symbol differences, TLS/extern modifiers, GOT/section/common policy and relocation
 expressions other than one checked addend remain unsupported. This is a narrow
 pointer-table slice, not complete QBE data syntax or a portable pointer model.

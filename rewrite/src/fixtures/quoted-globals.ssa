@@ -1,0 +1,55 @@
+export data $"quoted blob" = align 16 { l 11 22 }
+data $"quoted table" = { l $"quoted blob"+8 }
+export data $"quoted bss" = { z 16 }
+export function l $"quoted get"(env %environment, l %x) {
+@e
+    %r =l add %environment, %x
+    ret %r
+}
+export function l $quote_call() {
+@e
+    %r =l call $"quoted get"(env 5, l 3)
+    ret %r
+}
+export function l $quote_load() {
+@e
+    %pointer =l loadl $"quoted table"
+    %r =l loadl %pointer
+    ret %r
+}
+export function l $"quote\"back\\name"() {
+@e
+    ret 42
+}
+export function w $quote_low() {
+@e
+    %address =l copy $"quoted blob"
+    %r =w copy %address
+    ret %r
+}
+export function l $quote_phi(w %take) {
+@e
+    jnz %take, @left, @right
+@left
+    jmp @join
+@right
+    jmp @join
+@join
+    %address =l phi @left $"quoted blob"+8, @right $"quoted blob"
+    ret %address
+}
+export data $"tail\\" = { l $"tail\\"+8 29 }
+export function l $"tail fn\\"() {
+@e
+    ret 42
+}
+export function l $quote_tail_call() {
+@e
+    %r =l call $"tail fn\\"()
+    ret %r
+}
+export function l $quote_tail_load() {
+@e
+    %r =l loadl $"tail\\"+8
+    ret %r
+}

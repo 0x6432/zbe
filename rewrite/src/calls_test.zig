@@ -64,7 +64,7 @@ test "call operands obey local ordering dominance and exact base-scalar types" {
         "function w $f() {\n@e\n%r =w call $g(b 1)\nret %r\n}",
         "function w $f() {\n@e\n%r =w call $g(env 1, env 2)\nret %r\n}",
         "function w $f() {\n@e\n%r =w call $g(w 1,)\nret %r\n}",
-        "function w $f() {\n@e\n%r =w call $\"quoted\"()\nret %r\n}",
+        "function w $f() {\n@e\n%r =w call $\"\"()\nret %r\n}",
         "function $f(w %p) {\n@e\ncall %p()\nret\n}",
     };
     for (rejected) |text| try testing.expectError(error.InvalidInput, parse(testing.allocator, text));
@@ -88,7 +88,7 @@ test "native emission checks known call signatures and every callee symbol" {
     const call = &module.functions.items[0].blocks.items[0].instructions.items[0].call;
     call.callee = .{ .symbol = @fromBackingInt(std.math.maxInt(u32)) };
     try testing.expectError(error.InvalidSymbol, amd64.emit(testing.allocator, &module));
-    call.callee = .{ .symbol = try module.symbols.intern("bad;symbol") };
+    call.callee = .{ .symbol = try module.symbols.intern("bad;\nsymbol") };
     try testing.expectError(error.InvalidSymbol, amd64.emit(testing.allocator, &module));
 }
 

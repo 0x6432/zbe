@@ -165,13 +165,23 @@ const Emitter = struct {
         self.output.writer.print(format, args) catch return error.OutOfMemory;
     }
 
+    /// GNU x86's operand scanner misreads a quoted name ending in backslash.
+    /// .set uses the directive parser; its private alias retains the ELF name.
+    /// Declare only at reached emission sites, not for arbitrary unused Pool keys.
+    fn symbolReference(self: *Emitter, symbol: @import("symbols.zig").Id) Error!AssemblyReference {
+        const name = self.module.symbols.get(symbol).?;
+        if (std.mem.endsWith(u8, name, "\\"))
+            try self.print(".set \".Lzbe@s{d}\", {f}\n", .{ @backingInt(symbol), AssemblySymbol{ .name = name } });
+        return .{ .symbol = symbol, .name = name };
+    }
+
     fn dataDefinition(self: *Emitter, object: *const @import("data.zig").Data) Error!void {
-        const name = self.module.symbols.get(object.name).?;
+        const name: AssemblySymbol = .{ .name = self.module.symbols.get(object.name).? };
         const zero = object.isAllZero();
         if (zero) try self.print(".bss\n", .{}) else try self.print(".data\n", .{});
         try self.print(".balign {d}\n", .{object.alignment.bytes()});
-        if (object.linkage == .exported) try self.print(".globl {s}\n", .{name});
-        try self.print(".type {s}, @object\n{s}:\n", .{ name, name });
+        if (object.linkage == .exported) try self.print(".globl {f}\n", .{name});
+        try self.print(".type {f}, @object\n{f}:\n", .{ name, name });
         if (zero) {
             if (object.byte_len != 0) try self.print("\t.zero {d}\n", .{object.byte_len});
         } else {
@@ -186,7 +196,7 @@ const Emitter = struct {
                     if (index % 16 == 15 or index + 1 == bytes.len) try self.print("\n", .{});
                 },
                 .symbol_address => |reference| {
-                    try self.print("\t.quad {s}", .{self.module.symbols.get(reference.symbol).?});
+                    try self.print("\t.quad {f}", .{AssemblySymbol{ .name = self.module.symbols.get(reference.symbol).? }});
                     if (reference.addend > 0) try self.print("+{d}", .{reference.addend});
                     // Printing the signed minimum directly never negates/overflows it.
                     if (reference.addend < 0) try self.print("{d}", .{reference.addend});
@@ -197,7 +207,7 @@ const Emitter = struct {
                 },
             };
         }
-        try self.print(".size {s}, .-{s}\n", .{ name, name });
+        try self.print(".size {f}, .-{f}\n", .{ name, name });
     }
 
     /// Frame construction established the aligned, bounded extent. Touch each
@@ -227,8 +237,8 @@ const Emitter = struct {
         } else self.frame = try Frame.init(f);
         try self.frame.addVariadic(f.variadic);
         try self.frame.addOutgoing(f);
-        const name = self.module.symbols.get(f.name).?;
-        try self.print("{s} {s}\n.type {s}, @function\n{s}:\n\tpushq %rbp\n\tmovq %rsp, %rbp\n", .{ if (f.linkage == .exported) @as([]const u8, ".globl") else ".local", name, name, name });
+        const name: AssemblySymbol = .{ .name = self.module.symbols.get(f.name).? };
+        try self.print("{s} {f}\n.type {f}, @function\n{f}:\n\tpushq %rbp\n\tmovq %rsp, %rbp\n", .{ if (f.linkage == .exported) @as([]const u8, ".globl") else ".local", name, name, name });
         try self.reserveFrame(self.frame);
         for (preserved_registers[0..self.saved_count], 0..) |preserved, i| {
             try self.print("\tmovq {s}, -{d}(%rbp)\n", .{ preserved.name(.long), self.frame.saved_base + (i + 1) * 8 });
@@ -337,7 +347,7 @@ const Emitter = struct {
                     if (call.environment) |environment| try self.load(environment, .accumulator);
                     if (call.variadic_start != null) try self.print("\tmovb ${d}, %al\n", .{cursor.vector_used});
                     switch (call.callee) {
-                        .symbol => |symbol| try self.print("\tcall {s}\n", .{self.module.symbols.get(symbol).?}),
+                        .symbol => |symbol| try self.print("\tcall {f}\n", .{try self.symbolReference(symbol)}),
                         .address => try self.print("\tcall *%r11\n", .{}),
                     }
                     if (call.result) |result| {
@@ -495,7 +505,7 @@ const Emitter = struct {
                 },
             }
         }
-        try self.print(".size {s}, .-{s}\n", .{ name, name });
+        try self.print(".size {f}, .-{f}\n", .{ name, name });
     }
 
     fn edge(self: *Emitter, from: ir.BlockId, to: ir.BlockId) Error!void {
@@ -598,14 +608,14 @@ const Emitter = struct {
                 .stack_offset => |offset| try self.print("\tmov{c} -{d}(%rbp), {s}\n", .{ suffix(ty), offset, target }),
                 .preserved => |preserved| try self.print("\tmov{c} {s}, {s}\n", .{ suffix(ty), preserved.name(ty), target }),
             },
-            .symbol => |symbol| try self.print("\tleaq {s}(%rip), {s}\n", .{ self.module.symbols.get(symbol).?, target }),
+            .symbol => |symbol| try self.print("\tleaq {f}(%rip), {s}\n", .{ try self.symbolReference(symbol), target }),
             .symbol_offset => |address| {
-                const name = self.module.symbols.get(address.symbol).?;
+                const name = try self.symbolReference(address.symbol);
                 // Print negative addends directly: negating minInt(i32) overflows.
                 if (address.addend < 0)
-                    try self.print("\tleaq {s}{d}(%rip), {s}\n", .{ name, address.addend, target })
+                    try self.print("\tleaq {f}{d}(%rip), {s}\n", .{ name, address.addend, target })
                 else
-                    try self.print("\tleaq {s}+{d}(%rip), {s}\n", .{ name, address.addend, target });
+                    try self.print("\tleaq {f}+{d}(%rip), {s}\n", .{ name, address.addend, target });
             },
             .constant => |constant| switch (constant) {
                 .word => |bits| try self.print("\tmovl $0x{x}, {s}\n", .{ bits, target }),
@@ -653,6 +663,32 @@ fn register(ty: ir.ScalarType, scratch: Scratch) []const u8 {
     };
 }
 fn validSymbol(name: []const u8) bool {
+    return @import("symbols.zig").validPortableName(name);
+}
+
+/// Checked names only. Never render a raw source lexeme as assembler syntax.
+const AssemblySymbol = struct {
+    name: []const u8,
+    pub fn format(self: AssemblySymbol, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+        if (bareSymbol(self.name)) return writer.writeAll(self.name);
+        try writer.writeByte('"');
+        for (self.name) |byte| {
+            if (byte == '"' or byte == '\\') try writer.writeByte('\\');
+            try writer.writeByte(byte);
+        }
+        try writer.writeByte('"');
+    }
+};
+const AssemblyReference = struct {
+    symbol: @import("symbols.zig").Id,
+    name: []const u8,
+    pub fn format(self: AssemblyReference, writer: *std.Io.Writer) std.Io.Writer.Error!void {
+        if (std.mem.endsWith(u8, self.name, "\\"))
+            return writer.print("\".Lzbe@s{d}\"", .{@backingInt(self.symbol)});
+        return (AssemblySymbol{ .name = self.name }).format(writer);
+    }
+};
+fn bareSymbol(name: []const u8) bool {
     if (name.len == 0 or std.mem.eql(u8, name, ".")) return false;
     if (!(std.ascii.isAlphabetic(name[0]) or name[0] == '_' or name[0] == '.')) return false;
     for (name[1..]) |c| if (!(std.ascii.isAlphanumeric(c) or c == '_' or c == '.' or c == '$')) return false;

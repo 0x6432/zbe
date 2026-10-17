@@ -110,7 +110,7 @@ int main(int argc,char **argv) {
             'function w $f() {\n@e\nret $target\n}',
             'function s $f() {\n@e\n%r =s copy $target\nret %r\n}',
             'function l $f() {\n@e\nret $target+2147483648\n}',
-            'function l $f() {\n@e\nret $"quoted"\n}',
+            'function l $f() {\n@e\nret $""\n}',
             'function l $f() {\n@e\nret thread $target\n}',
             'function l $f() {\n@e\nret extern $target\n}',
             'data $target = { w $other }',

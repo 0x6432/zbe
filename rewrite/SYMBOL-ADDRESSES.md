@@ -1,6 +1,6 @@
 # Typed long symbol-address operands
 
-The scalar frontend accepts an unquoted `$symbol` in a **long** operand context:
+The scalar frontend accepts an unquoted `$symbol` or bounded quoted global (QUOTED-GLOBALS.md) in a **long** operand context:
 copy, return, long arithmetic/comparison, long phi input, long call argument,
 allocation size, memory address or long store value. This is an address expression,
 not a scalar load, numeric constant or ordinary SSA definition. Symbol IDs belong
@@ -12,8 +12,7 @@ Bare symbols are deliberately long-only in this subset. To project low bits, fir
 copy the symbol to a long temporary and use that temporary in a word context.
 Direct `$symbol` callees keep their existing meaning and known-signature checks;
 a long temporary containing a function address can be an indirect target. Checked scalar symbol-plus-offset operands are described separately in
-SYMBOL-OFFSETS.md. No quoted-symbol support,
-implicit floating bit pattern, linker resolver or full ABI is added.
+SYMBOL-OFFSETS.md. No implicit floating bit pattern, linker resolver or full ABI is added.
 Existing long arithmetic can form runtime byte offsets after taking an address.
 
 Instruction operand iteration returns the copied symbolic operand, but

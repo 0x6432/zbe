@@ -1708,3 +1708,96 @@ variadic calls/operations, environments, aggregates, broader targets and complet
 ABI/backend parity remain outside this milestone. A later environment-call
 proposal exists only in /data/zbe-environment-call-followup-design.txt and must be
 reviewed/selected separately before implementation; it is not implemented here.
+
+## Next bounded milestone selected: nonvariadic scalar environment calls
+
+After da2daab local/exact-SHA green and published record a79730c, selected the
+reviewed environment-call proposal. Scope: first-only env long parameter and
+separate optional long call operand, Linux AMD64 hidden RAX without consuming
+ordinary ABI banks, and explicit module-local/root interpreter mapping. Retain
+env as first owned SSA parameter with allocation-free ordinary parameter slice;
+analyses/frame homes still include it. Validate metadata and reject environment+
+variadic definitions/call markers. Missing env is permitted only when a static
+all-body operand scan (including unreachable/phi/terminator/projection uses)
+finds no use; no fabricated default value or reachability inference. Supplied env
+to ordinary non-env callees is allowed but its operand is still resolved after
+ordinary arguments, with existing target/depth/refusal precedence.
+
+Incoming RAX homes after original-preserved saves and before parameter scratch;
+outgoing env loads last, indirect target remains R11. Fixed probes do not clobber
+RAX. No aggregates, combined env/varargs, host-pointer interpretation or complete
+ABI claim. Review/test failure atomic builders, independent use oracles, parser,
+exact named signatures, root/child limits/write precedence, native bank overflow,
+raw bits/returns/target aliasing and exhaustive allocating cleanup. No new
+implementation/verification success is claimed by selecting this design.
+
+### Environment-call implementation and smoke; full matrix pending
+
+Implemented the selected first-only hidden long parameter and separate copied
+call operand; ordinary parameter slices exclude it only at ABI/signature/frame-
+argument mapping sites, while SSA/liveness/interference/home sizing retain it.
+Structural/public metadata and checked builders reject wrong/duplicate/nonfirst/
+variadic combinations. Shared operand iteration has target/env/ordinary order;
+independent tagged-union use oracles were extended separately and both corpora
+include the new fixture. Missing-env all-body scans include phi/terminator/
+unreachable/projection uses. Known ordinary types/subword/return checks remain
+exact. Interpreter root Options.environment and child explicit operand mapping
+preserve target/depth/step/setup precedence, no host pointers/default zero and
+explicit supplied-ignored operand resolution. Incoming native RAX homes after
+original-preserved saves/before parameter scratch; outgoing env loads last with
+indirect target R11. Combined env/varargs remains rejected.
+
+Initial smoke failed compilation only in new tests: wrong LoadKind.word and
+nonexistent analysis/fold API spellings. Corrected tests to existing APIs and
+synthetic Image addresses (base65536, not zero); no production correction was
+needed. Evidence: /data/check-environment-debug-first-compile.log/.exit1.
+Corrected smoke passed315/315 in Debug (4min) and built the executable:
+/data/check-environment-debug.log/.exit0. Review subsequently extended exhaustive
+allocation-failure exercise to malformed parse cleanup, earlier Image writes,
+synthetic object cleanup after symbol refusal and depth-limit unwind; the full
+matrix must verify that added exercise too.
+
+The independent20th native harness passed every8-option smoke combination without
+runtime/oracle corrections:1013 defined checks per PIE/nonPIE link,2 no-TEXTREL
+and20 rejection/output-preservation checks per combination. Evidence:
+/data/check-environment-native.sh/.log/.pid/.exit0; exact counts audited.64 mixed
+signatures × three environments use independent incoming assembly thunks and
+outgoing assembly/C readers, direct/indirect targets and both GP/SSE overflow
+orders, fixed single/narrow arguments, all scalar/subword returns, raw bits,
+large probed frames, aliasing, void stores, recursion/phi/live values/preserved
+originals. All81 prior fixture/generator/native-harness paths are unchanged.
+One newly valid old call-negative unit now rejects duplicate env instead, with
+unchanged assertion count; no old native/generator oracle expectation changed.
+Scope, credential patterns, whitespace and legacy isolation passed. CI adds only
+the20th harness inside its existing loop; timeout remains unchanged.
+
+Source now freezes for authoritative three-mode/eight-option/all20-harness
+verification and then exact-SHA CI through post-job steps. No full-matrix or
+new-CI success is claimed yet. This is a bounded scalar environment slice, not
+aggregates, full ABI/target support or interpreter host calls.
+
+### Environment calls: authoritative local verification passed; publishing for CI
+
+The frozen full runner exited0 with ENVIRONMENT CALL VERIFICATION PASSED. All315
+unit tests ran fresh and passed in Debug(4min), ReleaseSafe(9s) and ReleaseFast(5s),
+including the expanded malformed-parse/error/depth/synthetic-object cleanup sweep.
+Formatting and all14 independent generators passed. All24 three-build/eight-option
+combinations passed all20 native harnesses. Exact audit found70 completion groups:
+63 counted24 times and seven PIE/nonPIE result groups counted48 times. The new
+harness contributed1013 defined results per link,2 no-TEXTREL and20 rejection/
+output-preservation checks per combination. Existing arithmetic, termination,
+memory/probe faults and negative controls also passed without oracle weakening.
+
+Evidence: /data/verify-environment-calls.sh/.log/.pid/.exit0 and
+/data/environment-calls-verification-counts.json. All81 prior protected fixture/
+generator/native-harness paths are byte-identical to a79730c. The one old unit
+call-negative changed exactly env1 to duplicate env1/env2, keeping its assertion.
+Scope/credential patterns/whitespace/legacy isolation passed. Final read-only
+review found stale environment-unsupported wording in existing docs; after the
+matrix completed, narrowed only those statements to aggregate/combined-varargs
+boundaries and clarified ordinary signature arguments. No verified source/test/
+harness change followed full verification.
+
+Ready to publish and check exact-SHA CI. New CI is not yet confirmed; keep source
+frozen through all jobs and post-job steps. No aggregates, environment+varargs,
+host-pointer interpretation, other targets or complete ABI/backend parity claim.

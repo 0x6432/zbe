@@ -241,7 +241,8 @@ const Emitter = struct {
             for (0..8) |i| try self.print("\tmovdqu %xmm{d}, -{d}(%rbp)\n", .{ i, offset - 48 - i * 16 });
         }
         var arguments: abi.ArgumentCursor = .{};
-        for (f.parameters.items) |parameter| {
+        if (f.environment) |environment| try self.save(environment, "%rax");
+        for (f.ordinaryParameters()) |parameter| {
             const ty = f.values.items[@backingInt(parameter)].scalar_type;
             switch (try arguments.next(ty)) {
                 .general => |reg| {
@@ -333,6 +334,7 @@ const Emitter = struct {
                     }
                     // AL counts occupied SSE argument registers, including named
                     // arguments. Set it last: ordinary RAX loads may poison AL.
+                    if (call.environment) |environment| try self.load(environment, .accumulator);
                     if (call.variadic_start != null) try self.print("\tmovb ${d}, %al\n", .{cursor.vector_used});
                     switch (call.callee) {
                         .symbol => |symbol| try self.print("\tcall {s}\n", .{self.module.symbols.get(symbol).?}),

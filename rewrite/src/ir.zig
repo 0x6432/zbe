@@ -266,12 +266,13 @@ pub const CallTarget = union(enum) {
     }
 };
 /// Argument storage is owned by Function, not borrowed from callers.
-pub const CallOptions = struct { result_abi: ?AbiType = null, variadic_start: ?usize = null };
+pub const CallOptions = struct { result_abi: ?AbiType = null, variadic_start: ?usize = null, environment: ?Operand = null };
 pub const Call = struct {
     result: ?ValueId,
     callee: CallTarget,
     arguments: []const CallArgument,
     result_subword: ?SubwordType = null,
+    environment: ?Operand = null,
     /// Named argument count before ..., not an operand or an implicit promotion.
     variadic_start: ?usize = null,
 };
@@ -321,7 +322,7 @@ pub const Instruction = union(enum) {
             .allocate => |a| .{ .first = a.size },
             .load => |l| .{ .first = l.address },
             .store => |s| .{ .first = s.value, .second = s.address },
-            .call => |c| .{ .first = c.callee.addressOperand(), .arguments = c.arguments },
+            .call => |c| .{ .first = c.callee.addressOperand() orelse c.environment, .second = if (c.callee.addressOperand() != null) c.environment else null, .arguments = c.arguments },
             .binary => |b| .{ .first = b.lhs, .second = b.rhs },
             .copy => |c| .{ .first = c.operand },
             .unary => |u| .{ .first = u.operand },
@@ -386,6 +387,7 @@ pub const ValidationError = error{
     InvalidReturn,
     InvalidVariadicMarker,
     InvalidVaStart,
+    InvalidEnvironment,
     BlockTerminated,
     MissingTerminator,
     NoBlocks,
@@ -401,6 +403,8 @@ pub const Function = struct {
     return_type: ?ScalarType,
     return_subword: ?SubwordType = null,
     variadic: bool = false,
+    /// Hidden long SSA parameter, always parameters[0], not a C ABI argument.
+    environment: ?ValueId = null,
     linkage: enum { internal, exported } = .internal,
     parameters: std.ArrayList(ValueId) = .empty,
     values: std.ArrayList(Value) = .empty,
@@ -430,6 +434,41 @@ pub const Function = struct {
         self.values.deinit(self.allocator);
         self.parameters.deinit(self.allocator);
         self.* = undefined;
+    }
+
+    /// First-only, failure-atomic hidden parameter. Existing analyses retain it.
+    pub fn addEnvironmentParameter(self: *Function) BuildError!ValueId {
+        if (self.environment != null or self.parameters.items.len != 0 or self.variadic) return error.InvalidEnvironment;
+        const id = try self.addParameter(.long);
+        self.environment = id;
+        return id;
+    }
+
+    /// Call only after structure validation when public metadata was edited.
+    pub fn ordinaryParameters(self: *const Function) []const ValueId {
+        return self.parameters.items[if (self.environment != null) 1 else 0..];
+    }
+
+    /// Static uses, not reachable-use/DCE inference. No fabricated absent value.
+    pub fn usesEnvironment(self: *const Function) bool {
+        const environment = self.environment orelse return false;
+        for (self.blocks.items) |block| {
+            for (block.phis.items) |phi| for (phi.inputs) |input| if (input.value.referencedValue() == environment) return true;
+            for (block.instructions.items) |instruction| {
+                var operands = instruction.operands();
+                while (operands.next()) |operand| if (operand.referencedValue() == environment) return true;
+            }
+            if (block.terminator) |terminator| switch (terminator) {
+                .branch => |branch| if (branch.condition.referencedValue() == environment) {
+                    return true;
+                },
+                .return_value => |value| if (value) |operand| if (operand.referencedValue() == environment) {
+                    return true;
+                },
+                .jump, .halt => {},
+            };
+        }
+        return false;
     }
 
     pub fn addParameter(self: *Function, ty: ScalarType) BuildError!ValueId {
@@ -645,11 +684,19 @@ pub const Function = struct {
         if (result_abi) |ty| if (value == null or value.?.scalar_type != ty.scalar()) return error.TypeMismatch;
         try self.checkCallTarget(callee);
         try self.checkArguments(arguments);
+        try self.checkEnvironment(options.environment, options.variadic_start);
         if (options.variadic_start) |prefix| if (prefix > arguments.len) return error.InvalidVariadicMarker;
         try target.instructions.ensureUnusedCapacity(self.allocator, 1);
         const owned = try self.allocator.dupe(CallArgument, arguments);
         if (value) |definition| definition.definition = .{ .instruction = .{ .block = block_id, .index = target.instructions.items.len } };
-        target.instructions.appendAssumeCapacity(.{ .call = .{ .result = result, .callee = callee, .arguments = owned, .result_subword = if (result_abi) |ty| ty.subword() else null, .variadic_start = options.variadic_start } });
+        target.instructions.appendAssumeCapacity(.{ .call = .{ .result = result, .callee = callee, .arguments = owned, .result_subword = if (result_abi) |ty| ty.subword() else null, .variadic_start = options.variadic_start, .environment = options.environment } });
+    }
+
+    fn checkEnvironment(self: *const Function, environment: ?Operand, variadic: ?usize) ValidationError!void {
+        if (environment) |operand| {
+            if (variadic != null) return error.InvalidEnvironment;
+            if (try self.operandType(operand) != .long) return error.TypeMismatch;
+        }
     }
 
     fn checkCallTarget(self: *const Function, target: CallTarget) ValidationError!void {
@@ -724,6 +771,11 @@ pub const Function = struct {
                 else => return error.InvalidDefinition,
             }
         }
+        if (self.environment) |environment| {
+            if (self.variadic or self.parameters.items.len == 0 or self.parameters.items[0] != environment) return error.InvalidEnvironment;
+            const value = self.values.items[@backingInt(environment)];
+            if (value.scalar_type != .long or value.parameter_subword != null) return error.InvalidEnvironment;
+        }
         // Validate reverse links too, so orphaned or duplicate values cannot hide.
         for (self.values.items, 0..) |value, number| switch (value.definition) {
             .pending => return error.InvalidDefinition,
@@ -790,6 +842,7 @@ pub const Function = struct {
                     .call => |call| {
                         if (call.variadic_start) |prefix| if (prefix > call.arguments.len) return error.InvalidVariadicMarker;
                         if (call.result_subword != null and ty != .word) return error.TypeMismatch;
+                        try self.checkEnvironment(call.environment, call.variadic_start);
                         try self.checkCallTarget(call.callee);
                         try self.checkArguments(call.arguments);
                     },

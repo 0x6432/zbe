@@ -28,7 +28,7 @@ The driver takes two paths and optionally preceding `--fold-integers`, `--reuse-
 - Frame pointer is preserved, stack space rounded to 16 bytes, and only caller-saved scratch registers are used for computation; optional callee-saved homes are separately saved/restored. A prototype frame-size cap of 64 KiB is explicit; fixed reservation now probes each page before descending farther (FRAME-PROBES.md).
 - Export/local symbol linkage is retained. Symbols are validated, and quoted internal labels use a namespace unavailable to accepted user symbols. The assembly marks a non-executable GNU stack.
 
-Aggregate types, precision narrowing, unsupported call forms, atomics, unsupported data/escape/general-relocation forms, environment/aggregate ABI forms, debug/unwind metadata, other instruction families, other platforms and other targets are unsupported. There is no fallback to the old port. Backend failures return no partial assembly from the library API. The module and IR are not modified by emission.
+Aggregate types, precision narrowing, unsupported call forms, atomics, unsupported data/escape/general-relocation forms, aggregate ABI forms and combined environment/variadic calls, debug/unwind metadata, other instruction families, other platforms and other targets are unsupported. There is no fallback to the old port. Backend failures return no partial assembly from the library API. The module and IR are not modified by emission.
 
 Native compiled loops have ordinary native-program behavior; the interpreter's execution budget is **not** inserted into emitted programs. The native test harness uses process timeouts. Debug/ReleaseSafe/ReleaseFast describe how the compiler tool is built, not IL optimization levels.
 
@@ -142,3 +142,8 @@ Caller-supplied native scalar vaarg consumers are a separate bounded slice
 Native scalar variadic definitions and effect-only vastart now have a separate
 frame-owned save region and checked named signatures (VARIADIC-FUNCTIONS.md).
 Interpreter variadic calls/operations remain explicit refusals.
+
+Nonvariadic scalar environment calls now have a distinct hidden long operand/
+parameter and Linux AMD64 RAX mapping, without shifting ordinary ABI arguments
+(ENVIRONMENT-CALLS.md). Root/module interpreter mapping remains synthetic and
+bounded; environment+varargs and aggregates remain unsupported.

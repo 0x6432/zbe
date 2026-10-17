@@ -243,11 +243,15 @@ const Parser = struct {
                 f.variadic = true;
                 break; // Only the closing parenthesis may follow this final marker.
             }
-            const ty = try self.takeAbiType();
+            const is_environment = self.peek().kind == .identifier and std.mem.eql(u8, self.tokenText(self.peek()), "env");
+            const ty: ir.AbiType = if (is_environment) ty: {
+                _ = self.advance();
+                break :ty .long;
+            } else try self.takeAbiType();
             const parameter = try self.expect(.temporary);
             const parameter_name = self.nameText(parameter);
             try self.reserveValue(parameter);
-            const value = f.addParameterAbi(ty) catch |err| return self.irError(err, parameter);
+            const value = (if (is_environment) f.addEnvironmentParameter() else f.addParameterAbi(ty)) catch |err| return self.irError(err, parameter);
             self.values.putAssumeCapacity(parameter_name, value);
             if (self.peek().kind != .comma) break;
             _ = self.advance();
@@ -425,8 +429,13 @@ const Parser = struct {
         var arguments: std.ArrayList(ir.CallArgument) = .empty;
         defer arguments.deinit(self.allocator);
         var variadic_start: ?usize = null;
+        var environment: ?ir.Operand = null;
         if (self.peek().kind != .rparen) while (true) {
-            if (self.peek().kind == .ellipsis) {
+            if (self.peek().kind == .identifier and std.mem.eql(u8, self.tokenText(self.peek()), "env")) {
+                const marker = self.advance();
+                if (environment != null or arguments.items.len != 0 or variadic_start != null) return self.fail(.unsupported_construct, marker);
+                environment = try self.readOperand(.long);
+            } else if (self.peek().kind == .ellipsis) {
                 const marker = self.advance();
                 if (variadic_start != null) return self.fail(.unsupported_construct, marker);
                 variadic_start = arguments.items.len;
@@ -440,7 +449,7 @@ const Parser = struct {
         };
         _ = try self.expect(.rparen);
         const f = self.current_function.?;
-        f.appendCall(block, result, callee, arguments.items, .{ .result_abi = result_abi, .variadic_start = variadic_start }) catch |err| return self.irError(err, opcode);
+        f.appendCall(block, result, callee, arguments.items, .{ .result_abi = result_abi, .variadic_start = variadic_start, .environment = environment }) catch |err| return self.irError(err, opcode);
     }
 
     fn terminator(self: *Parser, block: ir.BlockId) Error!void {

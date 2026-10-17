@@ -11,8 +11,8 @@
 | `load` | address |
 | `store` | value, address |
 | `blit` | source, destination, including for zero byte count |
-| Direct call | typed argument operands, in order |
-| Indirect call | address target, then typed argument operands |
+| Direct call | optional environment, then typed argument operands in order |
+| Indirect call | address target, optional environment, then typed argument operands |
 
 Scalar/void call results do not change use traversal; empty and target-only calls work without special caller branches. This is a **use accessor**, not structural/type/SSA validation. It can inspect a payload without proving its operands belong to a valid function.
 
@@ -41,3 +41,8 @@ production/independent analyses do not invent a live SSA identity for it. Direct
 call-target IDs remain outside the scalar-use iterator; scalar symbol arguments
 and manually constructed symbolic indirect address operands are included. See
 SYMBOL-ADDRESSES.md for module ownership, emission and interpreter refusal.
+
+`va_argument` and effect-only `va_start` each yield their copied long descriptor
+operand. Calls with environments use both copied fixed slots for indirect target
+and hidden operand; direct calls use the first fixed slot for the environment.
+The borrowed ordinary argument tail remains unchanged (ENVIRONMENT-CALLS.md).

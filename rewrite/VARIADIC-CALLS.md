@@ -5,7 +5,7 @@ long-address indirect scalar/void call argument list. It records the number of
 named arguments before the marker. The marker is not an argument, SSA value or
 implicit type conversion. Native variadic definitions/vastart are a separate slice
 (VARIADIC-FUNCTIONS.md);
-aggregates and environment calls remain unsupported.
+aggregates and combined environment/variadic calls remain unsupported; nonvariadic environments are separate (ENVIRONMENT-CALLS.md).
 
 ```text
 %count =w call $snprintf(l %buffer, l 64, l $format, ..., w 123, d d_1.5)

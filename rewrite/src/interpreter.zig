@@ -12,6 +12,8 @@ const FunctionId = @import("module.zig").FunctionId;
 
 pub const Options = struct {
     max_steps: usize = 100_000,
+    /// Root-only raw long value; never a host pointer conversion.
+    environment: ?u64 = null,
     /// Deep-copied initialized numeric/zero/string data; evaluateModule only.
     global_memory: ?GlobalOptions = null,
     /// Owned per evaluation; synthetic objects only, never host addresses.
@@ -25,6 +27,7 @@ pub const ArithmeticError = semantics.ArithmeticError;
 pub const Error = semantics.ConversionError || ArithmeticError || evaluation_memory.Error || module_validation.Error || error{
     ArgumentCountMismatch,
     ArgumentTypeMismatch,
+    MissingEnvironment,
     StepLimitExceeded,
     UninitializedValue,
     Halted,
@@ -69,15 +72,19 @@ const Frame = struct {
     return_destination: ?ir.ValueId,
     object_mark: usize = 0,
 
-    fn init(allocator: std.mem.Allocator, function: *const ir.Function, arguments: []const ir.Constant, destination: ?ir.ValueId) Error!Frame {
-        if (arguments.len != function.parameters.items.len) return error.ArgumentCountMismatch;
-        for (function.parameters.items, arguments) |parameter, argument| {
+    fn init(allocator: std.mem.Allocator, function: *const ir.Function, arguments: []const ir.Constant, environment: ?u64, destination: ?ir.ValueId) Error!Frame {
+        if (arguments.len != function.ordinaryParameters().len) return error.ArgumentCountMismatch;
+        for (function.ordinaryParameters(), arguments) |parameter, argument| {
             if (function.values.items[@backingInt(parameter)].scalar_type != argument.scalarType()) return error.ArgumentTypeMismatch;
         }
+        if (environment == null and function.usesEnvironment()) return error.MissingEnvironment;
         const values = try allocator.alloc(?ir.Constant, function.values.items.len);
         errdefer allocator.free(values);
         @memset(values, null);
-        for (function.parameters.items, arguments) |parameter, argument| values[@backingInt(parameter)] = argument;
+        for (function.ordinaryParameters(), arguments) |parameter, argument| values[@backingInt(parameter)] = argument;
+        if (function.environment) |id| if (environment) |value| {
+            values[@backingInt(id)] = .{ .long = value };
+        };
         var max_phis: usize = 0;
         for (function.blocks.items) |block| max_phis = @max(max_phis, block.phis.items.len);
         const phis = try allocator.alloc(ir.Constant, max_phis);
@@ -91,8 +98,8 @@ const Frame = struct {
     }
 };
 
-fn appendFrame(allocator: std.mem.Allocator, frames: *std.ArrayList(Frame), function: *const ir.Function, arguments: []const ir.Constant, destination: ?ir.ValueId) Error!void {
-    var frame = try Frame.init(allocator, function, arguments, destination);
+fn appendFrame(allocator: std.mem.Allocator, frames: *std.ArrayList(Frame), function: *const ir.Function, arguments: []const ir.Constant, environment: ?u64, destination: ?ir.ValueId) Error!void {
+    var frame = try Frame.init(allocator, function, arguments, environment, destination);
     errdefer frame.deinit(allocator);
     try frames.append(allocator, frame);
 }
@@ -106,7 +113,7 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
         for (frames.items) |*frame| frame.deinit(allocator);
         frames.deinit(allocator);
     }
-    try appendFrame(allocator, &frames, function, arguments, null);
+    try appendFrame(allocator, &frames, function, arguments, options.environment, null);
     var remaining = options.max_steps;
     while (true) {
         // Do not retain this pointer across appendFrame: the handle array may
@@ -169,8 +176,9 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
                 const actual = try allocator.alloc(ir.Constant, call.arguments.len);
                 defer allocator.free(actual);
                 for (call.arguments, actual) |argument, *value| value.* = try resolve(&space, frame.values, argument.operand);
+                const environment = if (call.environment) |operand| (try resolve(&space, frame.values, operand)).long else null;
                 const object_mark = space.mark();
-                try appendFrame(allocator, &frames, callee, actual, call.result);
+                try appendFrame(allocator, &frames, callee, actual, environment, call.result);
                 frames.items[frames.items.len - 1].object_mark = object_mark;
                 continue; // The old frame pointer may now be invalid.
             }

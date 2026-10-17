@@ -72,3 +72,8 @@ Caller-supplied native scalar vaarg consumers are a separate bounded slice
 Native scalar variadic definitions and effect-only vastart now have a separate
 frame-owned save region and checked named signatures (VARIADIC-FUNCTIONS.md).
 Interpreter variadic calls/operations remain explicit refusals.
+
+Nonvariadic scalar environment calls now have a distinct hidden long operand/
+parameter and Linux AMD64 RAX mapping, without shifting ordinary ABI arguments
+(ENVIRONMENT-CALLS.md). Root/module interpreter mapping remains synthetic and
+bounded; environment+varargs and aggregates remain unsupported.

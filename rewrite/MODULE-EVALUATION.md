@@ -4,7 +4,7 @@
 
 ## Validation and ownership
 
-The exported `module_validation.validate` checks every function's symbol ID, duplicate function identity, scalar structure/SSA and then every known direct-call signature. It validates all bodies before traversing known callee parameter IDs. External target IDs must exist in the module symbol pool, but an external target need not have a definition. Known calls require exact scalar result type, argument count and argument types, even when unreachable. The validator does not impose AMD64 assembly-symbol spelling; the AMD64 emitter adds its own spelling checks after shared validation. This removes duplicate signature-verifier logic without making scalar semantics target-specific.
+The exported `module_validation.validate` checks every function's symbol ID, duplicate function identity, scalar structure/SSA and then every known direct-call signature. It validates all bodies before traversing known callee parameter IDs. External target IDs must exist in the module symbol pool, but an external target need not have a definition. Known calls require exact scalar result type, ordinary argument count and ordinary argument types, even when unreachable. The validator does not impose AMD64 assembly-symbol spelling; the AMD64 emitter adds its own spelling checks after shared validation. This removes duplicate signature-verifier logic without making scalar semantics target-specific.
 
 Module evaluation validates the module once before executing, not repeatedly on each recursive invocation. The standalone `evaluate(function, ...)` still validates its function and returns `UnsupportedCall` for a reached call, because it has no module resolver. Both entry points use the same scalar execution engine. Neither mutates IR, module symbols or input arguments. The caller must keep the module/functions alive and must not mutate them concurrently with execution.
 
@@ -75,3 +75,8 @@ Caller-supplied native scalar vaarg consumers are a separate bounded slice
 Native scalar variadic definitions and effect-only vastart now have a separate
 frame-owned save region and checked named signatures (VARIADIC-FUNCTIONS.md).
 Interpreter variadic calls/operations remain explicit refusals.
+
+Nonvariadic scalar environment calls now have a distinct hidden long operand/
+parameter and Linux AMD64 RAX mapping, without shifting ordinary ABI arguments
+(ENVIRONMENT-CALLS.md). Root/module interpreter mapping remains synthetic and
+bounded; environment+varargs and aggregates remain unsupported.

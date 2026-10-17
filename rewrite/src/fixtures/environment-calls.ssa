@@ -1,0 +1,56 @@
+export function l $env_get(env %environment) {
+@entry
+    ret %environment
+}
+export function l $env_add(env %environment, l %x) {
+@entry
+    %result =l add %environment, %x
+    ret %result
+}
+export function w $env_unused(env %environment, w %x) {
+@entry
+    ret %x
+}
+export function l $env_direct() {
+@entry
+    %result =l call $env_add(env 4294967297, l 22)
+    ret %result
+}
+export function l $env_recursive(env %environment, w %depth) {
+@entry
+    jnz %depth, @again, @done
+@again
+    %next =w sub %depth, 1
+    %changed =l add %environment, 1
+    %child =l call $env_recursive(env %changed, w %next)
+    %result =l add %child, %environment
+    ret %result
+@done
+    ret %environment
+}
+export function $env_store(env %environment, l %value) {
+@entry
+    storel %value, %environment
+    ret
+}
+export function l $env_indirect(l %target, l %environment, l %value) {
+@entry
+    %result =l call %target(env %environment, l %value)
+    ret %result
+}
+export function l $env_phi(env %environment, w %take) {
+@entry
+    jnz %take, @left, @right
+@left
+    jmp @join
+@right
+    jmp @join
+@join
+    %answer =l phi @left %environment, @right 7
+    ret %answer
+}
+export function w $env_low(env %environment) {
+@entry
+    %result =w copy %environment
+    ret %result
+}

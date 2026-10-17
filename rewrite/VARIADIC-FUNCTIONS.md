@@ -4,7 +4,7 @@ The Linux AMD64 scalar slice accepts one final `...` marker in a function header
 including a sole marker. `Function.variadic` defaults false; named parameters keep
 their existing identities and base/subword ABI annotations. The marker is not an
 SSA value, named parameter or implicit promotion. Missing commas, repeated/nonfinal
-markers and trailing commas are rejected. Aggregates, environment calls, other
+markers and trailing commas are rejected. Aggregates, combined environment/variadic calls, other
 platforms and full ABI/backend parity remain outside this slice.
 
 ```text

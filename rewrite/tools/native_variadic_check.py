@@ -221,7 +221,7 @@ vararg_al_probe:
             'function w $f() {\n@e\n%x =sb call $g(sb 1, ...)\nret 0\n}\nfunction sb $g(sb %x) {\n@e\nret %x\n}',
             'function w $f() {\n@e\nret 0\n@u\n%x =w call $g(...)\nret %x\n}\nfunction w $g() {\n@e\nret 1\n}',
             'function $f(l %p) {\n@e\nvastart %p\nret\n}',
-            'function w $f(l %p) {\n@e\n%x =w vaarg %p\nret %x\n}',
+            'function w $f(l %p) {\n@e\n%x =w vaarg %p, %p\nret %x\n}',
             'function $f() {\n@e\ncall $g(env 0, ...)\nret\n}',
             'function w $f(w %p) {\n@e\n%x =w call %p(...)\nret %x\n}',
         ]

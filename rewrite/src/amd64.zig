@@ -248,6 +248,7 @@ const Emitter = struct {
             const id: ir.BlockId = @fromBackingInt(@as(u32, @intCast(number)));
             try self.print("\".Lzbe@{d}@b{d}\":\n", .{ index, number });
             for (block.instructions.items) |instruction| switch (instruction) {
+                .va_argument => |argument| try self.vaArgument(argument.result, argument.list),
                 .allocate => |allocation| try self.allocate(allocation.result, allocation.size, allocation.alignment),
                 .convert => |conversion| try self.convert(conversion.result, conversion.op, conversion.operand),
                 .blit => |blit| {
@@ -543,6 +544,21 @@ const Emitter = struct {
             },
         }
         if (source_type.isInteger()) try self.print("\tmov{c} %xmm0, {s}\n", .{ sseMove(ty), register(ty, .accumulator) });
+        try self.save(result, register(ty, .accumulator));
+    }
+
+    /// Native descriptor validity and available arguments are caller contracts.
+    fn vaArgument(self: *Emitter, result: ir.ValueId, list: ir.Operand) Error!void {
+        const ty = self.current.values.items[@backingInt(result)].scalar_type;
+        const field: u8 = if (ty.isInteger()) 0 else 4;
+        const limit: u16 = if (ty.isInteger()) 48 else 176;
+        const stride: u8 = if (ty.isInteger()) 8 else 16;
+        const id = @backingInt(result);
+        try self.load(list, .accumulator);
+        try self.print("\tmovq %rax, %r10\n\tmovl {d}(%r10), %eax\n\tcmpl ${d}, %eax\n\tjae \".Lzbe@{d}@va{d}@stack\"\n", .{ field, limit, self.ordinal, id });
+        try self.print("\taddq 16(%r10), %rax\n\taddl ${d}, {d}(%r10)\n\tjmp \".Lzbe@{d}@va{d}@load\"\n", .{ stride, field, self.ordinal, id });
+        try self.print("\".Lzbe@{d}@va{d}@stack\":\n\tmovq 8(%r10), %rax\n\taddq $8, 8(%r10)\n\".Lzbe@{d}@va{d}@load\":\n", .{ self.ordinal, id, self.ordinal, id });
+        try self.print("\tmov{c} (%rax), {s}\n", .{ suffix(ty), register(ty, .accumulator) });
         try self.save(result, register(ty, .accumulator));
     }
 

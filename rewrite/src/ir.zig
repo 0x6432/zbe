@@ -276,6 +276,8 @@ pub const Call = struct {
     variadic_start: ?usize = null,
 };
 pub const Instruction = union(enum) {
+    /// Ordered descriptor read/advance through a caller-contracted native list.
+    va_argument: struct { result: ValueId, list: Operand },
     allocate: struct { result: ValueId, size: Operand, alignment: AllocationAlignment },
     /// Nonnegative signed-word byte count, not a packed reference field.
     blit: struct { source: Operand, destination: Operand, byte_count: u31 },
@@ -293,6 +295,7 @@ pub const Instruction = union(enum) {
     /// Stores, blits and void calls have effects, not dummy value definitions.
     pub fn result(self: Instruction) ?ValueId {
         return switch (self) {
+            .va_argument => |argument| argument.result,
             .allocate => |allocation| allocation.result,
             .load => |load| load.result,
             .store, .blit => null,
@@ -312,6 +315,7 @@ pub const Instruction = union(enum) {
     pub fn operands(self: Instruction) OperandIterator {
         return switch (self) {
             .blit => |b| .{ .first = b.source, .second = b.destination },
+            .va_argument => |a| .{ .first = a.list },
             .allocate => |a| .{ .first = a.size },
             .load => |l| .{ .first = l.address },
             .store => |s| .{ .first = s.value, .second = s.address },
@@ -511,6 +515,17 @@ pub const Function = struct {
         try target.instructions.ensureUnusedCapacity(self.allocator, 1);
         value.definition = .{ .instruction = .{ .block = block, .index = target.instructions.items.len } };
         target.instructions.appendAssumeCapacity(.{ .load = .{ .result = result, .kind = kind, .address = address } });
+    }
+
+    /// Failed checks/allocation leave the base-scalar result pending/retryable.
+    pub fn defineVaArg(self: *Function, block: BlockId, result: ValueId, list: Operand) BuildError!void {
+        const target = try self.getBlock(block);
+        if (target.terminator != null) return error.BlockTerminated;
+        const value = try self.pendingValue(result);
+        if (try self.operandType(list) != .long) return error.TypeMismatch;
+        try target.instructions.ensureUnusedCapacity(self.allocator, 1);
+        value.definition = .{ .instruction = .{ .block = block, .index = target.instructions.items.len } };
+        target.instructions.appendAssumeCapacity(.{ .va_argument = .{ .result = result, .list = list } });
     }
 
     pub fn appendStore(self: *Function, block: BlockId, kind: StoreKind, value: Operand, address: Operand) BuildError!void {
@@ -742,6 +757,7 @@ pub const Function = struct {
                     }
                 }
                 switch (instruction) {
+                    .va_argument => |argument| if (try self.operandType(argument.list) != .long) return error.TypeMismatch,
                     .blit => |blit| {
                         if (try self.operandType(blit.source) != .long or try self.operandType(blit.destination) != .long) return error.TypeMismatch;
                     },

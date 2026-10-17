@@ -3,7 +3,7 @@
 The Linux AMD64 slice accepts one literal `...` marker in a direct external or
 long-address indirect scalar/void call argument list. It records the number of
 named arguments before the marker. The marker is not an argument, SSA value or
-implicit type conversion. No variadic function definitions, `vastart`, `vaarg`,
+implicit type conversion. No variadic function definitions, `vastart`,
 aggregates or environment calls are implemented by this slice.
 
 ```text
@@ -67,7 +67,7 @@ incorrect. The target remains R11, not RAX, through this final setup. Nonvariadi
 calls emit no new AL move; an independent emission comparison verifies that
 removing the one marked-call move restores the otherwise identical assembly.
 No caller-side variadic register-save area is invented; variadic callee prologues/
-va_list handling belong to the external callee, not an implemented IL body here.
+va_list initialization belong to the external callee, not an implemented IL body here.
 
 ## Interpreter and unsupported boundaries
 
@@ -101,3 +101,7 @@ indirect targets, snprintf into caller-owned memory, void/unused effects, phi
 loops, a dynamic object smaller than its outgoing overflow reservation and full-
 width preserved originals. All subprocesses have finite timeouts. Actual verified
 counts/results and any corrections are recorded in HANDOFF.md.
+
+A separate consumer-only slice now accepts scalar vaarg using a caller-supplied
+native descriptor in ordinary functions (VAARG-CONSUMERS.md). It adds no variadic
+headers, vastart or interpreter descriptor emulation to this call-site slice.

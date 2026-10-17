@@ -61,5 +61,9 @@ checks (SUBWORD-ABI.md). This does not add aggregates, varargs or host invocatio
 
 External/indirect variadic scalar call sites now have a checked named-argument
 prefix marker and final AMD64 AL setup (VARIADIC-CALLS.md). Variadic function
-bodies, va_list operations and interpreter host calls remain unsupported; C
+bodies, vastart and interpreter host calls remain unsupported; C
 default promotions are explicit caller responsibilities, not inserted conversions.
+
+Caller-supplied native scalar vaarg consumers are a separate bounded slice
+(VAARG-CONSUMERS.md); they do not implement variadic bodies, vastart or interpreter
+descriptor emulation. Reached evaluation explicitly refuses the operation.

@@ -1468,3 +1468,85 @@ Review /data/zbe-vaarg-consumer-followup-design.txt for exact scope, raw-width,
 effect/aliasing, independent C/hand-layout and OOM expectations. Broader native
 variadic-body/environment proposals remain unimplemented. No main merge, release
 tag, complete ABI/backend parity or performance claim is authorized.
+
+## Native caller-supplied scalar vaarg consumers (in progress)
+
+Selected the smaller consumer-only vertical slice from the reviewed variadic-body
+proposal after call-site exact-SHA CI passed. Added typed Instruction.va_argument,
+failure-atomic Function.defineVaArg, long list operand validation/iteration and
+base-scalar parser syntax. Shared production uses and independent liveness/
+interference switches cover the list; the new fixture joins both independent
+corpora and the fixed-tag iterator coverage gains a case, not a weaker count.
+
+Linux AMD64 reads the selected unsigned GP/SSE field, uses the register bank
+below48/176 with8/16-byte advancement or the shared overflow pointer with8-byte
+advancement, then loads exactly4/8 raw bytes. Only RAX/R10 scratch and unique
+quoted labels are new. Frame/prologue/call classification and all legacy code
+are unchanged. Variadic headers/vastart, aggregates and environment calls remain
+unsupported. Descriptor validity/lifetime/runtime types are caller contracts;
+native fault atomicity and pointer safety are not promised.
+
+Reached interpretation refuses with UnsupportedVariadicOperation after its
+ordinary step without resolving the list; existing setup/argument preflight,
+budgets, earlier-write semantics and ownership remain intact. No synthetic
+va_list or host-pointer fallback was added. The new five-test group covers typed
+retry/forged classes, grammar/SSA, refusal across valid memory options, effects
+and exhaustive allocation-failure cleanup. The first quiet smoke was stopped
+for verbose diagnosis, not accepted as verification. The standalone diagnostic
+run completed299/301, with exactly two new expectation mistakes: InvalidSsa vs
+existing InvalidSSA spelling, and standalone globals incorrectly expecting an
+instruction refusal rather than existing GlobalsRequireModule setup refusal.
+Only those new expectations were corrected; existing diagnostics/production
+behavior were preserved. Added all-four-class and nested-depth/budget checks.
+Evidence: /data/vaarg-consumers-verbose-tests.log. Corrected full smoke is pending.
+
+The new18th native harness has independent promoted C stdarg callers, host va_copy
+advancement comparison and Python weighted numeric expectations. Hand-laid raw
+descriptors cover high unsigned offsets, both thresholds, exact-width bit loads,
+signed zeros/NaNs, source immutability, separate/shared/copied cursors, unused
+consumption, nested/recursive/phi loops and protected-page no-overread success.
+PIE/nonPIE and full preserved-register checks are included; no result claimed yet.
+The original preservation adapter's symbol/zero-success contract was checked and
+used before any native run. Only two newly valid old vaarg negatives (unit and
+variadic harness) became extra-operand negatives, preserving their counts.
+No full local matrix or new exact-SHA CI success is assumed.
+
+### Vaarg consumer corrected smoke passed; full verification begins
+
+Corrected Debug smoke passed301/301 and built the executable, with production
+unchanged from the diagnostic run. Evidence:
+/data/check-vaarg-consumers-debug-corrected.log and exit0 in
+/data/check-vaarg-consumers-debug.exit. The new native harness passed all8 option
+sets without runtime/implementation/oracle correction:1367 descriptor checks per
+PIE/nonPIE link,2 no-TEXTREL and20 rejection/output-preservation checks per set.
+All marker counts were checked. Evidence: /data/check-vaarg-consumers-native.log
+and .exit0. Only the new unit expectations/configuration matrix were corrected
+as recorded above; no old expectation was weakened.
+
+Review confirmed all77 prior fixture/generator/native-harness files unchanged
+except the separately exact-checked newly valid vaarg negative in the variadic
+harness; its unit counterpart is the same exact extra-operand replacement.
+Scope, credential scan, whitespace and legacy isolation passed. The existing
+CI timeout remains unchanged; the18th harness joins the existing8-option loop.
+Authoritative source is now frozen for the full three-mode matrix and subsequent
+exact-SHA CI. Debug may reuse unchanged301 smoke; record actual fresh/cache status
+on completion. No full-matrix/CI success is assumed for this checkpoint yet.
+
+### Vaarg consumer authoritative full local matrix passed
+
+Frozen-source verification completed exit0 with VAARG CONSUMER VERIFICATION PASSED.
+Debug reused unchanged301-test corrected smoke; ReleaseSafe freshly passed301/301
+in7s and ReleaseFast freshly passed301/301 in5s. All24 combinations (three modes
+by eight flags) passed all18 native harnesses, formatting and all14 independent
+generator checks. All62 completion groups were counted:57 groups24 times and
+five two-link result groups48 times. Each new-harness combination passed1367
+checks per PIE/nonPIE link,2 no-TEXTREL and20 rejection/output-preservation checks.
+
+Evidence: /data/verify-vaarg-consumers.sh, .log, .pid and .exit;
+/data/vaarg-consumers-verification-counts.json. No production correction, oracle
+change, reduced count or timeout change was needed after corrected smoke. Final
+scope/credential/protected-file/legacy/whitespace checks passed. Only the two
+newly valid vaarg syntax negatives became invalid extra-operand cases as recorded;
+all other old fixtures/generators/native harnesses remain unchanged. Source stays
+frozen for exact pushed-SHA CI, including post-job steps; local success does not
+imply CI green or full variadic function/ABI/backend parity.

@@ -80,7 +80,7 @@ test "malformed markers and variadic bodies reject while defined nonvariadic sig
         "function w $f() {\n@e\n%x =w call $g(... w 1)\nret %x\n}",
         "function w $f() {\n@e\n%x =w call $g(w 1 ...)\nret %x\n}",
         "function $f(l %p) {\n@e\nvastart %p\nret\n}",
-        "function w $f(l %p) {\n@e\n%x =w vaarg %p\nret %x\n}",
+        "function w $f(l %p) {\n@e\n%x =w vaarg %p, %p\nret %x\n}",
     }) |text| try testing.expectError(error.InvalidInput, parse(testing.allocator, text));
     for ([_][]const u8{
         "function w $f() {\n@e\n%x =w call $g(...)\nret %x\n}\nfunction w $g() {\n@e\nret 7\n}",

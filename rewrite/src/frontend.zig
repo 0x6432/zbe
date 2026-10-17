@@ -347,6 +347,9 @@ const Parser = struct {
         const f = self.current_function.?;
         if (std.mem.eql(u8, spelling, "call")) {
             try self.call(block, result, opcode, abi_type);
+        } else if (std.mem.eql(u8, spelling, "vaarg")) {
+            const list = try self.readOperand(.long);
+            f.defineVaArg(block, result, list) catch |err| return self.irError(err, opcode);
         } else if (allocation_opcodes.get(spelling)) |alignment| {
             const size = try self.readOperand(.long);
             f.defineAllocate(block, result, size, alignment) catch |err| return self.irError(err, opcode);

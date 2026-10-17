@@ -1,0 +1,71 @@
+export function w $vaget_word(l %list) {
+@entry
+%value =w vaarg %list
+ret %value
+}
+export function l $vaget_long(l %list) {
+@entry
+%value =l vaarg %list
+ret %value
+}
+export function s $vaget_single(l %list) {
+@entry
+%value =s vaarg %list
+ret %value
+}
+export function d $vaget_double(l %list) {
+@entry
+%value =d vaarg %list
+ret %value
+}
+export function l $vaget_drop(l %list) {
+@entry
+%unused =l vaarg %list
+%value =l vaarg %list
+ret %value
+}
+export function l $vaget_loop(l %list, w %count) {
+@entry
+jmp @loop
+@loop
+%i =w phi @entry 0, @body %next
+%sum =l phi @entry 0, @body %added
+%more =w csltw %i, %count
+jnz %more, @body, @done
+@body
+%value =l vaarg %list
+%added =l add %sum, %value
+%next =w add %i, 1
+jmp @loop
+@done
+ret %sum
+}
+export function w $vaget_safe(l %list, w %take) {
+@entry
+jnz %take, @read, @safe
+@read
+%value =w vaarg %list
+ret %value
+@safe
+ret 42
+}
+export function l $vaget_nested(l %list) {
+@entry
+%a =l call $vaget_long(l %list)
+%b =l vaarg %list
+%result =l add %a, %b
+ret %result
+}
+export function l $vaget_recursive(l %list, w %count) {
+@entry
+%more =w csltw 0, %count
+jnz %more, @body, @done
+@body
+%a =l vaarg %list
+%next =w sub %count, 1
+%b =l call $vaget_recursive(l %list, w %next)
+%result =l add %a, %b
+ret %result
+@done
+ret 0
+}

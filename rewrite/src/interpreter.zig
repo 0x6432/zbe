@@ -33,6 +33,7 @@ pub const Error = semantics.ConversionError || ArithmeticError || evaluation_mem
     UnsupportedIndirectCall,
     UnsupportedMemory,
     UnsupportedAllocation,
+    UnsupportedVariadicOperation,
     UnsupportedSymbolAddress,
     InvalidFunction,
     CallDepthLimitExceeded,
@@ -203,6 +204,7 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
 
 fn scalarInstruction(space: *const evaluation_memory.Space, function: *const ir.Function, values: []const ?ir.Constant, instruction: ir.Instruction) Error!ir.Constant {
     return switch (instruction) {
+        .va_argument => error.UnsupportedVariadicOperation,
         .allocate => error.UnsupportedAllocation,
         .load, .store, .blit => error.UnsupportedMemory,
         .call => error.UnsupportedCall,

@@ -28,7 +28,7 @@ The driver takes two paths and optionally preceding `--fold-integers`, `--reuse-
 - Frame pointer is preserved, stack space rounded to 16 bytes, and only caller-saved scratch registers are used for computation; optional callee-saved homes are separately saved/restored. A prototype frame-size cap of 64 KiB is explicit; fixed reservation now probes each page before descending farther (FRAME-PROBES.md).
 - Export/local symbol linkage is retained. Symbols are validated, and quoted internal labels use a namespace unavailable to accepted user symbols. The assembly marks a non-executable GNU stack.
 
-Aggregate types, precision narrowing, unsupported call forms, atomics, unsupported data/escape/general-relocation forms, variadic function bodies/va_list operations, debug/unwind metadata, other instruction families, other platforms and other targets are unsupported. There is no fallback to the old port. Backend failures return no partial assembly from the library API. The module and IR are not modified by emission.
+Aggregate types, precision narrowing, unsupported call forms, atomics, unsupported data/escape/general-relocation forms, variadic function bodies/vastart, debug/unwind metadata, other instruction families, other platforms and other targets are unsupported. There is no fallback to the old port. Backend failures return no partial assembly from the library API. The module and IR are not modified by emission.
 
 Native compiled loops have ordinary native-program behavior; the interpreter's execution budget is **not** inserted into emitted programs. The native test harness uses process timeouts. Debug/ReleaseSafe/ReleaseFast describe how the compiler tool is built, not IL optimization levels.
 
@@ -54,7 +54,7 @@ Same-width `cast` uses raw-bit moves across integer/SSE ABI classes. `exts` uses
 Floating predicates use explicit ordered/unordered SSE flag handling rather than treating floating flags as integer comparisons. Equality/less/less-equal exclude unordered results, inequality includes unordered results, and ordered/unordered test parity explicitly. Native tests cover both integer result widths, both floating operand widths, signed zeros, infinities and quiet/signaling NaN operands. Truth-value coverage does not establish floating exception-flag equivalence or behavior with unmasked exceptions.
 
 
-All seventeen native harnesses accept `--fold-integers`, `--reuse-stack-homes` and `--callee-saved-homes`, forwarding them to the experimental compiler. CI executes each harness in all eight flag combinations in every compiler build mode, retaining all result, arithmetic-fault and output-preservation expectations. See OPTIMIZE.md for the folding pass's conservative scope and failure-atomic per-function contract and STACK-HOMES.md for layout ownership and analysis limits, and PRESERVED-HOMES.md for limited physical homes and the explicit full-width register-preservation adapter. No new IL optimization level or legacy compatibility behavior is implied.
+All eighteen native harnesses accept `--fold-integers`, `--reuse-stack-homes` and `--callee-saved-homes`, forwarding them to the experimental compiler. CI executes each harness in all eight flag combinations in every compiler build mode, retaining all result, arithmetic-fault and output-preservation expectations. See OPTIMIZE.md for the folding pass's conservative scope and failure-atomic per-function contract and STACK-HOMES.md for layout ownership and analysis limits, and PRESERVED-HOMES.md for limited physical homes and the explicit full-width register-preservation adapter. No new IL optimization level or legacy compatibility behavior is implied.
 
 ## Scalar memory subset
 
@@ -131,5 +131,9 @@ is implied.
 
 External/indirect variadic scalar call sites now have a checked named-argument
 prefix marker and final AMD64 AL setup (VARIADIC-CALLS.md). Variadic function
-bodies, va_list operations and interpreter host calls remain unsupported; C
+bodies, vastart and interpreter host calls remain unsupported; C
 default promotions are explicit caller responsibilities, not inserted conversions.
+
+Caller-supplied native scalar vaarg consumers are a separate bounded slice
+(VAARG-CONSUMERS.md); they do not implement variadic bodies, vastart or interpreter
+descriptor emulation. Reached evaluation explicitly refuses the operation.

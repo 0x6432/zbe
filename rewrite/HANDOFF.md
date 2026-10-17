@@ -1257,3 +1257,23 @@ and `/data/interpreter-data-relocation-verification-counts.json`. A remote fetch
 confirmed the prior documentation checkpoint still heads rewrite/zig-native.
 Exact-SHA publication CI is next; no remote green result is claimed yet. No main
 merge, release tag or full relocation/ABI/backend parity is implied.
+
+### Internal-data relocation exact-SHA CI confirmed green
+
+Published code checkpoint `5626c77a1a250c23ac309b4511adda0d9bdb83b4` passed
+https://github.com/0x6432/zbe/actions/runs/39009654237 on its first attempt.
+Debug, ReleaseSafe and ReleaseFast completed successfully, including their
+post-job steps. No rerun, source correction, weakened assertion or timeout change
+was needed. Source remained frozen through the complete local matrix and exact-
+SHA CI. Evidence: `/data/interpreter-data-relocations-ci-result.json` and
+`/data/watch-interpreter-data-relocations-ci.log`. This documentation-only update
+skips redundant CI; it records actual results, not verification of future work.
+
+Next bounded proposal: typed sb/ub/sh/uh annotations in scalar ABI positions on
+Linux AMD64, retaining four SSA classes and explicit extension instructions.
+Reference semantics leave upper bits unspecified; do not add implicit sign/zero
+extension or claim full ABI support. Before implementation, review checked typed
+annotations/ownership, exact internal signatures, parser predeclaration restrictions,
+independent poisoned-upper-bit native expectations and allocation-failure cleanup.
+Proposal-only review: `/data/zbe-subword-abi-followup-design.txt`. No main merge,
+release tag, full backend parity or performance claim is authorized.

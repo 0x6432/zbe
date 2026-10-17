@@ -72,8 +72,8 @@ test "common typed variadic builder owns arguments and rejects invalid options b
 
 test "malformed markers and variadic bodies reject while defined nonvariadic signatures cannot acquire a marker" {
     for ([_][]const u8{
-        "function $f(...) {\n@e\nret\n}",
-        "function w $f(w %p, ...) {\n@e\nret %p\n}",
+        "function $f(..., ...) {\n@e\nret\n}",
+        "function w $f(w %p, ..., ...) {\n@e\nret %p\n}",
         "function w $f() {\n@e\n%x =w call $g(..., ...)\nret %x\n}",
         "function w $f() {\n@e\n%x =w call $g(w 1, ..., w 2, ...)\nret %x\n}",
         "function w $f() {\n@e\n%x =w call $g(...,)\nret %x\n}",

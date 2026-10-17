@@ -3,8 +3,9 @@
 The Linux AMD64 slice accepts one literal `...` marker in a direct external or
 long-address indirect scalar/void call argument list. It records the number of
 named arguments before the marker. The marker is not an argument, SSA value or
-implicit type conversion. No variadic function definitions, `vastart`,
-aggregates or environment calls are implemented by this slice.
+implicit type conversion. Native variadic definitions/vastart are a separate slice
+(VARIADIC-FUNCTIONS.md);
+aggregates and environment calls remain unsupported.
 
 ```text
 %count =w call $snprintf(l %buffer, l 64, l $format, ..., w 123, d d_1.5)
@@ -15,10 +16,12 @@ call $effect(w 1, ..., w 17, d d_2)
 A sole marker (`...`), initial marker (`..., w 7`) or final marker (`w 7, ...`)
 is accepted; a final marker means zero variable arguments. These are typed IL
 contracts, not statements that every such list is a legal C prototype. Duplicate
-markers, missing commas and a trailing comma remain invalid. Function headers
-still reject `...`; module-defined functions remain nonvariadic. Any marked known
-direct call therefore returns `CallSignatureMismatch`, including in an unreachable
-block or when a result is unused. Passing a marker does not turn an ordinary
+markers, missing commas and a trailing comma remain invalid. Ordinary module-
+defined functions remain nonvariadic unless explicitly declared
+with a final header marker. Marked calls to ordinary definitions return
+`CallSignatureMismatch`, including unreachable/unused calls; marked known variadic
+calls require the exact named prefix (VARIADIC-FUNCTIONS.md). Passing a marker does
+not turn an ordinary
 function definition into a variadic function.
 
 ## Explicit types and C default promotions
@@ -67,7 +70,7 @@ incorrect. The target remains R11, not RAX, through this final setup. Nonvariadi
 calls emit no new AL move; an independent emission comparison verifies that
 removing the one marked-call move restores the otherwise identical assembly.
 No caller-side variadic register-save area is invented; variadic callee prologues/
-va_list initialization belong to the external callee, not an implemented IL body here.
+va_list initialization belong to the callee (VARIADIC-FUNCTIONS.md), not the caller.
 
 ## Interpreter and unsupported boundaries
 
@@ -103,5 +106,5 @@ width preserved originals. All subprocesses have finite timeouts. Actual verifie
 counts/results and any corrections are recorded in HANDOFF.md.
 
 A separate consumer-only slice now accepts scalar vaarg using a caller-supplied
-native descriptor in ordinary functions (VAARG-CONSUMERS.md). It adds no variadic
-headers, vastart or interpreter descriptor emulation to this call-site slice.
+native descriptor in ordinary functions (VAARG-CONSUMERS.md). Native headers/vastart now reuse this consumer in VARIADIC-FUNCTIONS.md;
+interpreter descriptor emulation remains unsupported.

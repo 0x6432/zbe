@@ -3,8 +3,8 @@
 Ordinary functions may read/advance a caller-supplied Linux AMD64 SysV scalar
 va_list descriptor using `%value =w/l/s/d vaarg %list`. The list operand is long;
 results retain the four existing base scalar classes. This is a consumer-only
-slice: variadic function headers, `vastart`, aggregates, environment calls and
-other platforms/targets remain unsupported. No native descriptor allocator or
+slice: native variadic headers/vastart now reuse it in VARIADIC-FUNCTIONS.md;
+aggregates, environment calls and other platforms/targets remain unsupported. No native descriptor allocator or
 callee register-save prologue is inferred. See VARIADIC-CALLS.md for the separate
 caller-side marker/AL support.
 

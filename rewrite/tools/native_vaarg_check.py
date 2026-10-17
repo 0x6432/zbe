@@ -184,7 +184,7 @@ ret %x
             'function w $f(l %p) {\n@e\n%x =sb vaarg %p\nret %x\n}',
             'function $f(l %p) {\n@e\nvaarg %p\nret\n}',
             'function $f(l %p) {\n@e\nvastart %p\nret\n}',
-            'function $f(...) {\n@e\nret\n}',
+            'function $f(..., ...) {\n@e\nret\n}',
             'function w $f() {\n@e\n%x =w vaarg %p\n%p =l copy 0\nret %x\n}',
         ]
         for text in bad:

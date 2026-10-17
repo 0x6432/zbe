@@ -1578,3 +1578,113 @@ Existing setup/argument/budget precedence and earlier Image writes remain intact
 Review /data/zbe-native-variadic-functions-followup-design.txt including its
 consumer-split addendum before implementation. Aggregates, env calls, other
 platforms, variadic interpretation and full ABI/backend parity remain out of scope.
+
+## Native scalar variadic definitions and vastart (in progress)
+
+Following first-attempt green native vaarg-consumer CI, added final-only variadic
+headers/Function.variadic and effect-only va_start/appendVaStart. Known direct
+variadic signatures require a marker exactly at named arity with exact named
+classes/subword annotations and exact return metadata. Ordinary signatures retain
+null-marker/exact complete arity. Tail runtime types remain caller contracts.
+Production operand iteration, fixed-tag coverage and independently written use
+oracles gained the list effect; new fixture joins both analysis corpora.
+
+Native variadic functions add an aligned176-byte GP6/SSE8 save region below the
+old homes/phi/saved-original region and above outgoing slots. It counts against
+64KiB and existing page probes. Full incoming banks are raw-saved before parameter
+homing, without AL-dependent skips. vastart writes the four SysV descriptor fields
+from the named cursor and invocation-owned save region. Existing vaarg lowering
+is unchanged. Normal return releases the region; native descriptor validity and
+lifetime remain caller contracts. Nonvariadic frame/home offsets are unchanged.
+
+Interpreter roots retain exact named-only argument arrays and no-varop safe
+paths. Reached internal variadic calls refuse UnsupportedVariadicCall after
+lookup/step before depth/argument resolution; reached vastart refuses
+UnsupportedVariadicOperation without descriptor resolution/write. Existing
+configuration/argument/step precedence, Image writes and owned cleanup remain.
+No varargs host invocation or synthetic va_list was introduced.
+
+First smoke reported304/308 passing, one failure and three crashes. The failure
+was a newly valid old frontend header-negative not yet updated; its expectError
+helper discarded a successful owned Module, accounting for the seven leak
+reports in that failed expectation, not an established production allocation
+failure. Replaced only that case with a duplicate-marker header and exact new
+unexpected-token/comma diagnostic, preserving its assertion count. The three
+new vastart tests caught a genuine integration bug: the effect-only operation
+reached the generic result-producing interpreter path and unwrapped null. Added
+its explicit refusal in effect dispatch before result access. Existing result-
+producing vaarg refusal and legacy behavior remain unchanged. A subsequent test-
+only array repetition spelling failed the pinned compiler; replaced it with an
+explicit initialized argument array loop. No successful verification is claimed
+for either failed smoke. Evidence: /data/check-variadic-functions-debug.log,
+/data/check-variadic-functions-debug-first.exit and
+/data/check-variadic-functions-debug-syntax.exit.
+
+Review added exact nonvariadic emission comparison after stripping only the
+176-byte reservation/bank-save differences, and exact64KiB combined save/outgoing
+boundaries. Corrected308-test smoke is running. Independent native harness design
+includes promoted C callers, compiled marked direct/indirect callers, C readers
+consuming IL-created descriptors, named bank overflows and fixed single/narrow
+parameters, every scalar/subword return, raw single/double IL tails through bank
+and overflow slots, reset/copy/loop/recursion, live save/object bytes across calls,
+preserved originals, PIE/nonPIE and protected-stack/unprobed negative controls.
+The C oracle's two va_arg reads are explicitly sequenced before any native run.
+No native result/full matrix/new exact-SHA CI success is claimed yet.
+
+### Corrected variadic-body smoke passed; authoritative matrix begins
+
+Corrected Debug smoke passed308/308, including exhaustive allocation-failure
+cleanup, and built the executable. Evidence:
+/data/check-variadic-functions-debug-corrected.log and
+/data/check-variadic-functions-debug.exit0. This is after the caught effect-only
+dispatch bug and new-invalid-header expectation were corrected, not a claim that
+the initial attempt passed. No further production/test correction followed.
+
+The new19th native harness passed every8-option smoke combination without runtime
+or oracle corrections:393 defined checks per PIE/nonPIE link,2 no-TEXTREL,
+2 protected-frame SIGSEGV and2 successful test-only unprobed controls, and20
+rejection/output-preservation cases per combination. Exact counts were checked.
+Evidence: /data/check-variadic-functions-native.log and .exit0. Coverage includes
+64 mixed named/tail signatures with independent promoted C values and C descriptor
+readers, compiled direct/indirect callers, every scalar/subword return, raw
+single/double bank/overflow tails including signed zero/NaNs, descriptor reset/
+copy, loops/recursive live caller descriptors, a16-byte dynamic object below a
+32-byte outgoing reservation, full preserved originals and guarded fixed frames.
+
+All79 prior fixture/generator/native-harness paths were checked. Exactly three
+newly valid header negatives in two previous native harnesses became duplicate-
+marker negatives, preserving their32/20 groups. Their three unit counterparts
+and the separately caught frontend diagnostic case are likewise still negative
+with unchanged assertion counts; no numeric oracle/generator expectations changed.
+New fixed-tag/independent use cases extend coverage without lowering assertions.
+Scope/credentials/legacy/whitespace checks passed; CI timeout stays unchanged.
+Source is now frozen through the authoritative three-mode/eight-option/all19-
+harness matrix and subsequent exact-SHA CI including post-job steps. Debug may
+reuse the unchanged308 smoke; record actual fresh/cache status on completion.
+No full-matrix/new-CI green or complete ABI/backend parity is assumed yet.
+
+### Native variadic definitions: full local verification passed; publishing for CI
+
+The frozen authoritative runner completed with exit0 and final marker
+VARIADIC FUNCTION VERIFICATION PASSED. All308 unit tests passed in Debug,
+ReleaseSafe and ReleaseFast: Debug reused the unchanged corrected smoke cache;
+ReleaseSafe ran fresh in5s and ReleaseFast fresh in4s. Formatting and all14
+independent generator checks passed. All24 combinations (three builds × eight
+option sets) passed all19 native harnesses. Exact completion-marker audit found
+67 groups:61 counted24 times and six PIE/nonPIE result groups counted48 times.
+The new body harness contributed393 defined results per link,2 no-TEXTREL,
+2 guard-page SIGSEGV,2 successful unprobed negative controls and20 rejection/
+output-preservation checks per combination. Existing fault and rejection groups
+also passed; their independent expectations were not weakened.
+
+Evidence: /data/verify-variadic-functions.sh, .log, .pid and .exit0;
+/data/variadic-functions-verification-counts.json. Rechecked all79 prior protected
+fixture/generator/native-harness paths: only the two exact header-negative
+harness adjustments described above changed. Scope, credential-pattern scan,
+whitespace and legacy isolation passed. New native variadic definitions/vastart
+remain Linux AMD64 scalar-only; interpreter varops/internal variadic calls remain
+explicit refusals. No complete ABI/backend parity is claimed.
+
+This code is ready for branch publication and exact-SHA CI. No new CI result is
+claimed here. Keep source frozen until all three jobs, including post-job steps,
+finish; append the actual run URL, SHA and conclusions afterward.

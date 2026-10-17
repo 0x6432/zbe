@@ -238,6 +238,11 @@ const Parser = struct {
         f.linkage = if (exported) .exported else .internal;
         _ = try self.expect(.lparen);
         if (self.peek().kind != .rparen) while (true) {
+            if (self.peek().kind == .ellipsis) {
+                _ = self.advance();
+                f.variadic = true;
+                break; // Only the closing parenthesis may follow this final marker.
+            }
             const ty = try self.takeAbiType();
             const parameter = try self.expect(.temporary);
             const parameter_name = self.nameText(parameter);
@@ -273,6 +278,10 @@ const Parser = struct {
                 if (std.mem.eql(u8, self.tokenText(token), "call")) {
                     _ = self.advance();
                     try self.call(active, null, token, null);
+                } else if (std.mem.eql(u8, self.tokenText(token), "vastart")) {
+                    _ = self.advance();
+                    const list = try self.readOperand(.long);
+                    f.appendVaStart(active, list) catch |err| return self.irError(err, token);
                 } else if (std.mem.eql(u8, self.tokenText(token), "blit")) {
                     _ = self.advance();
                     const src = try self.readOperand(.long);
@@ -673,7 +682,7 @@ test "diagnostics reject undefined and duplicate names at their source spans" {
 test "malformed syntax, types and unsupported IL never silently lower" {
     try expectInvalid("data $x = { w $other }", .unsupported_construct, "$other");
     try expectInvalid("function w $f() {\n@b\n%x =w alloc8 8\nret %x\n}", .type_mismatch, "alloc8");
-    try expectInvalid("function $f(...) {\n@b\nret\n}", .unsupported_construct, "...");
+    try expectInvalid("function $f(..., ...) {\n@b\nret\n}", .unexpected_token, ",");
     try expectInvalid("function w $\"quoted\"() {\n@b\nret 0\n}", .unsupported_construct, "$\"quoted\"");
     try expectInvalid("function w $f() {\n@b\nret d_1\n}", .type_mismatch, "d_1");
     try expectInvalid("function s $f() {\n@b\nret s_nan(payload)\n}", .unsupported_construct, "s_nan(payload)");

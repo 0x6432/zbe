@@ -69,6 +69,7 @@ const Frame = struct {
     scratch_base: usize,
     saved_base: usize,
     outgoing_bytes: usize = 0,
+    variadic_save_end: ?usize = null,
 
     fn init(function: *const ir.Function) error{FrameTooLarge}!Frame {
         var max_phis: usize = 0;
@@ -97,6 +98,15 @@ const Frame = struct {
         if (bytes > 64 * 1024) return error.FrameTooLarge;
         self.bytes = bytes;
         self.outgoing_bytes = outgoing_aligned;
+    }
+
+    /// Below the old aligned homes/phi/saved-original region, above outgoing.
+    fn addVariadic(self: *Frame, enabled: bool) error{FrameTooLarge}!void {
+        if (!enabled) return;
+        const bytes = std.math.add(usize, self.bytes, 176) catch return error.FrameTooLarge;
+        if (bytes > 64 * 1024) return error.FrameTooLarge;
+        self.bytes = bytes;
+        self.variadic_save_end = bytes;
     }
 
     fn fromCounts(values: usize, phis: usize, parameters: usize) error{FrameTooLarge}!Frame {
@@ -215,12 +225,20 @@ const Emitter = struct {
             for (f.blocks.items) |block| max_phis = @max(max_phis, block.phis.items.len);
             self.frame = try Frame.withSavedCounts(owned.slot_count - self.saved_count, max_phis, f.parameters.items.len, self.saved_count);
         } else self.frame = try Frame.init(f);
+        try self.frame.addVariadic(f.variadic);
         try self.frame.addOutgoing(f);
         const name = self.module.symbols.get(f.name).?;
         try self.print("{s} {s}\n.type {s}, @function\n{s}:\n\tpushq %rbp\n\tmovq %rsp, %rbp\n", .{ if (f.linkage == .exported) @as([]const u8, ".globl") else ".local", name, name, name });
         try self.reserveFrame(self.frame);
         for (preserved_registers[0..self.saved_count], 0..) |preserved, i| {
             try self.print("\tmovq {s}, -{d}(%rbp)\n", .{ preserved.name(.long), self.frame.saved_base + (i + 1) * 8 });
+        }
+        if (self.frame.variadic_save_end) |offset| {
+            const registers = [_]abi.General{ .rdi, .rsi, .rdx, .rcx, .r8, .r9 };
+            for (registers, 0..) |reg, i| try self.print("\tmovq {s}, -{d}(%rbp)\n", .{ reg.name(.long), offset - i * 8 });
+            // Raw moves cannot raise floating arithmetic exceptions. Saving all
+            // eight registers avoids relying on AL after any scratch homing.
+            for (0..8) |i| try self.print("\tmovdqu %xmm{d}, -{d}(%rbp)\n", .{ i, offset - 48 - i * 16 });
         }
         var arguments: abi.ArgumentCursor = .{};
         for (f.parameters.items) |parameter| {
@@ -248,6 +266,7 @@ const Emitter = struct {
             const id: ir.BlockId = @fromBackingInt(@as(u32, @intCast(number)));
             try self.print("\".Lzbe@{d}@b{d}\":\n", .{ index, number });
             for (block.instructions.items) |instruction| switch (instruction) {
+                .va_start => |start| try self.vaStart(start.list, arguments),
                 .va_argument => |argument| try self.vaArgument(argument.result, argument.list),
                 .allocate => |allocation| try self.allocate(allocation.result, allocation.size, allocation.alignment),
                 .convert => |conversion| try self.convert(conversion.result, conversion.op, conversion.operand),
@@ -545,6 +564,13 @@ const Emitter = struct {
         }
         if (source_type.isInteger()) try self.print("\tmov{c} %xmm0, {s}\n", .{ sseMove(ty), register(ty, .accumulator) });
         try self.save(result, register(ty, .accumulator));
+    }
+
+    fn vaStart(self: *Emitter, list: ir.Operand, named: abi.ArgumentCursor) Error!void {
+        try self.load(list, .accumulator);
+        try self.print("\tmovq %rax, %r10\n\tmovl ${d}, 0(%r10)\n\tmovl ${d}, 4(%r10)\n", .{ named.general_used * 8, 48 + named.vector_used * 16 });
+        try self.print("\tleaq {d}(%rbp), %rax\n\tmovq %rax, 8(%r10)\n", .{16 + named.stack_used * 8});
+        try self.print("\tleaq -{d}(%rbp), %rax\n\tmovq %rax, 16(%r10)\n", .{self.frame.variadic_save_end.?});
     }
 
     /// Native descriptor validity and available arguments are caller contracts.
@@ -963,4 +989,41 @@ test "dynamic allocation bases use aligned outgoing reservations even for one ov
     const assembly = try emit(testing.allocator, &module);
     defer testing.allocator.free(assembly);
     try testing.expect(std.mem.indexOf(u8, assembly, "leaq 16(%rsp), %rax") != null);
+}
+
+test "variadic save area is aligned disjoint and included in fixed frame cap before outgoing" {
+    var frame = try Frame.withSavedCounts(3, 2, 1, 5);
+    const old = frame;
+    try frame.addVariadic(false);
+    try testing.expectEqualDeep(old, frame);
+    try frame.addVariadic(true);
+    try testing.expectEqual(old.bytes + 176, frame.bytes);
+    try testing.expectEqual(frame.bytes, frame.variadic_save_end.?);
+    try testing.expectEqual(@as(usize, 0), frame.variadic_save_end.? % 16);
+    try testing.expectEqual(old.saved_base, frame.saved_base);
+    try testing.expectEqual(old.scratch_base, frame.scratch_base);
+    var exact = try Frame.fromCounts(8170, 0, 0);
+    try exact.addVariadic(true);
+    try testing.expectEqual(@as(usize, 65536), exact.bytes);
+    var excess = try Frame.fromCounts(8171, 0, 0);
+    try testing.expectError(error.FrameTooLarge, excess.addVariadic(true));
+    var overflow = exact;
+    overflow.bytes = std.math.maxInt(usize);
+    try testing.expectError(error.FrameTooLarge, overflow.addVariadic(true));
+    var caller = ir.Function.init(testing.allocator, @fromBackingInt(@as(u32, 0)), null);
+    defer caller.deinit();
+    const block = try caller.addBlock(null);
+    const argument: ir.CallArgument = .{ .scalar_type = .word, .operand = .{ .constant = .{ .word = 1 } } };
+    var arguments: [7]ir.CallArgument = undefined;
+    for (&arguments) |*entry| entry.* = argument;
+    try caller.appendVoidCall(block, caller.name, &arguments);
+    try caller.terminate(block, .{ .return_value = null });
+    var outgoing_exact = try Frame.fromCounts(8168, 0, 0);
+    try outgoing_exact.addVariadic(true);
+    try outgoing_exact.addOutgoing(&caller);
+    try testing.expectEqual(@as(usize, 65536), outgoing_exact.bytes);
+    try testing.expectEqual(@as(usize, 16), outgoing_exact.outgoing_bytes);
+    try testing.expectEqual(@as(?usize, 65520), outgoing_exact.variadic_save_end);
+    var outgoing_excess = exact;
+    try testing.expectError(error.FrameTooLarge, outgoing_excess.addOutgoing(&caller));
 }

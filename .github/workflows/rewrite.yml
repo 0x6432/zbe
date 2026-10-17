@@ -70,4 +70,5 @@ jobs:
           python3 tools/native_subword_check.py $flags
           python3 tools/native_variadic_check.py $flags
           python3 tools/native_vaarg_check.py $flags
+          python3 tools/native_varfn_check.py $flags
           done

@@ -24,9 +24,14 @@ All eight compiler-option combinations retain the full integer, floating, raw-bi
 
 External/indirect variadic scalar call sites now have a checked named-argument
 prefix marker and final AMD64 AL setup (VARIADIC-CALLS.md). Variadic function
-bodies, vastart and interpreter host calls remain unsupported; C
+bodies and vastart are supported separately (VARIADIC-FUNCTIONS.md); interpreter
+host calls remain unsupported. C
 default promotions are explicit caller responsibilities, not inserted conversions.
 
 Caller-supplied native scalar vaarg consumers are a separate bounded slice
-(VAARG-CONSUMERS.md); they do not implement variadic bodies, vastart or interpreter
-descriptor emulation. Reached evaluation explicitly refuses the operation.
+(VAARG-CONSUMERS.md); their caller-supplied descriptor model is reused by native definitions/vastart
+(VARIADIC-FUNCTIONS.md); interpreter descriptor emulation is not implemented. Reached evaluation explicitly refuses the operation.
+
+Native scalar variadic definitions and effect-only vastart now have a separate
+frame-owned save region and checked named signatures (VARIADIC-FUNCTIONS.md).
+Interpreter variadic calls/operations remain explicit refusals.

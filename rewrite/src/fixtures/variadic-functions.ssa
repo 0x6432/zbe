@@ -1,0 +1,75 @@
+export function l $vaf_sum(w %count, ...) {
+@entry
+%list =l alloc8 24
+vastart %list
+jmp @loop
+@loop
+%i =w phi @entry 0, @body %next
+%sum =l phi @entry 0, @body %added
+%more =w csltw %i, %count
+jnz %more, @body, @done
+@body
+%value =l vaarg %list
+%added =l add %sum, %value
+%next =w add %i, 1
+jmp @loop
+@done
+ret %sum
+}
+export function d $vaf_double(w %count, ...) {
+@entry
+%list =l alloc16 24
+vastart %list
+jmp @loop
+@loop
+%i =w phi @entry 0, @body %next
+%sum =d phi @entry d_0, @body %added
+%more =w csltw %i, %count
+jnz %more, @body, @done
+@body
+%value =d vaarg %list
+%added =d add %sum, %value
+%next =w add %i, 1
+jmp @loop
+@done
+ret %sum
+}
+export function w $vaf_named(w %value, ...) {
+@entry
+ret %value
+}
+export function w $vaf_safe(w %take, ...) {
+@entry
+jnz %take, @setup, @safe
+@setup
+vastart 0
+ret 0
+@safe
+ret 42
+}
+export function l $vaf_internal() {
+@entry
+%x =l call $vaf_sum(w 3, ..., l 11, l 22, l 33)
+ret %x
+}
+export function l $vaf_copy(w %anchor, ...) {
+@entry
+%a =l alloc16 24
+%b =l alloc16 24
+vastart %a
+%one =l vaarg %a
+blit %a, %b, 24
+%two =l vaarg %b
+vastart %a
+%again =l vaarg %a
+%sum =l add %one, %two
+%result =l add %sum, %again
+ret %result
+}
+export function l $vaf_external(w %anchor, ...) {
+@entry
+%list =l alloc16 24
+vastart %list
+%result =l call $vaf_c_reader(l %list)
+ret %result
+}

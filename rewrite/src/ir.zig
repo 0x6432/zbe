@@ -278,6 +278,7 @@ pub const Call = struct {
 pub const Instruction = union(enum) {
     /// Ordered descriptor read/advance through a caller-contracted native list.
     va_argument: struct { result: ValueId, list: Operand },
+    va_start: struct { list: Operand },
     allocate: struct { result: ValueId, size: Operand, alignment: AllocationAlignment },
     /// Nonnegative signed-word byte count, not a packed reference field.
     blit: struct { source: Operand, destination: Operand, byte_count: u31 },
@@ -298,7 +299,7 @@ pub const Instruction = union(enum) {
             .va_argument => |argument| argument.result,
             .allocate => |allocation| allocation.result,
             .load => |load| load.result,
-            .store, .blit => null,
+            .store, .blit, .va_start => null,
             .call => |call| call.result,
             .binary => |binary| binary.result,
             .copy => |copy| copy.result,
@@ -316,6 +317,7 @@ pub const Instruction = union(enum) {
         return switch (self) {
             .blit => |b| .{ .first = b.source, .second = b.destination },
             .va_argument => |a| .{ .first = a.list },
+            .va_start => |s| .{ .first = s.list },
             .allocate => |a| .{ .first = a.size },
             .load => |l| .{ .first = l.address },
             .store => |s| .{ .first = s.value, .second = s.address },
@@ -383,6 +385,7 @@ pub const ValidationError = error{
     NonIntegerCondition,
     InvalidReturn,
     InvalidVariadicMarker,
+    InvalidVaStart,
     BlockTerminated,
     MissingTerminator,
     NoBlocks,
@@ -397,6 +400,7 @@ pub const Function = struct {
     name: SymbolId,
     return_type: ?ScalarType,
     return_subword: ?SubwordType = null,
+    variadic: bool = false,
     linkage: enum { internal, exported } = .internal,
     parameters: std.ArrayList(ValueId) = .empty,
     values: std.ArrayList(Value) = .empty,
@@ -526,6 +530,15 @@ pub const Function = struct {
         try target.instructions.ensureUnusedCapacity(self.allocator, 1);
         value.definition = .{ .instruction = .{ .block = block, .index = target.instructions.items.len } };
         target.instructions.appendAssumeCapacity(.{ .va_argument = .{ .result = result, .list = list } });
+    }
+
+    /// Initialize a caller-owned descriptor only inside a variadic definition.
+    pub fn appendVaStart(self: *Function, block: BlockId, list: Operand) BuildError!void {
+        const target = try self.getBlock(block);
+        if (target.terminator != null) return error.BlockTerminated;
+        if (!self.variadic) return error.InvalidVaStart;
+        if (try self.operandType(list) != .long) return error.TypeMismatch;
+        try target.instructions.append(self.allocator, .{ .va_start = .{ .list = list } });
     }
 
     pub fn appendStore(self: *Function, block: BlockId, kind: StoreKind, value: Operand, address: Operand) BuildError!void {
@@ -757,6 +770,10 @@ pub const Function = struct {
                     }
                 }
                 switch (instruction) {
+                    .va_start => |start| {
+                        if (!self.variadic) return error.InvalidVaStart;
+                        if (try self.operandType(start.list) != .long) return error.TypeMismatch;
+                    },
                     .va_argument => |argument| if (try self.operandType(argument.list) != .long) return error.TypeMismatch,
                     .blit => |blit| {
                         if (try self.operandType(blit.source) != .long or try self.operandType(blit.destination) != .long) return error.TypeMismatch;

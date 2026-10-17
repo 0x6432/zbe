@@ -34,6 +34,7 @@ pub const Error = semantics.ConversionError || ArithmeticError || evaluation_mem
     UnsupportedMemory,
     UnsupportedAllocation,
     UnsupportedVariadicOperation,
+    UnsupportedVariadicCall,
     UnsupportedSymbolAddress,
     InvalidFunction,
     CallDepthLimitExceeded,
@@ -130,6 +131,7 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
             const instruction = block.instructions.items[frame.next_instruction];
             frame.next_instruction += 1;
             switch (instruction) {
+                .va_start => return error.UnsupportedVariadicOperation,
                 .allocate => |allocation| {
                     const size = (try resolve(&space, frame.values, allocation.size)).long;
                     frame.values[@backingInt(allocation.result)] = .{ .long = try space.allocate(size) };
@@ -162,6 +164,7 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
                     .address => return error.UnsupportedIndirectCall,
                 };
                 const callee = module_validation.findFunction(owner, symbol) orelse return error.UnsupportedExternalCall;
+                if (callee.variadic) return error.UnsupportedVariadicCall;
                 if (frames.items.len >= options.max_call_depth) return error.CallDepthLimitExceeded;
                 const actual = try allocator.alloc(ir.Constant, call.arguments.len);
                 defer allocator.free(actual);
@@ -204,7 +207,7 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
 
 fn scalarInstruction(space: *const evaluation_memory.Space, function: *const ir.Function, values: []const ?ir.Constant, instruction: ir.Instruction) Error!ir.Constant {
     return switch (instruction) {
-        .va_argument => error.UnsupportedVariadicOperation,
+        .va_argument, .va_start => error.UnsupportedVariadicOperation,
         .allocate => error.UnsupportedAllocation,
         .load, .store, .blit => error.UnsupportedMemory,
         .call => error.UnsupportedCall,

@@ -208,8 +208,8 @@ vararg_al_probe:
             if 'TEXTREL' in dynamic:raise SystemExit('Variadic calls introduced a dynamic text relocation')
         print('2 variadic executable no-TEXTREL checks passed')
         bad=[
-            'function $f(...) {\n@e\nret\n}',
-            'function w $f(w %n, ...) {\n@e\nret %n\n}',
+            'function $f(..., ...) {\n@e\nret\n}',
+            'function w $f(w %n, ..., ...) {\n@e\nret %n\n}',
             'function w $f() {\n@e\n%x =w call $g(..., ...)\nret %x\n}',
             'function w $f() {\n@e\n%x =w call $g(w 1, ..., w 2, ...)\nret %x\n}',
             'function w $f() {\n@e\n%x =w call $g(...,)\nret %x\n}',

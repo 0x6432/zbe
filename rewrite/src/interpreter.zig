@@ -12,8 +12,10 @@ const FunctionId = @import("module.zig").FunctionId;
 
 pub const Options = struct {
     max_steps: usize = 100_000,
-    /// Read caller-prepared bounded descriptors only; no vastart or call tails.
+    /// Enable bounded scalar descriptor consumption independently of vastart.
     consume_vaargs: bool = false,
+    /// Root-only explicit typed tail; lazy vastart also needs stack_memory.
+    root_variadic_arguments: ?[]const ir.Constant = null,
     /// Root-only raw long value; never a host pointer conversion.
     environment: ?u64 = null,
     /// Deep-copied initialized numeric/zero/string data; evaluateModule only.
@@ -29,6 +31,7 @@ pub const ArithmeticError = semantics.ArithmeticError;
 pub const Error = semantics.ConversionError || ArithmeticError || evaluation_memory.Error || module_validation.Error || error{
     ArgumentCountMismatch,
     ArgumentTypeMismatch,
+    UnexpectedVariadicArguments,
     MissingEnvironment,
     StepLimitExceeded,
     UninitializedValue,
@@ -73,6 +76,7 @@ const Frame = struct {
     next_instruction: usize = 0,
     return_destination: ?ir.ValueId,
     object_mark: usize = 0,
+    variadic_state: ?evaluation_memory.VariadicState = null,
 
     fn init(allocator: std.mem.Allocator, function: *const ir.Function, arguments: []const ir.Constant, environment: ?u64, destination: ?ir.ValueId) Error!Frame {
         if (arguments.len != function.ordinaryParameters().len) return error.ArgumentCountMismatch;
@@ -116,6 +120,7 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
         frames.deinit(allocator);
     }
     try appendFrame(allocator, &frames, function, arguments, options.environment, null);
+    if (options.root_variadic_arguments != null and !function.variadic) return error.UnexpectedVariadicArguments;
     var remaining = options.max_steps;
     while (true) {
         // Do not retain this pointer across appendFrame: the handle array may
@@ -147,7 +152,13 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
                     frame.values[@backingInt(argument.result)] = try space.consumeVaArg(ty, address);
                     continue;
                 },
-                .va_start => return error.UnsupportedVariadicOperation,
+                .va_start => |start| {
+                    const tail = options.root_variadic_arguments orelse return error.UnsupportedVariadicOperation;
+                    if (frames.items.len != 1) return error.UnsupportedVariadicOperation;
+                    const address = (try resolve(&space, frame.values, start.list)).long;
+                    try space.startVaArgs(&frame.variadic_state, address, arguments, tail);
+                    continue;
+                },
                 .allocate => |allocation| {
                     const size = (try resolve(&space, frame.values, allocation.size)).long;
                     frame.values[@backingInt(allocation.result)] = .{ .long = try space.allocate(size) };

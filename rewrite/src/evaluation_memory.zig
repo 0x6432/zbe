@@ -43,6 +43,41 @@ const Span = struct {
     }
 };
 
+/// Immutable initial cursors/pointers, not an owner of the backing object.
+pub const VariadicState = struct {
+    general_offset: u32,
+    vector_offset: u32,
+    overflow: u64,
+    save: u64,
+};
+
+// Synthetic layout only: no machine registers or host ABI storage are touched.
+const VariadicCursor = struct {
+    general: u32 = 0,
+    vector: u32 = 0,
+    overflow: usize = 0,
+
+    fn next(self: *VariadicCursor, ty: ir.ScalarType) Error!usize {
+        if (ty.isInteger() and self.general < 6) {
+            const offset = self.general * 8;
+            self.general += 1;
+            return offset;
+        }
+        if (!ty.isInteger() and self.vector < 8) {
+            const offset = 48 + self.vector * 16;
+            self.vector += 1;
+            return offset;
+        }
+        const offset = std.math.mul(usize, self.overflow, 8) catch return error.StackLimitExceeded;
+        self.overflow = std.math.add(usize, self.overflow, 1) catch return error.StackLimitExceeded;
+        return std.math.add(usize, 176, offset) catch error.StackLimitExceeded;
+    }
+    fn size(self: VariadicCursor) Error!usize {
+        const overflow = std.math.mul(usize, self.overflow, 8) catch return error.StackLimitExceeded;
+        return std.math.add(usize, 176, overflow) catch error.StackLimitExceeded;
+    }
+};
+
 /// Owns all stack bytes/metadata. Image remains caller-owned. Do not copy.
 /// Public for direct internal tests; the supported caller API is Options.
 pub const Space = struct {
@@ -144,6 +179,45 @@ pub const Space = struct {
         var borrowed = self.view(span, address);
         try borrowed.write(kind, value, address);
         span.define();
+    }
+    /// Root-only explicit tail. A bad complete descriptor span fails before
+    /// source allocation; no partially initialized descriptor is published.
+    pub fn startVaArgs(self: *Space, state: *?VariadicState, list: u64, named: []const ir.Constant, tail: []const ir.Constant) Error!void {
+        try self.requireEnabled();
+        const span = try self.access(list, 24);
+        const initial = state.* orelse try self.materializeVaArgs(named, tail);
+        var borrowed = self.view(span, list);
+        try borrowed.write(.word, .{ .word = initial.general_offset }, list);
+        try borrowed.write(.word, .{ .word = initial.vector_offset }, list + 4);
+        try borrowed.write(.long, .{ .long = initial.overflow }, list + 8);
+        try borrowed.write(.long, .{ .long = initial.save }, list + 16);
+        span.define();
+        state.* = initial;
+    }
+    fn materializeVaArgs(self: *Space, named: []const ir.Constant, tail: []const ir.Constant) Error!VariadicState {
+        var cursor: VariadicCursor = .{};
+        for (named) |argument| _ = try cursor.next(argument.scalarType());
+        const prefix = cursor;
+        for (tail) |argument| _ = try cursor.next(argument.scalarType());
+        const size = try cursor.size();
+        const address = try self.allocate(std.math.cast(u64, size) orelse return error.StackLimitExceeded);
+        cursor = .{};
+        for ([_][]const ir.Constant{ named, tail }) |arguments| for (arguments) |argument| {
+            const offset = try cursor.next(argument.scalarType());
+            const kind: ir.StoreKind = switch (argument.scalarType()) {
+                .word => .word,
+                .long => .long,
+                .single => .single,
+                .double => .double,
+            };
+            try self.write(kind, argument, address + @as(u64, @intCast(offset)));
+        };
+        return .{
+            .general_offset = prefix.general * 8,
+            .vector_offset = 48 + prefix.vector * 16,
+            .overflow = address + @as(u64, @intCast(try prefix.size())),
+            .save = address,
+        };
     }
     /// Consumer-only synthetic layout. Never resolves a native va_list/pointer.
     /// Checked arithmetic precedes the cursor write; a later source fault does

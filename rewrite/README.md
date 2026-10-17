@@ -67,11 +67,13 @@ default promotions are explicit caller responsibilities, not inserted conversion
 
 Caller-supplied native scalar vaarg consumers are a separate bounded slice
 (VAARG-CONSUMERS.md); their caller-supplied descriptor model is reused by native definitions/vastart
-(VARIADIC-FUNCTIONS.md); bounded opt-in synthetic consumers are separate (INTERPRETER-VAARG.md). Defaults still refuse vaarg; vastart and variadic calls remain unsupported in evaluation.
+(VARIADIC-FUNCTIONS.md); bounded opt-in synthetic consumers are separate (INTERPRETER-VAARG.md). Defaults still refuse vaarg/vastart; explicit root-only synthetic initialization
+is separate (INTERPRETER-VASTART.md). Internal variadic calls remain unsupported.
 
 Native scalar variadic definitions and effect-only vastart now have a separate
 frame-owned save region and checked named signatures (VARIADIC-FUNCTIONS.md).
-Interpreter variadic calls/vastart remain explicit refusals; opt-in manually prepared scalar descriptor consumers are separate (INTERPRETER-VAARG.md).
+Internal interpreter variadic calls remain explicit refusals; root-only synthetic
+vastart is separately opt-in (INTERPRETER-VASTART.md); opt-in manually prepared scalar descriptor consumers are separate (INTERPRETER-VAARG.md).
 
 Nonvariadic scalar environment calls now have a distinct hidden long operand/
 parameter and Linux AMD64 RAX mapping, without shifting ordinary ABI arguments

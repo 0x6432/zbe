@@ -2233,3 +2233,82 @@ default refusal/manual opt-in consumers from still-unsupported vastart/tails.
 No additional code capability is implied. The next possible bounded root-only
 synthetic vastart design is /data/zbe-root-variadic-followup-design.txt, only a
 proposal at this checkpoint, not implemented or verified functionality.
+
+## Next bounded milestone selected: root-only synthetic vastart
+
+After whole99b42d2 first-attempt green CI and published92a3f8d documentation,
+selected /data/zbe-root-variadic-followup-design.txt following memory/frame/ABI/
+subword/variadic contract review. Add an explicit separate optional typed root
+tail; named arguments remain exact. Lazy first reached root vastart materializes
+one bounded stack-owned176B register-save plus declaration-ordered overflow
+object. No-varop paths allocate nothing, repeated initialization resets only
+descriptor cursors, and unused source bytes remain uninitialized. Consumer
+enabling stays separate. Destination initialization is a checked complete24B
+write, not native invalid-address sequential-fault parity. Internal variadic
+calls, external/indirect/host dispatch, implicit promotions, environment+varargs
+and full ABI remain outside scope. Tests/verification/publication are pending.
+
+Initial root-vastart compile rejected a new independent test's min(count,6)
+expression because Zig narrowed its inferred integer before multiplication8.
+Explicit usize bounds fix only that test arithmetic; production logic unchanged.
+No tests executed in that failed compile; corrected Debug smoke is pending.
+The first correction widened min's bounds, but min still infers a bounded u3
+result; a second compile caught the same test expression. Widening the min
+RESULT before multiplication corrects the intended independent arithmetic.
+Both unsuccessful compiles are retained in sandbox logs; no passing tests or
+production fix is claimed from either compile.
+
+Corrected root-vastart Debug smoke passed339/339 fresh tests in4min, including
+all eight new tests and the exhaustive allocation-failure exercise. No production
+semantic fix followed the two test-only compile corrections. Before full local
+verification, added a ninth test for exact overflow-source bounds, wider raw
+consumer faults, initialized-descriptor effects before step exhaustion and a
+stack-owned descriptor at exact combined capacity. Also strengthened the new
+allocation-failure exercise with a real child-owned object consuming the root
+source. Those post-smoke additions require a fresh full Debug test execution;
+they are not claimed covered by the339-test smoke.
+The first full runner stopped immediately at formatting preflight: the new
+ninth test used historical array repetition syntax unsupported by the pinned
+compiler. Replaced only that constant-array spelling with existing @splat syntax.
+No build/native matrix ran in that attempt; its log is preserved as
+/data/verify-interpreter-vastart-first-preflight.log. Corrected authoritative
+verification restarts from formatting/generators and fresh340-test Debug.
+
+### Root-only synthetic vastart: authoritative full local verification passed
+
+/data/verify-interpreter-vastart.log/.exit0 ends INTERPRETER VASTART VERIFICATION
+PASSED. All340/340 unit tests freshly passed in each mode: Debug4min,
+ReleaseSafe5s and ReleaseFast5s. These include the ninth post-smoke edge test and
+the stronger allocating child-frame exercise. Formatting and all14 independent
+generators passed. All24 combinations (three modes x eight folding/stack-reuse/
+preserved-home sets) passed all21 unchanged native harnesses.
+
+/data/audit-interpreter-vastart.py passed all74 exact completion groups,66 x24
+and8 dual-link x48. Evidence: /data/interpreter-vastart-verification-counts.json.
+All85 protected fixture/native-harness/generator files from92a3f8d are byte-
+identical. Every prior source/test file outside the two production memory/
+interpreter modules and root test-import line is also byte-identical, including
+prior consumer/default-refusal tests, frontend, IR, emitter and analyses. CI
+workflow unchanged. Rewrite-only scope, credential patterns, whitespace and
+legacy ab50bae source/build/tools/tests isolation passed.
+
+No production semantic correction was needed after the first implementation;
+the two integer-inference compile attempts and one historical array-syntax
+preflight failure were test-only corrections recorded above. A documentation
+clarification after verification explicitly distinguishes checked layout-size/
+cap StackLimitExceeded from the pre-existing allocation round-up overflow
+AllocationSizeOverflow; no code/test changed after the successful full matrix.
+
+The new capability is root-only, explicit, synthetic and lazy. Named root arity
+remains exact; consumer enabling is separate. Internal variadic/host/external/
+indirect calls remain refused. No implicit Image resize, stack enable, promotion,
+host pointer conversion or complete ABI/QBE/backend parity claim is introduced.
+Save padding/unused slots remain uninitialized; repeated vastart resets cursors
+without restoring source bytes; complete24-byte initialization is a checked
+diagnostic-model boundary, not native invalid-domain fault parity.
+
+Publication and exact-SHA CI are pending; no CI success for this milestone is
+claimed yet. Re-fetch/check ancestry before pushing only rewrite/zig-native.
+Keep source frozen through whole CI including post-job steps. Sandbox follow-up
+/data/zbe-internal-variadic-followup-design.txt is only a proposal, not selected
+or implemented at this checkpoint.

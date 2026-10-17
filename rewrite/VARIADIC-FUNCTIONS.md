@@ -68,7 +68,7 @@ implicit descriptor allocation, va_end runtime helper or host pointer sandbox.
 
 ## Explicit interpreter boundary
 
-Root evaluation accepts only the existing exact named argument array. No-varop
+By default, root evaluation accepts only the existing exact named argument array. No-varop
 paths can execute; extra root arguments remain ArgumentCountMismatch. A reached
 vastart consumes its ordinary step then returns UnsupportedVariadicOperation,
 without resolving/writing the descriptor, even with valid Image/stack/global
@@ -83,7 +83,9 @@ UnsupportedCall, external/indirect dispatch refusals remain unchanged, and eager
 signature errors still precede execution. This is not variadic interpretation,
 construction of native/host va_list objects or arbitrary host invocation.
 The separate opt-in manual synthetic consumer (INTERPRETER-VAARG.md) does not
-change these vastart, root-arity or internal variadic-call refusals.
+change these default refusals. An independently explicit typed root tail now
+allows root-only bounded synthetic initialization (INTERPRETER-VASTART.md), not
+internal variadic calls or extra entries in the exact named-argument array.
 
 ## Regression approach
 

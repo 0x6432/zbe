@@ -3,7 +3,7 @@
 `interpreter.Options.consume_vaargs` defaults to false. When enabled, reached
 scalar `vaarg` reads/advances a manually prepared synthetic descriptor through
 existing Image, live stack-object or owned-global accesses. No integer becomes a
-host pointer. This does not materialize native register-save storage, initialize
+host pointer. This consumer option does not materialize native register-save storage, initialize
 `vastart`, accept root argument tails, execute variadic internal calls, authorize
 external/indirect host calls or claim complete variadic interpretation/ABI parity.
 The frontend, IR, analyses, folding and native emitter remain unchanged.
@@ -63,11 +63,13 @@ reset per evaluation and stack addresses are not revived within an evaluation.
 
 ## What stays unsupported
 
-Reached `vastart` always retains UnsupportedVariadicOperation, including with this
-option and valid memory. Reached internal calls to variadic definitions retain
+With this consumer option alone, reached `vastart` retains UnsupportedVariadicOperation,
+including with valid memory. The separate explicit root-only synthetic initializer
+(INTERPRETER-VASTART.md) is not enabled by consumer configuration. Reached internal calls to variadic definitions retain
 UnsupportedVariadicCall before depth/argument resolution. Root calls still accept
-only their exact named parameter array, not a tail; no descriptor is inferred
-from that array. A function's variadic flag itself does not construct or prohibit
+only their exact named parameter array; no descriptor is inferred from that array.
+A separate optional typed root tail now supports root-only synthetic initialization
+(INTERPRETER-VASTART.md), never internal variadic dispatch. A function's variadic flag itself does not construct or prohibit
 a manually supplied descriptor. Existing default/safe-path behavior is unchanged.
 There is no va_end/va_copy helper, host stdarg access, aggregate, external function
 resolver or arbitrary native pointer capability in this model. A bounded blit can

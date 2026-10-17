@@ -1550,3 +1550,31 @@ newly valid vaarg syntax negatives became invalid extra-operand cases as recorde
 all other old fixtures/generators/native harnesses remain unchanged. Source stays
 frozen for exact pushed-SHA CI, including post-job steps; local success does not
 imply CI green or full variadic function/ABI/backend parity.
+
+### Native vaarg consumer exact-SHA CI confirmed green
+
+Code checkpoint d96f7a2df3676f15babec6f81df35723698ef38f passed
+https://github.com/0x6432/zbe/actions/runs/39036755646 on its first attempt.
+Debug, ReleaseSafe and ReleaseFast all completed successfully including post-job
+steps. No rerun, timeout change or source/assertion correction was needed. Source
+stayed frozen through the local matrix and complete CI. Evidence:
+/data/vaarg-consumers-ci-result.json and /data/watch-vaarg-consumers-ci.log.
+This documentation-only record skips redundant CI and verifies no future changes.
+Worktree was clean after code publication; origin remains credential-free and
+legacy isolation intact. No main merge or release tag was made.
+
+Next reviewed bounded slice: Linux AMD64 scalar variadic function definitions
+and effect-only vastart using a probed fixed176-byte GP/SSE save region disjoint
+from existing frame homes/phi scratch/preserved originals/outgoing/dynamic areas.
+Reuse the already verified vaarg consumer unchanged. Typed known direct calls
+must exactly match named arity/classes/annotations and return metadata, with a
+marker at named arity; tails remain explicit runtime contracts, not promotions.
+Save incoming GP6/XMM8 before parameter scratch homing; all frame additions count
+against64KiB. Nonvariadic emission must remain identical. Root interpretation
+accepts only exact named arguments on no-varop paths; reached internal variadic
+calls refuse UnsupportedVariadicCall after lookup/step before depth/arg resolution;
+reached vastart refuses UnsupportedVariadicOperation without descriptor writes.
+Existing setup/argument/budget precedence and earlier Image writes remain intact.
+Review /data/zbe-native-variadic-functions-followup-design.txt including its
+consumer-split addendum before implementation. Aggregates, env calls, other
+platforms, variadic interpretation and full ABI/backend parity remain out of scope.

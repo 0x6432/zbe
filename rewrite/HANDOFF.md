@@ -2088,3 +2088,32 @@ Source remains frozen from completed verification through whole exact-pushed-SHA
 CI including post-job steps. Publication/CI for this hardening is pending; b28e65f
 CI green does not establish the new rule. No main merge, release tag, full ELF/
 backend compatibility or performance claim is authorized or implied.
+
+### ELF-@ boundary hardening: ca94a18 exact-SHA first-attempt CI green
+
+Code checkpoint ca94a18b25d23f34247e15c8816fa2a230efeeef was pushed only to
+rewrite/zig-native. Exact-SHA workflow
+https://github.com/0x6432/zbe/actions/runs/39053180035
+completed successfully on attempt1, including every job/post-job step. On
+2026-10-17 ReleaseSafe ran17:18:36Z–17:28:22Z, Debug17:18:36Z–17:31:12Z and
+ReleaseFast17:18:36Z–17:28:10Z. No source correction, rerun, cancellation or timeout
+change. Source was unchanged from local verification through whole CI completion.
+The background monitor stopped across the chat continuation before saving its
+final result; a direct exact-head-SHA workflow/all-jobs API recheck established
+completed success and saved /data/quoted-name-boundary-ci-result.json. The log
+/data/watch-quoted-name-boundary-ci.log explicitly records this recovery, not
+an inferred success from the monitor's absence or partial running log.
+
+Together with the fresh322-test Debug smoke, unchanged-code cached Debug matrix,
+fresh322/322 Safe/Fast tests, all24 options/build combinations, all21 native
+harnesses and exact protected-file/old-oracle audits, this is the verified bounded
+quoted-global checkpoint. Names exclude @, controls/NUL/non-ASCII, dot and private
+.Lzbe@ namespace; this does not claim arbitrary ELF symbol spelling, versioning,
+relocation syntax, full ABI/backend parity or performance superiority. This
+result-only documentation commit skips redundant CI.
+
+A consumer-only synthetic vaarg follow-up remains a separately reviewed proposal
+in /data/zbe-interpreter-vaarg-followup-design.txt. It was drafted/read during CI
+without changing source. Before implementation, select it explicitly, reread
+memory/variadic/interpreter contracts and retain default refusals, bounded region
+ownership, step/error/write order, no host pointers and unsupported vastart/tails.

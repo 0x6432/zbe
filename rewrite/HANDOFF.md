@@ -1801,3 +1801,26 @@ harness change followed full verification.
 Ready to publish and check exact-SHA CI. New CI is not yet confirmed; keep source
 frozen through all jobs and post-job steps. No aggregates, environment+varargs,
 host-pointer interpretation, other targets or complete ABI/backend parity claim.
+
+### Environment calls: published exact-SHA CI confirmed green
+
+Code checkpoint c50d892acfccb657cdbca51eaf0d68cf9e0c7f53 is published on
+rewrite/zig-native. Exact-SHA run:
+https://github.com/0x6432/zbe/actions/runs/39044211810
+completed successfully on its first attempt. Debug, ReleaseSafe and ReleaseFast
+all completed successfully including post-job steps. No cancellation, rerun,
+timeout change or source correction was needed. Evidence:
+/data/environment-calls-ci-result.json and /data/watch-environment-calls-ci.log.
+Together with315 fresh unit tests in each mode and the all24-combination/all20-
+harness local matrix, this is the verified nonvariadic scalar environment-call
+checkpoint. This documentation-only result skips redundant CI; source is unchanged.
+No main merge/release tag, complete ABI/backend parity, aggregate or combined
+varargs/environment support or arbitrary interpreter host invocation is claimed.
+
+A possible printable-ASCII quoted-global follow-up was reviewed only as a proposal
+in /data/zbe-quoted-global-followup-design.txt. An isolated assembler experiment
+verified36 exact ELF symbol names and72 runtime predicates across PIE/nonPIE,
+including quoting/backslashes and symbolic+4 relocations, without TEXTREL. Evidence:
+/data/probe-quoted-elf-symbols-result.json/.log/.exit0. It changed no worktree source
+or executable and is not a zbe feature/verification claim. Review/select it
+separately before implementation; compiler-private label isolation must remain.

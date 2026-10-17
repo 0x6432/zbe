@@ -5,10 +5,10 @@ const Allocator = std.mem.Allocator;
 pub const Id = enum(u32) { _ };
 
 /// Bounded source/native spelling, not Pool's general string-key contract.
-/// Reserve the emitter's private label namespace even inside quotes.
+/// Reserve private labels and ELF relocation/version syntax even inside quotes.
 pub fn validPortableName(name: []const u8) bool {
     if (name.len == 0 or std.mem.eql(u8, name, ".") or std.mem.startsWith(u8, name, ".Lzbe@")) return false;
-    for (name) |byte| if (byte < 32 or byte > 126) return false;
+    for (name) |byte| if (byte < 32 or byte > 126 or byte == '@') return false;
     return true;
 }
 

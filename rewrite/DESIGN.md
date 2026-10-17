@@ -67,7 +67,7 @@ parameter and Linux AMD64 RAX mapping, without shifting ordinary ABI arguments
 (ENVIRONMENT-CALLS.md). Root/module interpreter mapping remains synthetic and
 bounded; environment+varargs and aggregates remain unsupported.
 
-Bounded printable-ASCII quoted globals decode to owned canonical symbol names
+Bounded printable-ASCII quoted globals (excluding ELF `@` syntax) decode to owned canonical symbol names
 across definitions/calls/scalar operands/data relocations (QUOTED-GLOBALS.md).
 Native formatting escapes non-bare names while preserving existing bare output
 and the private-label namespace; no host lookup or full identifier/target parity.

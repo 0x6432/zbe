@@ -3,7 +3,11 @@
 The independent frontend accepts `$"name"` in all existing global-name positions:
 function/data definitions, direct calls, long scalar symbol/offset operands and
 long data relocations. The **decoded name** must be nonempty printable ASCII
-(bytes32–126), not the single dot, and not start with compiler-private `.Lzbe@`.
+(bytes32–126), exclude `@`, not be the single dot, and not start with the
+compiler-private `.Lzbe@`. The explicit `@` exclusion prevents GNU relocation
+suffixes and ELF symbol-version syntax from being interpreted despite quotes;
+it is not an incomplete keyword blacklist. Escaped `@` is excluded after decoding
+too. Pool keys themselves remain unrestricted.
 Leading/trailing spaces and punctuation are retained, not trimmed/interpreted.
 Unquoted names keep their existing lexical grammar and exact assembly spelling.
 This is a bounded Linux ELF/executable slice, not Unicode/global identifier parity,
@@ -23,7 +27,7 @@ export function l $"read second"() {
 Quoted names reuse DATA-STRINGS.md's independently owned byte decoder: escaped
 quote/backslash, bounded hexadecimal(two digits)/octal(up to three digits) and the
 listed short escapes. Decoded control bytes/NUL/DEL/non-ASCII are rejected even
-when that escape is valid for data bytes. Empty, dot, private-prefix and malformed
+when that escape is valid for data bytes. Empty, dot, `@`, private-prefix and malformed
 escapes reject at the original quoted-token span. Bare literal syntax, temporary/
 block/type names and strings as ordinary operands do not gain new forms.
 
@@ -50,7 +54,7 @@ bare names are emitted byte-for-byte as before. Non-bare printable names are
 surrounded by assembler quotes, with quote/backslash bytes escaped. No raw source
 quoted lexeme is inserted as assembly syntax. The private `.Lzbe@` namespace stays
 unavailable even through quoted or manually built names, preserving branch/phi/
-vaarg helper-label isolation. Literal punctuation is never a directive or addend.
+vaarg helper-label isolation. Accepted literal punctuation is never a directive, relocation suffix, version or addend.
 
 GNU x86's instruction operand scanner cannot directly consume a quoted symbol
 ending in a backslash, even though the directive parser accepts its exact name.

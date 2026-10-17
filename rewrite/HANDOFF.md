@@ -2009,3 +2009,82 @@ An isolated no-@ combinatorial probe passed1168 exact ELF names and2336 runtime
 predicates across PIE/nonPIE without TEXTREL; this is feasibility evidence only.
 No source change starts until this whole CI completion, now established. A fresh
 full matrix and exact-SHA CI are required for the hardening change separately.
+
+### ELF-@ name boundary hardening implemented; corrected verification begins
+
+After febd0ee recorded whole first-attempt b28e65f CI success, implemented the
+selected one-byte portable-name rule: reject @ anywhere after quoted-name decode
+and during native validation of public/forged metadata. Pool and module semantic
+validation remain general/target-independent; unquoted old grammar is unchanged.
+No keyword blacklist, silent stripping, ELF version alias, unknown relocation or
+new escape extension is accepted. Existing printable quote/backslash/punctuation,
+including trailing-backslash private instruction aliases, retain their behavior.
+This narrows the new quoted slice explicitly; it does not change legacy code.
+
+The native118-name corpus is retained verbatim: its two @ names (has@at and @)
+move from positive executions to six explicit source-context rejection cases each,
+with both absent/existing output paths. All other116 names and their independent
+numeric expectations remain unchanged. The resulting positive counts are1748
+per PIE/nonPIE link and696 ELF observations; rejection/output-preservation cases
+increase from24 to64, adding reserved suffix/version and hex/octal-escaped @
+cases. This is an explicit subset boundary correction, not passing the former
+@ names under different symbol identities or silently deleting their tests.
+Added a322nd unit test for decoded/escaped/forged @ names and native refusal after
+independent module validation. Existing OOM sweep now includes @ rejection during
+an owned data-definition parse while the outer fixture module remains owned. No earlier native harness/oracle/generator or
+fixture expectation changes. Documentation states this boundary in each summary.
+
+Corrected Debug/native smoke is starting in a serial logged background runner,
+then the full three-mode/eight-option/all21-harness matrix will run only after
+smoke success. Source freezes through that matrix and subsequent whole exact-SHA
+CI. New full/local/CI success is not yet claimed. Evidence paths:
+/data/check-quoted-name-boundary.* and /data/verify-quoted-name-boundary.*.
+
+Boundary smoke initially passed fresh322/322 Debug and all8 native option sets.
+A subsequent read-only harness review noticed that enumerating a prefiltered
+supported-name tuple reindexed the remaining116 names, changing their generated
+integer seeds despite retaining the same formulas. Stopped the partial full
+runner and all descendants BEFORE editing. Changed only the new harness loop to
+enumerate the original118-name corpus and skip its two rejected names in place,
+so every retained case keeps its original index/values/oracle expectations.
+No Zig production/test source change. This corrects the intended preservation
+claim above; the reindexed initial smoke is not the final hardening verification.
+Evidence: /data/check-quoted-name-boundary-reindexed.log/.exit0 and
+/data/verify-quoted-name-boundary-reindexed.log (partial, superseded, no final
+marker; any trap exit0 is not success). Repeating serial smoke/full verification;
+Debug unit success may now be reused from the unchanged322-test successful run.
+
+### ELF-@ hardening: index-preserving full local verification passed
+
+Final index-preserving smoke passed all8 native option sets and reused the
+unchanged322-test Debug success from the preceding fresh4min run. Evidence:
+/data/check-quoted-name-boundary.log/.exit0 ends QUOTED NAME BOUNDARY SMOKE PASSED.
+No Zig source changed after that fresh unit run; only the harness kept original
+indices. The final authoritative matrix /data/verify-quoted-name-boundary.log/
+.exit0 ended QUOTED NAME BOUNDARY VERIFICATION PASSED: all24 combinations across
+Debug/ReleaseSafe/ReleaseFast passed all21 native harnesses. Formatting and all14
+independent generator checks passed. Debug unit execution was cached; fresh
+ReleaseSafe322/322 took6s and fresh ReleaseFast322/322 took5s.
+
+/data/audit-quoted-name-boundary.py passed all74 exact completion groups:66 x24
+and8 dual-link groups x48. Per combination, the bounded quoted slice passed1748
+results per PIE/nonPIE link,696 ELF observations,2 executable no-TEXTREL checks and
+64 rejection/output-preservation cases. Totals:83904 runtime results,16704 ELF
+observations and1536 rejections. The explicit @ cases reject rather than being
+silently reinterpreted as relocations or ELF versions. No failure/control group
+was omitted; /data/quoted-name-boundary-verification-counts.json records counts.
+
+All85 protected paths from febd0ee were checked. Only the new quoted harness
+changed; its original118-name corpus is byte-equivalent, with two @ names moved
+to explicit six-context rejections. The retained per-name source/driver/oracle
+body is byte-identical apart from the explicit skip, preserving original indices
+and generated integer seeds. All84 other protected paths, earlier20 independent
+native harnesses,14 generators and all fixtures are byte-identical. Scope,
+credential patterns, whitespace and legacy ab50bae isolation passed. The audit's
+initial protected-file expectation84 was corrected to actual85 (both new fixture
+and harness had been added); no production test result was changed to fit it.
+
+Source remains frozen from completed verification through whole exact-pushed-SHA
+CI including post-job steps. Publication/CI for this hardening is pending; b28e65f
+CI green does not establish the new rule. No main merge, release tag, full ELF/
+backend compatibility or performance claim is authorized or implied.

@@ -45,7 +45,7 @@ test "quoted name grammar rejects empty dot control nul nonascii private namespa
         try @import("module_validation.zig").validate(testing.allocator, &module);
         try testing.expectError(error.InvalidSymbol, amd64.emit(testing.allocator, &module));
     }
-    for ([_][]const u8{ "space name", "1leading", "quote\"back\\name", "semi;colon", "has@at", "$cash", " leading " }) |name| try testing.expect(@import("symbols.zig").validPortableName(name));
+    for ([_][]const u8{ "space name", "1leading", "quote\"back\\name", "semi;colon", "$cash", " leading " }) |name| try testing.expect(@import("symbols.zig").validPortableName(name));
 }
 
 test "quoted emission escapes all contexts and quoted bare spelling leaves assembly byte identical" {
@@ -96,7 +96,7 @@ fn exercise(allocator: std.mem.Allocator) !void {
         const assembly = try amd64.emitWithOptions(allocator, &module, option);
         defer allocator.free(assembly);
     }
-    for ([_][]const u8{ "data $\"good name\" = { l $\"bad\\qname\" }", "function $\"good name\"() {\n@e\ncall $\"bad\\000name\"()\nret\n}" }) |text| {
+    for ([_][]const u8{ "data $\"good name\" = { l $\"bad\\qname\" }", "data $\"good name\" = { l $\"bad@PLT\" }", "function $\"good name\"() {\n@e\ncall $\"bad\\000name\"()\nret\n}" }) |text| {
         if (parse(allocator, text)) |parsed| {
             var unexpected = parsed;
             unexpected.deinit();
@@ -122,5 +122,21 @@ test "trailing backslash references use private aliases without changing ELF dec
         try testing.expect(std.mem.indexOf(u8, assembly, "call \".Lzbe@s") != null);
         try testing.expect(std.mem.indexOf(u8, assembly, "leaq \".Lzbe@s") != null);
         try testing.expect(std.mem.indexOf(u8, assembly, "unused") == null);
+    }
+}
+
+test "quoted globals reject ELF relocation and version syntax before native interpretation" {
+    for ([_][]const u8{ "has@at", "@", "name@PLT", "name@GOTPCREL", "name@@VERSION", "name@TLSGD", "name@gottpoff", "name\\x40PLT", "name\\100GOT" }) |name| {
+        const text = try std.fmt.allocPrint(testing.allocator, "function $\"{s}\"() {{\n@e\nret\n}}", .{name});
+        defer testing.allocator.free(text);
+        try testing.expectError(error.InvalidInput, parse(testing.allocator, text));
+    }
+    for ([_][]const u8{ "has@at", "@", "name@PLT", "name@@VERSION", "name@GOTPCREL" }) |name| {
+        try testing.expect(!@import("symbols.zig").validPortableName(name));
+        var module = try parse(testing.allocator, "function w $f() {\n@e\nret 42\n}");
+        defer module.deinit();
+        module.functions.items[0].name = try module.symbols.intern(name);
+        try @import("module_validation.zig").validate(testing.allocator, &module);
+        try testing.expectError(error.InvalidSymbol, amd64.emit(testing.allocator, &module));
     }
 }

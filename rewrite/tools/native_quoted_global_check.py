@@ -11,6 +11,11 @@ import tempfile
 NAMES=('space name','1leading','has-dash','has@at','semi;colon','quote"mark','back\\slash','a+b','with,comma','with%percent','with#hash','paren(name)','[bracket]','colon:name','star*name','eq=name','$cash','pipe|name','trap"; .globl quoted_injected; #',' leading ')
 NAMES += tuple(chr(i) for i in range(32,127) if i != 46) + ('42','\\tail\\','ends\\\\','double"')
 assert len(NAMES)==118 and len(set(NAMES))==118
+# Keep the original corpus: the two ELF-@ spellings move to six rejection contexts,
+# rather than silently deleting them or treating versioned linker names as literal.
+SUPPORTED_NAMES=tuple(n for n in NAMES if '@' not in n)
+REJECTED_NAMES=tuple(n for n in NAMES if '@' in n)
+assert len(SUPPORTED_NAMES)==116 and REJECTED_NAMES==('has@at','@')
 
 def quoted(name):return '"'+name.replace('\\','\\\\').replace('"','\\"')+'"'
 def symbols(path):
@@ -39,6 +44,7 @@ def main():
     flags=['--'+f for f in options if getattr(args,f.replace('-','_'))]
     source=(root/'src/fixtures/quoted-globals.ssa').read_text();assembly=['.text'];declarations=[];checks=[];expected={}
     for i,name in enumerate(NAMES):
+        if name in REJECTED_NAMES:continue
         f=name
         d,t,e,x,m=[prefix+name for prefix in ('data ','table ','external ','external data ','middle ')]
         fq,dq,tq,eq,xq,mq=map(quoted,(f,d,t,e,x,m))
@@ -110,7 +116,7 @@ ret %r
     declarations += ['extern uint64_t quote_call(void),quote_load(void),quoted_escape_call(void),quoted_canonical_call(void),quoted_variadic_direct(void),quoted_variadic_indirect(void);','extern uint64_t zbe_check_preserved(uint64_t (*)(void));']
     checks += ['REQUIRE(quote_call()==8);','REQUIRE(quote_load()==22);','REQUIRE(quoted_escape_call()==42);','REQUIRE(quoted_canonical_call()==17);','REQUIRE(quoted_variadic_direct()==43);','REQUIRE(quoted_variadic_indirect()==43);',
         'REQUIRE(zbe_check_preserved(quote_call)==0);','REQUIRE(zbe_check_preserved(quoted_escape_call)==0);']
-    assert len(checks)==1778,len(checks)
+    assert len(checks)==1748,len(checks)
     assembly += ['.section .note.GNU-stack,"",@progbits']
     c='''#include <stdint.h>
 #include <stdio.h>
@@ -133,8 +139,8 @@ size_t count=0;
             if info is not None and (actual[0]!=info or not actual[1] or (length is not None and actual[3]!=length)):raise SystemExit('ELF quoted binding/type/size mismatch')
             if info==0x12 and actual[3]==0:raise SystemExit('Quoted function size is empty')
         if 'quoted_injected' in decoded:raise SystemExit('Quoted name escaped into assembler directive')
-        assert len(expected)==708,len(expected)
-        print('708 quoted-global ELF symbol identity/metadata checks passed')
+        assert len(expected)==696,len(expected)
+        print('696 quoted-global ELF symbol identity/metadata checks passed')
         for pie in (False,True):
             mode=['-fPIE','-pie'] if pie else ['-fno-pie','-no-pie']
             subprocess.run([args.cc,'-std=c11','-O2','-Wall','-Wextra','-Werror',*mode,str(driver),str(obj),str(adapter),str(root/'src/fixtures/check-preserved.s'),'-o',str(binary)],check=True,timeout=90)
@@ -143,6 +149,15 @@ size_t count=0;
         print('2 quoted-global executable no-TEXTREL checks passed')
         bad=['data $"" = {}','data $"." = {}',r'data $"bad\000name" = {}',r'data $"bad\nname" = {}',r'data $"bad\tname" = {}',r'data $"bad\xffname" = {}',r'data $"bad\qname" = {}','data $".Lzbe@0@b0" = {}',
             'function $""() {\n@e\nret\n}','data $plain = {}\ndata $"plain" = {}',r'data $plain = {} data $"pl\141in" = {}','data $x = { l $"" }']
+        for name in REJECTED_NAMES:
+            q=quoted(name)
+            bad += [f'function ${q}() {{\n@e\nret\n}}',f'data ${q} = {{}}',
+                f'function $f() {{\n@e\ncall ${q}()\nret\n}}',
+                f'function l $f() {{\n@e\nret ${q}\n}}',f'data $f = {{ l ${q} }}',
+                f'function l $f(w %c) {{\n@e\njnz %c, @a, @b\n@a\njmp @j\n@b\njmp @j\n@j\n%r =l phi @a ${q}, @b 0\nret %r\n}}']
+        for name in ('name@PLT','name@GOTPCREL','name@GOT','name@TLSGD','name@TPOFF','name@@VER',r'name\x40PLT',r'name\100GOT'):
+            bad.append('data $"'+name+'" = {}')
+        assert len(bad)==32,len(bad)
         for text in bad:
             src.write_text(text)
             if asm.exists():asm.unlink()
@@ -151,6 +166,6 @@ size_t count=0;
                 result=subprocess.run([compiler,*flags,str(src),str(asm)],capture_output=True,timeout=30)
                 if result.returncode==0:raise SystemExit('Invalid quoted global accepted')
                 if (exists and asm.read_text()!='preserve-quoted-output') or (not exists and asm.exists()):raise SystemExit('Rejected quoted global changed output')
-        print('24 quoted-global rejection/output-preservation checks passed')
+        print('64 quoted-global rejection/output-preservation checks passed')
 
 if __name__=='__main__':main()

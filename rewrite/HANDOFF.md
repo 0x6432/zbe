@@ -2209,3 +2209,27 @@ invalid-domain semantics, complete ABI/backend parity or performance superiority
 Publication is pending. Re-fetch/check remote ancestry before pushing only
 rewrite/zig-native. Source remains unchanged through whole exact-pushed-SHA CI,
 including post-job steps; no CI success for this milestone is claimed yet.
+
+### Synthetic vaarg consumers: published exact-SHA CI confirmed green
+
+Code99b42d2a729804dca1620278d7de2858d1494e14 was pushed only to rewrite/zig-native
+after fetching actual origin, confirming ancestry and credential-free origin.
+https://github.com/0x6432/zbe/actions/runs/39059873994 completed successfully on
+attempt1 for that exact SHA. All three WHOLE jobs, including post-job steps,
+finished success on2026-10-17UTC:
+- ReleaseFast18:50:37--19:00:22.
+- ReleaseSafe18:50:37--19:01:18.
+- Debug18:50:38--19:05:31.
+No rerun, source change, timeout change or cancelled verification was needed.
+/data/watch-interpreter-vaarg-ci.log ends EXACT-SHA INTERPRETER VAARG CI CONFIRMED
+GREEN; /data/interpreter-vaarg-ci-result.json records workflow and all three jobs.
+Source remained frozen from authoritative full local verification through whole
+CI completion. The331/331-per-mode,24-combination,21-harness,14-generator local
+results above remain the completed verification baseline.
+
+A read-only follow-up review found stale blanket descriptor-refusal wording in
+MODULE-EVALUATION.md; this documentation-only record corrects it to distinguish
+default refusal/manual opt-in consumers from still-unsupported vastart/tails.
+No additional code capability is implied. The next possible bounded root-only
+synthetic vastart design is /data/zbe-root-variadic-followup-design.txt, only a
+proposal at this checkpoint, not implemented or verified functionality.

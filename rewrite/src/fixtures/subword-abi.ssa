@@ -1,0 +1,64 @@
+export function w $subword_entry(l %input) {
+@entry
+    %a =sb call $subword_byte(sb %input)
+    %sa =w extsb %a
+    %b =ub call $subword_ubyte(ub %input)
+    %ub =w extub %b
+    %c =sh call $subword_half(sh %input)
+    %sh =w extsh %c
+    %d =uh call $subword_uhalf(uh %input)
+    %uh =w extuh %d
+    %x =w add %sa, %ub
+    %y =w add %sh, %uh
+    %r =w add %x, %y
+    ret %r
+}
+function sb $subword_byte(sb %x) {
+@entry
+    ret %x
+}
+function ub $subword_ubyte(ub %x) {
+@entry
+    ret %x
+}
+function sh $subword_half(sh %x) {
+@entry
+    ret %x
+}
+function uh $subword_uhalf(uh %x) {
+@entry
+    ret %x
+}
+export function uh $subword_rec(ub %count, uh %x) {
+@entry
+    %n =w extub %count
+    jnz %n, @recurse, @done
+@recurse
+    %next =w sub %n, 1
+    %child =uh call $subword_rec(ub %next, uh %x)
+    %result =w add %child, 1
+    ret %result
+@done
+    ret %x
+}
+export function w $subword_loop(w %count, sb %left, sb %right) {
+@entry
+    %a =w extsb %left
+    %b =w extsb %right
+    jmp @loop
+@loop
+    %i =w phi @entry 0, @body %next
+    %x =w phi @entry %a, @body %y
+    %y =w phi @entry %b, @body %newx
+    %more =w cultw %i, %count
+    jnz %more, @body, @done
+@body
+    %raw =sb call $subword_byte(sb %x)
+    %newx =w extsb %raw
+    %next =w add %i, 1
+    jmp @loop
+@done
+    %weighted =w mul %y, 257
+    %sum =w add %x, %weighted
+    ret %sum
+}

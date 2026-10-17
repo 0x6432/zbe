@@ -225,10 +225,10 @@ const Parser = struct {
         if (exported) _ = self.advance();
         if (!self.word("function")) return self.fail(.unsupported_construct, self.peek());
         _ = self.advance();
-        const result = if (self.peek().kind == .global) null else try self.takeType();
+        const result = if (self.peek().kind == .global) null else try self.takeAbiType();
         const name_token = try self.expect(.global);
         const name = try self.globalName(name_token);
-        const id = self.module.addFunction(name, result) catch |err| switch (err) {
+        const id = self.module.addFunctionAbi(name, result) catch |err| switch (err) {
             error.DuplicateFunction => return self.fail(.duplicate_function, name_token),
             error.DuplicateSymbol => return self.fail(.duplicate_symbol, name_token),
             else => |resource| return resource,
@@ -238,11 +238,11 @@ const Parser = struct {
         f.linkage = if (exported) .exported else .internal;
         _ = try self.expect(.lparen);
         if (self.peek().kind != .rparen) while (true) {
-            const ty = try self.takeType();
+            const ty = try self.takeAbiType();
             const parameter = try self.expect(.temporary);
             const parameter_name = self.nameText(parameter);
             try self.reserveValue(parameter);
-            const value = f.addParameter(ty) catch |err| return self.irError(err, parameter);
+            const value = f.addParameterAbi(ty) catch |err| return self.irError(err, parameter);
             self.values.putAssumeCapacity(parameter_name, value);
             if (self.peek().kind != .comma) break;
             _ = self.advance();
@@ -272,7 +272,7 @@ const Parser = struct {
             } else if (token.kind == .identifier) {
                 if (std.mem.eql(u8, self.tokenText(token), "call")) {
                     _ = self.advance();
-                    try self.call(active, null, token);
+                    try self.call(active, null, token, null);
                 } else if (std.mem.eql(u8, self.tokenText(token), "blit")) {
                     _ = self.advance();
                     const src = try self.readOperand(.long);
@@ -321,8 +321,12 @@ const Parser = struct {
                 try self.reserveValue(token);
                 if (index + 2 >= self.tokens.len) return self.fail(.unexpected_token, self.tokens[self.tokens.len - 1]);
                 if (self.tokens[index + 1].kind != .equal) return self.fail(.unexpected_token, self.tokens[index + 1]);
-                const ty = try self.scalarType(self.tokens[index + 2]);
-                const value = f.declareValue(ty) catch |err| return self.irError(err, token);
+                const ty = try self.abiType(self.tokens[index + 2]);
+                if (ty.subword() != null and (index + 3 >= self.tokens.len or
+                    self.tokens[index + 3].kind != .identifier or
+                    !std.mem.eql(u8, self.tokenText(self.tokens[index + 3]), "call")))
+                    return self.fail(.unsupported_construct, self.tokens[index + 2]);
+                const value = f.declareValue(ty.scalar()) catch |err| return self.irError(err, token);
                 self.values.putAssumeCapacity(self.nameText(token), value);
             }
             at_line_start = token.kind == .newline;
@@ -334,12 +338,15 @@ const Parser = struct {
         const destination = self.advance();
         const result = self.values.get(self.nameText(destination)).?;
         _ = try self.expect(.equal);
-        const ty = try self.takeType();
+        const type_token = self.peek();
+        const abi_type = try self.takeAbiType();
+        const ty = abi_type.scalar();
         const opcode = try self.expect(.identifier);
+        if (abi_type.subword() != null and !std.mem.eql(u8, self.tokenText(opcode), "call")) return self.fail(.unsupported_construct, type_token);
         const spelling = self.tokenText(opcode);
         const f = self.current_function.?;
         if (std.mem.eql(u8, spelling, "call")) {
-            try self.call(block, result, opcode);
+            try self.call(block, result, opcode, abi_type);
         } else if (allocation_opcodes.get(spelling)) |alignment| {
             const size = try self.readOperand(.long);
             f.defineAllocate(block, result, size, alignment) catch |err| return self.irError(err, opcode);
@@ -392,8 +399,8 @@ const Parser = struct {
         }
     }
 
-    fn call(self: *Parser, block: ir.BlockId, result: ?ir.ValueId, opcode: lex.Token) Error!void {
-        // Nonvariadic base-scalar calls; an indirect address must be long.
+    fn call(self: *Parser, block: ir.BlockId, result: ?ir.ValueId, opcode: lex.Token, result_abi: ?ir.AbiType) Error!void {
+        // Nonvariadic scalar ABI calls; an indirect address must be long.
         const callee: ir.CallTarget = switch (self.peek().kind) {
             .global => symbol: {
                 const token = self.advance();
@@ -406,9 +413,9 @@ const Parser = struct {
         var arguments: std.ArrayList(ir.CallArgument) = .empty;
         defer arguments.deinit(self.allocator);
         if (self.peek().kind != .rparen) while (true) {
-            const argument_type = try self.takeType();
-            const operand = try self.readOperand(argument_type);
-            try arguments.append(self.allocator, .{ .scalar_type = argument_type, .operand = operand });
+            const argument_type = try self.takeAbiType();
+            const operand = try self.readOperand(argument_type.scalar());
+            try arguments.append(self.allocator, ir.CallArgument.init(argument_type, operand));
             if (self.peek().kind != .comma) break;
             _ = self.advance();
         };
@@ -416,12 +423,12 @@ const Parser = struct {
         const f = self.current_function.?;
         switch (callee) {
             .symbol => |symbol| if (result) |value| {
-                f.defineCall(block, value, symbol, arguments.items) catch |err| return self.irError(err, opcode);
+                f.defineCallAbi(block, value, symbol, result_abi.?, arguments.items) catch |err| return self.irError(err, opcode);
             } else {
                 f.appendVoidCall(block, symbol, arguments.items) catch |err| return self.irError(err, opcode);
             },
             .address => |address| if (result) |value| {
-                f.defineIndirectCall(block, value, address, arguments.items) catch |err| return self.irError(err, opcode);
+                f.defineIndirectCallAbi(block, value, address, result_abi.?, arguments.items) catch |err| return self.irError(err, opcode);
             } else {
                 f.appendVoidIndirectCall(block, address, arguments.items) catch |err| return self.irError(err, opcode);
             },
@@ -495,8 +502,19 @@ const Parser = struct {
         try self.values.ensureUnusedCapacity(self.allocator, 1);
     }
 
-    fn takeType(self: *Parser) Error!ir.ScalarType {
-        return self.scalarType(self.advance());
+    fn takeAbiType(self: *Parser) Error!ir.AbiType {
+        return self.abiType(self.advance());
+    }
+
+    fn abiType(self: *Parser, token: lex.Token) Error!ir.AbiType {
+        if (token.kind == .identifier) {
+            const text = self.tokenText(token);
+            if (std.mem.eql(u8, text, "sb")) return .signed_byte;
+            if (std.mem.eql(u8, text, "ub")) return .unsigned_byte;
+            if (std.mem.eql(u8, text, "sh")) return .signed_half;
+            if (std.mem.eql(u8, text, "uh")) return .unsigned_half;
+        }
+        return ir.AbiType.fromScalar(try self.scalarType(token));
     }
 
     fn scalarType(self: *Parser, token: lex.Token) Error!ir.ScalarType {

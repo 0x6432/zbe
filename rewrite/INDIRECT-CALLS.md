@@ -38,3 +38,7 @@ The native call harness now executes **890 call/ABI/effect checks**, plus the un
 - The harness links this bounded slice with `-fPIE -pie` and explicitly requires a callback address with nonzero high 32 bits, so accidental address truncation cannot hide behind a low non-PIE code address. It asserts that precondition rather than silently claiming high-bit coverage on an unsuitable mapping. Other integer/floating harnesses retain their non-PIE checks.
 
 Converting C function pointers through `uintptr_t` is explicitly a native Linux AMD64 test convention, not portable C or a complete PIC/shared-library ABI claim. These fixtures are not exhaustive callback/ABI conformance, valid-address checking or full backend acceptance.
+
+Typed sb/ub/sh/uh scalar ABI annotations retain word SSA classes and unspecified
+upper bits, with explicit extension instructions and exact internal signature
+checks (SUBWORD-ABI.md). This does not add aggregates, varargs or host invocation.

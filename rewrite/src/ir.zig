@@ -17,6 +17,45 @@ pub const ScalarType = enum {
     }
 };
 
+/// ABI-only small integers remain word SSA values; upper bits are unspecified.
+pub const SubwordType = enum { signed_byte, unsigned_byte, signed_half, unsigned_half };
+pub const AbiType = enum {
+    word,
+    long,
+    single,
+    double,
+    signed_byte,
+    unsigned_byte,
+    signed_half,
+    unsigned_half,
+
+    pub fn fromScalar(ty: ScalarType) AbiType {
+        return switch (ty) {
+            .word => .word,
+            .long => .long,
+            .single => .single,
+            .double => .double,
+        };
+    }
+    pub fn scalar(self: AbiType) ScalarType {
+        return switch (self) {
+            .long => .long,
+            .single => .single,
+            .double => .double,
+            .word, .signed_byte, .unsigned_byte, .signed_half, .unsigned_half => .word,
+        };
+    }
+    pub fn subword(self: AbiType) ?SubwordType {
+        return switch (self) {
+            .signed_byte => .signed_byte,
+            .unsigned_byte => .unsigned_byte,
+            .signed_half => .signed_half,
+            .unsigned_half => .unsigned_half,
+            .word, .long, .single, .double => null,
+        };
+    }
+};
+
 /// Preserve floating bit patterns (including NaN payloads), not host formatting.
 pub const Constant = union(enum) {
     word: u32,
@@ -205,7 +244,15 @@ pub const StoreKind = enum {
         };
     }
 };
-pub const CallArgument = struct { scalar_type: ScalarType, operand: Operand };
+pub const CallArgument = struct {
+    scalar_type: ScalarType,
+    operand: Operand,
+    subword_type: ?SubwordType = null,
+
+    pub fn init(ty: AbiType, operand: Operand) CallArgument {
+        return .{ .scalar_type = ty.scalar(), .operand = operand, .subword_type = ty.subword() };
+    }
+};
 /// Symbol targets use the module pool; address operands use function-scoped IDs.
 pub const CallTarget = union(enum) {
     symbol: SymbolId,
@@ -219,7 +266,7 @@ pub const CallTarget = union(enum) {
     }
 };
 /// Argument storage is owned by Function, not borrowed from callers.
-pub const Call = struct { result: ?ValueId, callee: CallTarget, arguments: []const CallArgument };
+pub const Call = struct { result: ?ValueId, callee: CallTarget, arguments: []const CallArgument, result_subword: ?SubwordType = null };
 pub const Instruction = union(enum) {
     allocate: struct { result: ValueId, size: Operand, alignment: AllocationAlignment },
     /// Nonnegative signed-word byte count, not a packed reference field.
@@ -306,7 +353,7 @@ const Definition = union(enum) {
     parameter: usize,
     instruction: struct { block: BlockId, index: usize },
 };
-const Value = struct { scalar_type: ScalarType, definition: Definition };
+const Value = struct { scalar_type: ScalarType, definition: Definition, parameter_subword: ?SubwordType = null };
 const Block = struct {
     label: ?SymbolId,
     phis: std.ArrayList(Phi) = .empty,
@@ -336,6 +383,7 @@ pub const Function = struct {
     allocator: Allocator,
     name: SymbolId,
     return_type: ?ScalarType,
+    return_subword: ?SubwordType = null,
     linkage: enum { internal, exported } = .internal,
     parameters: std.ArrayList(ValueId) = .empty,
     values: std.ArrayList(Value) = .empty,
@@ -343,6 +391,12 @@ pub const Function = struct {
 
     pub fn init(allocator: Allocator, name: SymbolId, return_type: ?ScalarType) Function {
         return .{ .allocator = allocator, .name = name, .return_type = return_type };
+    }
+
+    pub fn initAbi(allocator: Allocator, name: SymbolId, result: ?AbiType) Function {
+        var function = init(allocator, name, if (result) |ty| ty.scalar() else null);
+        function.return_subword = if (result) |ty| ty.subword() else null;
+        return function;
     }
 
     pub fn deinit(self: *Function) void {
@@ -362,11 +416,15 @@ pub const Function = struct {
     }
 
     pub fn addParameter(self: *Function, ty: ScalarType) BuildError!ValueId {
+        return self.addParameterAbi(AbiType.fromScalar(ty));
+    }
+
+    pub fn addParameterAbi(self: *Function, ty: AbiType) BuildError!ValueId {
         if (self.values.items.len != self.parameters.items.len) return error.ParametersAfterInstructions;
         const id = try self.nextValueId();
         try self.values.ensureUnusedCapacity(self.allocator, 1);
         try self.parameters.ensureUnusedCapacity(self.allocator, 1);
-        self.values.appendAssumeCapacity(.{ .scalar_type = ty, .definition = .{ .parameter = self.parameters.items.len } });
+        self.values.appendAssumeCapacity(.{ .scalar_type = ty.scalar(), .parameter_subword = ty.subword(), .definition = .{ .parameter = self.parameters.items.len } });
         self.parameters.appendAssumeCapacity(id);
         return id;
     }
@@ -516,32 +574,41 @@ pub const Function = struct {
     /// Argument storage is duplicated before publication. Failed type checks or
     /// allocations leave a scalar result pending and retryable.
     pub fn defineCall(self: *Function, block: BlockId, result: ValueId, symbol: SymbolId, arguments: []const CallArgument) BuildError!void {
-        return self.addCall(block, result, .{ .symbol = symbol }, arguments);
+        return self.addCall(block, result, .{ .symbol = symbol }, arguments, null);
     }
 
     pub fn defineIndirectCall(self: *Function, block: BlockId, result: ValueId, address: Operand, arguments: []const CallArgument) BuildError!void {
-        return self.addCall(block, result, .{ .address = address }, arguments);
+        return self.addCall(block, result, .{ .address = address }, arguments, null);
     }
 
     /// A void call adds an effect, not an SSA definition or dummy value.
     pub fn appendVoidCall(self: *Function, block: BlockId, symbol: SymbolId, arguments: []const CallArgument) BuildError!void {
-        return self.addCall(block, null, .{ .symbol = symbol }, arguments);
+        return self.addCall(block, null, .{ .symbol = symbol }, arguments, null);
     }
 
     pub fn appendVoidIndirectCall(self: *Function, block: BlockId, address: Operand, arguments: []const CallArgument) BuildError!void {
-        return self.addCall(block, null, .{ .address = address }, arguments);
+        return self.addCall(block, null, .{ .address = address }, arguments, null);
     }
 
-    fn addCall(self: *Function, block_id: BlockId, result: ?ValueId, callee: CallTarget, arguments: []const CallArgument) BuildError!void {
+    pub fn defineCallAbi(self: *Function, block: BlockId, result: ValueId, symbol: SymbolId, result_type: AbiType, arguments: []const CallArgument) BuildError!void {
+        return self.addCall(block, result, .{ .symbol = symbol }, arguments, result_type);
+    }
+
+    pub fn defineIndirectCallAbi(self: *Function, block: BlockId, result: ValueId, address: Operand, result_type: AbiType, arguments: []const CallArgument) BuildError!void {
+        return self.addCall(block, result, .{ .address = address }, arguments, result_type);
+    }
+
+    fn addCall(self: *Function, block_id: BlockId, result: ?ValueId, callee: CallTarget, arguments: []const CallArgument, result_abi: ?AbiType) BuildError!void {
         const target = try self.getBlock(block_id);
         if (target.terminator != null) return error.BlockTerminated;
         const value = if (result) |id| try self.pendingValue(id) else null;
+        if (result_abi) |ty| if (value == null or value.?.scalar_type != ty.scalar()) return error.TypeMismatch;
         try self.checkCallTarget(callee);
         try self.checkArguments(arguments);
         try target.instructions.ensureUnusedCapacity(self.allocator, 1);
         const owned = try self.allocator.dupe(CallArgument, arguments);
         if (value) |definition| definition.definition = .{ .instruction = .{ .block = block_id, .index = target.instructions.items.len } };
-        target.instructions.appendAssumeCapacity(.{ .call = .{ .result = result, .callee = callee, .arguments = owned } });
+        target.instructions.appendAssumeCapacity(.{ .call = .{ .result = result, .callee = callee, .arguments = owned, .result_subword = if (result_abi) |ty| ty.subword() else null } });
     }
 
     fn checkCallTarget(self: *const Function, target: CallTarget) ValidationError!void {
@@ -549,7 +616,10 @@ pub const Function = struct {
     }
 
     fn checkArguments(self: *const Function, arguments: []const CallArgument) ValidationError!void {
-        for (arguments) |argument| if (try self.operandType(argument.operand) != argument.scalar_type) return error.TypeMismatch;
+        for (arguments) |argument| {
+            if (argument.subword_type != null and argument.scalar_type != .word) return error.TypeMismatch;
+            if (try self.operandType(argument.operand) != argument.scalar_type) return error.TypeMismatch;
+        }
     }
 
     pub fn definePhi(self: *Function, block_id: BlockId, result: ValueId, inputs: []const PhiInput) BuildError!void {
@@ -603,6 +673,9 @@ pub const Function = struct {
     /// use ordering/dominance and phi edges. Full IL verification remains future work.
     pub fn validateStructure(self: *const Function) ValidationError!void {
         if (self.blocks.items.len == 0) return error.NoBlocks;
+        if (self.return_subword != null and self.return_type != .word) return error.TypeMismatch;
+        for (self.values.items) |value| if (value.parameter_subword != null and
+            (value.scalar_type != .word or value.definition != .parameter)) return error.TypeMismatch;
         for (self.parameters.items, 0..) |id, index| {
             if (@backingInt(id) >= self.values.items.len) return error.InvalidValue;
             switch (self.values.items[@backingInt(id)].definition) {
@@ -669,6 +742,7 @@ pub const Function = struct {
                         if (try self.operandType(store.value) != store.kind.valueType() or try self.operandType(store.address) != .long) return error.TypeMismatch;
                     },
                     .call => |call| {
+                        if (call.result_subword != null and ty != .word) return error.TypeMismatch;
                         try self.checkCallTarget(call.callee);
                         try self.checkArguments(call.arguments);
                     },

@@ -47,9 +47,9 @@ pub fn validate(allocator: std.mem.Allocator, module: *const Module) Error!void 
             for (module.data.items) |object| if (object.name == symbol) return error.CalledDataSymbol;
             const callee = findFunction(module, symbol) orelse continue;
             const result_type: ?ir.ScalarType = if (call.result) |result| function.values.items[@backingInt(result)].scalar_type else null;
-            if (callee.return_type != result_type or callee.parameters.items.len != call.arguments.len) return error.CallSignatureMismatch;
+            if (callee.return_type != result_type or callee.return_subword != call.result_subword or callee.parameters.items.len != call.arguments.len) return error.CallSignatureMismatch;
             for (callee.parameters.items, call.arguments) |parameter, argument| {
-                if (callee.values.items[@backingInt(parameter)].scalar_type != argument.scalar_type) return error.CallSignatureMismatch;
+                if (callee.values.items[@backingInt(parameter)].scalar_type != argument.scalar_type or callee.values.items[@backingInt(parameter)].parameter_subword != argument.subword_type) return error.CallSignatureMismatch;
             }
         },
         else => {},

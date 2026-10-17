@@ -54,3 +54,7 @@ INTERPRETER-GLOBALS.md. Defaults still refuse symbol resolution; the separate
 synthetic model now accepts defined-data-only symbolic initializers
 (INTERPRETER-DATA-RELOCATIONS.md), but not function/extern address lookup or host
 calls.
+
+Typed sb/ub/sh/uh scalar ABI annotations retain word SSA classes and unspecified
+upper bits, with explicit extension instructions and exact internal signature
+checks (SUBWORD-ABI.md). This does not add aggregates, varargs or host invocation.

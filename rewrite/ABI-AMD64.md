@@ -14,7 +14,7 @@ Cursor state is caller-owned and mutable; use a new default cursor for each sign
 
 ## Scope
 
-This classifier does **not** implement aggregates, ABI-extension types, varargs, return classification, indirect arguments or another platform's ABI. Direct scalar call lowering now reuses it for outgoing arguments (see CALLS.md); the classifier alone does not implement call emission or signature validation. No C layout, pointer packing or numeric class tags are required by this internal interface.
+This classifier does **not** itself implement aggregates, ABI annotations, varargs, return classification, indirect arguments or another platform's ABI. The separate sb/ub/sh/uh slice maps those typed annotations to the word class before classification (SUBWORD-ABI.md). Direct scalar call lowering now reuses it for outgoing arguments (see CALLS.md); the classifier alone does not implement call emission or signature validation. No C layout, pointer packing or numeric class tags are required by this internal interface.
 
 ## Verification
 

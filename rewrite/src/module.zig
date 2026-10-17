@@ -49,6 +49,12 @@ pub const Module = struct {
         return @fromBackingInt(@intCast(number));
     }
 
+    pub fn addFunctionAbi(self: *Module, name: []const u8, result: ?ir.AbiType) !FunctionId {
+        const id = try self.addFunction(name, if (result) |ty| ty.scalar() else null);
+        self.getFunction(id).?.return_subword = if (result) |ty| ty.subword() else null;
+        return id;
+    }
+
     pub fn addData(self: *Module, name: []const u8) !DataId {
         for (self.functions.items) |function| {
             if (std.mem.eql(u8, self.symbols.get(function.name).?, name)) return error.DuplicateSymbol;

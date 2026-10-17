@@ -1277,3 +1277,80 @@ annotations/ownership, exact internal signatures, parser predeclaration restrict
 independent poisoned-upper-bit native expectations and allocation-failure cleanup.
 Proposal-only review: `/data/zbe-subword-abi-followup-design.txt`. No main merge,
 release tag, full backend parity or performance claim is authorized.
+
+## Typed subword scalar ABI slice (in progress)
+
+After first-attempt green internal-data relocation CI and its published result
+record, implementing typed sb/ub/sh/uh annotations only in function/call ABI
+positions. Four SSA classes remain unchanged; narrow values use word transport
+with unspecified upper bits, not automatic sign/zero extension. This follows
+bundled IL documentation and AMD64 elimsb, without changing the legacy reference.
+Explicit extension instructions remain required to observe the complete word.
+
+Closed AbiType/SubwordType annotations are separate from ScalarType. Existing
+base builders keep their APIs/default null annotations. New typed constructors
+retain failure-atomic parameter/call publication and copied argument ownership.
+Structural validation checks publicly forged contradictory metadata, including
+void/nonword results and nonparameter values; defined calls compare exact narrow
+annotations as well as existing scalar/result/arity rules. External/indirect
+signatures remain caller contracts and interpreter host invocation stays refused.
+
+Parser header/call handling and predeclaration now admit narrow annotations only
+on call-result SSA definitions; arithmetic/phi/copy contexts still reject them.
+One old now-valid sb-call negative was replaced with unsupported b, preserving
+its rejection count. New fixture adds explicit extension, recursion, long lowword
+arguments and phi/call swaps to both unchanged independent analysis switches.
+Seven focused tests plus a new independent native harness are being verified;
+no passing full result is assumed. The native harness covers poisoned upper bits,
+mixed bank overflow, narrow returns, direct/indirect/internal/external paths,
+unused effects, preserved originals, PIE/nonPIE and output-preserving rejection.
+
+Initial focused compilation exposed incorrect comma wiring of the new analysis
+fixture; corrected to string concatenation without changing either oracle. The
+focused runner was stopped for slow-test diagnosis and rerun with progress output;
+the new OOM driver avoids repeated identical value-matrix validation while still
+injecting every allocation in representative constructor/recursive/phi/analysis/
+emission paths. Full value matrices remain separate tests. Neither stop indicates
+a passing or failed assertion. No authoritative full matrix or exact-SHA CI has
+started for this milestone. Existing tools/oracles/fixtures remain protected.
+
+### Subword focused results before full verification
+
+Diagnostic standalone execution completed all290 tests successfully. No assertion
+failed. The earlier quiet runner was stopped to inspect progress, not because
+OOM coverage or semantics were weakened. Review then made AbiType.scalar's switch
+explicitly exhaustive, removed its now-obsolete private parser helper, and added
+independent word-nonparameter/void-return metadata checks and a separate5x5
+argument-annotation signature matrix. The full runner must freshly verify this
+final source; no cached290 result is claimed for those last test additions.
+
+`/data/check-subword-abi-native.sh` built Debug and passed the new harness in all
+8 option combinations:1033 defined-bit checks per PIE/nonPIE link,2 no-TEXTREL and
+40 rejection/output-preservation checks per combination. No native correction was
+needed. Native oracle expectations observe only low bits/explicit extensions.
+All prior native harnesses, generators and fixtures remain unchanged against
+`291733e`; the single existing unit negative replacement preserves its count.
+The full three-mode/eight-option matrix is next with source frozen, including all
+16 native harnesses and all14 independent generator checks. Exact-SHA CI has not
+started; no full ABI/parity/performance claim is implied.
+
+### Subword ABI full local verification passed
+
+`/data/verify-subword-abi.sh` completed exit0 with `SUBWORD ABI VERIFICATION PASSED`.
+Final-source290/290 tests freshly passed in Debug (2m), ReleaseSafe (3s) and
+ReleaseFast (2s). Formatting and all14 independent generator checks passed. All24
+mode/option combinations passed all16 native harnesses. Mechanical counting found
+56 completion groups:53 appeared24 times, while linked-symbol2032, scalar-offset
+1456 and new subword1033 appeared48 times each for separate PIE/nonPIE links.
+The new harness also retained2 no-TEXTREL and40 rejection/output-preservation
+checks per combination. Existing fault/control/rejection totals stayed unchanged.
+
+Source remained frozen throughout authoritative verification. Final review and
+scope/credential/legacy/whitespace checks passed; all73 prior fixture/generator/
+native-harness files are unchanged versus `291733e`. The only prior unit negative
+replacement is now-supported sb argument -> unsupported b, count preserved. CI
+only adds the new harness to its existing eight-option loop; original timeout,
+generators and assertions remain intact. Evidence: `/data/verify-subword-abi.log`,
+its `.exit` and `/data/subword-abi-verification-counts.json`. Documentation now
+corrects the native harness count to16. Exact-SHA publication CI is next, not yet
+confirmed green. No main merge, release tag or full ABI/backend parity is implied.

@@ -7,7 +7,7 @@ This is a deliberately limited native Linux SysV AMD64 call slice, not full QBE 
 call $void_symbol(w|l|s|d operand, ...)
 ```
 
-The example's ellipsis describes repetition, **not** an accepted variadic marker. Empty argument lists are supported. A result-bearing call has a scalar result even when unused. A void-result call is a statement with no dummy SSA value or result home. Known callees must match that result presence as well as the exact scalar type. Omitting a result is not permission to discard a known nonvoid return. Environment parameters, aggregates, ABI-extension types and variadic calls remain explicitly unsupported. Indirect scalar/void calls are now supported natively with an explicit address/signature caller contract (see INDIRECT-CALLS.md).
+The example's ellipsis describes repetition, **not** an accepted variadic marker. Empty argument lists are supported. A result-bearing call has a scalar result even when unused. A void-result call is a statement with no dummy SSA value or result home. Known callees must match that result presence as well as the exact scalar type. Omitting a result is not permission to discard a known nonvoid return. Environment parameters, aggregates and variadic calls remain explicitly unsupported. Typed sb/ub/sh/uh ABI annotations are supported separately, with unspecified upper bits and exact internal signature checks (SUBWORD-ABI.md). Indirect scalar/void calls are now supported natively with an explicit address/signature caller contract (see INDIRECT-CALLS.md).
 
 ## Owned representation and validation
 

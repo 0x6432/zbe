@@ -57,3 +57,7 @@ Opt-in initialized globals use a separate owned synthetic model
 (INTERPRETER-DATA-RELOCATIONS.md). Defaults still refuse symbols; function/external
 addresses remain unsupported. Image ownership and native linker/stack behavior
 do not change.
+
+Typed sb/ub/sh/uh scalar ABI annotations retain word SSA classes and unspecified
+upper bits, with explicit extension instructions and exact internal signature
+checks (SUBWORD-ABI.md). This does not add aggregates, varargs or host invocation.

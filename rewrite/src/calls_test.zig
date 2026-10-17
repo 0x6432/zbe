@@ -61,7 +61,7 @@ test "call operands obey local ordering dominance and exact base-scalar types" {
         "function w $f(s %p) {\n@e\n%r =w call $g(w %p)\nret %r\n}",
         "function w $f(w %p) {\n@e\n%r =w call %p()\nret %r\n}",
         "function w $f() {\n@e\n%r =w call $g(w 1, ...)\nret %r\n}",
-        "function w $f() {\n@e\n%r =w call $g(sb 1)\nret %r\n}",
+        "function w $f() {\n@e\n%r =w call $g(b 1)\nret %r\n}",
         "function w $f() {\n@e\n%r =w call $g(env 1)\nret %r\n}",
         "function w $f() {\n@e\n%r =w call $g(w 1,)\nret %r\n}",
         "function w $f() {\n@e\n%r =w call $\"quoted\"()\nret %r\n}",

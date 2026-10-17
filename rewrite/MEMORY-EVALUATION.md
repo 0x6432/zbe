@@ -51,3 +51,10 @@ Opt-in initialized globals use a separate owned synthetic model
 (INTERPRETER-DATA-RELOCATIONS.md). Defaults still refuse symbols; function/external
 addresses remain unsupported. Image ownership and native linker/stack behavior
 do not change.
+
+## Explicit scalar descriptor consumers
+
+`Options.consume_vaargs` separately enables manually prepared bounded scalar
+vaarg descriptors (INTERPRETER-VAARG.md). Default refusal remains; no native
+va_list/host pointer is consumed, no descriptor is implicitly initialized or
+allocated, and Image ownership/size/later-write persistence stay unchanged.

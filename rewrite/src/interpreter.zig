@@ -12,6 +12,8 @@ const FunctionId = @import("module.zig").FunctionId;
 
 pub const Options = struct {
     max_steps: usize = 100_000,
+    /// Read caller-prepared bounded descriptors only; no vastart or call tails.
+    consume_vaargs: bool = false,
     /// Root-only raw long value; never a host pointer conversion.
     environment: ?u64 = null,
     /// Deep-copied initialized numeric/zero/string data; evaluateModule only.
@@ -138,6 +140,13 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
             const instruction = block.instructions.items[frame.next_instruction];
             frame.next_instruction += 1;
             switch (instruction) {
+                .va_argument => |argument| {
+                    if (!options.consume_vaargs) return error.UnsupportedVariadicOperation;
+                    const address = (try resolve(&space, frame.values, argument.list)).long;
+                    const ty = frame.function.values.items[@backingInt(argument.result)].scalar_type;
+                    frame.values[@backingInt(argument.result)] = try space.consumeVaArg(ty, address);
+                    continue;
+                },
                 .va_start => return error.UnsupportedVariadicOperation,
                 .allocate => |allocation| {
                     const size = (try resolve(&space, frame.values, allocation.size)).long;

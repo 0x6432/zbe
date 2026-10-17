@@ -52,9 +52,9 @@ can fault or address arbitrary native memory; descriptor advancement can precede
 a bad source load. No invalid-input fault atomicity, bounds checking, automatic
 va_end, complete SysV ABI or full QBE/backend parity is promised.
 
-## Explicit evaluator refusal
+## Default evaluator refusal and explicit synthetic consumers
 
-A reached vaarg consumes its ordinary instruction step then returns
+By default, a reached vaarg consumes its ordinary instruction step then returns
 `UnsupportedVariadicOperation`, without resolving even a symbolic list, reading
 memory or advancing synthetic descriptors. This applies to standalone/module
 evaluation and valid Image/stack/global options. Existing configuration/argument
@@ -63,6 +63,12 @@ standalone evaluation configured with globals). Earlier budget exhaustion wins;
 earlier successful writes survive; owned frames clean up. Unreached paths remain
 evaluable. No numeric address becomes a host pointer, no fake va_list is created,
 and caller-owned Image size is unchanged.
+
+Explicit `Options.consume_vaargs = true` enables only bounded manually prepared
+synthetic descriptors (INTERPRETER-VAARG.md), retaining exact raw widths, selected
+field updates and earlier-write semantics. It never consumes a native/host
+va_list, creates a save area, enables vastart or authorizes variadic calls.
+Default refusal and the configuration/budget ordering above are unchanged.
 
 ## Independent verification design
 

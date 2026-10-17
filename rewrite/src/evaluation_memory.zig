@@ -145,6 +145,37 @@ pub const Space = struct {
         try borrowed.write(kind, value, address);
         span.define();
     }
+    /// Consumer-only synthetic layout. Never resolves a native va_list/pointer.
+    /// Checked arithmetic precedes the cursor write; a later source fault does
+    /// not roll that successful write back. Byte order belongs to each region.
+    pub fn consumeVaArg(self: *Space, ty: ir.ScalarType, list: u64) Error!ir.Constant {
+        try self.requireEnabled();
+        const field: u64 = if (ty.isInteger()) 0 else 4;
+        const limit: u32 = if (ty.isInteger()) 48 else 176;
+        const stride: u32 = if (ty.isInteger()) 8 else 16;
+        const field_address = std.math.add(u64, list, field) catch return error.MemoryOutOfBounds;
+        const offset = (try self.read(.unsigned_word, .word, field_address)).word;
+        const source = if (offset < limit) register: {
+            const save_field = std.math.add(u64, list, 16) catch return error.MemoryOutOfBounds;
+            const save = (try self.read(.long, .long, save_field)).long;
+            const address = std.math.add(u64, save, offset) catch return error.MemoryOutOfBounds;
+            try self.write(.word, .{ .word = offset + stride }, field_address);
+            break :register address;
+        } else overflow: {
+            const stack_field = std.math.add(u64, list, 8) catch return error.MemoryOutOfBounds;
+            const address = (try self.read(.long, .long, stack_field)).long;
+            const next = std.math.add(u64, address, 8) catch return error.MemoryOutOfBounds;
+            try self.write(.long, .{ .long = next }, stack_field);
+            break :overflow address;
+        };
+        const kind: ir.LoadKind = switch (ty) {
+            .word => .unsigned_word,
+            .long => .long,
+            .single => .single,
+            .double => .double,
+        };
+        return self.read(kind, ty, source);
+    }
     pub fn copy(self: *Space, src: u64, dst: u64, count: usize) Error!void {
         try self.requireEnabled();
         if (count == 0) return;

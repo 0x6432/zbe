@@ -81,7 +81,9 @@ argument resolution or child-frame construction. It never silently drops tails
 or pretends a named-only frame can consume them. Standalone reached calls retain
 UnsupportedCall, external/indirect dispatch refusals remain unchanged, and eager
 signature errors still precede execution. This is not variadic interpretation,
-synthetic va_list emulation or arbitrary host invocation.
+construction of native/host va_list objects or arbitrary host invocation.
+The separate opt-in manual synthetic consumer (INTERPRETER-VAARG.md) does not
+change these vastart, root-arity or internal variadic-call refusals.
 
 ## Regression approach
 

@@ -2117,3 +2117,95 @@ in /data/zbe-interpreter-vaarg-followup-design.txt. It was drafted/read during C
 without changing source. Before implementation, select it explicitly, reread
 memory/variadic/interpreter contracts and retain default refusals, bounded region
 ownership, step/error/write order, no host pointers and unsupported vastart/tails.
+
+## Next bounded milestone selected: opt-in synthetic vaarg consumers only
+
+After published2aa982a recorded whole ca94a18 first-attempt green CI, selected
+/data/zbe-interpreter-vaarg-followup-design.txt following review of memory Image,
+stack/global ownership, native vaarg ordering and variadic default refusals.
+Implement Options.consume_vaargs=false by default; only enabled reached scalar
+vaarg consumes a caller-prepared synthetic descriptor through checked Space
+accesses. This does NOT implement vastart, register-save construction, root tail
+arguments, variadic internal calls, indirect/external/host dispatch or full ABI.
+
+Selected policy:24-byte descriptor offsets/widths match the existing scalar SysV
+consumer, but byte order belongs to each synthetic memory region; big-endian is
+synthetic coverage, not native SysV. Read only selected offset/pointer/source.
+GP<48 stride8, SSE<176 stride16; otherwise overflow stride8; four/eight raw bytes.
+Check every u64 addition before the selected cursor write; arithmetic overflow
+returns MemoryOutOfBounds without that write. A successful cursor update precedes
+source load, so a later source bounds/initialization fault retains the update,
+matching representable native ordering without claiming invalid native wrap/fault
+parity. One ordinary step; default refusal still wins before list resolution.
+No host-pointer conversion, Image resizing, implicit allocation or lifetime reset.
+
+Added minimal interpreter dispatch/option and Space consumer helper, reusing typed
+read/write/init/lifetime/endian checks; native/IR/frontend/analyses unchanged.
+Nine new tests target four classes, raw bit patterns, both banks/thresholds/high
+u32 offsets, full sentinel images, exact four-byte/u64 boundaries, arithmetic/
+source-fault mutation ordering and aliases, budgets/default/varop refusals,
+ordinary calls/unused folding, partially initialized stack descriptors, globals/
+mixed region endians/reset, stale returned objects and exhaustive allocating
+cleanup across Image/frames/global/stack/later errors. New tests had an initial
+if/else-switch punctuation formatting error before compilation; corrected to the
+existing explicit error-handler block convention. First Debug smoke is pending;
+no new functionality is claimed verified yet.
+
+First complete consumer Debug run passed329/331 with two failures: the new global
+fixture omitted the existing required comma between its word and long groups.
+The global/reset test and allocating exercise therefore rejected that test input
+before consuming it. Corrected only the fixture comma; no production semantic or
+independent expectation change. The seven other new consumer tests passed, with
+no leak/crash report. Evidence: /data/check-interpreter-vaarg-debug-first-run.log/
+.exit1. Also strengthened the new partial-stack-descriptor test to exercise BOTH
+register and overflow paths with unused fields deliberately uninitialized, keeping
+its assertion semantics/result bits and native oracles unchanged. Corrected smoke
+must establish all331 tests and exhaustive ownership paths separately.
+
+Corrected consumer smoke passed331/331 fresh Debug in4min, including the new
+allocation-failure sweep and both partially initialized register/overflow stack
+paths. /data/check-interpreter-vaarg-debug.log/.exit0 ends INTERPRETER VAARG DEBUG
+SMOKE PASSED. No production semantic changes followed. Before authoritative full
+verification, strengthened one new test with a bounded descriptor copy: ordinary
+child consumers advance the original cursor, while the copy retains an independent
+cursor over the same source bytes. That added assertion is pending full verification,
+not covered by the preceding smoke; the matrix must freshly rerun Debug units.
+
+Added INTERPRETER-VAARG.md with explicit per-field/per-region endian access,
+arithmetic-before-cursor and cursor-before-source ordering, including later source
+extent-overflow failures; default/configuration/step/refusal/lifetime boundaries
+and no implicit host/variadic initialization. Updated only relevant summary/refusal
+wording; old unit/native/default-refusal tests and all fixtures/generators unchanged.
+Source now freezes through authoritative all24-combination/all21-harness local
+verification and subsequent whole exact-SHA CI. No matrix or CI success is claimed.
+
+### Synthetic vaarg consumers: authoritative full local verification passed
+
+/data/verify-interpreter-vaarg.log/.exit0 ended INTERPRETER VAARG VERIFICATION
+PASSED. All331/331 unit tests freshly passed in each mode: Debug4min,
+ReleaseSafe6s and ReleaseFast5s. This includes the post-smoke copied-descriptor
+assertion and exhaustive allocating ownership/error cleanup. Formatting and all14
+independent generator checks passed. All24 combinations (three modes x all eight
+folding/stack-reuse/preserved-home sets) passed all21 existing native harnesses.
+
+/data/audit-interpreter-vaarg.py passed all74 exact native completion groups:
+66 appearing24 times and8 dual-link groups48 times. Evidence:
+/data/interpreter-vaarg-verification-counts.json. No native expected count,
+rejection, guard/fault or negative-control group changed. All85 protected fixture/
+harness/generator files from2aa982a are byte-identical, including all21 harnesses
+and14 generators. Native emitter, frontend, IR, liveness/interference, existing
+vaarg/variadic-function default-refusal tests and CI workflow are also byte-
+identical. Rewrite-only scope, credential patterns, whitespace and legacy ab50bae
+source/build/tools/tests isolation passed. New production logic is confined to
+the explicit option/dispatch and checked Space consumer; no native ABI change.
+
+The default remains refusal. Opt-in consumes only manually prepared synthetic
+descriptors; native/host va_lists, vastart, argument-tail construction, internal
+variadic calls and host/external/indirect dispatch remain unsupported. Per-region
+byte order, cursor-before-source effects, checked arithmetic, bounded access and
+owned lifecycle are explicit diagnostic-model boundaries, not full QBE/native
+invalid-domain semantics, complete ABI/backend parity or performance superiority.
+
+Publication is pending. Re-fetch/check remote ancestry before pushing only
+rewrite/zig-native. Source remains unchanged through whole exact-pushed-SHA CI,
+including post-job steps; no CI success for this milestone is claimed yet.

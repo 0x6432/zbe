@@ -11,8 +11,8 @@ phi inputs, call operands and terminators. Owner scope remains a caller invarian
 Bare symbols are deliberately long-only in this subset. To project low bits, first
 copy the symbol to a long temporary and use that temporary in a word context.
 Direct `$symbol` callees keep their existing meaning and known-signature checks;
-a long temporary containing a function address can be an indirect target. No
-ordinary scalar symbol-plus-offset literal, quoted-symbol support,
+a long temporary containing a function address can be an indirect target. Checked scalar symbol-plus-offset operands are described separately in
+SYMBOL-OFFSETS.md. No quoted-symbol support,
 implicit floating bit pattern, linker resolver or full ABI is added.
 Existing long arithmetic can form runtime byte offsets after taking an address.
 

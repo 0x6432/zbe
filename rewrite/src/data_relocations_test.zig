@@ -83,8 +83,8 @@ test "symbolic data syntax rejects narrow float quoted malformed and out-of-rang
             return error.ExpectedInvalidRelocation;
         } else |err| try testing.expectEqual(error.InvalidInput, err);
     }
-    // Ordinary scalar symbol+offset syntax is intentionally still unsupported.
-    try testing.expectError(error.InvalidInput, parse(testing.allocator, "function l $f() {\n@e\nret $target+1\n}"));
+    // Scalar displacements are checked i32, independently of data i64 addends.
+    try testing.expectError(error.InvalidInput, parse(testing.allocator, "function l $f() {\n@e\nret $target+2147483648\n}"));
 }
 
 test "symbolic data does not resolve host or synthetic globals and validation precedes execution" {

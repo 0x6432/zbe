@@ -221,7 +221,7 @@ fn step(remaining: *usize) error{StepLimitExceeded}!void {
 fn resolve(values: []const ?ir.Constant, operand: ir.Operand) error{ UninitializedValue, UnsupportedSymbolAddress }!ir.Constant {
     return switch (operand) {
         .constant => |constant| constant,
-        .symbol => error.UnsupportedSymbolAddress,
+        .symbol, .symbol_offset => error.UnsupportedSymbolAddress,
         .value => |value| values[@backingInt(value)] orelse error.UninitializedValue,
         .low_word => |value| if (values[@backingInt(value)]) |constant| .{ .word = @truncate(constant.long) } else error.UninitializedValue,
     };

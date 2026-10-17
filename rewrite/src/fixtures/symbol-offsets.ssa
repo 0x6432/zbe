@@ -1,0 +1,116 @@
+export data $offset_owned = align 32 { z 64 }
+export function l $offset_internal() {
+@e
+ret $offset_owned+17
+}
+export function l $offset_external() {
+@e
+ret $offset_external_bytes+63
+}
+export function l $offset_negative() {
+@e
+ret $offset_middle+-31
+}
+export function l $offset_zero() {
+@e
+ret $offset_external_bytes+0
+}
+export function l $offset_load() {
+@e
+%x =l loadub $offset_middle+-7
+ret %x
+}
+export function l $offset_store(w %value) {
+@e
+storeb %value, $offset_owned+19
+%x =l loadub $offset_owned+19
+ret %x
+}
+export function l $offset_slot() {
+@e
+storel $offset_middle+-9, $offset_slots+8
+%x =l loadl $offset_slots+8
+ret %x
+}
+export function l $offset_phi(w %take) {
+@e
+jnz %take, @left, @right
+@left
+jmp @join
+@right
+jmp @join
+@join
+%p =l phi @left $offset_owned+7, @right $offset_middle+-5
+%q =l phi @left $offset_middle+-5, @right $offset_owned+7
+%x =l loadub %p
+%y =l loadub %q
+%scaled =l mul %y, 257
+%r =l add %x, %scaled
+ret %r
+}
+export function l $offset_swap(w %n) {
+@e
+jmp @loop
+@loop
+%i =w phi @e %n, @body %next
+%p =l phi @e $offset_owned+11, @body %q
+%q =l phi @e $offset_middle+-11, @body %p
+jnz %i, @body, @done
+@body
+%next =w sub %i, 1
+jmp @loop
+@done
+%x =l loadub %p
+%y =l loadub %q
+%scaled =l mul %y, 257
+%r =l add %x, %scaled
+ret %r
+}
+export function l $offset_arguments() {
+@e
+%r =l call $offset_check_arguments(l $offset_owned+1, l $offset_middle+-2, l $offset_external_bytes+3, l $offset_slots+8, l $offset_owned+5, l $offset_middle+-6, l $offset_owned+7, l $offset_middle+-8, d d_1.5, s s_-0)
+ret %r
+}
+export function l $offset_indirect() {
+@e
+%target =l copy $offset_check_arguments+0
+%r =l call %target(l $offset_owned+1, l $offset_middle+-2, l $offset_external_bytes+3, l $offset_slots+8, l $offset_owned+5, l $offset_middle+-6, l $offset_owned+7, l $offset_middle+-8, d d_1.5, s s_-0)
+ret %r
+}
+export function $offset_blit() {
+@e
+blit $offset_middle+-16, $offset_owned+32, 16
+ret
+}
+export function w $offset_project() {
+@e
+%p =l copy $offset_middle+-13
+ret %p
+}
+export function w $offset_branch() {
+@e
+jnz $offset_owned+17, @yes, @no
+@yes
+ret 11
+@no
+ret 22
+}
+export function l $offset_difference() {
+@e
+%r =l sub $offset_middle+-31, $offset_external_bytes+0
+ret %r
+}
+export function l $offset_preserved() {
+@e
+%a =l copy $offset_owned+1
+%b =l copy $offset_middle+-2
+%c =l copy $offset_external_bytes+3
+%d =l copy $offset_slots+8
+%e =l copy $offset_owned+5
+%call =l call $offset_indirect()
+%x =l xor %a, %b
+%y =l xor %c, %d
+%z =l xor %x, %y
+%r =l xor %z, %e
+ret %r
+}

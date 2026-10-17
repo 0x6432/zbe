@@ -64,5 +64,5 @@ pub fn findFunction(module: *const Module, name: @import("symbols.zig").Id) ?*co
 }
 
 fn checkOperandSymbol(module: *const Module, operand: ir.Operand) Error!void {
-    if (operand == .symbol and module.symbols.get(operand.symbol) == null) return error.InvalidSymbol;
+    if (operand.referencedSymbol()) |symbol| if (module.symbols.get(symbol) == null) return error.InvalidSymbol;
 }

@@ -86,8 +86,9 @@ Bare unquoted `$symbol` scalar operands have long address type and lower to
 full-width RIP-relative `leaq`, never an implicit load or truncated immediate.
 Module validation checks operand symbol IDs and the emitter checks spellings,
 including phi/terminator/unreachable uses. Executable PIE/non-PIE linking is
-covered separately; GOT/shared-object interposition, TLS, symbol-offset literals,
-general relocation expressions and full PIC/ABI support are not added. Numeric/zero-fill
+covered separately; checked scalar i32 symbol offsets are described in
+SYMBOL-OFFSETS.md. GOT/shared-object interposition, TLS, general relocation
+expressions and full PIC/ABI support are not added. Numeric/zero-fill
 data definitions are implemented separately (DATA.md). Interpreters explicitly
 refuse reached symbol-address resolution. See SYMBOL-ADDRESSES.md. The tenth
 native harness adds independent linked object/function address, initialized
@@ -121,3 +122,8 @@ and symbolic objects stay in file-backed data. The fourteenth native harness
 independently checks bytes, writes, ELF section kinds and cap-sized sparse objects
 in PIE/non-PIE. No cross-object layout, interpreter-global or performance-parity
 promise is introduced (DATA-BSS.md).
+
+Checked i32 scalar symbol displacements use full-width RIP-relative LEA, under the
+existing combined symbol/displacement linker reach contract (SYMBOL-OFFSETS.md).
+No new scratch lifetime, interpreter resolver or broader PIC/code-model promise
+is implied.

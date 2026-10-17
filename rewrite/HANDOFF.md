@@ -1028,3 +1028,63 @@ Combined symbol/displacement reach remains an assembler/linker contract, not a
 promise every admitted offset links at every placement. Existing i64 data
 initializers stay unchanged. No interpreter symbol resolver, main merge or release
 tag is authorized or implied.
+
+## Checked scalar symbol-offset milestone (in progress)
+
+Added a distinct `Operand.symbol_offset` with module-owned symbol identity and a
+checked signed i32 addend. Bare symbol API and wider i64 data initializers remain
+unchanged. Ordinary scalar parsing is line-local and long-only; negative addends
+use `$symbol+-N`, direct `$callee+0(...)` remains unsupported, and an explicit long
+temporary is required for low-word use/indirect expression calls. Full-width LEA
+uses the existing scratch lifetime; combined symbol/displacement reach remains an
+assembler/linker small-code-model contract, not universal extreme-offset linkage.
+No interpreter symbol resolution, host-pointer conversion or Image resizing is
+introduced. See SYMBOL-OFFSETS.md.
+
+Module and emitter validation use an allocation-free symbol-reference accessor;
+production SSA uses remain non-values, while independent liveness/interference
+switches separately classify the new tag. Their existing oracle bundles now also
+include the new fixture. Existing generators and fixture/oracle bytes are
+unchanged. Only four now-valid ordinary-symbol-offset rejection cases (two unit,
+two native) were replaced with overflowing i32 offsets, preserving rejection
+counts/output protection. Data relocation i64 range/grammar is untouched.
+
+Focused Debug smoke passed **269/269** tests and built the executable. An added
+adversarial test initially used a nonexistent `.compare` tag; it was corrected to
+`.compare_integer` and extended with a long shift-value context before the passing
+run. Further exact diagnostic-span and valid manually built indirect-target
+assertions were added after that smoke and await full verification. Six new tests
+cover copied payloads, min/max boundaries, wrong classes/malformed input, hostile
+IDs/spellings, unknown folding, budgets/refusal/earlier writes and exhaustive
+allocation cleanup. Source was not frozen for these development smoke runs; only
+the forthcoming authoritative full run will verify the final current source.
+
+All eight-option native Debug smoke combinations passed the new harness and both
+affected existing symbol/relocation harnesses in `/data/check-native-offset.log`.
+New checks per combination: **1,456 results in each of non-PIE and high-address
+PIE**, two executable no-TEXTREL checks and32 rejection/output-preservation checks.
+The C expectations use valid array extents, a C-defined middle alias for negative
+offsets, all128 positive/middle-relative element addresses, memory/store-address
+survival, parallel phi/swap paths, GP/SSE/overflow arguments, captured indirect
+targets, blits, low words and all five preserved GP registers. CI adds the fifteenth
+native harness and retains fourteen independent generators. Full local matrix and
+exact-SHA CI are not yet claimed.
+
+### Scalar-offset authoritative local verification passed
+
+The serial CI-derived `/data/verify-symbol-offsets.sh` ended **SCALAR SYMBOL OFFSET
+VERIFICATION PASSED**, exit0 (`/data/verify-symbol-offsets.log/.exit`). Final source
+stayed frozen throughout. All three modes freshly passed **269/269** tests,
+including the final diagnostic-span and manually built indirect-target assertions.
+All **24** mode/option combinations passed **fifteen** native harnesses. Mechanical
+counts matched **53 distinct completion groups**:51 exactly24 times, plus the
+existing2,032 linked-symbol and new1,456 scalar-offset groups48 times each for two
+executable links. The new harness contributes2,912 linked defined results,
+2 no-TEXTREL checks and32 rejection/output-preservation checks per combination.
+All earlier result/fault/guard/negative-control/rejection groups remain intact.
+
+Formatting and all **fourteen** independent generators passed. All55 existing
+fixture/generator files were verified unchanged against `ce54115`; legacy isolation,
+whitespace, changed-path scope and credential scans passed. No main merge, release
+tag, interpreter global model or full backend/ABI/code-model parity is implied.
+Publication and exact code-SHA CI follow; local success is not CI success.

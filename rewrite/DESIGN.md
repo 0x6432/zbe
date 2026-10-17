@@ -33,3 +33,7 @@ This rewrite intentionally does not carry forward the old port's internal-global
 7. **Acceptance:** existing compatibility/behavior corpus, all-target assembly/debug comparisons where promised, diagnostics, fuzzing, mutation tests, bootstrap and performance checks. Audit remaining unsafe operations and document justified low-level boundaries.
 
 Do not replace the current backend or publish a release merely because the foundation tests pass. Each stage needs its own tested implementation and honest coverage record.
+
+Long scalar addresses have distinct bare-symbol and checked i32 symbol-offset
+operands, neither an SSA value nor a resolved numeric constant. Module ownership
+and bounded executable relocation semantics are specified in SYMBOL-OFFSETS.md.

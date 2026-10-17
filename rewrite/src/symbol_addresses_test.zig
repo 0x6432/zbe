@@ -90,7 +90,7 @@ test "symbol operands own module names keep long type and never invent SSA value
         "function w $f() {\n@e\nret $target\n}",
         "function s $f() {\n@e\nret $target\n}",
         "function l $f() {\n@e\nret $\"quoted\"\n}",
-        "function l $f() {\n@e\nret $target+8\n}",
+        "function l $f() {\n@e\nret $target+2147483648\n}",
     }) |text| {
         if (parse(testing.allocator, text)) |*unexpected| {
             var owned = unexpected.*;

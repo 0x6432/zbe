@@ -33,7 +33,7 @@ pub fn foldIntegerConstants(allocator: std.mem.Allocator, function: *ir.Function
 fn known(facts: []const ?ir.Constant, operand: ir.Operand) ?ir.Constant {
     return switch (operand) {
         .constant => |c| c,
-        .symbol => null,
+        .symbol, .symbol_offset => null,
         .value => |v| facts[@backingInt(v)],
         .low_word => |v| if (facts[@backingInt(v)]) |constant| .{ .word = @truncate(constant.long) } else null,
     };

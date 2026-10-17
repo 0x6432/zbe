@@ -66,4 +66,5 @@ jobs:
             python3 tools/native_relocation_check.py $flags
             python3 tools/native_string_check.py $flags
             python3 tools/native_bss_check.py $flags
+          python3 tools/native_offset_check.py $flags
           done

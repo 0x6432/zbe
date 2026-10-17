@@ -26,8 +26,8 @@ accepted. Newlines/comments are permitted around the explicit plus and signed
 integer. A bare minus is not an offset operator: `$symbol-8` tokenizes as two
 long-group items (`$symbol` and numeric `-8`), exactly like `$symbol -8`.
 Use `$symbol+-8` to request a negative addend. A separated lone `-` is invalid.
-Ordinary scalar `$symbol+offset` operands remain unsupported; they still require
-explicit runtime long arithmetic.
+Ordinary scalar `$symbol+offset` operands have a separate checked **i32** addend
+and line-local grammar (SYMBOL-OFFSETS.md); these data addends remain i64.
 
 Byte/half/word/single/double/zero symbolic initializers, quoted names,
 symbol differences, TLS/extern modifiers, GOT/section/common policy and relocation

@@ -130,7 +130,7 @@ int main(int argc,char **argv) {
             'data $x = { l $target+18446744073709551616 }','data $x = { l $target+d_1 }',
             'data $x = { l $target+$other }','data $x = { l $target - 8 }','data $x = { l $target++8 }',
             'data $x = { l $target+ }','data $x = { l $target+1+2 }',
-            'function l $f() {\n@e\nret $target+1\n}',
+            'function l $f() {\n@e\nret $target+2147483648\n}',
             'data $x = { l extern $target }','data $x = { l $target+nan }',
         ]
         assert len(bad)==20

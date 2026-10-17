@@ -43,6 +43,10 @@ pub const Constant = union(enum) {
     }
 };
 
+/// Compact executable address expression; symbol ownership remains module-scoped.
+/// Combined symbol/displacement reach is an assembler/linker contract.
+pub const SymbolOffset = struct { symbol: SymbolId, addend: i32 };
+
 pub const Operand = union(enum) {
     value: ValueId,
     /// Explicit low-32-bit projection of a long value, not another definition.
@@ -50,11 +54,20 @@ pub const Operand = union(enum) {
     constant: Constant,
     /// Module-pool symbol address, always long; not a function-local value.
     symbol: SymbolId,
+    symbol_offset: SymbolOffset,
 
     pub fn referencedValue(self: Operand) ?ValueId {
         return switch (self) {
             .value, .low_word => |value| value,
-            .constant, .symbol => null,
+            .constant, .symbol, .symbol_offset => null,
+        };
+    }
+
+    pub fn referencedSymbol(self: Operand) ?SymbolId {
+        return switch (self) {
+            .symbol => |symbol| symbol,
+            .symbol_offset => |address| address.symbol,
+            .value, .low_word, .constant => null,
         };
     }
 };
@@ -572,7 +585,7 @@ pub const Function = struct {
     pub fn operandType(self: *const Function, operand: Operand) ValidationError!ScalarType {
         return switch (operand) {
             .constant => |constant| constant.scalarType(),
-            .symbol => .long,
+            .symbol, .symbol_offset => .long,
             .low_word => |id| if (@backingInt(id) >= self.values.items.len)
                 error.InvalidValue
             else if (self.values.items[@backingInt(id)].scalar_type != .long)

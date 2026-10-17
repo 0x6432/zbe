@@ -61,7 +61,7 @@ pub fn emitWithOptions(allocator: std.mem.Allocator, module: *const Module, opti
 }
 
 fn validateOperandSymbol(module: *const Module, operand: ir.Operand) Error!void {
-    if (operand == .symbol and !validSymbol(module.symbols.get(operand.symbol).?)) return error.InvalidSymbol;
+    if (operand.referencedSymbol()) |symbol| if (!validSymbol(module.symbols.get(symbol).?)) return error.InvalidSymbol;
 }
 
 const Frame = struct {
@@ -552,6 +552,14 @@ const Emitter = struct {
                 .preserved => |preserved| try self.print("\tmov{c} {s}, {s}\n", .{ suffix(ty), preserved.name(ty), target }),
             },
             .symbol => |symbol| try self.print("\tleaq {s}(%rip), {s}\n", .{ self.module.symbols.get(symbol).?, target }),
+            .symbol_offset => |address| {
+                const name = self.module.symbols.get(address.symbol).?;
+                // Print negative addends directly: negating minInt(i32) overflows.
+                if (address.addend < 0)
+                    try self.print("\tleaq {s}{d}(%rip), {s}\n", .{ name, address.addend, target })
+                else
+                    try self.print("\tleaq {s}+{d}(%rip), {s}\n", .{ name, address.addend, target });
+            },
             .constant => |constant| switch (constant) {
                 .word => |bits| try self.print("\tmovl $0x{x}, {s}\n", .{ bits, target }),
                 .long => |bits| try self.print("\tmovabsq $0x{x}, {s}\n", .{ bits, target }),

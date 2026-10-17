@@ -34,7 +34,8 @@ This is a focused representation/maintenance improvement, not a new optimizer, p
 `Operand.low_word` is a copied long-source projection, not a new SSA definition. `Operand.referencedValue()` returns its original source ID (or the ordinary value ID; constants return null). Production SSA/liveness/interference include that source, including phi-edge uses; independent oracles retain their own operand switches. A fourth iterator test checks projection/source identity after overwriting the originating instruction. See LOW-WORD.md.
 
 
-`Operand.symbol` is a copied module-pool symbol address with long type. It is a
+`Operand.symbol` and `Operand.symbol_offset` are copied module-pool symbol addresses
+with long type (the latter includes a checked i32 addend; SYMBOL-OFFSETS.md). It is a
 scalar operand, not a function-local value: referencedValue returns null and
 production/independent analyses do not invent a live SSA identity for it. Direct
 call-target IDs remain outside the scalar-use iterator; scalar symbol arguments

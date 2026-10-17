@@ -464,7 +464,14 @@ const Parser = struct {
                 else
                     .{ .double_bits = @bitCast(parseFloating(f64, spelling) catch return self.fail(.invalid_float, token)) } };
             },
-            .global => .{ .symbol = try self.module.symbols.intern(try self.globalName(token)) },
+            .global => symbolic: {
+                const symbol = try self.module.symbols.intern(try self.globalName(token));
+                if (self.peek().kind != .plus) break :symbolic .{ .symbol = symbol };
+                _ = self.advance();
+                const offset = try self.expect(.integer);
+                const addend = std.fmt.parseInt(i32, self.tokenText(offset), 10) catch return self.fail(.invalid_integer, offset);
+                break :symbolic .{ .symbol_offset = .{ .symbol = symbol, .addend = addend } };
+            },
             .type_name, .string => return self.fail(.unsupported_construct, token),
             else => return self.fail(.unexpected_token, token),
         };

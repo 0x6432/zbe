@@ -1088,3 +1088,21 @@ fixture/generator files were verified unchanged against `ce54115`; legacy isolat
 whitespace, changed-path scope and credential scans passed. No main merge, release
 tag, interpreter global model or full backend/ABI/code-model parity is implied.
 Publication and exact code-SHA CI follow; local success is not CI success.
+
+### Scalar-offset exact-SHA publication CI confirmed
+
+Code `f2b58a47125e2ae78a1de039fa05ec273cb9d711` passed Debug, ReleaseSafe and
+ReleaseFast on the first attempt, run
+https://github.com/0x6432/zbe/actions/runs/38985515529 . Exact head SHA and all three
+completed successful jobs were checked. Evidence is saved in
+`/data/symbol-offsets-ci-result.json` and `/data/watch-symbol-offsets-ci.log`.
+Source stayed frozen throughout full local verification and publication CI.
+This documentation-only record skips redundant CI and does not verify later work.
+
+Next reviewed bounded proposal: opt-in interpreter-owned numeric/zero/string
+module globals, separate from caller Image and invocation stack objects, with
+checked disjoint synthetic reservations and eager explicit refusal of symbolic
+data initializers. Default/standalone symbol refusal and all host/external/indirect
+call boundaries remain. The proposal is in
+`/data/zbe-interpreter-globals-followup-design.txt`; no implementation or result is
+claimed yet. No main merge or release tag occurred.

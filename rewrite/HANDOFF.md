@@ -2312,3 +2312,21 @@ claimed yet. Re-fetch/check ancestry before pushing only rewrite/zig-native.
 Keep source frozen through whole CI including post-job steps. Sandbox follow-up
 /data/zbe-internal-variadic-followup-design.txt is only a proposal, not selected
 or implemented at this checkpoint.
+
+### Root-only synthetic vastart: published exact-SHA CI confirmed green
+
+Code799025d8eb83354f68b2cf76c6434c17d16501e4 was pushed only to rewrite/zig-native
+after actual-origin fetch/ancestry checks. Whole exact-SHA workflow
+https://github.com/0x6432/zbe/actions/runs/39063204372 completed success on
+attempt1, including all post-job steps, on2026-10-17UTC:
+- ReleaseFast19:36:41--19:46:11.
+- ReleaseSafe19:36:41--19:46:09.
+- Debug19:36:42--19:51:58.
+No source change, rerun, cancellation or timeout adjustment was needed.
+/data/watch-interpreter-vastart-ci.log ends EXACT-SHA INTERPRETER VASTART CI
+CONFIRMED GREEN; /data/interpreter-vastart-ci-result.json records the exact
+workflow and all three whole jobs. Source remained frozen through completion.
+The340/340-per-mode,24-combination,21-harness,14-generator local results above
+are the verified baseline. This documentation-only checkpoint skips redundant CI.
+Internal variadic calls still remain unsupported; the sandbox follow-up proposal
+has not been implemented or verified at this checkpoint.

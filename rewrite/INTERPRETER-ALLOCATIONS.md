@@ -68,3 +68,10 @@ configuration boundaries, initialization and no-partial-mutation behavior,
 retained Image writes, folding and exhaustive injected allocation cleanup.
 Actual verification results are recorded in HANDOFF.md, not assumed here. The
 existing native emitter, nine native harnesses and twelve generators are unchanged.
+
+## Explicit module-global evaluation
+
+Opt-in initialized numeric/zero/string globals use a separate owned synthetic
+model (INTERPRETER-GLOBALS.md). Defaults still refuse symbols; symbolic initializers
+and function/external addresses remain unsupported. Image ownership and native
+linker/stack behavior do not change.

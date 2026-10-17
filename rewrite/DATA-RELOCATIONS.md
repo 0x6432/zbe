@@ -54,7 +54,7 @@ Object size/binding metadata and writable-table behavior remain explicit.
 
 ## Interpreter and verification boundaries
 
-Definitions and symbolic initializers do not synthesize interpreter globals.
+Definitions and symbolic initializers do not implicitly synthesize interpreter globals.
 Reached ordinary symbol-address resolution is still `UnsupportedSymbolAddress`,
 including stack/Image-enabled evaluation. Module validation still runs first, so
 invalid unused initializer IDs reject even otherwise safe entry paths. There is
@@ -77,3 +77,10 @@ links and **40** invalid-input/output-preservation cases. Only now-valid long-sy
 negatives in existing tests/harnesses are replaced by unsupported narrow forms;
 counts and output-preservation oracles remain intact. Actual matrix/CI outcomes
 are recorded separately in HANDOFF.md.
+
+## Explicit module-global evaluation
+
+Opt-in initialized numeric/zero/string globals use a separate owned synthetic
+model (INTERPRETER-GLOBALS.md). Defaults still refuse symbols; symbolic initializers
+and function/external addresses remain unsupported. Image ownership and native
+linker/stack behavior do not change.

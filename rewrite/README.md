@@ -48,3 +48,8 @@ See [DATA-BSS.md](DATA-BSS.md) for exact zero-data lowering, [DATA-STRINGS.md](D
 
 Checked long scalar symbol+offset operands and their deliberately bounded
 RIP-relative executable contract are described in SYMBOL-OFFSETS.md.
+
+Opt-in interpreter-owned numeric/zero/string module globals are described in
+INTERPRETER-GLOBALS.md. Defaults still refuse symbol resolution; the separate
+synthetic model is bounded and does not implement symbolic data initializers,
+function/extern address lookup or native host calls.

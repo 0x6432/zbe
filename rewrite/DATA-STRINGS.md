@@ -52,7 +52,7 @@ alignment, exact ELF sizes
 and PIE/non-PIE executable contracts remain unchanged. This does not implement a
 sandbox, memory permissions model, full data language or shared-object policy.
 
-Definitions do not create interpreter globals: a reached symbol still returns
+Definitions do not create implicit interpreter globals: by default a reached symbol returns
 `UnsupportedSymbolAddress`, including Image/stack-enabled evaluation. No host
 pointer conversion, Image initialization/growth or native fallback is added.
 
@@ -77,3 +77,10 @@ injection exclusions, **2** data-only links and **48** rejection/output-preserva
 cases. Only obsolete b-string negatives in existing tests/harnesses were changed
 to unsupported h-string forms; their counts/assertions remain intact. Actual
 full matrix/CI results are recorded in HANDOFF.md, not assumed here.
+
+## Explicit module-global evaluation
+
+Opt-in initialized numeric/zero/string globals use a separate owned synthetic
+model (INTERPRETER-GLOBALS.md). Defaults still refuse symbols; symbolic initializers
+and function/external addresses remain unsupported. Image ownership and native
+linker/stack behavior do not change.

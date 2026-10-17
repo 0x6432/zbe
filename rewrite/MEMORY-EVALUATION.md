@@ -43,3 +43,10 @@ Six new tests cover construction/overflow/null/empty/last-u64 boundaries, class 
 The new independently generated `src/fixtures/memory-oracle.tsv` has **1,472 Python byte-decoding/encoding cases**: 17 load opcode/result variants × 32 bit patterns × two byte orders (1,088), plus six store variants × 32 patterns × two orders (384). Every row runs at eight offsets through both the image API and parsed-IR standalone evaluation; store checks compare complete sentinel images. Expected results come from Python bytes/integer widths, not Zig's implementation or the native compiler. Cases include negative-zero, high-bit extension boundaries and quiet/signaling NaN payloads. `tools/generate_memory_oracle.py --check` verifies reproducibility and is included in CI alongside the eight existing generators.
 
 The separate 55,198-case native memory harness remains unchanged and derives its own expectations. Neither corpus alone proves full QBE semantics, arbitrary memory safety or backend parity.
+
+## Explicit module-global evaluation
+
+Opt-in initialized numeric/zero/string globals use a separate owned synthetic
+model (INTERPRETER-GLOBALS.md). Defaults still refuse symbols; symbolic initializers
+and function/external addresses remain unsupported. Image ownership and native
+linker/stack behavior do not change.

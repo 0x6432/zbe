@@ -42,6 +42,7 @@ test {
     _ = @import("data_relocations_test.zig");
     _ = @import("data_strings_test.zig");
     _ = @import("data_bss_test.zig");
+    _ = @import("interpreter_globals_test.zig");
     _ = @import("amd64.zig");
     _ = @import("abi_amd64.zig");
     _ = @import("interpreter.zig");

@@ -5,12 +5,15 @@ const semantics = @import("semantics.zig");
 const memory = @import("memory.zig");
 const evaluation_memory = @import("evaluation_memory.zig");
 pub const StackOptions = evaluation_memory.StackOptions;
+pub const GlobalOptions = evaluation_memory.GlobalOptions;
 const module_validation = @import("module_validation.zig");
 const Module = @import("module.zig").Module;
 const FunctionId = @import("module.zig").FunctionId;
 
 pub const Options = struct {
     max_steps: usize = 100_000,
+    /// Deep-copied initialized numeric/zero/string data; evaluateModule only.
+    global_memory: ?GlobalOptions = null,
     /// Owned per evaluation; synthetic objects only, never host addresses.
     stack_memory: ?StackOptions = null,
     /// Borrowed for this invocation and all child frames; no host address space.
@@ -94,7 +97,7 @@ fn appendFrame(allocator: std.mem.Allocator, frames: *std.ArrayList(Frame), func
 
 fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *const ir.Function, arguments: []const ir.Constant, options: Options) Error!?ir.Constant {
     if (options.max_call_depth == 0) return error.CallDepthLimitExceeded;
-    var space = try evaluation_memory.Space.init(allocator, options.memory_image, options.stack_memory);
+    var space = try evaluation_memory.Space.initForModule(allocator, options.memory_image, options.stack_memory, module, options.global_memory);
     defer space.deinit();
     var frames: std.ArrayList(Frame) = .empty;
     defer {
@@ -116,7 +119,7 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
                     for (phi.inputs) |input| if (input.predecessor == predecessor) break :incoming input.value;
                     return error.UninitializedValue;
                 };
-                frame.phi_values[index] = try resolve(frame.values, incoming);
+                frame.phi_values[index] = try resolve(&space, frame.values, incoming);
             }
             for (block.phis.items, frame.phi_values[0..block.phis.items.len]) |phi, value| frame.values[@backingInt(phi.result)] = value;
             frame.entered = true;
@@ -127,25 +130,25 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
             frame.next_instruction += 1;
             switch (instruction) {
                 .allocate => |allocation| {
-                    const size = (try resolve(frame.values, allocation.size)).long;
+                    const size = (try resolve(&space, frame.values, allocation.size)).long;
                     frame.values[@backingInt(allocation.result)] = .{ .long = try space.allocate(size) };
                     continue;
                 },
                 .blit => |blit| {
-                    const src = (try resolve(frame.values, blit.source)).long;
-                    const dst = (try resolve(frame.values, blit.destination)).long;
+                    const src = (try resolve(&space, frame.values, blit.source)).long;
+                    const dst = (try resolve(&space, frame.values, blit.destination)).long;
                     try space.copy(src, dst, blit.byte_count);
                     continue;
                 },
                 .load => |read| {
-                    const address = (try resolve(frame.values, read.address)).long;
+                    const address = (try resolve(&space, frame.values, read.address)).long;
                     const ty = frame.function.values.items[@backingInt(read.result)].scalar_type;
                     frame.values[@backingInt(read.result)] = try space.read(read.kind, ty, address);
                     continue;
                 },
                 .store => |store| {
-                    const address = (try resolve(frame.values, store.address)).long;
-                    try space.write(store.kind, try resolve(frame.values, store.value), address);
+                    const address = (try resolve(&space, frame.values, store.address)).long;
+                    try space.write(store.kind, try resolve(&space, frame.values, store.value), address);
                     continue;
                 },
                 else => {},
@@ -161,13 +164,13 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
                 if (frames.items.len >= options.max_call_depth) return error.CallDepthLimitExceeded;
                 const actual = try allocator.alloc(ir.Constant, call.arguments.len);
                 defer allocator.free(actual);
-                for (call.arguments, actual) |argument, *value| value.* = try resolve(frame.values, argument.operand);
+                for (call.arguments, actual) |argument, *value| value.* = try resolve(&space, frame.values, argument.operand);
                 const object_mark = space.mark();
                 try appendFrame(allocator, &frames, callee, actual, call.result);
                 frames.items[frames.items.len - 1].object_mark = object_mark;
                 continue; // The old frame pointer may now be invalid.
             }
-            frame.values[@backingInt(instruction.result().?)] = try scalarInstruction(frame.function, frame.values, instruction);
+            frame.values[@backingInt(instruction.result().?)] = try scalarInstruction(&space, frame.function, frame.values, instruction);
             continue;
         }
         try step(&remaining);
@@ -175,11 +178,11 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
             .halt => return error.Halted,
             .jump => |target| target,
             .branch => |branch| branch_target: {
-                const condition = try resolve(frame.values, branch.condition);
+                const condition = try resolve(&space, frame.values, branch.condition);
                 break :branch_target if (try condition.branchTaken()) branch.taken else branch.not_taken;
             },
             .return_value => |operand| {
-                const value = if (operand) |v| try resolve(frame.values, v) else null;
+                const value = if (operand) |v| try resolve(&space, frame.values, v) else null;
                 var completed = frames.pop().?;
                 const destination = completed.return_destination;
                 space.releaseTo(completed.object_mark);
@@ -198,18 +201,18 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
     }
 }
 
-fn scalarInstruction(function: *const ir.Function, values: []const ?ir.Constant, instruction: ir.Instruction) Error!ir.Constant {
+fn scalarInstruction(space: *const evaluation_memory.Space, function: *const ir.Function, values: []const ?ir.Constant, instruction: ir.Instruction) Error!ir.Constant {
     return switch (instruction) {
         .allocate => error.UnsupportedAllocation,
         .load, .store, .blit => error.UnsupportedMemory,
         .call => error.UnsupportedCall,
-        .copy => |copy| try resolve(values, copy.operand),
-        .convert => |c| try semantics.convertedValue(c.op, try resolve(values, c.operand), function.values.items[@backingInt(c.result)].scalar_type),
-        .unary => |unary| semantics.unaryValue(unary.op, try resolve(values, unary.operand), function.values.items[@backingInt(unary.result)].scalar_type),
-        .shift => |shift| semantics.shiftedValue(shift.op, try resolve(values, shift.value), (try resolve(values, shift.amount)).word),
-        .compare_float => |comparison| semantics.floatComparisonValue(comparison.predicate, try resolve(values, comparison.lhs), try resolve(values, comparison.rhs), function.values.items[@backingInt(comparison.result)].scalar_type),
-        .compare_integer => |comparison| semantics.comparisonValue(comparison.predicate, try resolve(values, comparison.lhs), try resolve(values, comparison.rhs), function.values.items[@backingInt(comparison.result)].scalar_type),
-        .binary => |binary| try semantics.binaryValue(binary.op, try resolve(values, binary.lhs), try resolve(values, binary.rhs)),
+        .copy => |copy| try resolve(space, values, copy.operand),
+        .convert => |c| try semantics.convertedValue(c.op, try resolve(space, values, c.operand), function.values.items[@backingInt(c.result)].scalar_type),
+        .unary => |unary| semantics.unaryValue(unary.op, try resolve(space, values, unary.operand), function.values.items[@backingInt(unary.result)].scalar_type),
+        .shift => |shift| semantics.shiftedValue(shift.op, try resolve(space, values, shift.value), (try resolve(space, values, shift.amount)).word),
+        .compare_float => |comparison| semantics.floatComparisonValue(comparison.predicate, try resolve(space, values, comparison.lhs), try resolve(space, values, comparison.rhs), function.values.items[@backingInt(comparison.result)].scalar_type),
+        .compare_integer => |comparison| semantics.comparisonValue(comparison.predicate, try resolve(space, values, comparison.lhs), try resolve(space, values, comparison.rhs), function.values.items[@backingInt(comparison.result)].scalar_type),
+        .binary => |binary| try semantics.binaryValue(binary.op, try resolve(space, values, binary.lhs), try resolve(space, values, binary.rhs)),
     };
 }
 
@@ -218,10 +221,11 @@ fn step(remaining: *usize) error{StepLimitExceeded}!void {
     remaining.* -= 1;
 }
 
-fn resolve(values: []const ?ir.Constant, operand: ir.Operand) error{ UninitializedValue, UnsupportedSymbolAddress }!ir.Constant {
+fn resolve(space: *const evaluation_memory.Space, values: []const ?ir.Constant, operand: ir.Operand) Error!ir.Constant {
     return switch (operand) {
         .constant => |constant| constant,
-        .symbol, .symbol_offset => error.UnsupportedSymbolAddress,
+        .symbol => |symbol| .{ .long = try space.symbolAddress(symbol, 0) },
+        .symbol_offset => |address| .{ .long = try space.symbolAddress(address.symbol, address.addend) },
         .value => |value| values[@backingInt(value)] orelse error.UninitializedValue,
         .low_word => |value| if (values[@backingInt(value)]) |constant| .{ .word = @truncate(constant.long) } else error.UninitializedValue,
     };

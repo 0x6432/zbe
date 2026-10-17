@@ -72,3 +72,8 @@ Parsing checks syntax and the current IR's structural/type invariants. It does *
 The new API is not yet a drop-in QBE parser: strict malformed-number rejection is intentional and does not emulate legacy scanf prefix recovery; diagnostic codes are not a promise of the old CLI's exact messages. The legacy CLI and compatibility modes are unchanged.
 
 `src/fixtures/constant-jump.ssa` is copied unchanged from the existing `tests/upstream-bug-jnz-constant.ssa` regression. Tests parse all four functions independently and inspect typed constants/targets; this is parsing coverage, **not** proof of compiled execution or optimized branch folding.
+
+Opt-in interpreter-owned numeric/zero/string module globals are described in
+INTERPRETER-GLOBALS.md. Defaults still refuse symbol resolution; the separate
+synthetic model is bounded and does not implement symbolic data initializers,
+function/extern address lookup or native host calls.

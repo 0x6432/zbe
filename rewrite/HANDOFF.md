@@ -1106,3 +1106,60 @@ data initializers. Default/standalone symbol refusal and all host/external/indir
 call boundaries remain. The proposal is in
 `/data/zbe-interpreter-globals-followup-design.txt`; no implementation or result is
 claimed yet. No main merge or release tag occurred.
+
+## Opt-in initialized interpreter globals (in progress)
+
+Added separate evaluation-owned numeric/raw-floating-bit, zero-fill and copied
+string globals behind null-default `Options.global_memory`. Default symbol refusal
+is unchanged; standalone evaluation explicitly rejects this module-only option.
+The new global owner validates complete synthetic reservation disjointness from
+Image and stack, preflights data sizes/layout/unsupported symbolic initializers
+before allocation, packs bytes in the selected endian order, and reserves exact
+object spans plus alignment gaps/16-byte guards. Guard charging includes empty
+objects. It neither borrows module bytes for mutation nor resizes caller Image.
+No host/linker function/external resolution or indirect execution is introduced.
+
+Bare/i32-offset data operands resolve through explicit memory context, not global
+state; checked u64 arithmetic is distinct from whole-object access validity.
+Global lifetime spans every invocation and is independent of stack object marks;
+root return/error frees it and each new evaluation resets from module data.
+Image writes before later errors persist. Eager opted-in configuration/initializer
+errors precede execution/steps, explicitly documented in INTERPRETER-GLOBALS.md;
+module validation, depth/range, argument and call-dispatch ordering are specified.
+Symbolic data initializers remain an explicit eager unsupported boundary.
+
+Focused Debug smoke passed **277/277** tests and built the executable in
+`/data/check-interpreter-globals-debug.log`. Initial new tests used transposed
+unsigned load-kind names; they were corrected before the passing run. Failure-
+injected evaluation error paths explicitly propagate allocation failures instead
+of masking them behind expected-error assertions. Eight added tests reuse the
+unchanged1,896-byte numeric and358-byte string Python oracles, explicit raw-bit
+big/little-endian packed expectations, ownership/reset/guards/range/cap/overlap/
+zero cases, cross-region blit atomicity, child-frame sharing and earlier writes.
+
+After smoke, further phi/branch/call-argument, two-child visibility, folding,
+empty-object distinctness, empty reservations and reached address-overflow/budget
+assertions were added. The new fixture joins independent analysis-oracle bundles.
+Those final assertions await authoritative full verification; smoke is not claimed
+for source changed after it. Native lowering, existing generators/fixtures/oracles
+and all fifteen native harnesses are unchanged. Full matrix and exact-SHA CI are
+not yet claimed; no main merge, release tag or full global/relocation/ABI parity.
+
+### Initialized interpreter globals authoritative local verification passed
+
+The CI-derived serial `/data/verify-interpreter-globals.sh` completed **INTERPRETER
+GLOBAL VERIFICATION PASSED**, exit0, in `/data/verify-interpreter-globals.log/.exit`.
+Source stayed frozen throughout. Final source freshly passed **277/277** tests in
+each of Debug, ReleaseSafe and ReleaseFast, including all post-smoke assertions.
+All **24** mode/option combinations passed all **fifteen** native harnesses.
+Mechanical counts matched **53 distinct completion groups**:51 exactly24 times,
+with existing2,032 linked-symbol and1,456 scalar-offset groups48 times each for
+two executable links. No old result/fault/guard/control/rejection group was removed.
+
+Formatting/all **fourteen** independent generator checks passed. All56 prior
+fixture/generator files, every native harness and the CI workflow were verified
+unchanged against `8a0688b`. Legacy isolation, whitespace, scope and credential
+scans passed. This is opt-in initialized numeric/zero/string simulation, not
+symbolic relocation/function-pointer support, persistent module state, native
+address safety, full ABI/backend parity or performance superiority. Publication
+and exact code-SHA CI follow; local success is not assumed to imply CI success.

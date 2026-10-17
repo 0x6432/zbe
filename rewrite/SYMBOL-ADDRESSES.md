@@ -42,7 +42,7 @@ still require valid extent/lifetime/permissions and are not sandboxed.
 
 ## Interpreter boundary
 
-Resolving a reached symbol address returns `UnsupportedSymbolAddress`, including
+By default, resolving a reached symbol address returns `UnsupportedSymbolAddress`, including
 with Image or stack_memory enabled. No host lookup, host-pointer cast, fabricated
 synthetic address or Image resizing occurs. Unreached symbol operands do not fail
 otherwise evaluable paths. Every instruction/phi/terminator first consumes its
@@ -55,3 +55,10 @@ Actual verification results are recorded in HANDOFF.md. Native regressions compa
 addresses against independently linked C objects/functions under PIE/high-address
 and non-PIE conditions, plus initialized byte/ABI/phi checks. Existing generators
 and correctness fixtures remain unchanged.
+
+## Explicit module-global evaluation
+
+Opt-in initialized numeric/zero/string globals use a separate owned synthetic
+model (INTERPRETER-GLOBALS.md). Defaults still refuse symbols; symbolic initializers
+and function/external addresses remain unsupported. Image ownership and native
+linker/stack behavior do not change.

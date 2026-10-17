@@ -100,3 +100,10 @@ data-only executable links and **48** rejection/output-preservation cases. Exist
 symbol rejection counts remain unchanged: only the now-valid numeric-data negative
 was replaced by a still-unsupported symbolic-relocation initializer. Actual full
 matrix/CI results are recorded in HANDOFF.md rather than assumed here.
+
+## Explicit module-global evaluation
+
+Opt-in initialized numeric/zero/string globals use a separate owned synthetic
+model (INTERPRETER-GLOBALS.md). Defaults still refuse symbols; symbolic initializers
+and function/external addresses remain unsupported. Image ownership and native
+linker/stack behavior do not change.

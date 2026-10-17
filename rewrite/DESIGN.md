@@ -37,3 +37,8 @@ Do not replace the current backend or publish a release merely because the found
 Long scalar addresses have distinct bare-symbol and checked i32 symbol-offset
 operands, neither an SSA value nor a resolved numeric constant. Module ownership
 and bounded executable relocation semantics are specified in SYMBOL-OFFSETS.md.
+
+Opt-in interpreter-owned numeric/zero/string module globals are described in
+INTERPRETER-GLOBALS.md. Defaults still refuse symbol resolution; the separate
+synthetic model is bounded and does not implement symbolic data initializers,
+function/extern address lookup or native host calls.

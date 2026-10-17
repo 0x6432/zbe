@@ -1,0 +1,73 @@
+data $global_counter = align 64 { l 7 }
+data $global_destination = align 16 { z 32 }
+data $global_message = { b "ABC\000xyz" }
+data $global_empty = align 64 {}
+function l $global_run(l %image) {
+@e
+%a =l call $global_child(l 5)
+%b =l call $global_child(l 0)
+%own =l alloc16 8
+blit $global_counter, %own, 8
+blit %own, $global_destination+8, 8
+blit $global_destination+8, %image, 8
+%x =l loadl $global_counter
+%r =l add %x, %a
+ret %r
+}
+function l $global_child(l %n) {
+@e
+%own =l alloc4 8
+storel 88, %own
+%old =l loadl $global_counter
+%next =l add %old, %n
+storel %next, $global_counter
+ret %next
+}
+function l $global_byte() {
+@e
+%x =l loadub $global_message+6
+ret %x
+}
+function $global_error(l %image) {
+@e
+storel 99, %image
+storel 77, $global_counter
+call $external()
+ret
+}
+function $global_bounds(l %image) {
+@e
+storel 55, %image
+blit $global_counter+1, %image, 8
+ret
+}
+function l $global_phi(w %take) {
+@e
+jnz %take, @left, @right
+@left
+jmp @join
+@right
+jmp @join
+@join
+%p =l phi @left $global_counter+0, @right $global_message+1
+%x =l loadub %p
+ret %x
+}
+function w $global_branch() {
+@e
+jnz $global_counter+0, @yes, @no
+@yes
+ret 1
+@no
+ret 2
+}
+function l $global_argument() {
+@e
+%r =l call $global_read_pointer(l $global_message+1)
+ret %r
+}
+function l $global_read_pointer(l %pointer) {
+@e
+%x =l loadub %pointer
+ret %x
+}

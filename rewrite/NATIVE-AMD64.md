@@ -89,8 +89,9 @@ including phi/terminator/unreachable uses. Executable PIE/non-PIE linking is
 covered separately; checked scalar i32 symbol offsets are described in
 SYMBOL-OFFSETS.md. GOT/shared-object interposition, TLS, general relocation
 expressions and full PIC/ABI support are not added. Numeric/zero-fill
-data definitions are implemented separately (DATA.md). Interpreters explicitly
-refuse reached symbol-address resolution. See SYMBOL-ADDRESSES.md. The tenth
+data definitions are implemented separately (DATA.md). By default, interpreters explicitly
+refuse reached symbol-address resolution; opt-in initialized synthetic data globals
+are separate (INTERPRETER-GLOBALS.md). See SYMBOL-ADDRESSES.md. The tenth
 native harness adds independent linked object/function address, initialized
 memory, phi, mixed call and preservation checks in both executable link modes.
 

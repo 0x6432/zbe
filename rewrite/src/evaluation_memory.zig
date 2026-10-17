@@ -2,12 +2,14 @@
 const std = @import("std");
 const ir = @import("ir.zig");
 const memory = @import("memory.zig");
+const global_memory = @import("global_memory.zig");
+pub const GlobalOptions = global_memory.Options;
 pub const StackOptions = struct {
     base: u64 = 0x100000000,
     max_bytes: usize = 1024 * 1024,
     endian: std.builtin.Endian = .little,
 };
-pub const Error = memory.Error || std.mem.Allocator.Error || error{
+pub const Error = memory.Error || global_memory.Error || std.mem.Allocator.Error || error{
     InvalidStackRange,
     AllocationSizeOverflow,
     StackLimitExceeded,
@@ -47,6 +49,7 @@ pub const Space = struct {
     allocator: std.mem.Allocator,
     image: ?*memory.Image,
     stack: ?StackOptions,
+    globals: ?global_memory.Space = null,
     used: usize = 0,
     objects: std.ArrayList(Object) = .empty,
 
@@ -65,7 +68,37 @@ pub const Space = struct {
         return .{ .allocator = allocator, .image = image, .stack = stack };
     }
 
+    pub fn initForModule(allocator: std.mem.Allocator, image: ?*memory.Image, stack: ?StackOptions, module: ?*const @import("module.zig").Module, globals: ?GlobalOptions) Error!Space {
+        var space = try init(allocator, image, stack);
+        errdefer space.deinit();
+        if (globals) |options| {
+            const owner = module orelse return error.GlobalsRequireModule;
+            if (try global_memory.lastAddress(options)) |last| {
+                if (image) |borrowed| if (borrowed.bytes.len != 0) {
+                    const image_last = borrowed.base + @as(u64, @intCast(borrowed.bytes.len - 1));
+                    if (options.base <= image_last and borrowed.base <= last) return error.InvalidGlobalRange;
+                };
+                if (stack) |reserved| if (reserved.max_bytes != 0) {
+                    const stack_last = reserved.base + @as(u64, @intCast(reserved.max_bytes - 1));
+                    if (options.base <= stack_last and reserved.base <= last) return error.InvalidGlobalRange;
+                };
+            }
+            space.globals = try global_memory.Space.init(allocator, owner, options);
+        }
+        return space;
+    }
+
+    pub fn symbolAddress(self: *const Space, symbol: @import("symbols.zig").Id, addend: i32) (global_memory.Error || error{UnsupportedSymbolAddress})!u64 {
+        const globals = if (self.globals) |*globals| globals else return error.UnsupportedSymbolAddress;
+        const address = globals.address(symbol) orelse return error.UnsupportedSymbolAddress;
+        return if (addend < 0)
+            std.math.sub(u64, address, @intCast(-@as(i64, addend))) catch error.GlobalAddressOverflow
+        else
+            std.math.add(u64, address, @intCast(addend)) catch error.GlobalAddressOverflow;
+    }
+
     pub fn deinit(self: *Space) void {
+        if (self.globals) |*globals| globals.deinit();
         self.releaseTo(0);
         self.objects.deinit(self.allocator);
         self.* = undefined;
@@ -124,7 +157,7 @@ pub const Space = struct {
         destination.define();
     }
     fn requireEnabled(self: *const Space) Error!void {
-        if (self.image == null and self.stack == null) return error.UnsupportedMemory;
+        if (self.image == null and self.stack == null and self.globals == null) return error.UnsupportedMemory;
     }
     fn view(self: *const Space, span: Span, address: u64) memory.Image {
         // Borrowed checked view only. Never deinit it or expose it to callers.
@@ -135,6 +168,9 @@ pub const Space = struct {
         if (width - 1 > std.math.maxInt(u64) - address) return error.MemoryOutOfBounds;
         if (self.image) |image| if (offsetIn(image.base, image.bytes.len, address, width)) |offset| {
             return .{ .bytes = image.bytes[offset..][0..width], .initialized = null, .endian = image.endian };
+        };
+        if (self.globals) |*globals| if (globals.access(address, width)) |bytes| {
+            return .{ .bytes = bytes, .initialized = null, .endian = globals.options.endian };
         };
         for (self.objects.items) |object| if (offsetIn(object.address, object.bytes.len, address, width)) |offset| {
             return .{

@@ -46,12 +46,12 @@ valid native object lifetime, extent and permissions.
 Production operand iteration copies the tagged address payload without inventing
 an SSA use. Independent liveness/interference oracle switches separately classify
 it as non-SSA. The folder retains unknown address facts and never guesses layout,
-equality or nonzero values. Reached interpretation returns
+equality or nonzero values. By default, reached interpretation returns
 `UnsupportedSymbolAddress`, even with Image or synthetic stack memory enabled.
 Unreached paths, ordinary step-budget precedence, call-dispatch refusal precedence,
 earlier Image writes and owned frame cleanup retain their existing behavior.
-There is no symbol resolver, host-pointer conversion, synthetic global allocation
-or caller Image resizing.
+There is no host/linker resolver, host-pointer conversion or caller Image resizing.
+Explicit synthetic data globals require the separate option described below.
 
 ## Regression approach
 
@@ -66,3 +66,10 @@ low-word projections and all five preserved GP registers. PIE requires high
 addresses and both executable modes reject TEXTREL. Existing generators and
 correctness fixture bytes stay unchanged. HANDOFF.md records actual verification;
 this document alone is not a test-success or parity claim.
+
+## Explicit module-global evaluation
+
+Opt-in initialized numeric/zero/string globals use a separate owned synthetic
+model (INTERPRETER-GLOBALS.md). Defaults still refuse symbols; symbolic initializers
+and function/external addresses remain unsupported. Image ownership and native
+linker/stack behavior do not change.

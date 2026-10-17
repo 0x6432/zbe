@@ -45,7 +45,14 @@ Reached `alloc4`/`alloc8`/`alloc16` consume the ordinary step then return `Unsup
 
 
 Scalar symbol-address operands are now accepted by the IR/frontend/native slice,
-but resolving one in the interpreter returns `UnsupportedSymbolAddress` without
+but by default resolving one in the interpreter returns `UnsupportedSymbolAddress` without
 lookup, host-pointer conversion or synthetic address invention. Safe paths and
 ordinary step/error precedence remain intact; Image writes before a later symbol
 refusal persist and owned frames/objects clean up (SYMBOL-ADDRESSES.md).
+
+## Explicit module-global evaluation
+
+Opt-in initialized numeric/zero/string globals use a separate owned synthetic
+model (INTERPRETER-GLOBALS.md). Defaults still refuse symbols; symbolic initializers
+and function/external addresses remain unsupported. Image ownership and native
+linker/stack behavior do not change.

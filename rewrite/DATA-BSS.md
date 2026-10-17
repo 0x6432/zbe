@@ -28,7 +28,7 @@ emission, including numeric-only string byte directives and long relocations.
 
 The ELF loader provides initial zero bytes and writable storage. This is not
 uninitialized stack memory, an implicit interpreter object, or a new `.comm`/TLS/
-section-linkage feature. Interpreters retain `UnsupportedSymbolAddress` for reached
+section-linkage feature. By default, interpreters retain `UnsupportedSymbolAddress` for reached
 global references. No host pointer conversion or caller Image initialization/growth
 occurs. Native validity/extent/lifetime/signature requirements remain caller contracts.
 
@@ -59,3 +59,10 @@ remain at most128KiB. This tests one bounded sparse-file behavior, not general s
 memory use, compiler throughput or artifact-size superiority. All prior harnesses,
 generators, fixtures/oracles and rejection expectations remain in force. Actual
 full-matrix and exact-SHA CI results belong in HANDOFF.md.
+
+## Explicit module-global evaluation
+
+Opt-in initialized numeric/zero/string globals use a separate owned synthetic
+model (INTERPRETER-GLOBALS.md). Defaults still refuse symbols; symbolic initializers
+and function/external addresses remain unsupported. Image ownership and native
+linker/stack behavior do not change.

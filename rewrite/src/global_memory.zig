@@ -35,6 +35,44 @@ fn placement(used: usize, alignment: usize, length: usize, limit: usize) Error!P
     return .{ .offset = offset, .next = next };
 }
 
+// Address lookup is a bounded linear layout scan, not recursive initializer
+// evaluation or a host/linker resolver. Preflight validates the complete module.
+fn relocationAddress(module: *const Module, options: Options, reference: data.SymbolAddress) Error!u64 {
+    var used: usize = 0;
+    for (module.data.items) |object| {
+        const here = try placement(used, object.alignment.bytes(), object.byte_len, options.max_bytes);
+        if (object.name == reference.symbol) {
+            const address = options.base + @as(u64, @intCast(here.offset));
+            return if (reference.addend < 0)
+                std.math.sub(u64, address, @intCast(-@as(i128, reference.addend))) catch error.GlobalAddressOverflow
+            else
+                std.math.add(u64, address, @intCast(reference.addend)) catch error.GlobalAddressOverflow;
+        }
+        used = here.next;
+    }
+    return error.UnsupportedGlobalInitializer;
+}
+
+fn materialize(allocator: std.mem.Allocator, module: *const Module, options: Options, source: *const data.Data) Error![]u8 {
+    const bytes = try allocator.alloc(u8, source.byte_len);
+    errdefer allocator.free(bytes);
+    @memset(bytes, 0);
+    var offset: usize = 0;
+    for (source.items.items) |item| {
+        switch (item) {
+            .byte => |bits| bytes[offset] = bits,
+            .half => |bits| std.mem.writeInt(u16, bytes[offset..][0..2], bits, options.endian),
+            .word, .single_bits => |bits| std.mem.writeInt(u32, bytes[offset..][0..4], bits, options.endian),
+            .long, .double_bits => |bits| std.mem.writeInt(u64, bytes[offset..][0..8], bits, options.endian),
+            .bytes => |text| std.mem.copyForwards(u8, bytes[offset..][0..text.len], text),
+            .zero => {},
+            .symbol_address => |reference| std.mem.writeInt(u64, bytes[offset..][0..8], try relocationAddress(module, options, reference), options.endian),
+        }
+        offset += item.size();
+    }
+    return bytes;
+}
+
 /// Internal owned value: do not copy. Module validation precedes execution;
 /// init also validates data lengths before ever writing packed payload slices.
 pub const Space = struct {
@@ -48,7 +86,9 @@ pub const Space = struct {
         var used: usize = 0;
         // Complete layout/initializer preflight before allocating table/payloads.
         for (module.data.items) |object| {
-            for (object.items.items) |item| if (item == .symbol_address) return error.UnsupportedGlobalInitializer;
+            for (object.items.items) |item| if (item == .symbol_address) {
+                _ = try relocationAddress(module, options, item.symbol_address);
+            };
             used = (try placement(used, object.alignment.bytes(), object.byte_len, options.max_bytes)).next;
         }
         const objects = try allocator.alloc(Object, module.data.items.len);
@@ -60,21 +100,7 @@ pub const Space = struct {
         used = 0;
         for (module.data.items, objects) |source, *object| {
             const here = try placement(used, source.alignment.bytes(), source.byte_len, options.max_bytes);
-            const bytes = try allocator.alloc(u8, source.byte_len);
-            @memset(bytes, 0);
-            var offset: usize = 0;
-            for (source.items.items) |item| {
-                switch (item) {
-                    .byte => |bits| bytes[offset] = bits,
-                    .half => |bits| std.mem.writeInt(u16, bytes[offset..][0..2], bits, options.endian),
-                    .word, .single_bits => |bits| std.mem.writeInt(u32, bytes[offset..][0..4], bits, options.endian),
-                    .long, .double_bits => |bits| std.mem.writeInt(u64, bytes[offset..][0..8], bits, options.endian),
-                    .bytes => |text| std.mem.copyForwards(u8, bytes[offset..][0..text.len], text),
-                    .zero => {},
-                    .symbol_address => unreachable, // Eager preflight above.
-                }
-                offset += item.size();
-            }
+            const bytes = try materialize(allocator, module, options, source);
             object.* = .{ .symbol = source.name, .address = options.base + @as(u64, @intCast(here.offset)), .bytes = bytes };
             initialized += 1;
             used = here.next;

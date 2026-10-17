@@ -1,0 +1,34 @@
+data $simulated_table = align 16 { l $simulated_later+1 $simulated_table+8 $simulated_mutual $simulated_empty, b 17 }
+data $simulated_later = align 32 { b "abcd\000" }
+data $simulated_mutual = { l $simulated_table+16 }
+data $simulated_empty = align 64 {}
+function l $simulated_read() {
+@e
+%p =l loadl $simulated_table
+%byte =l call $simulated_load_byte(l %p)
+%q =l loadl $simulated_mutual
+%r =l loadl %q
+%same =l ceql %r, $simulated_mutual
+%scaled =l mul %same, 1000
+%result =l add %scaled, %byte
+ret %result
+}
+function l $simulated_load_byte(l %p) {
+@e
+%x =l loadub %p
+ret %x
+}
+function $simulated_export(l %image) {
+@e
+%own =l alloc16 32
+blit $simulated_table, %own, 32
+blit %own, %image, 32
+ret
+}
+function $simulated_empty_access(l %image) {
+@e
+storel 37, %image
+%p =l loadl $simulated_table+24
+%x =l loadub %p
+ret
+}

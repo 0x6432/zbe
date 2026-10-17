@@ -1197,3 +1197,63 @@ explicitly refused. Signed i64 arithmetic, complete layout/preflight, byte order
 ownership and error cleanup must remain checked. Proposal-only design is in
 `/data/zbe-interpreter-data-relocations-followup-design.txt`. No main merge,
 release tag, full interpreter relocation/ABI/backend parity or performance claim.
+
+## Internal-data-only synthetic relocations (in progress)
+
+Extended opt-in initialized globals to existing long symbolic initializers only
+when their pool IDs name defined module Data objects. Forward/self/mutual
+references use checked guarded-layout addresses, never recursive initializer
+execution or host/linker lookup. Function/external initializers still return eager
+UnsupportedGlobalInitializer; null-default/standalone symbol boundaries and
+external/indirect call refusals stay unchanged. Full signed i64 addends are checked
+against u64, widening minInt before negation. Stored integers do not prove object
+extent/provenance. Native emission/parser/IR and i32 scalar offset rules are intact.
+
+Preflight checks layout, target membership and address arithmetic before allocating
+payloads. A separate materialize helper owns its buffer with errdefer until table
+publication, so new fallible relocation writes cannot leak an unpublished payload
+or double-free published objects. Lookup is an allocation-free linear layout scan,
+not an optimized linker or performance claim. INTERPRETER-DATA-RELOCATIONS.md
+specifies byte order, eager errors, ownership and unsupported cases.
+
+Six focused tests and a new fixture add independently hand-computed guarded layout
+and byte expectations for both endians, self/forward/mutual/empty/unaligned refs,
+full signed extremes yielding zero/max integers, pre-allocation underflow/overflow,
+function/external and invalid-ID/size refusal, pointer-table loads/calls/blits,
+reset/folding, earlier Image writes, step ordering and exhaustive allocation
+cleanup. The fixture joins both independent analysis-oracle bundles. Focused Debug
+verification is running in `/data/check-interpreter-data-relocations-debug.log`;
+no passing result/full matrix/exact-SHA CI is assumed yet. All prior fixtures,
+generators/native harnesses and legacy files are intended to remain unchanged and
+will be checked before publication. No main merge or release tag is authorized.
+
+### Internal relocation focused Debug verification passed
+
+Focused smoke passed **283/283** tests and built the executable in
+`/data/check-interpreter-data-relocations-debug.log`. No implementation/test
+correction was required after this smoke: final current source is unchanged.
+Scope/credential/whitespace and legacy checks passed; all57 prior fixture/generator
+files, native harnesses and workflow are unchanged against `12f8358`. The complete
+serial three-mode/eight-option verification follows with source frozen. Debug may
+reuse the unchanged smoke result; actual cached/fresh status will be recorded,
+not inferred. No full-matrix or publication CI success is claimed yet.
+
+### Internal-data relocation full local verification passed
+
+`/data/verify-interpreter-data-relocations.sh` completed with exit0 and
+`INTERPRETER DATA RELOCATION VERIFICATION PASSED`. Formatting and all14 independent
+generator checks passed. Debug reused the unchanged283-test smoke result; Safe
+and Fast each freshly passed283/283 tests. All24 build-mode/option combinations
+passed all15 native harnesses. Mechanical completion counting found exactly53
+groups:51 appeared24 times, linked-symbol2032 and scalar-offset1456 each appeared48
+times for their separate PIE/non-PIE links. Existing fault, rejection, output-
+preservation, guard-page and negative-control groups retained their counts.
+
+Read-only review and scope/credential/whitespace/legacy checks passed. All57 prior
+fixture/generator files, all native harnesses and workflow remain unchanged versus
+`12f8358`; only the new interpreter fixture was added to independent analysis
+corpora. Evidence: `/data/verify-interpreter-data-relocations.log`, its `.exit`
+and `/data/interpreter-data-relocation-verification-counts.json`. A remote fetch
+confirmed the prior documentation checkpoint still heads rewrite/zig-native.
+Exact-SHA publication CI is next; no remote green result is claimed yet. No main
+merge, release tag or full relocation/ABI/backend parity is implied.

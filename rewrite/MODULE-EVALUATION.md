@@ -52,7 +52,8 @@ refusal persist and owned frames/objects clean up (SYMBOL-ADDRESSES.md).
 
 ## Explicit module-global evaluation
 
-Opt-in initialized numeric/zero/string globals use a separate owned synthetic
-model (INTERPRETER-GLOBALS.md). Defaults still refuse symbols; symbolic initializers
-and function/external addresses remain unsupported. Image ownership and native
-linker/stack behavior do not change.
+Opt-in initialized globals use a separate owned synthetic model
+(INTERPRETER-GLOBALS.md), including defined-data-only symbolic initializers
+(INTERPRETER-DATA-RELOCATIONS.md). Defaults still refuse symbols; function/external
+addresses remain unsupported. Image ownership and native linker/stack behavior
+do not change.

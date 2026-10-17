@@ -28,10 +28,11 @@ The cap also bounds object count via guards, not parsing/analysis/whole-process
 resources or allocator metadata. Existing module/object payload caps still apply.
 
 Initialization is eager: all data lengths, layout and supported initializer forms
-are checked before table/payload allocation. Symbolic data initializers, even a
-bare/self/internal reference or an unused object, cause
-`UnsupportedGlobalInitializer` with this option enabled. There is no synthetic
-relocation or function-pointer model in this slice. Every ordinary scalar field
+are checked before table/payload allocation. Symbolic initializers may refer only
+to defined module Data objects, with checked signed i64 address arithmetic
+(INTERPRETER-DATA-RELOCATIONS.md). Function/external initializers, even in an unused
+object, cause `UnsupportedGlobalInitializer`; there is no function-pointer or
+host/linker resolver in this slice. Every ordinary scalar field
 is packed in the selected byte order, without implicit field padding; zero runs,
 raw floating bits and copied string bytes retain their exact payload. All bytes
 are initialized. The module's Data items, byte slices and IR remain unchanged.

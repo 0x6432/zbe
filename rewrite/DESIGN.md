@@ -40,5 +40,6 @@ and bounded executable relocation semantics are specified in SYMBOL-OFFSETS.md.
 
 Opt-in interpreter-owned numeric/zero/string module globals are described in
 INTERPRETER-GLOBALS.md. Defaults still refuse symbol resolution; the separate
-synthetic model is bounded and does not implement symbolic data initializers,
-function/extern address lookup or native host calls.
+synthetic model now accepts defined-data-only symbolic initializers
+(INTERPRETER-DATA-RELOCATIONS.md), but not function/extern address lookup or host
+calls.

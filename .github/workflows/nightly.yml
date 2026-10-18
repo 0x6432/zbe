@@ -63,7 +63,15 @@ jobs:
         with:
           version: ${{ env.ZIG_VERSION }}
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq valgrind
-      - run: zig build -Doptimize=ReleaseSafe -p rs && zig build
+      - name: C reference qbe
+        run: |
+          ref=$(sh tools/ci-ref.sh "$HOME/qbe-cfix")
+          test -f "$ref"
+          test -x "$ref"
+          echo "QBEREF=$ref" >> "$GITHUB_ENV"
+      # A native-CPU binary can use instructions unavailable to Valgrind's
+      # emulator even when they run on the host. Scan the portable Debug build.
+      - run: zig build -Dcpu=baseline -Doptimize=ReleaseSafe -p rs && zig build -Dcpu=baseline
       - name: ReleaseSafe build passes the suite
         run: bin=$PWD/rs/bin/qbe sh tools/test.sh all | tail -1 | grep 'All is fine!'
       - name: valgrind over every test/*.ssa on all targets

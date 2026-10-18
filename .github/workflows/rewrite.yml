@@ -36,6 +36,7 @@ jobs:
           python3 tools/generate_program_oracle.py --check
           python3 tools/generate_float_oracle.py --check
           python3 tools/generate_conversion_oracle.py --check
+          python3 tools/float_precision_generate.py --check
           python3 tools/generate_float_comparison_oracle.py --check
           python3 tools/generate_memory_oracle.py --check
           python3 tools/generate_signed_conversion_oracle.py --check
@@ -54,6 +55,7 @@ jobs:
             printf "Native options: %s\n" "$flags"
             python3 tools/native_check.py $flags
             python3 tools/native_float_check.py $flags
+            python3 tools/float_precision_native_check.py $flags
             python3 tools/native_call_check.py $flags
             python3 tools/native_memory_check.py $flags
             python3 tools/native_blit_check.py $flags

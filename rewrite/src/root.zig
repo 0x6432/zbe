@@ -52,7 +52,6 @@ test {
     _ = @import("quoted_globals_test.zig");
     _ = @import("interpreter_vaarg_test.zig");
     _ = @import("interpreter_vastart_test.zig");
-    _ = @import("interpreter_variadic_calls_test.zig");
     _ = @import("amd64.zig");
     _ = @import("abi_amd64.zig");
     _ = @import("interpreter.zig");
@@ -127,4 +126,10 @@ fn exerciseHalt(allocator: @import("std").mem.Allocator) !void {
 
 test "halt analyses evaluation folding and all home modes clean up every allocation failure" {
     try @import("test_support.zig").checkAllocationFailures(exerciseHalt);
+}
+
+test "accelerated milestone test registration" {
+    _ = @import("interpreter_variadic_calls_test.zig");
+    _ = @import("float_precision_test.zig");
+    _ = @import("adversarial_memory_test.zig");
 }

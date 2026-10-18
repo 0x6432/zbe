@@ -1,0 +1,28 @@
+function $adversarial_root(l %image) {
+@entry
+%caller =l alloc16 8
+storel 73, %caller
+call $adversarial_escape(l %image)
+%out =l add %image, 8
+%value =l loadl %caller
+storel %value, %out
+call $adversarial_sibling(l %image)
+ret
+}
+function $adversarial_escape(l %image) {
+@entry
+%child =l alloc16 8
+storel 99, %child
+storel %child, %image
+ret
+}
+function $adversarial_sibling(l %image) {
+@entry
+%sibling =l alloc16 8
+storel 101, %sibling
+%out =l add %image, 16
+storel 90, %out
+%dead =l loadl %image
+storel 255, %dead
+ret
+}

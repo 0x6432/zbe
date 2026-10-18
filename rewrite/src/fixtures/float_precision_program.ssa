@@ -1,0 +1,88 @@
+export function l $float_precision_bits(w %bits) {
+@entry
+%s =s cast %bits
+%d =d exts %s
+%result =l cast %d
+ret %result
+}
+export function l $float_precision_internal(w %bits) {
+@entry
+%result =l call $float_precision_bits(w %bits)
+ret %result
+}
+export function l $float_precision_loop(w %n,w %bits,w %other) {
+@entry
+%a =s cast %bits
+%b =s cast %other
+%da =d exts %a
+%db =d exts %b
+jmp @loop
+@loop
+%i =w phi @entry 0, @body %next
+%left =d phi @entry %da, @body %right
+%right =d phi @entry %db, @body %left
+%more =w cultw %i, %n
+jnz %more, @body, @done
+@body
+%next =w add %i, 1
+jmp @loop
+@done
+%result =l cast %left
+ret %result
+}
+export function l $float_precision_pressure(l %g0,l %g1,l %g2,l %g3,l %g4,l %g5,l %g6,s %s0,s %s1,s %s2,s %s3,s %s4,s %s5,s %s6,s %s7,s %s8,s %s9,w %select) {
+@entry
+%d0 =d exts %s0
+%d1 =d exts %s1
+%d2 =d exts %s2
+%d3 =d exts %s3
+%d4 =d exts %s4
+%d5 =d exts %s5
+%d6 =d exts %s6
+%d7 =d exts %s7
+%d8 =d exts %s8
+%d9 =d exts %s9
+jnz %select, @yes, @no
+@yes
+jmp @join
+@no
+jmp @join
+@join
+%chosen =d phi @yes %d8, @no %d9
+%call =l call $float_precision_observe(d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,d %d7,d %d8,d %d9,l %g0,l %g1,l %g2,l %g3,l %g4,l %g5,l %g6)
+%chosen_bits =l cast %chosen
+%x0 =l xor %call, %chosen_bits
+%b0 =l cast %d0
+%x1 =l xor %x0, %b0
+%b1 =l cast %d1
+%x2 =l xor %x1, %b1
+%b2 =l cast %d2
+%x3 =l xor %x2, %b2
+%b3 =l cast %d3
+%x4 =l xor %x3, %b3
+%b4 =l cast %d4
+%x5 =l xor %x4, %b4
+%b5 =l cast %d5
+%x6 =l xor %x5, %b5
+%b6 =l cast %d6
+%x7 =l xor %x6, %b6
+%b7 =l cast %d7
+%x8 =l xor %x7, %b7
+%b8 =l cast %d8
+%x9 =l xor %x8, %b8
+%b9 =l cast %d9
+%x10 =l xor %x9, %b9
+%x11 =l xor %x10, %g0
+%x12 =l xor %x11, %g1
+%x13 =l xor %x12, %g2
+%x14 =l xor %x13, %g3
+%x15 =l xor %x14, %g4
+%x16 =l xor %x15, %g5
+%x17 =l xor %x16, %g6
+ret %x17
+}
+export function l $float_precision_preserved() {
+@entry
+%r =l call $float_precision_internal(w 2147483649)
+ret %r
+}

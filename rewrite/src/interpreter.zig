@@ -14,6 +14,8 @@ pub const Options = struct {
     max_steps: usize = 100_000,
     /// Enable bounded scalar descriptor consumption independently of vastart.
     consume_vaargs: bool = false,
+    /// Enable only validated module-local scalar variadic dispatch.
+    internal_variadic_calls: bool = false,
     /// Root-only explicit typed tail; lazy vastart also needs stack_memory.
     root_variadic_arguments: ?[]const ir.Constant = null,
     /// Root-only raw long value; never a host pointer conversion.
@@ -77,8 +79,10 @@ const Frame = struct {
     return_destination: ?ir.ValueId,
     object_mark: usize = 0,
     variadic_state: ?evaluation_memory.VariadicState = null,
+    /// Child-only immutable named+tail snapshot; independent of SSA storage.
+    variadic_arguments: ?[]ir.Constant = null,
 
-    fn init(allocator: std.mem.Allocator, function: *const ir.Function, arguments: []const ir.Constant, environment: ?u64, destination: ?ir.ValueId) Error!Frame {
+    fn init(allocator: std.mem.Allocator, function: *const ir.Function, arguments: []const ir.Constant, environment: ?u64, destination: ?ir.ValueId, variadic_arguments: ?[]const ir.Constant) Error!Frame {
         if (arguments.len != function.ordinaryParameters().len) return error.ArgumentCountMismatch;
         for (function.ordinaryParameters(), arguments) |parameter, argument| {
             if (function.values.items[@backingInt(parameter)].scalar_type != argument.scalarType()) return error.ArgumentTypeMismatch;
@@ -94,18 +98,21 @@ const Frame = struct {
         var max_phis: usize = 0;
         for (function.blocks.items) |block| max_phis = @max(max_phis, block.phis.items.len);
         const phis = try allocator.alloc(ir.Constant, max_phis);
-        return .{ .function = function, .values = values, .phi_values = phis, .return_destination = destination };
+        errdefer allocator.free(phis);
+        const snapshot = if (variadic_arguments) |actual| try allocator.dupe(ir.Constant, actual) else null;
+        return .{ .function = function, .values = values, .phi_values = phis, .return_destination = destination, .variadic_arguments = snapshot };
     }
 
     fn deinit(self: *Frame, allocator: std.mem.Allocator) void {
         allocator.free(self.values);
         allocator.free(self.phi_values);
+        if (self.variadic_arguments) |snapshot| allocator.free(snapshot);
         self.* = undefined;
     }
 };
 
-fn appendFrame(allocator: std.mem.Allocator, frames: *std.ArrayList(Frame), function: *const ir.Function, arguments: []const ir.Constant, environment: ?u64, destination: ?ir.ValueId) Error!void {
-    var frame = try Frame.init(allocator, function, arguments, environment, destination);
+fn appendFrame(allocator: std.mem.Allocator, frames: *std.ArrayList(Frame), function: *const ir.Function, arguments: []const ir.Constant, environment: ?u64, destination: ?ir.ValueId, variadic_arguments: ?[]const ir.Constant) Error!void {
+    var frame = try Frame.init(allocator, function, arguments, environment, destination, variadic_arguments);
     errdefer frame.deinit(allocator);
     try frames.append(allocator, frame);
 }
@@ -119,7 +126,7 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
         for (frames.items) |*frame| frame.deinit(allocator);
         frames.deinit(allocator);
     }
-    try appendFrame(allocator, &frames, function, arguments, options.environment, null);
+    try appendFrame(allocator, &frames, function, arguments, options.environment, null, null);
     if (options.root_variadic_arguments != null and !function.variadic) return error.UnexpectedVariadicArguments;
     var remaining = options.max_steps;
     while (true) {
@@ -153,10 +160,14 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
                     continue;
                 },
                 .va_start => |start| {
-                    const tail = options.root_variadic_arguments orelse return error.UnsupportedVariadicOperation;
-                    if (frames.items.len != 1) return error.UnsupportedVariadicOperation;
+                    const named_count = frame.function.ordinaryParameters().len;
+                    const named = if (frame.variadic_arguments) |actual| actual[0..named_count] else arguments;
+                    const tail = if (frame.variadic_arguments) |actual| actual[named_count..] else root: {
+                        if (frames.items.len != 1) return error.UnsupportedVariadicOperation;
+                        break :root options.root_variadic_arguments orelse return error.UnsupportedVariadicOperation;
+                    };
                     const address = (try resolve(&space, frame.values, start.list)).long;
-                    try space.startVaArgs(&frame.variadic_state, address, arguments, tail);
+                    try space.startVaArgs(&frame.variadic_state, address, named, tail);
                     continue;
                 },
                 .allocate => |allocation| {
@@ -191,14 +202,14 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
                     .address => return error.UnsupportedIndirectCall,
                 };
                 const callee = module_validation.findFunction(owner, symbol) orelse return error.UnsupportedExternalCall;
-                if (callee.variadic) return error.UnsupportedVariadicCall;
+                if (callee.variadic and !options.internal_variadic_calls) return error.UnsupportedVariadicCall;
                 if (frames.items.len >= options.max_call_depth) return error.CallDepthLimitExceeded;
                 const actual = try allocator.alloc(ir.Constant, call.arguments.len);
                 defer allocator.free(actual);
                 for (call.arguments, actual) |argument, *value| value.* = try resolve(&space, frame.values, argument.operand);
                 const environment = if (call.environment) |operand| (try resolve(&space, frame.values, operand)).long else null;
                 const object_mark = space.mark();
-                try appendFrame(allocator, &frames, callee, actual, environment, call.result);
+                try appendFrame(allocator, &frames, callee, actual[0..callee.ordinaryParameters().len], environment, call.result, if (callee.variadic) actual else null);
                 frames.items[frames.items.len - 1].object_mark = object_mark;
                 continue; // The old frame pointer may now be invalid.
             }

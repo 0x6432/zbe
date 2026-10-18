@@ -85,10 +85,12 @@ Escaped numbers confer no later authority, and new evaluations reset state. The
 borrowed Image keeps its size, ownership and completed writes. Globals remain
 owned/reset per evaluation. No stack address is rewound/reused within evaluation.
 
-Reached internal variadic calls still return `UnsupportedVariadicCall` before
+By default, reached internal variadic calls still return `UnsupportedVariadicCall` before
 depth/argument resolution. Standalone calls still return `UnsupportedCall`; other
 host-call refusals remain unchanged. An explicit root tail is not inherited by
-children, nor a dispatch capability. There is no va_end runtime helper, implicit
+children, nor a dispatch capability. Separate explicit internal dispatch and child-owned
+initialization are described in INTERPRETER-VARIADIC-CALLS.md.
+There is no va_end runtime helper, implicit
 va_copy, native va_list import or complete variadic interpreter.
 
 ## Verification design

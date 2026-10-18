@@ -180,7 +180,7 @@ pub const Space = struct {
         try borrowed.write(kind, value, address);
         span.define();
     }
-    /// Root-only explicit tail. A bad complete descriptor span fails before
+    /// Invocation-specific explicit tail. A bad complete descriptor span fails before
     /// source allocation; no partially initialized descriptor is published.
     pub fn startVaArgs(self: *Space, state: *?VariadicState, list: u64, named: []const ir.Constant, tail: []const ir.Constant) Error!void {
         try self.requireEnabled();

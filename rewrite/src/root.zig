@@ -52,6 +52,7 @@ test {
     _ = @import("quoted_globals_test.zig");
     _ = @import("interpreter_vaarg_test.zig");
     _ = @import("interpreter_vastart_test.zig");
+    _ = @import("interpreter_variadic_calls_test.zig");
     _ = @import("amd64.zig");
     _ = @import("abi_amd64.zig");
     _ = @import("interpreter.zig");

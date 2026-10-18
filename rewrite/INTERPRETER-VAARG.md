@@ -68,6 +68,8 @@ including with valid memory. The separate explicit root-only synthetic initializ
 (INTERPRETER-VASTART.md) is not enabled by consumer configuration. Reached internal calls to variadic definitions retain
 UnsupportedVariadicCall before depth/argument resolution. Root calls still accept
 only their exact named parameter array; no descriptor is inferred from that array.
+A separate opt-in internal dispatch option is described in
+INTERPRETER-VARIADIC-CALLS.md; this consumer option alone never enables it.
 A separate optional typed root tail now supports root-only synthetic initialization
 (INTERPRETER-VASTART.md), never internal variadic dispatch. A function's variadic flag itself does not construct or prohibit
 a manually supplied descriptor. Existing default/safe-path behavior is unchanged.

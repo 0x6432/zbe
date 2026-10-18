@@ -74,7 +74,8 @@ Caller-supplied native scalar vaarg consumers are a separate bounded slice
 
 Native scalar variadic definitions and effect-only vastart now have a separate
 frame-owned save region and checked named signatures (VARIADIC-FUNCTIONS.md).
-Internal interpreter variadic calls remain explicit refusals. Opt-in manual scalar
+Internal interpreter variadic calls remain explicit refusals by default; separate
+opt-in scalar dispatch is described in INTERPRETER-VARIADIC-CALLS.md. Opt-in manual scalar
 consumers do not initialize descriptors or construct argument tails; a separate
 explicit root-only synthetic initializer is described in INTERPRETER-VASTART.md.
 

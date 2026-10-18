@@ -24,10 +24,48 @@ pub fn foldIntegerConstants(allocator: std.mem.Allocator, function: *ir.Function
                 if (instruction.* == .copy and instruction.copy.operand == .constant) continue;
                 instruction.* = .{ .copy = .{ .result = result, .operand = .{ .constant = constant } } };
                 changes += 1;
+            } else if (neutralOperand(instruction.*, facts, ty)) |operand| {
+                // Preserve the original operand, including projections and symbols.
+                instruction.* = .{ .copy = .{ .result = result, .operand = operand } };
+                facts[@backingInt(result)] = known(facts, operand);
+                changes += 1;
             }
         }
     }
     return changes;
+}
+
+/// Only identities which keep the unknown operand executable are allowed.
+/// Constant folding runs first; do not erase operand resolution (e.g. x*0).
+fn neutralOperand(instruction: ir.Instruction, facts: []const ?ir.Constant, ty: ir.ScalarType) ?ir.Operand {
+    if (!ty.isInteger()) return null;
+    switch (instruction) {
+        .binary => |b| {
+            const neutral: u64 = switch (b.op) {
+                .add, .sub, .bit_or, .bit_xor => 0,
+                .mul => 1,
+                .bit_and => if (ty == .word) std.math.maxInt(u32) else std.math.maxInt(u64),
+                else => return null,
+            };
+            if (integerBits(known(facts, b.rhs)) == neutral) return b.lhs;
+            if (b.op != .sub and integerBits(known(facts, b.lhs)) == neutral) return b.rhs;
+        },
+        .shift => |s| {
+            const count = integerBits(known(facts, s.amount)) orelse return null;
+            const mask: u64 = if (ty == .word) 31 else 63;
+            if (count & mask == 0) return s.value;
+        },
+        else => {},
+    }
+    return null;
+}
+
+fn integerBits(constant: ?ir.Constant) ?u64 {
+    return switch (constant orelse return null) {
+        .word => |v| v,
+        .long => |v| v,
+        else => null,
+    };
 }
 
 fn known(facts: []const ?ir.Constant, operand: ir.Operand) ?ir.Constant {

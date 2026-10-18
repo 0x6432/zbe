@@ -86,3 +86,8 @@ Bounded printable-ASCII quoted globals (excluding ELF `@` syntax) decode to owne
 across definitions/calls/scalar operands/data relocations (QUOTED-GLOBALS.md).
 Native formatting escapes non-bare names while preserving existing bare output
 and the private-label namespace; no host lookup or full identifier/target parity.
+
+Bounded zero-fill `common data` tentative ELF definitions use explicit `.comm`
+size/alignment and independent export flags (DATA-COMMON.md). Only z-groups
+are accepted; same-module duplicates remain errors, while cross-object linker
+coalescing/strong override is native ELF behavior, not interpreter host linking.

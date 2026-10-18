@@ -1,0 +1,102 @@
+export function l $alloc_aliases_1(l %n,l %seed) {
+@entry
+%p =l alloc1 %n
+jmp @loop
+@loop
+%i =l phi @entry 0, @body %next
+%sum =l phi @entry 0, @body %added
+%more =w cultl %i, %n
+jnz %more, @body, @done
+@body
+%address =l add %p, %i
+%value =l add %seed, %i
+storeb %value, %address
+%loaded =l loadub %address
+%added =l add %sum, %loaded
+%next =l add %i, 1
+jmp @loop
+@done
+ret %sum
+}
+export function l $alloc_aliases_2(l %n,l %seed) {
+@entry
+%p =l alloc2 %n
+jmp @loop
+@loop
+%i =l phi @entry 0, @body %next
+%sum =l phi @entry 0, @body %added
+%more =w cultl %i, %n
+jnz %more, @body, @done
+@body
+%address =l add %p, %i
+%value =l add %seed, %i
+storeb %value, %address
+%loaded =l loadub %address
+%added =l add %sum, %loaded
+%next =l add %i, 1
+jmp @loop
+@done
+ret %sum
+}
+export function l $alloc_aliases_4(l %n,l %seed) {
+@entry
+%p =l alloc4 %n
+jmp @loop
+@loop
+%i =l phi @entry 0, @body %next
+%sum =l phi @entry 0, @body %added
+%more =w cultl %i, %n
+jnz %more, @body, @done
+@body
+%address =l add %p, %i
+%value =l add %seed, %i
+storeb %value, %address
+%loaded =l loadub %address
+%added =l add %sum, %loaded
+%next =l add %i, 1
+jmp @loop
+@done
+ret %sum
+}
+export function l $alloc_aliases_calls(l %n) {
+@entry
+%p =l alloc1 %n
+%q =l alloc2 1
+storeb 17, %p
+storeb 23, %q
+%r =l call $alloc_aliases_sink(l %p,l %q,l 1,l 2,l 3,l 4,l 5,l 6,l 7,l 8,d d_2.5)
+%a =l loadub %p
+%b =l loadub %q
+%x =l add %a, %b
+%y =l add %x, %r
+%z =l add %y, %n
+ret %z
+}
+export function l $alloc_aliases_wrapper() {
+@entry
+%r =l call $alloc_aliases_calls(l 17)
+ret %r
+}
+export function l $alloc_aliases_fresh(l %n) {
+@entry
+%original =l alloc1 1
+storeb 77, %original
+jmp @loop
+@loop
+%i =l phi @entry 0, @body %next
+%last =l phi @entry %original, @body %p
+%sum =l phi @entry 0, @body %added
+%more =w cultl %i, %n
+jnz %more, @body, @done
+@body
+%p =l alloc2 1
+%different =l cnel %p, %last
+storeb %i, %p
+%old =l loadub %original
+%term =l add %different, %old
+%added =l add %sum, %term
+%next =l add %i, 1
+jmp @loop
+@done
+ret %sum
+}

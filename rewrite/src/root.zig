@@ -42,6 +42,7 @@ test {
     _ = @import("data_relocations_test.zig");
     _ = @import("data_strings_test.zig");
     _ = @import("data_bss_test.zig");
+    _ = @import("common_data_test.zig");
     _ = @import("interpreter_globals_test.zig");
     _ = @import("interpreter_data_relocations_test.zig");
     _ = @import("subword_abi_test.zig");
@@ -56,6 +57,7 @@ test {
     _ = @import("abi_amd64.zig");
     _ = @import("interpreter.zig");
     _ = @import("optimize.zig");
+    _ = @import("neutral_identity_test.zig");
     _ = @import("liveness.zig");
     _ = @import("interference.zig");
     _ = @import("stack_homes.zig");
@@ -132,4 +134,8 @@ test "accelerated milestone test registration" {
     _ = @import("interpreter_variadic_calls_test.zig");
     _ = @import("float_precision_test.zig");
     _ = @import("adversarial_memory_test.zig");
+}
+
+test "alloc_aliases milestone registration" {
+    _ = @import("alloc_aliases_test.zig");
 }

@@ -67,6 +67,11 @@ repeated declarations resolve the same immutable symbol without allocating maps.
 The private alias namespace cannot collide with accepted user names or existing
 function/block/allocation/conversion/vaarg helpers.
 
+Defined COMMON objects are the separate exception to `.set`: GAS forbids aliasing
+SHN_COMMON. Trailing-backslash common names use one private full-width relocation
+cell in `.data.rel.ro.local` and scalar pointer loads, without renaming the symbol
+or changing ordinary/external aliases or data relocations (DATA-COMMON.md).
+
 Scalar addends remain checked i32 and data addends checked i64, printed outside
 the completed quoted name; negative minima are never negated. ELF binding/type/
 size, BSS/data placement, executable PIE/nonPIE behavior and the small-code-model

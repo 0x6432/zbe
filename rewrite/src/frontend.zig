@@ -12,7 +12,10 @@ const binary_opcodes = std.StaticStringMap(ir.BinaryOp).initComptime(.{
     .{ "urem", .unsigned_remainder },
 });
 const allocation_opcodes = std.StaticStringMap(ir.AllocationAlignment).initComptime(.{
-    .{ "alloc4", .four }, .{ "alloc8", .eight }, .{ "alloc16", .sixteen },
+    // Pinned QBE parse.c normalizes alloc1/alloc2 to Oalloc == Oalloc4.
+    .{ "alloc1", .four },     .{ "alloc2", .four },
+    .{ "alloc4", .four },     .{ "alloc8", .eight },
+    .{ "alloc16", .sixteen },
 });
 const unary_opcodes = std.StaticStringMap(ir.UnaryOp).initComptime(.{
     .{ "neg", .negate },
@@ -61,7 +64,7 @@ fn floatComparisonOpcode(spelling: []const u8) ?FloatComparisonOpcode {
     const predicate = float_comparison_predicates.get(spelling[0 .. spelling.len - 1]) orelse return null;
     return .{ .predicate = predicate, .operand_type = ty };
 }
-pub const Error = Allocator.Error || error{ InvalidInput, TooManySymbols, TooManyFunctions, TooManyData, DataTooLarge, InvalidDataSize, TooManyValues, TooManyBlocks };
+pub const Error = Allocator.Error || error{ InvalidInput, TooManySymbols, TooManyFunctions, TooManyData, DataTooLarge, InvalidDataSize, InvalidCommonInitializer, TooManyValues, TooManyBlocks };
 
 /// Parse the documented scalar subset into an independently owned module.
 /// Input is borrowed only during this call. On failure all partial IR is freed;
@@ -93,7 +96,7 @@ pub fn parse(allocator: Allocator, input: source.Source, diagnostic: *?source.Di
     parser.skipLines();
     while (parser.peek().kind != .eof) {
         const start = parser.index;
-        if (parser.word("export")) {
+        while (parser.word("export") or parser.word("common")) {
             _ = parser.advance();
             parser.skipLines();
         }
@@ -117,9 +120,17 @@ const Parser = struct {
     blocks: std.StringHashMapUnmanaged(ir.BlockId) = .empty,
 
     fn dataDefinition(self: *Parser) Error!void {
-        const exported = self.word("export");
-        if (exported) {
-            _ = self.advance();
+        var exported = false;
+        var common = false;
+        while (self.word("export") or self.word("common")) {
+            const flag = self.advance();
+            if (std.mem.eql(u8, self.tokenText(flag), "export")) {
+                if (exported) return self.fail(.unexpected_token, flag);
+                exported = true;
+            } else {
+                if (common) return self.fail(.unexpected_token, flag);
+                common = true;
+            }
             self.skipLines();
         }
         _ = self.advance(); // Contextual `data` dispatch established by parse.
@@ -132,6 +143,7 @@ const Parser = struct {
         };
         const object = self.module.getData(id).?;
         object.linkage = if (exported) .exported else .internal;
+        object.common = common;
         _ = try self.expect(.equal);
         self.skipLines();
         if (self.word("align")) {
@@ -150,6 +162,7 @@ const Parser = struct {
             if (spelling.len != 1 or std.mem.indexOfScalar(u8, "bhwlsdz", spelling[0]) == null)
                 return self.fail(.unsupported_construct, kind_token);
             const kind = spelling[0];
+            if (common and kind != 'z') return self.fail(.unsupported_construct, kind_token);
             self.skipLines();
             var count: usize = 0;
             while (self.peek().kind != .comma and self.peek().kind != .rbrace) {

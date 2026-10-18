@@ -44,6 +44,7 @@ jobs:
           python3 tools/generate_low_word_oracle.py --check
           python3 tools/generate_data_oracle.py --check
           python3 tools/generate_data_string_oracle.py --check
+          python3 tools/neutral_identity_generate.py --check
       - name: Independent IR/frontend tests (not backend parity)
         working-directory: rewrite
         run: zig build test -Doptimize=${{ matrix.optimize }} --summary all
@@ -60,14 +61,17 @@ jobs:
             python3 tools/native_memory_check.py $flags
             python3 tools/native_blit_check.py $flags
             python3 tools/native_numeric_check.py $flags
+            python3 tools/neutral_identity_native_check.py $flags
             python3 tools/native_low_word_check.py $flags
             python3 tools/native_frame_check.py $flags
             python3 tools/native_allocation_check.py $flags
+            python3 tools/alloc_aliases_native_check.py $flags
             python3 tools/native_symbol_check.py $flags
             python3 tools/native_data_check.py $flags
             python3 tools/native_relocation_check.py $flags
             python3 tools/native_string_check.py $flags
             python3 tools/native_bss_check.py $flags
+            python3 tools/native_common_check.py $flags
           python3 tools/native_offset_check.py $flags
           python3 tools/native_subword_check.py $flags
           python3 tools/native_variadic_check.py $flags

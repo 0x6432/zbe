@@ -177,6 +177,16 @@ const Emitter = struct {
 
     fn dataDefinition(self: *Emitter, object: *const @import("data.zig").Data) Error!void {
         const name: AssemblySymbol = .{ .name = self.module.symbols.get(object.name).? };
+        if (object.common) {
+            try self.print(".comm {f},{d},{d}\n", .{ name, object.byte_len, object.alignment.bytes() });
+            // GAS cannot .set an alias to SHN_COMMON, and its x86 operand
+            // scanner cannot consume a quoted trailing backslash directly.
+            // A private full-width relocation cell uses the directive parser;
+            // keep it writable-at-relocation, never in executable text.
+            if (std.mem.endsWith(u8, self.module.symbols.get(object.name).?, "\\"))
+                try self.print(".pushsection .data.rel.ro.local,\"aw\",@progbits\n.balign 8\n\".Lzbe@common{d}\":\n\t.quad {f}\n.popsection\n", .{ @backingInt(object.name), name });
+            return;
+        }
         const zero = object.isAllZero();
         if (zero) try self.print(".bss\n", .{}) else try self.print(".data\n", .{});
         try self.print(".balign {d}\n", .{object.alignment.bytes()});
@@ -600,6 +610,18 @@ const Emitter = struct {
         try self.save(result, register(ty, .accumulator));
     }
 
+    /// Only the COMMON trailing-backslash case cannot use symbolReference's
+    /// existing .set workaround. Cells are emitted once per defined object.
+    fn loadCommonAddress(self: *Emitter, symbol: @import("symbols.zig").Id, addend: i32, target: []const u8) Error!bool {
+        if (!std.mem.endsWith(u8, self.module.symbols.get(symbol).?, "\\")) return false;
+        for (self.module.data.items) |object| if (object.name == symbol and object.common) {
+            try self.print("\tmovq \".Lzbe@common{d}\"(%rip), {s}\n", .{ @backingInt(symbol), target });
+            if (addend != 0) try self.print("\tleaq {d}({s}), {s}\n", .{ addend, target, target });
+            return true;
+        };
+        return false;
+    }
+
     fn load(self: *Emitter, operand: ir.Operand, scratch: Scratch) Error!void {
         const ty = try self.current.operandType(operand);
         const target = register(ty, scratch);
@@ -608,8 +630,12 @@ const Emitter = struct {
                 .stack_offset => |offset| try self.print("\tmov{c} -{d}(%rbp), {s}\n", .{ suffix(ty), offset, target }),
                 .preserved => |preserved| try self.print("\tmov{c} {s}, {s}\n", .{ suffix(ty), preserved.name(ty), target }),
             },
-            .symbol => |symbol| try self.print("\tleaq {f}(%rip), {s}\n", .{ try self.symbolReference(symbol), target }),
+            .symbol => |symbol| {
+                if (!try self.loadCommonAddress(symbol, 0, target))
+                    try self.print("\tleaq {f}(%rip), {s}\n", .{ try self.symbolReference(symbol), target });
+            },
             .symbol_offset => |address| {
+                if (try self.loadCommonAddress(address.symbol, address.addend, target)) return;
                 const name = try self.symbolReference(address.symbol);
                 // Print negative addends directly: negating minInt(i32) overflows.
                 if (address.addend < 0)

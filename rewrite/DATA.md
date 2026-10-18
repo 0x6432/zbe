@@ -48,7 +48,7 @@ than treated as an unknown external function. Indirect address calls still carry
 the existing native caller contract, not pointer provenance or executable checks.
 
 Unsupported quoted-name bytes/escapes (QUOTED-GLOBALS.md), unsupported string classes/escapes, general symbolic relocation forms,
-thread/TLS, extern/common/section linkages and aggregate/full-data syntax remain
+thread/TLS, extern/section linkages and aggregate/full-data syntax remain
 unsupported. This is not complete QBE data-language compatibility.
 
 Long symbolic initializers with one checked signed addend are now supported
@@ -113,3 +113,7 @@ Bounded printable-ASCII quoted globals decode to owned canonical symbol names
 across definitions/calls/scalar operands/data relocations (QUOTED-GLOBALS.md).
 Native formatting escapes non-bare names while preserving existing bare output
 and the private-label namespace; no host lookup or full identifier/target parity.
+
+Zero-fill `common data` is a separate bounded ELF linkage slice (DATA-COMMON.md).
+It accepts only z-groups or an empty object, not arbitrary zero-valued fields.
+Common/export flags are independent; default explicit alignment remains8.

@@ -92,3 +92,7 @@ Bounded printable-ASCII quoted globals (excluding ELF `@` syntax) decode to owne
 across definitions/calls/scalar operands/data relocations (QUOTED-GLOBALS.md).
 Native formatting escapes non-bare names while preserving existing bare output
 and the private-label namespace; no host lookup or full identifier/target parity.
+
+Zero-fill `common data` accepts independent optional export in either order,
+with each flag at most once; common function/TLS/section combinations remain
+refused. Only z-groups or an empty initializer are accepted (DATA-COMMON.md).

@@ -3,7 +3,7 @@ const std = @import("std");
 const symbols = @import("symbols.zig");
 pub const max_object_bytes = 16 * 1024 * 1024;
 pub const max_module_bytes = 64 * 1024 * 1024;
-pub const Error = std.mem.Allocator.Error || error{ DataTooLarge, InvalidDataSize };
+pub const Error = std.mem.Allocator.Error || error{ DataTooLarge, InvalidDataSize, InvalidCommonInitializer };
 pub const Alignment = enum(u8) {
     one = 1,
     two = 2,
@@ -56,6 +56,8 @@ pub const Data = struct {
     allocator: std.mem.Allocator,
     name: symbols.Id,
     linkage: enum { internal, exported } = .internal,
+    /// ELF tentative definition; independent of ordinary export visibility.
+    common: bool = false,
     alignment: Alignment = .eight,
     items: std.ArrayList(Item) = .empty,
     byte_len: usize = 0,
@@ -69,6 +71,7 @@ pub const Data = struct {
     }
     /// Reserve before publishing either the item or its checked logical size.
     pub fn append(self: *Data, item: Item) Error!void {
+        if (self.common and item != .zero) return error.InvalidCommonInitializer;
         const total = std.math.add(usize, self.byte_len, item.size()) catch return error.DataTooLarge;
         if (total > max_object_bytes) return error.DataTooLarge;
         // Byte items are copied, never borrowed/transferred from the caller.
@@ -107,6 +110,7 @@ pub const Data = struct {
     pub fn validate(self: *const Data) Error!usize {
         var total: usize = 0;
         for (self.items.items) |item| {
+            if (self.common and item != .zero) return error.InvalidCommonInitializer;
             total = std.math.add(usize, total, item.size()) catch return error.DataTooLarge;
             if (total > max_object_bytes) return error.DataTooLarge;
         }

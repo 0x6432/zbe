@@ -1,5 +1,6 @@
 //! Independent Zig-native core and experimental base-scalar AMD64 slice.
 //! No legacy module is imported and no compilation delegates to the old port.
+pub const abi_amd64_plan = @import("abi_amd64_plan.zig");
 pub const abi_amd64 = @import("abi_amd64.zig");
 pub const amd64 = @import("amd64.zig");
 pub const stack_homes = @import("stack_homes.zig");
@@ -25,6 +26,8 @@ pub const DataId = @import("module.zig").DataId;
 pub const Module = @import("module.zig").Module;
 
 test {
+    _ = @import("abi_amd64_plan.zig");
+    _ = @import("aggregate_abi_planner_test.zig");
     _ = @import("calls_test.zig");
     _ = @import("module_eval_test.zig");
     _ = @import("void_calls_test.zig");

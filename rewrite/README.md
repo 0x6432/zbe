@@ -93,3 +93,7 @@ Bounded zero-fill `common data` tentative ELF definitions use explicit `.comm`
 size/alignment and independent export flags (DATA-COMMON.md). Only z-groups
 are accepted; same-module duplicates remain errors, while cross-object linker
 coalescing/strong override is native ELF behavior, not interpreter host linking.
+
+Checked target planning is available separately through `abi_amd64_plan`; see
+[AMD64-ABI-PLANS.md](AMD64-ABI-PLANS.md). These owned plans do not feed emission,
+and aggregate native/interpreter execution remains refused.

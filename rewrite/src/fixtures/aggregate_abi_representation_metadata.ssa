@@ -1,0 +1,55 @@
+# Owned ABI metadata only. NONE of these aggregate uses may execute.
+type :Tiny = { b }
+type :Twin = { b }
+type :Over = align 64 { l 3 }
+type :A = { b 2147483647 }
+type :B = { :A 2147483647 }
+type :Max = { :B 4, :A 8, b 3 }
+function :Tiny $identity(:Tiny %p) {
+@e
+ret %p
+}
+function :Over $environment_metadata(env %environment, :Over %p) {
+@e
+ret %p
+}
+function $variadic_metadata(:Max %p, ...) {
+@e
+ret
+}
+function l $caller() {
+@e
+%address =:Tiny call $identity(:Tiny 0)
+%carrier =l copy %address
+ret %carrier
+}
+function $external_metadata() {
+@e
+call $foreign(:Over 0, ..., :Tiny 0)
+ret
+}
+function $environment_call() {
+@e
+call $foreign_environment(env 0, :Tiny 0)
+ret
+}
+function $indirect_metadata(l %target) {
+@e
+call %target(:Max 0)
+ret
+}
+function :Max $large_metadata() {
+@e
+ret 0
+}
+function $known_combinations() {
+@e
+call $variadic_metadata(:Max 0, ..., :Over 0)
+%environment_result =:Over call $environment_metadata(env 0, :Over 0)
+ret
+}
+function $external_result() {
+@e
+%result =:Max call $foreign_result()
+ret
+}

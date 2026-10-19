@@ -56,6 +56,50 @@ pub const AbiType = enum {
     }
 };
 
+/// Module-scoped ABI identity. Record values are long POINTER carriers, never
+/// ordinary long ABI arguments; native/interpreter execution is still refused.
+pub const AbiDescriptor = union(enum) {
+    scalar: AbiType,
+    record: @import("record_declaration.zig").Id,
+
+    pub fn carrierType(self: AbiDescriptor) ScalarType {
+        return switch (self) {
+            .scalar => |ty| ty.scalar(),
+            .record => .long,
+        };
+    }
+    pub fn subword(self: AbiDescriptor) ?SubwordType {
+        return switch (self) {
+            .scalar => |ty| ty.subword(),
+            .record => null,
+        };
+    }
+};
+
+/// Legacy annotations are retained only as checked carrier/subword metadata.
+/// A null descriptor denotes the exact legacy scalar ABI, never a record.
+pub fn checkedAbiDescriptor(carrier: ?ScalarType, subword: ?SubwordType, descriptor: ?AbiDescriptor) ValidationError!?AbiDescriptor {
+    const ty = carrier orelse {
+        if (subword != null or descriptor != null) return error.TypeMismatch;
+        return null;
+    };
+    if (subword != null and ty != .word) return error.TypeMismatch;
+    const legacy: AbiType = if (subword) |small| switch (small) {
+        .signed_byte => .signed_byte,
+        .unsigned_byte => .unsigned_byte,
+        .signed_half => .signed_half,
+        .unsigned_half => .unsigned_half,
+    } else AbiType.fromScalar(ty);
+    if (descriptor) |explicit| {
+        switch (explicit) {
+            .scalar => |scalar| if (scalar != legacy) return error.TypeMismatch,
+            .record => if (ty != .long or subword != null) return error.TypeMismatch,
+        }
+        return explicit;
+    }
+    return .{ .scalar = legacy };
+}
+
 /// Preserve floating bit patterns (including NaN payloads), not host formatting.
 pub const Constant = union(enum) {
     word: u32,
@@ -248,9 +292,16 @@ pub const CallArgument = struct {
     scalar_type: ScalarType,
     operand: Operand,
     subword_type: ?SubwordType = null,
+    descriptor: ?AbiDescriptor = null,
 
     pub fn init(ty: AbiType, operand: Operand) CallArgument {
         return .{ .scalar_type = ty.scalar(), .operand = operand, .subword_type = ty.subword() };
+    }
+    pub fn initDescriptor(ty: AbiDescriptor, operand: Operand) CallArgument {
+        return .{ .scalar_type = ty.carrierType(), .operand = operand, .subword_type = ty.subword(), .descriptor = ty };
+    }
+    pub fn abi(self: CallArgument) ValidationError!AbiDescriptor {
+        return (try checkedAbiDescriptor(self.scalar_type, self.subword_type, self.descriptor)).?;
     }
 };
 /// Symbol targets use the module pool; address operands use function-scoped IDs.
@@ -266,15 +317,27 @@ pub const CallTarget = union(enum) {
     }
 };
 /// Argument storage is owned by Function, not borrowed from callers.
-pub const CallOptions = struct { result_abi: ?AbiType = null, variadic_start: ?usize = null, environment: ?Operand = null };
+pub const CallOptions = struct { result_abi: ?AbiType = null, result_descriptor: ?AbiDescriptor = null, variadic_start: ?usize = null, environment: ?Operand = null };
 pub const Call = struct {
     result: ?ValueId,
     callee: CallTarget,
     arguments: []const CallArgument,
     result_subword: ?SubwordType = null,
+    result_descriptor: ?AbiDescriptor = null,
     environment: ?Operand = null,
     /// Named argument count before ..., not an operand or an implicit promotion.
     variadic_start: ?usize = null,
+
+    pub fn resultAbi(self: Call, function: *const Function) ValidationError!?AbiDescriptor {
+        const carrier = if (self.result) |id| try function.operandType(.{ .value = id }) else null;
+        return checkedAbiDescriptor(carrier, self.result_subword, self.result_descriptor);
+    }
+    /// Valid only after structure validation; no module lookup or ABI classifier.
+    pub fn hasRecordAbi(self: Call) bool {
+        if (self.result_descriptor) |ty| if (ty == .record) return true;
+        for (self.arguments) |arg| if (arg.descriptor) |ty| if (ty == .record) return true;
+        return false;
+    }
 };
 pub const Instruction = union(enum) {
     /// Ordered descriptor read/advance through a caller-contracted native list.
@@ -368,7 +431,7 @@ const Definition = union(enum) {
     parameter: usize,
     instruction: struct { block: BlockId, index: usize },
 };
-const Value = struct { scalar_type: ScalarType, definition: Definition, parameter_subword: ?SubwordType = null };
+const Value = struct { scalar_type: ScalarType, definition: Definition, parameter_subword: ?SubwordType = null, parameter_descriptor: ?AbiDescriptor = null };
 const Block = struct {
     label: ?SymbolId,
     phis: std.ArrayList(Phi) = .empty,
@@ -402,6 +465,7 @@ pub const Function = struct {
     name: SymbolId,
     return_type: ?ScalarType,
     return_subword: ?SubwordType = null,
+    return_descriptor: ?AbiDescriptor = null,
     variadic: bool = false,
     /// Hidden long SSA parameter, always parameters[0], not a C ABI argument.
     environment: ?ValueId = null,
@@ -418,6 +482,29 @@ pub const Function = struct {
         var function = init(allocator, name, if (result) |ty| ty.scalar() else null);
         function.return_subword = if (result) |ty| ty.subword() else null;
         return function;
+    }
+
+    pub fn initDescriptor(allocator: Allocator, name: SymbolId, result: ?AbiDescriptor) Function {
+        var function = init(allocator, name, if (result) |ty| ty.carrierType() else null);
+        function.return_subword = if (result) |ty| ty.subword() else null;
+        function.return_descriptor = result;
+        return function;
+    }
+
+    pub fn returnAbi(self: *const Function) ValidationError!?AbiDescriptor {
+        return checkedAbiDescriptor(self.return_type, self.return_subword, self.return_descriptor);
+    }
+    pub fn parameterAbi(self: *const Function, id: ValueId) ValidationError!AbiDescriptor {
+        if (@backingInt(id) >= self.values.items.len) return error.InvalidValue;
+        const value = self.values.items[@backingInt(id)];
+        if (value.definition != .parameter) return error.TypeMismatch;
+        return (try checkedAbiDescriptor(value.scalar_type, value.parameter_subword, value.parameter_descriptor)).?;
+    }
+    /// Valid only after structure validation. No inaccessible module owner.
+    pub fn hasRecordSignature(self: *const Function) bool {
+        if (self.return_descriptor) |ty| if (ty == .record) return true;
+        for (self.parameters.items) |id| if (self.values.items[@backingInt(id)].parameter_descriptor) |ty| if (ty == .record) return true;
+        return false;
     }
 
     pub fn deinit(self: *Function) void {
@@ -482,6 +569,17 @@ pub const Function = struct {
         try self.parameters.ensureUnusedCapacity(self.allocator, 1);
         self.values.appendAssumeCapacity(.{ .scalar_type = ty.scalar(), .parameter_subword = ty.subword(), .definition = .{ .parameter = self.parameters.items.len } });
         self.parameters.appendAssumeCapacity(id);
+        return id;
+    }
+
+    /// Function-only construction retains module IDs without pretending to
+    /// resolve them. Module wrappers/validation must check ownership/existence.
+    pub fn addParameterDescriptor(self: *Function, ty: AbiDescriptor) BuildError!ValueId {
+        const id = try self.addParameterAbi(switch (ty) {
+            .scalar => |scalar| scalar,
+            .record => .long,
+        });
+        self.values.items[@backingInt(id)].parameter_descriptor = ty;
         return id;
     }
 
@@ -686,10 +784,14 @@ pub const Function = struct {
         try self.checkArguments(arguments);
         try self.checkEnvironment(options.environment, options.variadic_start);
         if (options.variadic_start) |prefix| if (prefix > arguments.len) return error.InvalidVariadicMarker;
+        if (options.result_descriptor) |descriptor| {
+            if (result_abi) |legacy| if (!std.meta.eql(descriptor, AbiDescriptor{ .scalar = legacy })) return error.TypeMismatch;
+            _ = try checkedAbiDescriptor(if (value) |v| v.scalar_type else null, descriptor.subword(), descriptor);
+        }
         try target.instructions.ensureUnusedCapacity(self.allocator, 1);
         const owned = try self.allocator.dupe(CallArgument, arguments);
         if (value) |definition| definition.definition = .{ .instruction = .{ .block = block_id, .index = target.instructions.items.len } };
-        target.instructions.appendAssumeCapacity(.{ .call = .{ .result = result, .callee = callee, .arguments = owned, .result_subword = if (result_abi) |ty| ty.subword() else null, .variadic_start = options.variadic_start, .environment = options.environment } });
+        target.instructions.appendAssumeCapacity(.{ .call = .{ .result = result, .callee = callee, .arguments = owned, .result_subword = if (options.result_descriptor) |ty| ty.subword() else if (result_abi) |ty| ty.subword() else null, .result_descriptor = options.result_descriptor, .variadic_start = options.variadic_start, .environment = options.environment } });
     }
 
     fn checkEnvironment(self: *const Function, environment: ?Operand, variadic: ?usize) ValidationError!void {
@@ -707,6 +809,7 @@ pub const Function = struct {
         for (arguments) |argument| {
             if (argument.subword_type != null and argument.scalar_type != .word) return error.TypeMismatch;
             if (try self.operandType(argument.operand) != argument.scalar_type) return error.TypeMismatch;
+            _ = try argument.abi();
         }
     }
 
@@ -776,6 +879,12 @@ pub const Function = struct {
             const value = self.values.items[@backingInt(environment)];
             if (value.scalar_type != .long or value.parameter_subword != null) return error.InvalidEnvironment;
         }
+        _ = try self.returnAbi();
+        for (self.values.items) |value| {
+            if (value.parameter_descriptor != null and value.definition != .parameter) return error.TypeMismatch;
+            if (value.definition == .parameter) _ = try checkedAbiDescriptor(value.scalar_type, value.parameter_subword, value.parameter_descriptor);
+        }
+        if (self.environment) |environment| if (!std.meta.eql(try self.parameterAbi(environment), AbiDescriptor{ .scalar = .long })) return error.InvalidEnvironment;
         // Validate reverse links too, so orphaned or duplicate values cannot hide.
         for (self.values.items, 0..) |value, number| switch (value.definition) {
             .pending => return error.InvalidDefinition,
@@ -845,6 +954,7 @@ pub const Function = struct {
                         try self.checkEnvironment(call.environment, call.variadic_start);
                         try self.checkCallTarget(call.callee);
                         try self.checkArguments(call.arguments);
+                        _ = try call.resultAbi(self);
                     },
                     .binary => |binary| try self.checkBinary(ty.?, binary.op, binary.lhs, binary.rhs),
                     .copy => |copy| if (try self.operandType(copy.operand) != ty.?) return error.TypeMismatch,

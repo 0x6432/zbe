@@ -1,0 +1,33 @@
+{
+  "baseline_tree": "86799a806d58b871bcbb23e3a5b6a1bf46007b66",
+  "toolchain": "0.18.0-dev.35+5e754304d",
+  "provenance": "Scalar nonregression oracle captured ONLY from exact immutable PRE-CHANGE867 source, not candidate implementation. Metadata tag expectations are independently hand-authored in tests.",
+  "fixtures": {
+    "record_declaration_scalar.ssa": {
+      "source_sha256": "34cc1dc0d7a2b4e26fd24e55416b12869384aaeae7e7c72f99dd1fc16df38654",
+      "assembly_sha256": {
+        "0": "7c2dcaf28b133a4f865772e987c746ff7e629b800ec529b2d44e1dfc6552f4ab",
+        "1": "7c2dcaf28b133a4f865772e987c746ff7e629b800ec529b2d44e1dfc6552f4ab",
+        "2": "27c371996c035b454d604b590c51aab7df26f3183d353ff637468b570aa7e029",
+        "3": "27c371996c035b454d604b590c51aab7df26f3183d353ff637468b570aa7e029",
+        "4": "54476291ca0afc819ca7961a8e4782d56a9cc1aa345d0c77e3cde6c893c0498d",
+        "5": "54476291ca0afc819ca7961a8e4782d56a9cc1aa345d0c77e3cde6c893c0498d",
+        "6": "54476291ca0afc819ca7961a8e4782d56a9cc1aa345d0c77e3cde6c893c0498d",
+        "7": "54476291ca0afc819ca7961a8e4782d56a9cc1aa345d0c77e3cde6c893c0498d"
+      }
+    },
+    "record_declaration_symbol_identity.ssa": {
+      "source_sha256": "7cc54fe2c9a20616a1ba7ce5353d7aa6a0453956247b21540775b61eb27ef36f",
+      "assembly_sha256": {
+        "0": "83d9b3fe355aa380c6a30a6b3f7d093cf0ef02f318c6d0ebec486621f1d26d41",
+        "1": "83d9b3fe355aa380c6a30a6b3f7d093cf0ef02f318c6d0ebec486621f1d26d41",
+        "2": "83d9b3fe355aa380c6a30a6b3f7d093cf0ef02f318c6d0ebec486621f1d26d41",
+        "3": "83d9b3fe355aa380c6a30a6b3f7d093cf0ef02f318c6d0ebec486621f1d26d41",
+        "4": "83d9b3fe355aa380c6a30a6b3f7d093cf0ef02f318c6d0ebec486621f1d26d41",
+        "5": "83d9b3fe355aa380c6a30a6b3f7d093cf0ef02f318c6d0ebec486621f1d26d41",
+        "6": "83d9b3fe355aa380c6a30a6b3f7d093cf0ef02f318c6d0ebec486621f1d26d41",
+        "7": "83d9b3fe355aa380c6a30a6b3f7d093cf0ef02f318c6d0ebec486621f1d26d41"
+      }
+    }
+  }
+}

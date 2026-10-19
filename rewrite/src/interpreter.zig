@@ -39,6 +39,7 @@ pub const Error = semantics.ConversionError || ArithmeticError || evaluation_mem
     UninitializedValue,
     Halted,
     UnsupportedCall,
+    UnsupportedAggregateAbi,
     UnsupportedExternalCall,
     UnsupportedIndirectCall,
     UnsupportedMemory,
@@ -55,6 +56,7 @@ pub const Error = semantics.ConversionError || ArithmeticError || evaluation_mem
 pub fn evaluate(allocator: std.mem.Allocator, function: *const ir.Function, arguments: []const ir.Constant, options: Options) Error!?ir.Constant {
     var issue: ?ssa.Issue = null;
     try ssa.validate(allocator, function, &issue);
+    if (function.hasRecordSignature()) return error.UnsupportedAggregateAbi;
     return execute(allocator, null, function, arguments, options);
 }
 
@@ -65,6 +67,7 @@ pub fn evaluateModule(allocator: std.mem.Allocator, module: *const Module, entry
     const index = @backingInt(entry);
     if (index >= module.functions.items.len) return error.InvalidFunction;
     try module_validation.validate(allocator, module);
+    if (module.functions.items[index].hasRecordSignature()) return error.UnsupportedAggregateAbi;
     return execute(allocator, module, module.functions.items[index], arguments, options);
 }
 
@@ -196,6 +199,7 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
             }
             if (instruction == .call) {
                 const call = instruction.call;
+                if (call.hasRecordAbi()) return error.UnsupportedAggregateAbi;
                 const owner = module orelse return error.UnsupportedCall;
                 const symbol = switch (call.callee) {
                     .symbol => |symbol| symbol,

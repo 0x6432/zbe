@@ -1,9 +1,9 @@
-//! Target-independent scalar SSA and direct-call signature validation.
+//! Target-independent scalar SSA plus explicit nominal record ABI metadata.
 const std = @import("std");
 const ir = @import("ir.zig");
 const ssa = @import("ssa.zig");
 const Module = @import("module.zig").Module;
-pub const Error = @import("record_declaration.zig").Error || ssa.Error || @import("data.zig").Error || error{ InvalidSymbol, DuplicateSymbol, CallSignatureMismatch, CalledDataSymbol };
+pub const Error = @import("record_declaration.zig").Error || ssa.Error || @import("data.zig").Error || error{ InvalidSymbol, DuplicateSymbol, CallSignatureMismatch, CalledDataSymbol, InvalidAggregateType };
 
 /// Validate all bodies before following callee parameter IDs. Externals remain
 /// contractual, but their symbol IDs must belong to this module's pool.
@@ -38,6 +38,19 @@ pub fn validate(allocator: std.mem.Allocator, module: *const Module) Error!void 
             .jump, .halt => {},
         }
     };
+    // Resolve EVERY descriptor slot before any known-signature comparison,
+    // including external/indirect targets, variadic tails and unreachable calls.
+    for (module.functions.items) |function| {
+        if (try function.returnAbi()) |ty| try module.checkAbiDescriptor(ty);
+        for (function.parameters.items) |parameter| try module.checkAbiDescriptor(try function.parameterAbi(parameter));
+        for (function.blocks.items) |block| for (block.instructions.items) |instruction| switch (instruction) {
+            .call => |call| {
+                if (try call.resultAbi(function)) |ty| try module.checkAbiDescriptor(ty);
+                for (call.arguments) |argument| try module.checkAbiDescriptor(try argument.abi());
+            },
+            else => {},
+        };
+    }
     for (module.functions.items) |function| for (function.blocks.items) |block| for (block.instructions.items) |instruction| switch (instruction) {
         .call => |call| {
             const symbol = switch (call.callee) {
@@ -47,15 +60,14 @@ pub fn validate(allocator: std.mem.Allocator, module: *const Module) Error!void 
             _ = module.symbols.get(symbol) orelse return error.InvalidSymbol;
             for (module.data.items) |object| if (object.name == symbol) return error.CalledDataSymbol;
             const callee = findFunction(module, symbol) orelse continue;
-            const result_type: ?ir.ScalarType = if (call.result) |result| function.values.items[@backingInt(result)].scalar_type else null;
-            if (callee.return_type != result_type or callee.return_subword != call.result_subword) return error.CallSignatureMismatch;
+            if (!std.meta.eql(try callee.returnAbi(), try call.resultAbi(function))) return error.CallSignatureMismatch;
             if (call.environment == null and callee.usesEnvironment()) return error.CallSignatureMismatch;
             const named = callee.ordinaryParameters().len;
             if (callee.variadic) {
                 if (call.variadic_start != @as(?usize, named) or call.arguments.len < named) return error.CallSignatureMismatch;
             } else if (call.variadic_start != null or call.arguments.len != named) return error.CallSignatureMismatch;
             for (callee.ordinaryParameters(), call.arguments[0..named]) |parameter, argument| {
-                if (callee.values.items[@backingInt(parameter)].scalar_type != argument.scalar_type or callee.values.items[@backingInt(parameter)].parameter_subword != argument.subword_type) return error.CallSignatureMismatch;
+                if (!std.meta.eql(try callee.parameterAbi(parameter), try argument.abi())) return error.CallSignatureMismatch;
             }
         },
         else => {},

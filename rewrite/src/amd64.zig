@@ -4,7 +4,7 @@ const abi = @import("abi_amd64.zig");
 const module_validation = @import("module_validation.zig");
 const stack_homes = @import("stack_homes.zig");
 const Module = @import("module.zig").Module;
-pub const Error = stack_homes.Error || abi.Error || module_validation.Error || error{FrameTooLarge};
+pub const Error = stack_homes.Error || abi.Error || module_validation.Error || error{ FrameTooLarge, UnsupportedAggregateAbi };
 
 /// x86-64 qword immediate arithmetic sign-extends imm32. Never silently truncate
 /// a long constant, commute operands or infer facts for nonliteral operands.
@@ -38,6 +38,15 @@ pub fn emit(allocator: std.mem.Allocator, module: *const Module) Error![]u8 {
 
 pub fn emitWithOptions(allocator: std.mem.Allocator, module: *const Module, options: Options) Error![]u8 {
     try module_validation.validate(allocator, module);
+    // Representation only: refuse ALL record ABI metadata before frame/cursor
+    // planning or output, including unused functions and unreachable calls.
+    for (module.functions.items) |function| {
+        if (function.hasRecordSignature()) return error.UnsupportedAggregateAbi;
+        for (function.blocks.items) |block| for (block.instructions.items) |instruction| switch (instruction) {
+            .call => |call| if (call.hasRecordAbi()) return error.UnsupportedAggregateAbi,
+            else => {},
+        };
+    }
     for (module.data.items) |object| {
         if (!validSymbol(module.symbols.get(object.name).?)) return error.InvalidSymbol;
         for (object.items.items) |item| if (item == .symbol_address) {

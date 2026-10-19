@@ -103,6 +103,33 @@ pub const Module = struct {
         return id;
     }
 
+    /// IDs are resolved only with this explicit module. No hidden owner link.
+    pub fn checkAbiDescriptor(self: *const Module, descriptor: ir.AbiDescriptor) error{InvalidAggregateType}!void {
+        switch (descriptor) {
+            .scalar => {},
+            .record => |id| if (self.getRecord(id) == null) return error.InvalidAggregateType,
+        }
+    }
+    pub fn addFunctionDescriptor(self: *Module, name: []const u8, result: ?ir.AbiDescriptor) !FunctionId {
+        if (result) |ty| try self.checkAbiDescriptor(ty);
+        const id = try self.addFunction(name, if (result) |ty| ty.carrierType() else null);
+        const function = self.getFunction(id).?;
+        function.return_subword = if (result) |ty| ty.subword() else null;
+        function.return_descriptor = result;
+        return id;
+    }
+    pub fn addParameterDescriptor(self: *Module, function_id: FunctionId, descriptor: ir.AbiDescriptor) !ir.ValueId {
+        try self.checkAbiDescriptor(descriptor);
+        const function = self.getFunction(function_id) orelse return error.InvalidFunction;
+        return function.addParameterDescriptor(descriptor);
+    }
+    pub fn appendCallDescriptor(self: *Module, function_id: FunctionId, block: ir.BlockId, result: ?ir.ValueId, target: ir.CallTarget, arguments: []const ir.CallArgument, options: ir.CallOptions) !void {
+        if (options.result_descriptor) |ty| try self.checkAbiDescriptor(ty);
+        for (arguments) |argument| try self.checkAbiDescriptor(try argument.abi());
+        const function = self.getFunction(function_id) orelse return error.InvalidFunction;
+        try function.appendCall(block, result, target, arguments, options);
+    }
+
     pub fn addData(self: *Module, name: []const u8) !DataId {
         for (self.functions.items) |function| {
             if (std.mem.eql(u8, self.symbols.get(function.name).?, name)) return error.DuplicateSymbol;

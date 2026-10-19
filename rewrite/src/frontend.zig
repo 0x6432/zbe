@@ -65,9 +65,9 @@ fn floatComparisonOpcode(spelling: []const u8) ?FloatComparisonOpcode {
     const predicate = float_comparison_predicates.get(spelling[0 .. spelling.len - 1]) orelse return null;
     return .{ .predicate = predicate, .operand_type = ty };
 }
-pub const Error = records.Error || Allocator.Error || error{ InvalidInput, TooManySymbols, TooManyFunctions, TooManyData, DataTooLarge, InvalidDataSize, InvalidCommonInitializer, TooManyValues, TooManyBlocks };
+pub const Error = records.Error || Allocator.Error || error{ InvalidInput, TooManySymbols, TooManyFunctions, TooManyData, DataTooLarge, InvalidDataSize, InvalidCommonInitializer, InvalidAggregateType, TooManyValues, TooManyBlocks };
 
-/// Parse the documented scalar subset into an independently owned module.
+/// Parse the documented scalar subset and owned record ABI metadata.
 /// Input is borrowed only during this call. On failure all partial IR is freed;
 /// syntax/type failures set diagnostic, while allocation/resource errors do not.
 /// This does NOT establish SSA dominance or accept the full QBE language.
@@ -309,7 +309,14 @@ const Parser = struct {
         const result = if (self.peek().kind == .global) null else try self.takeAbiType();
         const name_token = try self.expect(.global);
         const name = try self.globalName(name_token);
-        const id = self.module.addFunctionAbi(name, result) catch |err| switch (err) {
+        // Parsed scalar ABI annotations keep the established legacy fields as
+        // their sole authority. Explicit descriptors are required only for
+        // nominal records; public descriptor builders still check scalar tags.
+        const added = if (result) |ty| switch (ty) {
+            .scalar => |scalar| self.module.addFunctionAbi(name, scalar),
+            .record => self.module.addFunctionDescriptor(name, ty),
+        } else self.module.addFunctionAbi(name, null);
+        const id = added catch |err| switch (err) {
             error.DuplicateFunction => return self.fail(.duplicate_function, name_token),
             error.DuplicateSymbol => return self.fail(.duplicate_symbol, name_token),
             else => |resource| return resource,
@@ -325,14 +332,17 @@ const Parser = struct {
                 break; // Only the closing parenthesis may follow this final marker.
             }
             const is_environment = self.peek().kind == .identifier and std.mem.eql(u8, self.tokenText(self.peek()), "env");
-            const ty: ir.AbiType = if (is_environment) ty: {
+            const ty: ir.AbiDescriptor = if (is_environment) ty: {
                 _ = self.advance();
-                break :ty .long;
+                break :ty .{ .scalar = .long };
             } else try self.takeAbiType();
             const parameter = try self.expect(.temporary);
             const parameter_name = self.nameText(parameter);
             try self.reserveValue(parameter);
-            const value = (if (is_environment) f.addEnvironmentParameter() else f.addParameterAbi(ty)) catch |err| return self.irError(err, parameter);
+            const value = (if (is_environment) f.addEnvironmentParameter() else switch (ty) {
+                .scalar => |scalar| f.addParameterAbi(scalar),
+                .record => f.addParameterDescriptor(ty),
+            }) catch |err| return self.irError(err, parameter);
             self.values.putAssumeCapacity(parameter_name, value);
             if (self.peek().kind != .comma) break;
             _ = self.advance();
@@ -416,11 +426,11 @@ const Parser = struct {
                 if (index + 2 >= self.tokens.len) return self.fail(.unexpected_token, self.tokens[self.tokens.len - 1]);
                 if (self.tokens[index + 1].kind != .equal) return self.fail(.unexpected_token, self.tokens[index + 1]);
                 const ty = try self.abiType(self.tokens[index + 2]);
-                if (ty.subword() != null and (index + 3 >= self.tokens.len or
+                if ((ty == .record or ty.subword() != null) and (index + 3 >= self.tokens.len or
                     self.tokens[index + 3].kind != .identifier or
                     !std.mem.eql(u8, self.tokenText(self.tokens[index + 3]), "call")))
                     return self.fail(.unsupported_construct, self.tokens[index + 2]);
-                const value = f.declareValue(ty.scalar()) catch |err| return self.irError(err, token);
+                const value = f.declareValue(ty.carrierType()) catch |err| return self.irError(err, token);
                 self.values.putAssumeCapacity(self.nameText(token), value);
             }
             at_line_start = token.kind == .newline;
@@ -434,9 +444,9 @@ const Parser = struct {
         _ = try self.expect(.equal);
         const type_token = self.peek();
         const abi_type = try self.takeAbiType();
-        const ty = abi_type.scalar();
+        const ty = abi_type.carrierType();
         const opcode = try self.expect(.identifier);
-        if (abi_type.subword() != null and !std.mem.eql(u8, self.tokenText(opcode), "call")) return self.fail(.unsupported_construct, type_token);
+        if ((abi_type == .record or abi_type.subword() != null) and !std.mem.eql(u8, self.tokenText(opcode), "call")) return self.fail(.unsupported_construct, type_token);
         const spelling = self.tokenText(opcode);
         const f = self.current_function.?;
         if (std.mem.eql(u8, spelling, "call")) {
@@ -496,8 +506,8 @@ const Parser = struct {
         }
     }
 
-    fn call(self: *Parser, block: ir.BlockId, result: ?ir.ValueId, opcode: lex.Token, result_abi: ?ir.AbiType) Error!void {
-        // Scalar ABI call sites; an indirect address must be long.
+    fn call(self: *Parser, block: ir.BlockId, result: ?ir.ValueId, opcode: lex.Token, result_abi: ?ir.AbiDescriptor) Error!void {
+        // Retain ABI identity; aggregate metadata cannot execute. Indirect addresses are long.
         const callee: ir.CallTarget = switch (self.peek().kind) {
             .global => symbol: {
                 const token = self.advance();
@@ -522,15 +532,23 @@ const Parser = struct {
                 variadic_start = arguments.items.len;
             } else {
                 const argument_type = try self.takeAbiType();
-                const operand = try self.readOperand(argument_type.scalar());
-                try arguments.append(self.allocator, ir.CallArgument.init(argument_type, operand));
+                const operand = try self.readOperand(argument_type.carrierType());
+                try arguments.append(self.allocator, switch (argument_type) {
+                    .scalar => |scalar| ir.CallArgument.init(scalar, operand),
+                    .record => ir.CallArgument.initDescriptor(argument_type, operand),
+                });
             }
             if (self.peek().kind != .comma) break;
             _ = self.advance();
         };
         _ = try self.expect(.rparen);
         const f = self.current_function.?;
-        f.appendCall(block, result, callee, arguments.items, .{ .result_abi = result_abi, .variadic_start = variadic_start, .environment = environment }) catch |err| return self.irError(err, opcode);
+        var options: ir.CallOptions = .{ .variadic_start = variadic_start, .environment = environment };
+        if (result_abi) |ty| switch (ty) {
+            .scalar => |scalar| options.result_abi = scalar,
+            .record => options.result_descriptor = ty,
+        };
+        f.appendCall(block, result, callee, arguments.items, options) catch |err| return self.irError(err, opcode);
     }
 
     fn terminator(self: *Parser, block: ir.BlockId) Error!void {
@@ -600,19 +618,20 @@ const Parser = struct {
         try self.values.ensureUnusedCapacity(self.allocator, 1);
     }
 
-    fn takeAbiType(self: *Parser) Error!ir.AbiType {
+    fn takeAbiType(self: *Parser) Error!ir.AbiDescriptor {
         return self.abiType(self.advance());
     }
 
-    fn abiType(self: *Parser, token: lex.Token) Error!ir.AbiType {
+    fn abiType(self: *Parser, token: lex.Token) Error!ir.AbiDescriptor {
+        if (token.kind == .type_name) return .{ .record = self.module.findRecord(self.nameText(token)) orelse return self.fail(.unknown_type, token) };
         if (token.kind == .identifier) {
             const text = self.tokenText(token);
-            if (std.mem.eql(u8, text, "sb")) return .signed_byte;
-            if (std.mem.eql(u8, text, "ub")) return .unsigned_byte;
-            if (std.mem.eql(u8, text, "sh")) return .signed_half;
-            if (std.mem.eql(u8, text, "uh")) return .unsigned_half;
+            if (std.mem.eql(u8, text, "sb")) return .{ .scalar = .signed_byte };
+            if (std.mem.eql(u8, text, "ub")) return .{ .scalar = .unsigned_byte };
+            if (std.mem.eql(u8, text, "sh")) return .{ .scalar = .signed_half };
+            if (std.mem.eql(u8, text, "uh")) return .{ .scalar = .unsigned_half };
         }
-        return ir.AbiType.fromScalar(try self.scalarType(token));
+        return .{ .scalar = ir.AbiType.fromScalar(try self.scalarType(token)) };
     }
 
     fn scalarType(self: *Parser, token: lex.Token) Error!ir.ScalarType {

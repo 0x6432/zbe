@@ -146,3 +146,7 @@ test "alloc_aliases milestone registration" {
 test "record_declaration milestone registration" {
     _ = @import("record_declaration_test.zig");
 }
+
+test "aggregate_abi_representation milestone registration" {
+    _ = @import("aggregate_abi_representation_test.zig");
+}

@@ -143,9 +143,19 @@ def main():
             'type :T = { b }\nexport function w $f(l %p) { @start %r =:T call $g(env %p) ret 1 }\n',
             'type :T = { s }\nexport function w $f() { @start ret 1 @dead %r =:T call $g() ret 2 }\n',
         ]
+        def normalized(source):
+            return source.replace("{ @start ", "{\n@start\n").replace(" @dead ", "\n@dead\n").replace(" ret ", "\nret ").replace(" }\n", "\n}\n")
+
+        # Only these four approved SSE/native cases change expectation; all
+        # remaining env/vararg/indirect/alignment/size boundaries stay negative.
+        for index in (0, 1, 2, 11):
+            il.write_text(normalized(invalid[index]))
+            subprocess.run([*compiler, str(il), str(asm)], check=True, timeout=90)
+        print('4 individually approved SSE/dominance/unreachable native positive upgrades passed')
+        invalid = [source for index, source in enumerate(invalid) if index not in (0, 1, 2, 11)]
         refusals = 0
         for source in invalid:
-            source = source.replace("{ @start ", "{\n@start\n").replace(" @dead ", "\n@dead\n").replace(" ret ", "\nret ").replace(" }\n", "\n}\n")
+            source = normalized(source)
             il.write_text(source)
             sentinel = b'preserve existing output\n'
             asm.write_bytes(sentinel)

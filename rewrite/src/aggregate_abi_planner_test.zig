@@ -167,13 +167,20 @@ test "aggregate_abi_planner scalar payload carrier stack extent and independent 
 }
 
 test "aggregate_abi_planner generic metadata limits target policy and module validation precedence" {
-    for ([_][]const u8{ "s", "d 2", "b 4097", "b 2147483647" }) |fields| {
+    for ([_][]const u8{ "s", "d 2", "b 4097", "b 2147483647" }, 0..) |fields, index| {
         const text = try std.fmt.allocPrint(t.allocator, "type :A={{{s}}}\nfunction $f(:A %p){{\n@e\nret\n}}", .{fields});
         defer t.allocator.free(text);
         var module = try parse(t.allocator, text);
         defer module.deinit();
         try @import("module_validation.zig").validate(t.allocator, &module);
-        try t.expectError(error.UnsupportedAggregatePlan, planner.FunctionPlan.init(t.allocator, &module, id(0), .{}));
+        if (index < 2) {
+            // Individually approved SSE4 / SSE8+8 positive upgrades; exact
+            // independent classes and reached C/ASM paths are tested separately.
+            var plan = try planner.FunctionPlan.init(t.allocator, &module, id(0), .{});
+            defer plan.deinit();
+            try t.expect(plan.signature.arguments[0].location == .register_record);
+            try t.expectEqual(@as(u8, @intCast(index + 1)), plan.signature.vector_used);
+        } else try t.expectError(error.UnsupportedAggregatePlan, planner.FunctionPlan.init(t.allocator, &module, id(0), .{}));
     }
     var unused = try parse(t.allocator, "type :A=align 64 {b 4097}\nfunction $f(){\n@e\nret\n}");
     defer unused.deinit();
@@ -193,7 +200,7 @@ test "aggregate_abi_planner generic metadata limits target policy and module val
 test "aggregate_abi_planner complete eligibility scan wins over huge home geometry and unreachable site" {
     var module = Module.init(t.allocator);
     defer module.deinit();
-    const tiny = try module.addRecord("FloatOnly", null, &.{.{ .element = .{ .scalar = .single } }});
+    const tiny = try module.addRecord("OveralignedFloat", 16, &.{.{ .element = .{ .scalar = .single } }});
     const f_id = try module.addFunction("f", null);
     const f = module.getFunction(f_id).?;
     for (0..8193) |_| _ = try f.addParameter(.long);

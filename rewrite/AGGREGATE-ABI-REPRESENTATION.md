@@ -86,9 +86,9 @@ hidden behind a generic execution-refusal error.
 Native emission does full module validation, then globally checks every target
 signature/call (including unused functions/unreachable calls) BEFORE allocating
 plans/homes/writer storage or legacy frame geometry. Ineligible uses refuse;
-eligible direct MEMORY and bounded small INTEGER uses consume fresh internal plans
+eligible direct MEMORY and bounded small INTEGER/SSE uses consume fresh internal plans
 as documented in [AMD64-MEMORY-ABI.md](AMD64-MEMORY-ABI.md) and
-[SMALL-INTEGER-ABI.md](SMALL-INTEGER-ABI.md). Pre-write compilation failures do not
+[SMALL-INTEGER-ABI.md](SMALL-INTEGER-ABI.md) and [SMALL-SSE-ABI.md](SMALL-SSE-ABI.md). Pre-write compilation failures do not
 create/modify CLI outputs; later filesystem write failures are not atomic.
 Pure-scalar assembly remains byte-identical; aggregate-bearing module comparison
 uses matched unaffected function fragments, not an invalid old whole-module oracle.

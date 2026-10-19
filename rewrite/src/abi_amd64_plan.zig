@@ -15,7 +15,13 @@ pub const IntegerRegisters = struct {
     lane_count: u8,
     lane_bytes: [2]u8,
 };
-pub const Location = union(enum) { general: abi.General, vector: abi.Vector, stack: Stack, integer_record: IntegerRegisters };
+pub const RegisterLane = struct {
+    offset: u8,
+    bytes: u8,
+    register: union(enum) { general: abi.General, vector: abi.Vector },
+};
+pub const RegisterRecord = struct { lane_count: u8, lanes: [2]RegisterLane };
+pub const Location = union(enum) { general: abi.General, vector: abi.Vector, stack: Stack, integer_record: IntegerRegisters, register_record: RegisterRecord };
 pub const Argument = struct {
     descriptor: ir.AbiDescriptor,
     carrier: ir.ScalarType,
@@ -37,7 +43,23 @@ pub const IntegerResult = struct {
     lane_count: u8,
     lane_bytes: [2]u8,
 };
-pub const Result = union(enum) { none, scalar: ir.AbiType, memory: MemoryResult, integer_record: IntegerResult };
+pub const ResultGeneral = enum {
+    rax,
+    rdx,
+    pub fn name(self: ResultGeneral) []const u8 {
+        return if (self == .rax) "%rax" else "%rdx";
+    }
+};
+pub const ResultVector = enum {
+    xmm0,
+    xmm1,
+    pub fn name(self: ResultVector) []const u8 {
+        return if (self == .xmm0) "%xmm0" else "%xmm1";
+    }
+};
+pub const ResultLane = struct { offset: u8, bytes: u8, register: union(enum) { general: ResultGeneral, vector: ResultVector } };
+pub const RegisterResult = struct { record_id: records.Id, declared_bytes: u64, alignment: u8, lane_count: u8, lanes: [2]ResultLane };
+pub const Result = union(enum) { none, scalar: ir.AbiType, memory: MemoryResult, integer_record: IntegerResult, register_record: RegisterResult };
 pub const Signature = struct {
     allocator: std.mem.Allocator,
     result: Result,
@@ -107,14 +129,14 @@ pub const FunctionPlan = struct {
         const function = module.functions.items[@backingInt(id)];
         // COMPLETE allocation-free target scan before any home/plan allocation
         // or geometry check. Generic module validation above may itself allocate.
-        const shapes = integerShapes(module);
+        const shapes = smallShapes(module);
         try eligibleFunction(module, function, &shapes);
-        return build(allocator, module, id, options);
+        return build(allocator, module, id, options, &shapes);
     }
 
-    fn build(allocator: std.mem.Allocator, module: *const modules.Module, id: modules.FunctionId, options: Options) Error!FunctionPlan {
+    fn build(allocator: std.mem.Allocator, module: *const modules.Module, id: modules.FunctionId, options: Options, shapes: *const SmallShapes) Error!FunctionPlan {
         const function = module.functions.items[@backingInt(id)];
-        var signature = try planSignature(allocator, module, .{ .function = function });
+        var signature = try planSignature(allocator, module, .{ .function = function }, shapes);
         errdefer signature.deinit();
         var call_count: usize = 0;
         var pad_count: usize = 0;
@@ -139,7 +161,7 @@ pub const FunctionPlan = struct {
         var outgoing: u64 = 0;
         for (function.blocks.items, 0..) |block, b| for (block.instructions.items, 0..) |instruction, i| switch (instruction) {
             .call => |call| {
-                const planned = try planSignature(allocator, module, .{ .call = .{ .function = function, .call = call } });
+                const planned = try planSignature(allocator, module, .{ .call = .{ .function = function, .call = call } }, shapes);
                 calls[initialized] = .{ .block = @fromBackingInt(@as(u32, @intCast(b))), .instruction = i, .target = call.callee, .result_value = call.result, .signature = planned, .pad_index = null };
                 initialized += 1;
                 outgoing = @max(outgoing, planned.outgoing_bytes);
@@ -152,7 +174,7 @@ pub const FunctionPlan = struct {
             else => {},
         };
         var object_count: usize = 0;
-        for (signature.arguments) |argument| if (argument.location == .integer_record) {
+        for (signature.arguments) |argument| if ((argument.location == .integer_record or argument.location == .register_record)) {
             object_count += 1;
         };
         const parameter_objects = try allocator.alloc(ParameterObject, object_count);
@@ -170,7 +192,7 @@ pub const FunctionPlan = struct {
             frame.hidden_return_end = cursor;
         }
         var object_index: usize = 0;
-        for (signature.arguments, 0..) |argument, position| if (argument.location == .integer_record) {
+        for (signature.arguments, 0..) |argument, position| if ((argument.location == .integer_record or argument.location == .register_record)) {
             const record = module.getRecord(argument.descriptor.record).?;
             const alignment = @max(8, record.alignment);
             cursor = try reserve(cursor, record.size, alignment);
@@ -211,7 +233,7 @@ pub const ModulePlans = struct {
             needed = true;
         };
         if (!needed) return .{ .allocator = allocator, .functions = &.{} };
-        const shapes = integerShapes(module);
+        const shapes = smallShapes(module);
         for (module.functions.items) |function| try eligibleFunction(module, function, &shapes);
         const functions = try allocator.alloc(?FunctionPlan, module.functions.items.len);
         @memset(functions, null);
@@ -220,7 +242,7 @@ pub const ModulePlans = struct {
             allocator.free(functions);
         }
         for (module.functions.items, 0..) |function, i| if (recordRelevant(function)) {
-            functions[i] = try FunctionPlan.build(allocator, module, @fromBackingInt(@as(u32, @intCast(i))), options);
+            functions[i] = try FunctionPlan.build(allocator, module, @fromBackingInt(@as(u32, @intCast(i))), options, &shapes);
         };
         return .{ .allocator = allocator, .functions = functions };
     }
@@ -243,29 +265,86 @@ fn recordRelevant(function: *const ir.Function) bool {
     return false;
 }
 
-/// Generic validation bounds this fixed table and every earlier-only run ID.
-/// No recursive/expanded DAG walk, heap allocation or persistent classifier cache.
-fn integerShapes(module: *const modules.Module) [records.max_records]bool {
-    var shapes: [records.max_records]bool = @splat(false);
+/// Two occupied-byte masks, NOT shifted cached eightbyte classes. A child may
+/// start at offset4 and split differently in its parent. Padding contributes no
+/// class. Generic validation precedes every table access and bounded shift.
+const Shape = struct { integer_bytes: u16 = 0, sse_bytes: u16 = 0 };
+const SmallShapes = [records.max_records]Shape;
+const Class = enum { none, integer, sse };
+fn smallShapes(module: *const modules.Module) SmallShapes {
+    var shapes: SmallShapes = @splat(.{});
     for (module.types.items, 0..) |record, index| {
-        var integer = true;
-        for (record.runs) |run| integer = integer and switch (run.field.element) {
-            .scalar => |ty| ty != .single and ty != .double,
-            .record => |id| shapes[@backingInt(id)],
-        };
-        shapes[index] = integer;
+        if (record.size > 16 or record.alignment > 8) continue;
+        for (record.runs) |run| {
+            // A valid supported parent has <=16 bytes and positive strides;
+            // even a compact repeat cannot expand to more than16 members.
+            std.debug.assert(run.field.count <= 16);
+            for (0..run.field.count) |repetition| {
+                const offset = run.offset + repetition * run.stride;
+                std.debug.assert(offset + run.stride <= record.size);
+                const child: Shape = switch (run.field.element) {
+                    .record => |id| shapes[@backingInt(id)],
+                    .scalar => |ty| scalar: {
+                        const bits: u16 = @intCast((@as(u32, 1) << @intCast(ty.bytes())) - 1);
+                        break :scalar if (ty == .single or ty == .double) .{ .sse_bytes = bits } else .{ .integer_bytes = bits };
+                    },
+                };
+                shapes[index].integer_bytes |= child.integer_bytes << @intCast(offset);
+                shapes[index].sse_bytes |= child.sse_bytes << @intCast(offset);
+            }
+        }
     }
     return shapes;
 }
-fn eligibleDescriptor(module: *const modules.Module, ty: ir.AbiDescriptor, shapes: *const [records.max_records]bool) Error!void {
+fn laneClass(shape: Shape, lane: usize) Class {
+    const mask: u16 = @as(u16, 255) << @intCast(lane * 8);
+    if (shape.integer_bytes & mask != 0) return .integer;
+    return if (shape.sse_bytes & mask != 0) .sse else .none;
+}
+fn hasSse(shape: Shape, size: u64) bool {
+    return laneClass(shape, 0) == .sse or (size > 8 and laneClass(shape, 1) == .sse);
+}
+fn registerResult(module: *const modules.Module, id: records.Id, shape: Shape) RegisterResult {
+    const record = module.getRecord(id).?;
+    var result: RegisterResult = .{ .record_id = id, .declared_bytes = record.size, .alignment = record.alignment, .lane_count = if (record.size <= 8) 1 else 2, .lanes = @splat(.{ .offset = 0, .bytes = 0, .register = .{ .general = .rax } }) };
+    var gp: u8 = 0;
+    var sse: u8 = 0;
+    for (0..result.lane_count) |lane| {
+        result.lanes[lane] = .{
+            .offset = @intCast(lane * 8),
+            .bytes = @intCast(@min(8, record.size - lane * 8)),
+            .register = switch (laneClass(shape, lane)) {
+                .integer => integer: {
+                    const reg: ResultGeneral = if (gp == 0) .rax else .rdx;
+                    gp += 1;
+                    break :integer .{ .general = reg };
+                },
+                .sse => vector: {
+                    const reg: ResultVector = if (sse == 0) .xmm0 else .xmm1;
+                    sse += 1;
+                    break :vector .{ .vector = reg };
+                },
+                .none => unreachable, // complete target eligibility before allocation
+            },
+        };
+    }
+    return result;
+}
+fn eligibleDescriptor(module: *const modules.Module, ty: ir.AbiDescriptor, shapes: *const SmallShapes) Error!void {
     if (ty == .record) {
         const record = module.getRecord(ty.record) orelse return error.InvalidAggregateType;
         if (record.size <= 16) {
-            if (record.size == 0 or record.alignment > 8 or !shapes[@backingInt(ty.record)]) return error.UnsupportedAggregatePlan;
+            if (record.size == 0 or record.alignment > 8) return error.UnsupportedAggregatePlan;
+            const shape = shapes[@backingInt(ty.record)];
+            for (0..@as(usize, if (record.size <= 8) 1 else 2)) |lane| {
+                const class = laneClass(shape, lane);
+                const bytes = @min(8, record.size - lane * 8);
+                if (class == .none or (class == .sse and bytes != 4 and bytes != 8)) return error.UnsupportedAggregatePlan;
+            }
         } else if (record.size > 4096 or record.alignment > 16) return error.UnsupportedAggregatePlan;
     }
 }
-fn eligibleFunction(module: *const modules.Module, function: *const ir.Function, shapes: *const [records.max_records]bool) Error!void {
+fn eligibleFunction(module: *const modules.Module, function: *const ir.Function, shapes: *const SmallShapes) Error!void {
     if (function.hasRecordSignature() and (function.variadic or function.environment != null)) return error.UnsupportedAggregatePlan;
     if (try function.returnAbi()) |ty| try eligibleDescriptor(module, ty, shapes);
     for (function.ordinaryParameters()) |id| try eligibleDescriptor(module, try function.parameterAbi(id), shapes);
@@ -283,6 +362,7 @@ fn resultRecord(result: Result) ?RecordResult {
     return switch (result) {
         .memory => |record| .{ .record_id = record.record_id, .declared_bytes = record.declared_bytes, .alignment = record.alignment },
         .integer_record => |record| .{ .record_id = record.record_id, .declared_bytes = record.declared_bytes, .alignment = record.alignment },
+        .register_record => |record| .{ .record_id = record.record_id, .declared_bytes = record.declared_bytes, .alignment = record.alignment },
         else => null,
     };
 }
@@ -315,12 +395,15 @@ const View = union(enum) {
 };
 const general_bank = [_]abi.General{ .rdi, .rsi, .rdx, .rcx, .r8, .r9 };
 const vector_bank = [_]abi.Vector{ .xmm0, .xmm1, .xmm2, .xmm3, .xmm4, .xmm5, .xmm6, .xmm7 };
-fn planSignature(allocator: std.mem.Allocator, module: *const modules.Module, view: View) Error!Signature {
+fn planSignature(allocator: std.mem.Allocator, module: *const modules.Module, view: View, shapes: *const SmallShapes) Error!Signature {
     const result: Result = if (try view.result()) |ty| switch (ty) {
         .scalar => |scalar| .{ .scalar = scalar },
         .record => |id| result: {
             const record = module.getRecord(id) orelse return error.InvalidAggregateType;
-            break :result if (record.size <= 16) .{ .integer_record = integerResult(module, id) } else .{ .memory = .{ .record_id = id, .declared_bytes = record.size, .alignment = record.alignment } };
+            break :result if (record.size <= 16)
+                (if (hasSse(shapes[@backingInt(id)], record.size)) .{ .register_record = registerResult(module, id, shapes[@backingInt(id)]) } else .{ .integer_record = integerResult(module, id) })
+            else
+                .{ .memory = .{ .record_id = id, .declared_bytes = record.size, .alignment = record.alignment } };
         },
     } else .none;
     var gp: u8 = if (result == .memory) 1 else 0;
@@ -345,7 +428,36 @@ fn planSignature(allocator: std.mem.Allocator, module: *const modules.Module, vi
                     break :location .{ .vector = reg };
                 }
             }
-            if (ty == .record and payload <= 16) {
+            if (ty == .record and payload <= 16 and hasSse(shapes[@backingInt(ty.record)], payload)) {
+                const record = registerResult(module, ty.record, shapes[@backingInt(ty.record)]);
+                var need_gp: u8 = 0;
+                var need_sse: u8 = 0;
+                for (record.lanes[0..record.lane_count]) |lane| switch (lane.register) {
+                    .general => need_gp += 1,
+                    .vector => need_sse += 1,
+                };
+                // Transactional BOTH-bank assignment: an unsuccessful whole
+                // argument consumes neither GP nor SSE, even if one bank fits.
+                if (gp + need_gp <= general_bank.len and sse + need_sse <= vector_bank.len) {
+                    var tuple: RegisterRecord = .{ .lane_count = record.lane_count, .lanes = @splat(.{ .offset = 0, .bytes = 0, .register = .{ .general = .rdi } }) };
+                    for (record.lanes[0..record.lane_count], 0..) |lane, n| {
+                        const reg: @FieldType(RegisterLane, "register") = switch (lane.register) {
+                            .general => general: {
+                                const reg = general_bank[gp];
+                                gp += 1;
+                                break :general .{ .general = reg };
+                            },
+                            .vector => vector: {
+                                const reg = vector_bank[sse];
+                                sse += 1;
+                                break :vector .{ .vector = reg };
+                            },
+                        };
+                        tuple.lanes[n] = .{ .offset = lane.offset, .bytes = lane.bytes, .register = reg };
+                    }
+                    break :location .{ .register_record = tuple };
+                }
+            } else if (ty == .record and payload <= 16) {
                 const integer = integerResult(module, ty.record);
                 // Atomic whole-argument bank assignment: failed tuples consume
                 // NO register; a following one-lane/scalar may use the last GP.

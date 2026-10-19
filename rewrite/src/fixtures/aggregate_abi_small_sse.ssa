@@ -1,0 +1,485 @@
+type :QIS={w,s}
+type :QSI={s,w}
+type :F4={s}
+export function :F4 $aggregate_abi_small_sse_echo_F4(:F4 %p) {
+@start
+ret %p
+}
+export function :F4 $aggregate_abi_small_sse_ret_F4(l %p) {
+@start
+ret %p
+}
+export function w $aggregate_abi_small_sse_send_F4(l %p) {
+@start
+%ok =w call $aggregate_abi_small_sse_check_F4(:F4 %p)
+ret %ok
+}
+export function w $aggregate_abi_small_sse_roundtrip_F4(l %p) {
+@start
+%r =:F4 call $aggregate_abi_small_sse_make_F4(l %p)
+%ok =w call $aggregate_abi_small_sse_check_F4(:F4 %r)
+ret %ok
+}
+export function w $aggregate_abi_small_sse_mutate_F4(:F4 %a,:F4 %b) {
+@start
+storeb 201,%a
+%ok =w call $aggregate_abi_small_sse_check_F4(:F4 %b)
+ret %ok
+}
+type :F8={s 2}
+export function :F8 $aggregate_abi_small_sse_echo_F8(:F8 %p) {
+@start
+ret %p
+}
+export function :F8 $aggregate_abi_small_sse_ret_F8(l %p) {
+@start
+ret %p
+}
+export function w $aggregate_abi_small_sse_send_F8(l %p) {
+@start
+%ok =w call $aggregate_abi_small_sse_check_F8(:F8 %p)
+ret %ok
+}
+export function w $aggregate_abi_small_sse_roundtrip_F8(l %p) {
+@start
+%r =:F8 call $aggregate_abi_small_sse_make_F8(l %p)
+%ok =w call $aggregate_abi_small_sse_check_F8(:F8 %r)
+ret %ok
+}
+export function w $aggregate_abi_small_sse_mutate_F8(:F8 %a,:F8 %b) {
+@start
+storeb 201,%a
+%ok =w call $aggregate_abi_small_sse_check_F8(:F8 %b)
+ret %ok
+}
+type :F12={s 3}
+export function :F12 $aggregate_abi_small_sse_echo_F12(:F12 %p) {
+@start
+ret %p
+}
+export function :F12 $aggregate_abi_small_sse_ret_F12(l %p) {
+@start
+ret %p
+}
+export function w $aggregate_abi_small_sse_send_F12(l %p) {
+@start
+%ok =w call $aggregate_abi_small_sse_check_F12(:F12 %p)
+ret %ok
+}
+export function w $aggregate_abi_small_sse_roundtrip_F12(l %p) {
+@start
+%r =:F12 call $aggregate_abi_small_sse_make_F12(l %p)
+%ok =w call $aggregate_abi_small_sse_check_F12(:F12 %r)
+ret %ok
+}
+export function w $aggregate_abi_small_sse_mutate_F12(:F12 %a,:F12 %b) {
+@start
+storeb 201,%a
+%ok =w call $aggregate_abi_small_sse_check_F12(:F12 %b)
+ret %ok
+}
+type :D8={d}
+export function :D8 $aggregate_abi_small_sse_echo_D8(:D8 %p) {
+@start
+ret %p
+}
+export function :D8 $aggregate_abi_small_sse_ret_D8(l %p) {
+@start
+ret %p
+}
+export function w $aggregate_abi_small_sse_send_D8(l %p) {
+@start
+%ok =w call $aggregate_abi_small_sse_check_D8(:D8 %p)
+ret %ok
+}
+export function w $aggregate_abi_small_sse_roundtrip_D8(l %p) {
+@start
+%r =:D8 call $aggregate_abi_small_sse_make_D8(l %p)
+%ok =w call $aggregate_abi_small_sse_check_D8(:D8 %r)
+ret %ok
+}
+export function w $aggregate_abi_small_sse_mutate_D8(:D8 %a,:D8 %b) {
+@start
+storeb 201,%a
+%ok =w call $aggregate_abi_small_sse_check_D8(:D8 %b)
+ret %ok
+}
+type :D16={d 2}
+export function :D16 $aggregate_abi_small_sse_echo_D16(:D16 %p) {
+@start
+ret %p
+}
+export function :D16 $aggregate_abi_small_sse_ret_D16(l %p) {
+@start
+ret %p
+}
+export function w $aggregate_abi_small_sse_send_D16(l %p) {
+@start
+%ok =w call $aggregate_abi_small_sse_check_D16(:D16 %p)
+ret %ok
+}
+export function w $aggregate_abi_small_sse_roundtrip_D16(l %p) {
+@start
+%r =:D16 call $aggregate_abi_small_sse_make_D16(l %p)
+%ok =w call $aggregate_abi_small_sse_check_D16(:D16 %r)
+ret %ok
+}
+export function w $aggregate_abi_small_sse_mutate_D16(:D16 %a,:D16 %b) {
+@start
+storeb 201,%a
+%ok =w call $aggregate_abi_small_sse_check_D16(:D16 %b)
+ret %ok
+}
+type :SI16={s,l}
+export function :SI16 $aggregate_abi_small_sse_echo_SI16(:SI16 %p) {
+@start
+ret %p
+}
+export function :SI16 $aggregate_abi_small_sse_ret_SI16(l %p) {
+@start
+ret %p
+}
+export function w $aggregate_abi_small_sse_send_SI16(l %p) {
+@start
+%ok =w call $aggregate_abi_small_sse_check_SI16(:SI16 %p)
+ret %ok
+}
+export function w $aggregate_abi_small_sse_roundtrip_SI16(l %p) {
+@start
+%r =:SI16 call $aggregate_abi_small_sse_make_SI16(l %p)
+%ok =w call $aggregate_abi_small_sse_check_SI16(:SI16 %r)
+ret %ok
+}
+export function w $aggregate_abi_small_sse_mutate_SI16(:SI16 %a,:SI16 %b) {
+@start
+storeb 201,%a
+%ok =w call $aggregate_abi_small_sse_check_SI16(:SI16 %b)
+ret %ok
+}
+type :IS16={l,s}
+export function :IS16 $aggregate_abi_small_sse_echo_IS16(:IS16 %p) {
+@start
+ret %p
+}
+export function :IS16 $aggregate_abi_small_sse_ret_IS16(l %p) {
+@start
+ret %p
+}
+export function w $aggregate_abi_small_sse_send_IS16(l %p) {
+@start
+%ok =w call $aggregate_abi_small_sse_check_IS16(:IS16 %p)
+ret %ok
+}
+export function w $aggregate_abi_small_sse_roundtrip_IS16(l %p) {
+@start
+%r =:IS16 call $aggregate_abi_small_sse_make_IS16(l %p)
+%ok =w call $aggregate_abi_small_sse_check_IS16(:IS16 %r)
+ret %ok
+}
+export function w $aggregate_abi_small_sse_mutate_IS16(:IS16 %a,:IS16 %b) {
+@start
+storeb 201,%a
+%ok =w call $aggregate_abi_small_sse_check_IS16(:IS16 %b)
+ret %ok
+}
+type :I8={w,s}
+export function :I8 $aggregate_abi_small_sse_echo_I8(:I8 %p) {
+@start
+ret %p
+}
+export function :I8 $aggregate_abi_small_sse_ret_I8(l %p) {
+@start
+ret %p
+}
+export function w $aggregate_abi_small_sse_send_I8(l %p) {
+@start
+%ok =w call $aggregate_abi_small_sse_check_I8(:I8 %p)
+ret %ok
+}
+export function w $aggregate_abi_small_sse_roundtrip_I8(l %p) {
+@start
+%r =:I8 call $aggregate_abi_small_sse_make_I8(l %p)
+%ok =w call $aggregate_abi_small_sse_check_I8(:I8 %r)
+ret %ok
+}
+export function w $aggregate_abi_small_sse_mutate_I8(:I8 %a,:I8 %b) {
+@start
+storeb 201,%a
+%ok =w call $aggregate_abi_small_sse_check_I8(:I8 %b)
+ret %ok
+}
+type :PIS12={s,:QIS}
+export function :PIS12 $aggregate_abi_small_sse_echo_PIS12(:PIS12 %p) {
+@start
+ret %p
+}
+export function :PIS12 $aggregate_abi_small_sse_ret_PIS12(l %p) {
+@start
+ret %p
+}
+export function w $aggregate_abi_small_sse_send_PIS12(l %p) {
+@start
+%ok =w call $aggregate_abi_small_sse_check_PIS12(:PIS12 %p)
+ret %ok
+}
+export function w $aggregate_abi_small_sse_roundtrip_PIS12(l %p) {
+@start
+%r =:PIS12 call $aggregate_abi_small_sse_make_PIS12(l %p)
+%ok =w call $aggregate_abi_small_sse_check_PIS12(:PIS12 %r)
+ret %ok
+}
+export function w $aggregate_abi_small_sse_mutate_PIS12(:PIS12 %a,:PIS12 %b) {
+@start
+storeb 201,%a
+%ok =w call $aggregate_abi_small_sse_check_PIS12(:PIS12 %b)
+ret %ok
+}
+type :PSI12={s,:QSI}
+export function :PSI12 $aggregate_abi_small_sse_echo_PSI12(:PSI12 %p) {
+@start
+ret %p
+}
+export function :PSI12 $aggregate_abi_small_sse_ret_PSI12(l %p) {
+@start
+ret %p
+}
+export function w $aggregate_abi_small_sse_send_PSI12(l %p) {
+@start
+%ok =w call $aggregate_abi_small_sse_check_PSI12(:PSI12 %p)
+ret %ok
+}
+export function w $aggregate_abi_small_sse_roundtrip_PSI12(l %p) {
+@start
+%r =:PSI12 call $aggregate_abi_small_sse_make_PSI12(l %p)
+%ok =w call $aggregate_abi_small_sse_check_PSI12(:PSI12 %r)
+ret %ok
+}
+export function w $aggregate_abi_small_sse_mutate_PSI12(:PSI12 %a,:PSI12 %b) {
+@start
+storeb 201,%a
+%ok =w call $aggregate_abi_small_sse_check_PSI12(:PSI12 %b)
+ret %ok
+}
+
+export function w $aggregate_abi_small_sse_poison_capture_F4(l %p){
+@e
+%r =:F4 call $aggregate_abi_small_sse_poison_result_F4(l %p)
+%ok =w call $aggregate_abi_small_sse_check_F4(:F4 %r)
+ret %ok
+}
+
+export function w $aggregate_abi_small_sse_poison_capture_F12(l %p){
+@e
+%r =:F12 call $aggregate_abi_small_sse_poison_result_F12(l %p)
+%ok =w call $aggregate_abi_small_sse_check_F12(:F12 %r)
+ret %ok
+}
+
+export function w $aggregate_abi_small_sse_poison_capture_PIS12(l %p){
+@e
+%r =:PIS12 call $aggregate_abi_small_sse_poison_result_PIS12(l %p)
+%ok =w call $aggregate_abi_small_sse_check_PIS12(:PIS12 %r)
+ret %ok
+}
+
+export function w $aggregate_abi_small_sse_poison_capture_PSI12(l %p){
+@e
+%r =:PSI12 call $aggregate_abi_small_sse_poison_result_PSI12(l %p)
+%ok =w call $aggregate_abi_small_sse_check_PSI12(:PSI12 %r)
+ret %ok
+}
+
+type :Byte={b}
+
+export function w $aggregate_abi_small_sse_probe_gp(l %p,l %b){
+@e
+%d0 =d cast 4607182418800017408
+%d1 =d cast 4611686018427387904
+%d2 =d cast 4613937818241073152
+%d3 =d cast 4616189618054758400
+%d4 =d cast 4617315517961601024
+%d5 =d cast 4618441417868443648
+%d6 =d cast 4619567317775286272
+%after =d cast 4620693217682128896
+%spill =d cast 4621256167635550208
+%ok =w call $aggregate_abi_small_sse_asm_gp(l 1,l 2,l 3,l 4,l 5,l 6,d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,:IS16 %p,d %after,d %spill)
+ret %ok
+}
+
+export function :IS16 $aggregate_abi_small_sse_receiver_gp(l %l0,l %l1,l %l2,l %l3,l %l4,l %l5,d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,:IS16 %m,d %after,d %spill){
+@e
+%ok =w call $aggregate_abi_small_sse_verify_gp(l %l0,l %l1,l %l2,l %l3,l %l4,l %l5,d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,:IS16 %m,d %after,d %spill)
+jnz %ok,@good,@bad
+@good
+ret %m
+@bad
+hlt
+}
+
+export function w $aggregate_abi_small_sse_probe_sse(l %p,l %b){
+@e
+%d0 =d cast 4607182418800017408
+%d1 =d cast 4611686018427387904
+%d2 =d cast 4613937818241073152
+%d3 =d cast 4616189618054758400
+%d4 =d cast 4617315517961601024
+%d5 =d cast 4618441417868443648
+%d6 =d cast 4619567317775286272
+%d7 =d cast 4620693217682128896
+%spill =d cast 4621256167635550208
+%ok =w call $aggregate_abi_small_sse_asm_sse(l 1,l 2,l 3,l 4,l 5,d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,d %d7,:IS16 %p,l 99,:Byte %b,d %spill)
+ret %ok
+}
+
+export function :IS16 $aggregate_abi_small_sse_receiver_sse(l %l0,l %l1,l %l2,l %l3,l %l4,d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,d %d7,:IS16 %m,l %after,:Byte %b,d %spill){
+@e
+%ok =w call $aggregate_abi_small_sse_verify_sse(l %l0,l %l1,l %l2,l %l3,l %l4,d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,d %d7,:IS16 %m,l %after,:Byte %b,d %spill)
+jnz %ok,@good,@bad
+@good
+ret %m
+@bad
+hlt
+}
+
+export function w $aggregate_abi_small_sse_probe_fit(l %p,l %b){
+@e
+%d0 =d cast 4607182418800017408
+%d1 =d cast 4611686018427387904
+%d2 =d cast 4613937818241073152
+%d3 =d cast 4616189618054758400
+%d4 =d cast 4617315517961601024
+%d5 =d cast 4618441417868443648
+%d6 =d cast 4619567317775286272
+%spill =d cast 4621256167635550208
+%ok =w call $aggregate_abi_small_sse_asm_fit(l 1,l 2,l 3,l 4,l 5,d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,:IS16 %p,l 99,d %spill)
+ret %ok
+}
+
+export function :IS16 $aggregate_abi_small_sse_receiver_fit(l %l0,l %l1,l %l2,l %l3,l %l4,d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,:IS16 %m,l %after,d %spill){
+@e
+%ok =w call $aggregate_abi_small_sse_verify_fit(l %l0,l %l1,l %l2,l %l3,l %l4,d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,:IS16 %m,l %after,d %spill)
+jnz %ok,@good,@bad
+@good
+ret %m
+@bad
+hlt
+}
+
+export function w $aggregate_abi_small_sse_probe_ss(l %p,l %b){
+@e
+%d0 =d cast 4607182418800017408
+%d1 =d cast 4611686018427387904
+%d2 =d cast 4613937818241073152
+%d3 =d cast 4616189618054758400
+%d4 =d cast 4617315517961601024
+%d5 =d cast 4618441417868443648
+%d6 =d cast 4619567317775286272
+%after =d cast 4620693217682128896
+%ok =w call $aggregate_abi_small_sse_asm_ss(d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,:F12 %p,d %after)
+ret %ok
+}
+
+export function :F12 $aggregate_abi_small_sse_receiver_ss(d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,:F12 %m,d %after){
+@e
+%ok =w call $aggregate_abi_small_sse_verify_ss(d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,:F12 %m,d %after)
+jnz %ok,@good,@bad
+@good
+ret %m
+@bad
+hlt
+}
+
+type :M27={b 27}
+export function w $aggregate_abi_small_sse_sites(){
+@e
+%a =:F4 call $aggregate_abi_small_sse_fill(w 2147483648)
+%b =:F4 call $aggregate_abi_small_sse_fill(w 2139095040)
+%x =w loadw %a
+%y =w loadw %b
+%r =w xor %x,%y
+ret %r
+}
+export function w $aggregate_abi_small_sse_loop(w %n){
+@entry
+jmp @loop
+@loop
+%i =w phi @entry 0,@next %j
+%bits =w add %i,305397760
+%p =:F4 call $aggregate_abi_small_sse_fill(w %bits)
+%ok =w call $aggregate_abi_small_sse_observe(l %p,w %i)
+jnz %ok,@next,@bad
+@next
+%j =w add %i,1
+%again =w cultw %j,%n
+jnz %again,@loop,@done
+@bad
+ret 0
+@done
+ret 1
+}
+export function :F12 $aggregate_abi_small_sse_recurse(:F12 %p,w %n){
+@entry
+jnz %n,@next,@done
+@next
+%m =w sub %n,1
+%r =:F12 call $aggregate_abi_small_sse_recurse(:F12 %p,w %m)
+ret %r
+@done
+ret %p
+}
+export function :F12 $aggregate_abi_small_sse_dynamic(l %p){
+@e
+%live =l alloc16 12
+blit %p,%live,12
+%a =:F12 call $aggregate_abi_small_sse_make_F12(l %live)
+%big =l alloc16 4097
+storeb 71,%big
+%constant0 =d cast 4607182418800017408
+%constant1 =d cast 4611686018427387904
+%constant2 =d cast 4613937818241073152
+%constant3 =d cast 4616189618054758400
+%constant4 =d cast 4617315517961601024
+%constant5 =d cast 4618441417868443648
+%constant6 =d cast 4619567317775286272
+%constant7 =d cast 4620693217682128896
+%constant8 =d cast 4621256167635550208
+%r =:F12 call $aggregate_abi_small_sse_stack_F12(l %a,l 1,l 2,l 3,l 4,l 5,l 6,l 7,d %constant0,d %constant1,d %constant2,d %constant3,d %constant4,d %constant5,d %constant6,d %constant7,d %constant8)
+ret %r
+}
+export function l $aggregate_abi_small_sse_varcaller(l %p,...){
+@e
+%args =l alloc8 24
+vastart %args
+%r =:F12 call $aggregate_abi_small_sse_make_F12(l %p)
+%d =d vaarg %args
+%bits =l cast %d
+%x =w loadw %r
+%u =l extuw %x
+%answer =l xor %u,%bits
+ret %answer
+}
+export function w $aggregate_abi_small_sse_envcaller(env %e,l %p){
+@entry
+%r =:F12 call $aggregate_abi_small_sse_make_F12(l %p)
+%x =w loadw %r
+%ew =w copy %e
+%answer =w xor %x,%ew
+ret %answer
+}
+export function :M27 $aggregate_abi_small_sse_hidden(:F12 %p,:PSI12 %q,l %scalar){
+@entry
+%x =w call $aggregate_abi_small_sse_check_F12(:F12 %p)
+%y =w call $aggregate_abi_small_sse_check_PSI12(:PSI12 %q)
+%ok =w and %x,%y
+jnz %ok,@good,@bad
+@good
+%r =:M27 call $aggregate_abi_small_sse_make_M27(w 209)
+ret %r
+@bad
+hlt
+}
+export function :M27 $aggregate_abi_small_sse_hidden_caller(l %p,l %q){
+@entry
+%r =:M27 call $aggregate_abi_small_sse_hidden(:F12 %p,:PSI12 %q,l %p)
+ret %r
+}

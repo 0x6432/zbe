@@ -83,7 +83,7 @@ test "aggregate_abi_small_integer literal32byte hidden result rollback and indep
     try t.expect(plan.signature.arguments[5].location == .stack);
     try tuple(plan.signature.arguments[6], .r9, null, .{ 1, 0 });
 }
-test "aggregate_abi_small_integer only integer leaves and align8 accept uses while generic metadata stays broad" {
+test "aggregate_abi_small_integer old variants and generic metadata remain while SSE positives extend eligibility" {
     for ([_][]const u8{ "s", "d 2", "w,s", "align 16 {l 2}" }, 0..) |fields, index| {
         const declaration = if (index == 3) try std.fmt.allocPrint(t.allocator, "type :T={s}\n", .{fields}) else try std.fmt.allocPrint(t.allocator, "type :T={{{s}}}\n", .{fields});
         defer t.allocator.free(declaration);
@@ -92,7 +92,14 @@ test "aggregate_abi_small_integer only integer leaves and align8 accept uses whi
         var module = try parse(t.allocator, text);
         defer module.deinit();
         try @import("module_validation.zig").validate(t.allocator, &module);
-        try t.expectError(error.UnsupportedAggregateAbi, amd64.emit(t.allocator, &module));
+        if (index == 3) {
+            try t.expectError(error.UnsupportedAggregateAbi, amd64.emit(t.allocator, &module));
+        } else {
+            // s/d2/w+s are now explicitly positive, with independent runtime
+            // and exact INTEGER-dominance oracles in the new SSE harness.
+            const output = try amd64.emit(t.allocator, &module);
+            defer t.allocator.free(output);
+        }
     }
     var module = try parse(t.allocator, "type :Small={b}\ntype :Float={s}\ntype :Over=align 64 {l 2}\ntype :N={h,b}\ntype :Nested={:N 2,l}\nfunction :Nested $f(:Nested %p){\n@e\nret %p\n}");
     defer module.deinit();

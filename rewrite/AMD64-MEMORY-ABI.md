@@ -11,7 +11,8 @@ source evidence. Layouts never come from the compiler host's C layout.
 
 Small integer-only size1..16 records are a separate implemented subset described in
 [SMALL-INTEGER-ABI.md](SMALL-INTEGER-ABI.md), including stack fallback without GP consumption.
-Not supported: small SSE/mixed-register aggregates, vectors, opaque/union/unaligned types,
+Small SSE/mixed register records are separately supported in
+[SMALL-SSE-ABI.md](SMALL-SSE-ABI.md). Not supported: small align16+, vectors, opaque/union/unaligned types,
 non-SysV targets, record-bearing indirect/env/variadic signatures or calls. Rules
 are site-local: scalar env/variadic callers may call eligible record callees, and
 record functions may make scalar env/vararg/indirect calls. Valid unused generic

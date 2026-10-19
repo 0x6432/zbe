@@ -1,4 +1,4 @@
-# Experimental Linux AMD64 scalar and bounded INTEGER/MEMORY-record slice
+# Experimental Linux AMD64 scalar and bounded INTEGER/SSE/MEMORY-record slice
 
 This is the first independent parse → SSA/phi verification → assembly → native-execution path. It is **not** full QBE, full AMD64 lowering, a complete register allocator, a complete optimizer, or release-ready code generation.
 
@@ -168,5 +168,5 @@ Bounded direct MEMORY-record arguments/results are described in
 [AMD64-MEMORY-ABI.md](AMD64-MEMORY-ABI.md). Run
 `python3 tools/aggregate_abi_native_check.py` for C/hand-assembly/guard-page
 coverage. Integer-only small-register records are separately bounded by
-[SMALL-INTEGER-ABI.md](SMALL-INTEGER-ABI.md); other register classes and aggregate
-interpreter execution remain unsupported.
+[SMALL-INTEGER-ABI.md](SMALL-INTEGER-ABI.md); SSE/mixed size1..16 records are separately supported in [SMALL-SSE-ABI.md](SMALL-SSE-ABI.md);
+other aggregate classes and aggregate interpreter execution remain unsupported.

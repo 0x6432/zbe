@@ -19,7 +19,8 @@ subset and resource policy, not a restriction on valid declarations. Generic
 metadata still permits tiny, align32/64 and UINT64_MAX records; unused declarations
 do not trigger target refusal. The additional integer-only size1..16, align1/2/4/8 target subset has whole-argument
 GP tuples and RAX/RDX results; see [SMALL-INTEGER-ABI.md](SMALL-INTEGER-ABI.md).
-No small SSE/mixed-register aggregate, vector, opaque,
+SSE/mixed size1..16 records now have tagged GP/XMM lane plans and atomic BOTH-bank
+assignment; see [SMALL-SSE-ABI.md](SMALL-SSE-ABI.md). No small align16+, vector, opaque,
 unaligned, C++ invisible-reference or non-SysV classification is provided.
 
 In this closed b/h/w/l/s/d record universe, a record larger than two eightbytes
@@ -104,4 +105,4 @@ secondary to independent prefix/register expectations.
 
 The standalone planning API is not itself execution. Bounded native MEMORY
 integration is separately documented in [AMD64-MEMORY-ABI.md](AMD64-MEMORY-ABI.md).
-Other small-register aggregate classes and all aggregate interpretation remain unsupported.
+Other aggregate classes and all aggregate interpretation remain unsupported.

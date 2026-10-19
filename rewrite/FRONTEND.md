@@ -112,3 +112,7 @@ Native lowering additionally supports direct integer-only size1..16, align<=8
 record signatures/calls with exact INTEGER register tuples and stack fallback
 ([SMALL-INTEGER-ABI.md](SMALL-INTEGER-ABI.md)). This does not introduce aggregate
 arithmetic/copy/phi classes or any aggregate interpreter execution.
+
+Small records containing s/d fields also have bounded native SSE/mixed-register
+transport, without new first-class aggregate operations or interpreter execution
+([SMALL-SSE-ABI.md](SMALL-SSE-ABI.md)).

@@ -305,6 +305,17 @@ const Emitter = struct {
                 const argument = plan.signature.arguments[position];
                 // A MEMORY parameter is the address of its caller-provided COPY.
                 switch (argument.location) {
+                    .register_record => |tuple| {
+                        const object = plan.parameter_objects[parameter_object_index];
+                        std.debug.assert(object.position == position);
+                        parameter_object_index += 1;
+                        for (tuple.lanes[0..tuple.lane_count]) |lane| switch (lane.register) {
+                            .general => |reg| try self.unpackLane(reg.name(.long), object.end, lane.offset, lane.bytes),
+                            .vector => |reg| try self.unpackVectorLane(reg.name(), object.end, lane.offset, lane.bytes),
+                        };
+                        try self.print("\tleaq -{d}(%rbp), %rax\n", .{object.end});
+                        try self.save(parameter, "%rax");
+                    },
                     .integer_record => |tuple| {
                         const object = plan.parameter_objects[parameter_object_index];
                         std.debug.assert(object.position == position);
@@ -590,7 +601,15 @@ const Emitter = struct {
                 },
                 .return_value => |operand| {
                     if (operand) |value| {
-                        if (self.current_plan != null and self.current_plan.?.signature.result == .integer_record) {
+                        if (self.current_plan != null and self.current_plan.?.signature.result == .register_record) {
+                            const record = self.current_plan.?.signature.result.register_record;
+                            try self.load(value, .accumulator);
+                            try self.print("\tmovq %rax, %r11\n", .{});
+                            for (record.lanes[0..record.lane_count]) |lane| switch (lane.register) {
+                                .general => |reg| try self.packLane(reg.name(), lane.offset, lane.bytes),
+                                .vector => |reg| try self.packVectorLane(reg.name(), lane.offset, lane.bytes),
+                            };
+                        } else if (self.current_plan != null and self.current_plan.?.signature.result == .integer_record) {
                             const record = self.current_plan.?.signature.result.integer_record;
                             try self.load(value, .accumulator);
                             try self.print("\tmovq %rax, %r11\n", .{});
@@ -623,6 +642,15 @@ const Emitter = struct {
             try self.load(argument.operand, .accumulator);
             try self.print("\tmovq %rax, %rsi\n\tleaq {d}(%rsp), %rdi\n\tmovl ${d}, %ecx\n\trep movsb\n", .{ planned.location.stack.offset, planned.declared_bytes });
         };
+        for (call.arguments, site.signature.arguments) |argument, planned| if (planned.location == .register_record) {
+            try self.load(argument.operand, .accumulator);
+            try self.print("\tmovq %rax, %r11\n", .{});
+            const tuple = planned.location.register_record;
+            for (tuple.lanes[0..tuple.lane_count]) |lane| switch (lane.register) {
+                .general => |reg| try self.packLane(reg.name(.long), lane.offset, lane.bytes),
+                .vector => |reg| try self.packVectorLane(reg.name(), lane.offset, lane.bytes),
+            };
+        };
         for (call.arguments, site.signature.arguments) |argument, planned| if (planned.location == .integer_record) {
             try self.load(argument.operand, .accumulator);
             try self.print("\tmovq %rax, %r11\n", .{});
@@ -633,7 +661,7 @@ const Emitter = struct {
             try self.load(argument.operand, .accumulator);
             const ty = planned.carrier;
             switch (planned.location) {
-                .integer_record => unreachable, // scalar descriptors never carry tuples
+                .integer_record, .register_record => unreachable, // scalar descriptors never carry tuples
                 .general => |reg| try self.print("\tmov{c} {s}, {s}\n", .{ suffix(ty), register(ty, .accumulator), reg.name(if (ty == .word) .word else .long) }),
                 .vector => |reg| try self.print("\tmov{c} {s}, {s}\n", .{ sseMove(ty), register(ty, .accumulator), reg.name() }),
                 .stack => |slot| try self.print("\tmov{c} {s}, {d}(%rsp)\n", .{ suffix(ty), register(ty, .accumulator), slot.offset }),
@@ -649,7 +677,15 @@ const Emitter = struct {
         if (call.result) |result| {
             if (site.pad_index) |index| {
                 const pad = self.current_plan.?.pads[index];
-                if (site.signature.result == .integer_record) {
+                if (site.signature.result == .register_record) {
+                    const record = site.signature.result.register_record;
+                    // No scalar-result pre-move: preserve every GP/XMM result
+                    // until BOTH lanes are captured, before LEA overwrites RAX.
+                    for (record.lanes[0..record.lane_count]) |lane| switch (lane.register) {
+                        .general => |reg| try self.unpackLane(reg.name(), pad.end, lane.offset, lane.bytes),
+                        .vector => |reg| try self.unpackVectorLane(reg.name(), pad.end, lane.offset, lane.bytes),
+                    };
+                } else if (site.signature.result == .integer_record) {
                     const record = site.signature.result.integer_record;
                     // Capture BOTH lane values before LEA overwrites RAX. The
                     // first unpack uses only R10 scratch, preserving resultRDX.
@@ -663,6 +699,19 @@ const Emitter = struct {
             }
             try self.save(result, register(self.current.values.items[@backingInt(result)].scalar_type, .accumulator));
         }
+    }
+
+    /// Raw bits only: an SSE lane in this closed aligned scalar-record subset
+    /// has exactly4 or8 declared bytes, never a16-byte vector or rounded tail.
+    fn packVectorLane(self: *Emitter, target: []const u8, offset: u8, bytes: u8) Error!void {
+        std.debug.assert(bytes == 4 or bytes == 8);
+        try self.print("\tmov{s} {d}(%r11), {s}\n", .{ if (bytes == 4) @as([]const u8, "d") else "q", offset, target });
+    }
+    fn unpackVectorLane(self: *Emitter, input_reg: []const u8, end: u64, offset: u8, bytes: u8) Error!void {
+        std.debug.assert((bytes == 4 or bytes == 8) and end >= offset + bytes);
+        if (bytes == 8) return self.print("\tmovq {s}, -{d}(%rbp)\n", .{ input_reg, end - offset });
+        // Only R10 scratch: never destroy a still-live RAX/RDX or XMM lane.
+        try self.print("\tmovd {s}, %r10d\n\tmovl %r10d, -{d}(%rbp)\n", .{ input_reg, end - offset });
     }
 
     /// Source pointer is R11, scratch is R10; target must be a GP argument or

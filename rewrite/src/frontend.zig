@@ -3,6 +3,7 @@ const source = @import("source.zig");
 const lex = @import("lexer.zig");
 const ir = @import("ir.zig");
 const data = @import("data.zig");
+const records = @import("record_declaration.zig");
 const Module = @import("module.zig").Module;
 const Allocator = std.mem.Allocator;
 const binary_opcodes = std.StaticStringMap(ir.BinaryOp).initComptime(.{
@@ -64,7 +65,7 @@ fn floatComparisonOpcode(spelling: []const u8) ?FloatComparisonOpcode {
     const predicate = float_comparison_predicates.get(spelling[0 .. spelling.len - 1]) orelse return null;
     return .{ .predicate = predicate, .operand_type = ty };
 }
-pub const Error = Allocator.Error || error{ InvalidInput, TooManySymbols, TooManyFunctions, TooManyData, DataTooLarge, InvalidDataSize, InvalidCommonInitializer, TooManyValues, TooManyBlocks };
+pub const Error = records.Error || Allocator.Error || error{ InvalidInput, TooManySymbols, TooManyFunctions, TooManyData, DataTooLarge, InvalidDataSize, InvalidCommonInitializer, TooManyValues, TooManyBlocks };
 
 /// Parse the documented scalar subset into an independently owned module.
 /// Input is borrowed only during this call. On failure all partial IR is freed;
@@ -102,7 +103,7 @@ pub fn parse(allocator: Allocator, input: source.Source, diagnostic: *?source.Di
         }
         const is_data = parser.word("data");
         parser.index = start;
-        if (is_data) try parser.dataDefinition() else try parser.function();
+        if (parser.word("type")) try parser.recordDefinition() else if (is_data) try parser.dataDefinition() else try parser.function();
         parser.skipLines();
     }
     return parser.module;
@@ -118,6 +119,73 @@ const Parser = struct {
     current_function: ?*ir.Function = null,
     values: std.StringHashMapUnmanaged(ir.ValueId) = .empty,
     blocks: std.StringHashMapUnmanaged(ir.BlockId) = .empty,
+
+    fn recordDefinition(self: *Parser) Error!void {
+        _ = self.advance(); // Contextual `type`, without linkage flags.
+        self.skipLines();
+        const name_token = try self.expect(.type_name);
+        const name = self.nameText(name_token);
+        self.skipLines();
+        _ = try self.expect(.equal);
+        self.skipLines();
+        var alignment: ?u8 = null;
+        if (self.word("align")) {
+            _ = self.advance();
+            self.skipLines();
+            const token = try self.expect(.integer);
+            const count = std.fmt.parseInt(u64, self.tokenText(token), 10) catch return self.fail(.invalid_alignment, token);
+            const checked = data.Alignment.fromBytes(count) catch return self.fail(.invalid_alignment, token);
+            alignment = checked.bytes();
+            self.skipLines();
+        }
+        _ = try self.expect(.lbrace);
+        self.skipLines();
+        // Empty, opaque and union forms are intentionally not this record slice.
+        if (self.peek().kind != .identifier and self.peek().kind != .type_name)
+            return self.fail(.unsupported_construct, self.peek());
+        var fields: std.ArrayList(records.Field) = .empty;
+        defer fields.deinit(self.allocator);
+        while (true) {
+            const token = self.advance();
+            const element: records.Element = if (token.kind == .type_name) child: {
+                const id = self.module.findRecord(self.nameText(token)) orelse return self.fail(.unknown_type, token);
+                break :child .{ .record = id };
+            } else scalar: {
+                if (token.kind != .identifier) return self.fail(.unsupported_construct, token);
+                const spelling = self.tokenText(token);
+                if (spelling.len != 1) return self.fail(.unsupported_construct, token);
+                break :scalar .{ .scalar = switch (spelling[0]) {
+                    'b' => .byte,
+                    'h' => .half,
+                    'w' => .word,
+                    'l' => .long,
+                    's' => .single,
+                    'd' => .double,
+                    else => return self.fail(.unsupported_construct, token),
+                } };
+            };
+            self.skipLines();
+            var count: u32 = 1;
+            if (self.peek().kind == .integer) {
+                const count_token = self.advance();
+                count = std.fmt.parseInt(u32, self.tokenText(count_token), 10) catch return self.fail(.invalid_record_count, count_token);
+                if (count == 0 or count > records.max_repeat) return self.fail(.invalid_record_count, count_token);
+                self.skipLines();
+            }
+            if (fields.items.len >= records.max_record_runs) return error.RecordLimitExceeded;
+            try fields.append(self.allocator, .{ .element = element, .count = count });
+            if (self.peek().kind != .comma) break;
+            _ = self.advance();
+            self.skipLines();
+            if (self.peek().kind == .rbrace) break;
+        }
+        _ = try self.expect(.rbrace);
+        _ = self.module.addRecord(name, alignment, fields.items) catch |err| switch (err) {
+            error.DuplicateType => return self.fail(.duplicate_type, name_token),
+            error.InvalidRecordName => return self.fail(.invalid_name, name_token),
+            else => |resource| return resource,
+        };
+    }
 
     fn dataDefinition(self: *Parser) Error!void {
         var exported = false;

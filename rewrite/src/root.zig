@@ -19,6 +19,8 @@ pub const ir = @import("ir.zig");
 pub const module_validation = @import("module_validation.zig");
 pub const byte_strings = @import("byte_strings.zig");
 pub const data = @import("data.zig");
+pub const record_declaration = @import("record_declaration.zig");
+pub const AggregateTypeId = @import("module.zig").AggregateTypeId;
 pub const DataId = @import("module.zig").DataId;
 pub const Module = @import("module.zig").Module;
 
@@ -54,6 +56,7 @@ test {
     _ = @import("interpreter_vaarg_test.zig");
     _ = @import("interpreter_vastart_test.zig");
     _ = @import("amd64.zig");
+    _ = @import("immediate_selection_test.zig");
     _ = @import("abi_amd64.zig");
     _ = @import("interpreter.zig");
     _ = @import("optimize.zig");
@@ -138,4 +141,8 @@ test "accelerated milestone test registration" {
 
 test "alloc_aliases milestone registration" {
     _ = @import("alloc_aliases_test.zig");
+}
+
+test "record_declaration milestone registration" {
+    _ = @import("record_declaration_test.zig");
 }

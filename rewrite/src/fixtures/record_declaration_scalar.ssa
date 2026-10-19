@@ -1,0 +1,25 @@
+export function l $record_declaration_scalar(l %bits,w %n,s %floating) {
+@entry
+%d =d exts %floating
+%raw =l cast %d
+jmp @loop
+@loop
+%i =w phi @entry 0, @body %next
+%sum =l phi @entry 0, @body %added
+%more =w cultw %i, %n
+jnz %more, @body, @done
+@body
+%wide =l extuw %i
+%added =l add %sum, %wide
+%next =w add %i, 1
+jmp @loop
+@done
+%x =l xor %bits, %sum
+%r =l xor %x, %raw
+ret %r
+}
+export function l $record_declaration_wrapper() {
+@entry
+%r =l call $record_declaration_scalar(l 123456789,w 10,s s_-0)
+ret %r
+}

@@ -1,6 +1,6 @@
 # Zig-native backend rewrite
 
-**Status: experimental base-scalar Linux AMD64 compiler slice, plus scalar frontend/verifier/interpreter. Not a complete QBE backend.** This directory is a new implementation, not a wrapper around or a mechanical cleanup of the existing C-shaped port. Its parser accepts only the documented scalar subset. The experimental driver emits Linux AMD64 integer and single/double scalar assembly. Most IL/ABI/target support, optimizations and full register allocation are still missing. An opt-in conservative integer constant folder is implemented, not a complete optimizer. Passing its tests does not establish QBE compatibility or replace the legacy backend.
+**Status: experimental base-scalar Linux AMD64 compiler slice, plus scalar frontend/verifier/interpreter. Not a complete QBE backend.** This directory is a new implementation, not a wrapper around or a mechanical cleanup of the existing C-shaped port. Its parser accepts the documented scalar subset plus bounded nonempty record declarations with owned layout metadata; aggregate values and ABI/call use remain refused ([RECORD-DECLARATIONS.md](RECORD-DECLARATIONS.md)). The experimental driver emits Linux AMD64 integer and single/double scalar assembly. Most IL/ABI/target support, optimizations and full register allocation are still missing. An opt-in conservative integer constant folder is implemented, not a complete optimizer. Passing its tests does not establish QBE compatibility or replace the legacy backend.
 
 Work lives on `rewrite/zig-native`. The existing compiler, build and regression suite remain the reference implementation and are unchanged by this foundation.
 
@@ -21,6 +21,7 @@ The independent build exports `zbe_native` without linking libc or importing the
 ## Implemented
 
 - Allocator-owned interned symbols, with stable string storage.
+- Bounded nonempty record declarations with owned checked layouts and earlier-record references; names live in a separate module-owned `record_names` pool, preserving scalar symbol IDs/assembly. This does not add aggregate values, ABI classification or calls ([RECORD-DECLARATIONS.md](RECORD-DECLARATIONS.md)).
 - Independent modules owning separately allocated functions and numeric/zero-fill data objects; pointers survive module-table growth (DATA.md).
 - Function-owned typed value/block IDs and growable instruction storage.
 - Explicit low-word operand projections normalize QBE long-to-word subtyping without changing source definitions or guessing reverse extension (LOW-WORD.md).

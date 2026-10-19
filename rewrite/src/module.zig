@@ -2,6 +2,8 @@ const std = @import("std");
 const symbols = @import("symbols.zig");
 const ir = @import("ir.zig");
 const data = @import("data.zig");
+const records = @import("record_declaration.zig");
+pub const AggregateTypeId = records.Id;
 
 pub const FunctionId = enum(u32) { _ };
 pub const DataId = enum(u32) { _ };
@@ -11,11 +13,15 @@ pub const DataId = enum(u32) { _ };
 pub const Module = struct {
     allocator: std.mem.Allocator,
     symbols: symbols.Pool,
+    /// Owns type spellings without consuming code-generation symbol IDs.
+    record_names: symbols.Pool,
     functions: std.ArrayList(*ir.Function) = .empty,
     data: std.ArrayList(*data.Data) = .empty,
+    /// A separate declaration namespace, never an ELF definition or SSA type.
+    types: std.ArrayList(*records.Record) = .empty,
 
     pub fn init(allocator: std.mem.Allocator) Module {
-        return .{ .allocator = allocator, .symbols = symbols.Pool.init(allocator) };
+        return .{ .allocator = allocator, .symbols = symbols.Pool.init(allocator), .record_names = symbols.Pool.init(allocator) };
     }
 
     pub fn deinit(self: *Module) void {
@@ -29,8 +35,50 @@ pub const Module = struct {
             self.allocator.destroy(object);
         }
         self.data.deinit(self.allocator);
+        for (self.types.items) |record| {
+            record.deinit();
+            self.allocator.destroy(record);
+        }
+        self.types.deinit(self.allocator);
+        self.record_names.deinit();
         self.symbols.deinit();
         self.* = undefined;
+    }
+
+    /// No retained name lookup or run-total cache can become stale. The small,
+    /// bounded declaration table is authoritative, including after IR edits.
+    pub fn findRecord(self: *const Module, name: []const u8) ?AggregateTypeId {
+        for (self.types.items, 0..) |record, index| {
+            const stored = self.record_names.get(record.name) orelse continue;
+            if (std.mem.eql(u8, stored, name)) return @fromBackingInt(@as(u32, @intCast(index)));
+        }
+        return null;
+    }
+    pub fn getRecord(self: *const Module, id: AggregateTypeId) ?*records.Record {
+        const index = @backingInt(id);
+        return if (index < self.types.items.len) self.types.items[index] else null;
+    }
+    pub fn validateRecords(self: *const Module, allocator: std.mem.Allocator) records.Error!void {
+        try records.validate(allocator, self.types.items, &self.record_names);
+    }
+    pub fn addRecord(self: *Module, name: []const u8, alignment: ?u8, fields: []const records.Field) (records.Error || error{TooManySymbols})!AggregateTypeId {
+        try self.validateRecords(self.allocator);
+        if (!records.validName(name)) return error.InvalidRecordName;
+        if (self.findRecord(name) != null) return error.DuplicateType;
+        if (self.types.items.len >= records.max_records) return error.RecordLimitExceeded;
+        var total = fields.len;
+        for (self.types.items) |record| total = std.math.add(usize, total, record.runs.len) catch return error.RecordLimitExceeded;
+        if (total > records.max_module_runs) return error.RecordLimitExceeded;
+        const name_id = try self.record_names.intern(name);
+        const record = try records.Record.create(self.allocator, name_id, alignment, fields, self.types.items);
+        errdefer {
+            record.deinit();
+            self.allocator.destroy(record);
+        }
+        try self.types.ensureUnusedCapacity(self.allocator, 1);
+        const id: AggregateTypeId = @fromBackingInt(@as(u32, @intCast(self.types.items.len)));
+        self.types.appendAssumeCapacity(record);
+        return id;
     }
 
     pub fn addFunction(self: *Module, name: []const u8, result: ?ir.ScalarType) !FunctionId {

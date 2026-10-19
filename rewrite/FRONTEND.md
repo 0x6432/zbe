@@ -1,8 +1,17 @@
 # Independent scalar frontend
 
-`frontend.parse(allocator, Source, &diagnostic)` returns an owned `Module`. It borrows input only during the call; names that survive parsing are interned into the module. The caller deinitializes successful modules. Any failed parse frees tokens, name maps and all partially constructed functions. `InvalidInput` carries a typed diagnostic with a half-open source byte span; allocator/resource errors propagate separately. There is no process exit or CLI diagnostic rendering in this API.
+`frontend.parse(allocator, Source, &diagnostic)` returns an owned `Module`. It borrows input only during the call; names that survive parsing are interned into the module. The caller deinitializes successful modules. Any failed parse frees tokens, name maps and all partially constructed functions, data and records. `InvalidInput` carries a typed diagnostic with a half-open source byte span; allocator/resource errors propagate separately. There is no process exit or CLI diagnostic rendering in this API.
 
 ## Currently accepted subset
+
+Bounded nonempty `type :Name = [align A] { member [count], ... }` record
+declarations are accepted with owned checked layouts: scalar b/h/w/l/s/d fields
+and earlier-record references only. Type names belong to the module-owned
+`record_names` pool, separate from scalar/code-generation symbols; unused valid
+declarations leave scalar assembly byte-identical. Aggregate values, signatures,
+ABI classification and calls remain explicitly refused. Exact repeat/alignment/
+resource bounds and deferred union/opaque syntax are documented in
+[RECORD-DECLARATIONS.md](RECORD-DECLARATIONS.md).
 
 ```text
 [export] function [w|l|s|d] $name([type %parameter, ...]) {
@@ -56,7 +65,7 @@ are supported separately (VARIADIC-FUNCTIONS.md); external/indirect variadic cal
 - Floating literals retain their `s_`/`d_` width, including decimal/hex spellings, signed zero, infinity and plain NaN. Numeric conversion uses Zig, not libc. NaN payload spellings are scanned intact but **rejected explicitly by this parser** until payload semantics are implemented.
 - Phi nodes precede ordinary instructions in a block. The parser retains typed predecessor/value pairs; `ssa.validate` checks predecessor coverage and incoming-edge dominance.
 - Forward **block targets** are resolved by a declaration pass. Temporary result types are predeclared, so loop backedges and layout-independent forward references are accepted; scalar SSA validation must establish actual definition availability. Parameters and blocks are scoped per function; duplicate function/block/value names are rejected.
-- The lexer returns borrowed raw spans, including string escapes and quoted global names; it does not silently decode/rewrite names. Unsupported quoted-name bytes/escapes, strings as operands, aggregates, unsupported string classes/escapes and general relocation forms in data, unsupported memory operations, unsupported call forms, aggregate ABI forms and combined environment/variadic forms, non-scalar ABI types and unimplemented opcodes are explicitly rejected by the parser.
+- The lexer returns borrowed raw spans, including string escapes and quoted global names; it does not silently decode/rewrite names. Unsupported quoted-name bytes/escapes, strings as operands, aggregate values, unsupported string classes/escapes and general relocation forms in data, unsupported memory operations, unsupported call forms, aggregate ABI forms and combined environment/variadic forms, non-scalar ABI types and unimplemented opcodes are explicitly rejected by the parser.
 
 Numeric/zero-fill data definitions are accepted outside functions; fields are packed,
 alignment defaults to eight and sizes are bounded. See DATA.md for exact group,

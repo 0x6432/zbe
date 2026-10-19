@@ -6,6 +6,24 @@ const stack_homes = @import("stack_homes.zig");
 const Module = @import("module.zig").Module;
 pub const Error = stack_homes.Error || abi.Error || module_validation.Error || error{FrameTooLarge};
 
+/// x86-64 qword immediate arithmetic sign-extends imm32. Never silently truncate
+/// a long constant, commute operands or infer facts for nonliteral operands.
+fn literalIntegerImmediate(op: ir.BinaryOp, ty: ir.ScalarType, operand: ir.Operand) ?i32 {
+    switch (op) {
+        .add, .sub, .bit_and, .bit_or, .bit_xor => {},
+        else => return null,
+    }
+    if (!ty.isInteger() or operand != .constant) return null;
+    return switch (operand.constant) {
+        .word => |bits| @bitCast(bits),
+        .long => |bits| immediate: {
+            const signed: i64 = @bitCast(bits);
+            break :immediate std.math.cast(i32, signed);
+        },
+        else => null,
+    };
+}
+
 pub const Options = struct {
     reuse_stack_homes: bool = false,
     callee_saved_homes: bool = false,
@@ -452,8 +470,21 @@ const Emitter = struct {
                 },
                 .binary => |binary| {
                     try self.load(binary.lhs, .accumulator);
-                    try self.load(binary.rhs, .temporary);
                     const ty = f.values.items[@backingInt(binary.result)].scalar_type;
+                    if (literalIntegerImmediate(binary.op, ty, binary.rhs)) |immediate| {
+                        const mnemonic: []const u8 = switch (binary.op) {
+                            .add => "add",
+                            .sub => "sub",
+                            .bit_and => "and",
+                            .bit_or => "or",
+                            .bit_xor => "xor",
+                            else => unreachable,
+                        };
+                        try self.print("\t{s}{c} ${d}, {s}\n", .{ mnemonic, suffix(ty), immediate, register(ty, .accumulator) });
+                        try self.save(binary.result, register(ty, .accumulator));
+                        continue;
+                    }
+                    try self.load(binary.rhs, .temporary);
                     if (!ty.isInteger()) {
                         const mnemonic: []const u8 = switch (binary.op) {
                             .add => "add",

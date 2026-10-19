@@ -13,7 +13,8 @@ jobs:
   core:
     name: Rewrite core (${{ matrix.optimize }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    # The verified prior Debug matrix used 19m01s; record/immediate coverage grows this matrix.
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -37,6 +38,9 @@ jobs:
           python3 tools/generate_float_oracle.py --check
           python3 tools/generate_conversion_oracle.py --check
           python3 tools/float_precision_generate.py --check
+          python3 tools/immediate_selection_generate.py --check
+          python3 tools/record_declaration_generate.py --check
+          python3 tools/record_declaration_upstream_check.py
           python3 tools/generate_float_comparison_oracle.py --check
           python3 tools/generate_memory_oracle.py --check
           python3 tools/generate_signed_conversion_oracle.py --check
@@ -57,10 +61,12 @@ jobs:
             python3 tools/native_check.py $flags
             python3 tools/native_float_check.py $flags
             python3 tools/float_precision_native_check.py $flags
+            python3 tools/record_declaration_native_check.py $flags
             python3 tools/native_call_check.py $flags
             python3 tools/native_memory_check.py $flags
             python3 tools/native_blit_check.py $flags
             python3 tools/native_numeric_check.py $flags
+            python3 tools/immediate_selection_native_check.py $flags
             python3 tools/neutral_identity_native_check.py $flags
             python3 tools/native_low_word_check.py $flags
             python3 tools/native_frame_check.py $flags

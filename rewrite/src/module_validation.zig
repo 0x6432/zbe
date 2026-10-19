@@ -3,12 +3,13 @@ const std = @import("std");
 const ir = @import("ir.zig");
 const ssa = @import("ssa.zig");
 const Module = @import("module.zig").Module;
-pub const Error = ssa.Error || @import("data.zig").Error || error{ InvalidSymbol, DuplicateSymbol, CallSignatureMismatch, CalledDataSymbol };
+pub const Error = @import("record_declaration.zig").Error || ssa.Error || @import("data.zig").Error || error{ InvalidSymbol, DuplicateSymbol, CallSignatureMismatch, CalledDataSymbol };
 
 /// Validate all bodies before following callee parameter IDs. Externals remain
 /// contractual, but their symbol IDs must belong to this module's pool.
 /// This does not impose a target assembler's symbol spelling restrictions.
 pub fn validate(allocator: std.mem.Allocator, module: *const Module) Error!void {
+    try module.validateRecords(allocator);
     _ = try module.dataSize();
     for (module.data.items, 0..) |object, index| {
         _ = module.symbols.get(object.name) orelse return error.InvalidSymbol;

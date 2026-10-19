@@ -154,3 +154,12 @@ Bounded printable-ASCII quoted globals (excluding ELF `@` syntax) decode to owne
 across definitions/calls/scalar operands/data relocations (QUOTED-GLOBALS.md).
 Native formatting escapes non-bare names while preserving existing bare output
 and the private-label namespace; no host lookup or full identifier/target parity.
+
+### Bounded integer literal instruction selection
+
+Direct literal RHS word/long `add/sub/and/or/xor` use AMD64 immediate forms.
+Word literals retain all32 bits; long literals qualify only when the full64-bit
+pattern equals sign-extension of an i32. Other RHS forms/opcodes retain their
+existing materialization; literal lhs is never commuted. This is read-only
+instruction selection with no new flag, IR rewrite or performance claim. See
+AMD64-IMMEDIATES.md for encoding boundaries, ownership and independent tests.

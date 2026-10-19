@@ -1,4 +1,4 @@
-//! Experimental base-scalar Linux AMD64 compiler driver; not QBE CLI parity.
+//! Experimental scalar/MEMORY Linux AMD64 compiler driver; not QBE CLI parity.
 const std = @import("std");
 const core = @import("root.zig");
 
@@ -59,6 +59,6 @@ fn report(io: std.Io, comptime format: []const u8, args: anytype) void {
 }
 
 fn usage(io: std.Io) u8 {
-    report(io, "usage: zbe-native [--fold-integers] [--reuse-stack-homes] [--callee-saved-homes] input.ssa output.s (Linux AMD64 scalar subset)\n", .{});
+    report(io, "usage: zbe-native [--fold-integers] [--reuse-stack-homes] [--callee-saved-homes] input.ssa output.s (Linux AMD64 scalar/bounded MEMORY subset)\n", .{});
     return 2;
 }

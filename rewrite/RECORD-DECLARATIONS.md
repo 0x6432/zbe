@@ -4,8 +4,9 @@
 nonempty regular record. Members are b/h/w/l/s/d or previously declared records.
 Types are not ELF symbols or scalar values. This layer preserves and validates
 structure/layout metadata; it does not enable aggregate execution or by-value ABI classification. Explicit
-record signatures/call annotations may now be retained as metadata ONLY
-([AGGREGATE-ABI-REPRESENTATION.md](AGGREGATE-ABI-REPRESENTATION.md)); aggregate
+record signatures/call annotations retain nominal metadata
+([AGGREGATE-ABI-REPRESENTATION.md](AGGREGATE-ABI-REPRESENTATION.md)). A separate bounded
+native MEMORY endpoint is described in [AMD64-MEMORY-ABI.md](AMD64-MEMORY-ABI.md); aggregate
 first-class SSA classes, phis and data groups remain unsupported.
 
 ## Exact subset and layout

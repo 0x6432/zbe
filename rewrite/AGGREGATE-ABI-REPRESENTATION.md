@@ -1,11 +1,10 @@
-# Aggregate ABI representation only — NO aggregate execution
+# Target-independent aggregate ABI representation
 
-Stage1 retains explicit owned record ABI annotations in signatures and calls.
-It does not implement MEMORY-class calling, hidden returns, by-value copies,
-variable-sized ABI stack plans, register aggregate classification or interpreter
-aggregate execution. A successful parse/validation is NOT a compilable aggregate
-ABI feature. Both native emission and reached interpreter use return
-`UnsupportedAggregateAbi` at the boundaries below.
+This layer retains explicit owned record ABI annotations in signatures and calls.
+It does not itself classify target ABI or execute aggregates. Native lowering is
+now separately bounded by [AMD64-MEMORY-ABI.md](AMD64-MEMORY-ABI.md); a successful
+parse/validation alone is NOT proof of target eligibility. All interpreter record
+uses and native uses outside that bounded subset remain UnsupportedAggregateAbi.
 
 ## Typed metadata, not first-class values
 
@@ -43,9 +42,8 @@ code-generation symbol pool; unknown type names have `unknown_type` diagnostics.
 Coherent record+environment or record+variadic annotations are metadata too.
 Existing scalar env+variadic INVALID combinations remain invalid. The hidden
 environment parameter itself must normalize EXACTLY to scalar-long: a record
-tag there is `InvalidEnvironment`, even with a long carrier. All aggregate uses
-remain nonexecuting regardless of options; generic metadata acceptance says
-nothing about future target support for these combinations.
+tag there is `InvalidEnvironment`, even with a long carrier. These combined record+env/variadic uses remain unsupported natively and in the
+interpreter; generic metadata acceptance does not imply target eligibility.
 
 ## Coherence and ownership/API boundary
 
@@ -85,12 +83,14 @@ hidden behind a generic execution-refusal error.
 
 ## Refusal/error precedence
 
-Native emission does full module validation, then rejects ANY record ABI
-signature/call (including unused functions/unreachable calls) BEFORE frame/home
-planning, scalar ABI cursor use or output generation. The driver does not
-create/modify output files on these failures. Existing scalar assembly is
-byte-identical to the pre-change867 tree, including quoted COMMON/ordinary/
-external aliases and unused declarations. Scalar codegen/frame logic is unchanged.
+Native emission does full module validation, then globally checks every target
+signature/call (including unused functions/unreachable calls) BEFORE allocating
+plans/homes/writer storage or legacy frame geometry. Ineligible uses refuse;
+eligible direct MEMORY uses consume fresh internal plans as documented in
+[AMD64-MEMORY-ABI.md](AMD64-MEMORY-ABI.md). Pre-write compilation failures do not
+create/modify CLI outputs; later filesystem write failures are not atomic.
+Pure-scalar assembly remains byte-identical; aggregate-bearing module comparison
+uses matched unaffected function fragments, not an invalid old whole-module oracle.
 
 Standalone evaluate does existing structural/SSA validation, then rejects a
 record root signature BEFORE execute's depth check, simulated memory setup,

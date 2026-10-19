@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Owned aggregate ABI metadata: ALL execution refuses; scalar bytes stay exact."""
+"""Ineligible record ABI metadata refuses; immutable scalar bytes stay exact."""
 from pathlib import Path
 import argparse
 import hashlib

@@ -1,5 +1,5 @@
-//! Owned, checked Linux AMD64 SysV planning snapshots. NOT an emitter input.
-//! No aggregate execution, copies, frame integration or ABI guard relaxation.
+//! Owned, checked Linux AMD64 SysV plans. External snapshots are not emitter inputs.
+//! ModulePlans constructs fresh, globally checked emission-scoped plans.
 const std = @import("std");
 const ir = @import("ir.zig");
 const abi = @import("abi_amd64.zig");
@@ -70,7 +70,7 @@ pub const Frame = struct {
 };
 
 /// Detached owned facts, not permission to consume edited IR. No owner pointer.
-/// Rebuild at any future verified consumption boundary; emission is unconnected.
+/// The public emitter rebuilds through ModulePlans, never accepting this as input.
 pub const FunctionPlan = struct {
     allocator: std.mem.Allocator,
     function_id: modules.FunctionId,
@@ -87,6 +87,11 @@ pub const FunctionPlan = struct {
         // COMPLETE allocation-free target scan before any home/plan allocation
         // or geometry check. Generic module validation above may itself allocate.
         try eligibleFunction(module, function);
+        return build(allocator, module, id, options);
+    }
+
+    fn build(allocator: std.mem.Allocator, module: *const modules.Module, id: modules.FunctionId, options: Options) Error!FunctionPlan {
+        const function = module.functions.items[@backingInt(id)];
         var signature = try planSignature(allocator, module, .{ .function = function });
         errdefer signature.deinit();
         var call_count: usize = 0;
@@ -155,6 +160,51 @@ pub const FunctionPlan = struct {
         self.* = undefined;
     }
 };
+
+/// Fresh emission-scoped plans: ALL target eligibility precedes every plan
+/// array/home/frame allocation. No stale plan is an input to the public emitter.
+/// Scalar-only modules allocate no plan arrays/home layouts here.
+pub const ModulePlans = struct {
+    allocator: std.mem.Allocator,
+    functions: []?FunctionPlan,
+
+    pub fn init(allocator: std.mem.Allocator, module: *const modules.Module, options: Options) Error!ModulePlans {
+        try validation.validate(allocator, module);
+        var needed = false;
+        for (module.functions.items) |function| {
+            try eligibleFunction(module, function);
+            if (recordRelevant(function)) needed = true;
+        }
+        if (!needed) return .{ .allocator = allocator, .functions = &.{} };
+        const functions = try allocator.alloc(?FunctionPlan, module.functions.items.len);
+        @memset(functions, null);
+        errdefer {
+            for (functions) |*entry| if (entry.*) |*plan| plan.deinit();
+            allocator.free(functions);
+        }
+        for (module.functions.items, 0..) |function, i| if (recordRelevant(function)) {
+            functions[i] = try FunctionPlan.build(allocator, module, @fromBackingInt(@as(u32, @intCast(i))), options);
+        };
+        return .{ .allocator = allocator, .functions = functions };
+    }
+    pub fn get(self: *const ModulePlans, ordinal: usize) ?*const FunctionPlan {
+        if (ordinal >= self.functions.len) return null;
+        return if (self.functions[ordinal]) |*plan| plan else null;
+    }
+    pub fn deinit(self: *ModulePlans) void {
+        for (self.functions) |*entry| if (entry.*) |*plan| plan.deinit();
+        self.allocator.free(self.functions);
+        self.* = undefined;
+    }
+};
+fn recordRelevant(function: *const ir.Function) bool {
+    if (function.hasRecordSignature()) return true;
+    for (function.blocks.items) |block| for (block.instructions.items) |instruction| switch (instruction) {
+        .call => |call| if (call.hasRecordAbi()) return true,
+        else => {},
+    };
+    return false;
+}
 
 fn eligibleDescriptor(module: *const modules.Module, ty: ir.AbiDescriptor) Error!void {
     if (ty == .record) {

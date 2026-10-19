@@ -1,9 +1,11 @@
 # Checked AMD64 ABI plans — prerequisite only
 
 `abi_amd64_plan.FunctionPlan.init(allocator, module, function_id, options)` produces
-an owned target-planning snapshot. It is **not an emitter input**. No call, copy,
-prologue, frame integration or return lowering consumes it. Native and interpreter
-aggregate guards remain unchanged: even planning-eligible records cannot execute.
+an owned target-planning snapshot. Externally supplied snapshots are **not emitter
+inputs**. The native endpoint now builds fresh emission-scoped ModulePlans internally,
+with complete global eligibility before allocation; see [AMD64-MEMORY-ABI.md](AMD64-MEMORY-ABI.md).
+All interpreter aggregate guards remain unchanged. The standalone planning API never
+executes code or authorizes later use of edited IR.
 
 ## Target scope and validation
 
@@ -98,6 +100,6 @@ per-site restrictions and copied snapshot lifetimes. Every allocation failure an
 same-module retry checks ownership balance. Old scalar cursor comparisons are
 secondary to independent prefix/register expectations.
 
-This is a functional planning API foundation, **not native aggregate ABI support**.
-Execution/copies/frame integration, small aggregates and C interoperability remain
-future separately approved milestones.
+The standalone planning API is not itself execution. Bounded native MEMORY
+integration is separately documented in [AMD64-MEMORY-ABI.md](AMD64-MEMORY-ABI.md).
+Small-register aggregates and all aggregate interpretation remain unsupported.

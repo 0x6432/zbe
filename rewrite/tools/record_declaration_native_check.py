@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bounded record metadata emits no code; aggregate uses still refuse atomically."""
+"""Bounded unused record metadata emits no code; ineligible aggregate uses refuse."""
 from pathlib import Path
 import argparse
 import platform

@@ -1,0 +1,239 @@
+type :R17 = { b 17 }
+type :R23 = { b 23 }
+type :R24 = { b 24 }
+type :R31 = { b 31 }
+type :R32 = { b 32 }
+type :R4096 = { b 4096 }
+type :Aligned = align 16 { l 3 }
+export function :R17 $aggregate_abi_native_echo17(:R17 %a) {
+@e
+ret %a
+}
+export function :R17 $aggregate_abi_native_ret17(l %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_native_send17(l %p) {
+@e
+%r =w call $aggregate_abi_native_check17(:R17 %p)
+ret %r
+}
+export function :R23 $aggregate_abi_native_echo23(:R23 %a) {
+@e
+ret %a
+}
+export function :R23 $aggregate_abi_native_ret23(l %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_native_send23(l %p) {
+@e
+%r =w call $aggregate_abi_native_check23(:R23 %p)
+ret %r
+}
+export function :R24 $aggregate_abi_native_echo24(:R24 %a) {
+@e
+ret %a
+}
+export function :R24 $aggregate_abi_native_ret24(l %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_native_send24(l %p) {
+@e
+%r =w call $aggregate_abi_native_check24(:R24 %p)
+ret %r
+}
+export function :R31 $aggregate_abi_native_echo31(:R31 %a) {
+@e
+ret %a
+}
+export function :R31 $aggregate_abi_native_ret31(l %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_native_send31(l %p) {
+@e
+%r =w call $aggregate_abi_native_check31(:R31 %p)
+ret %r
+}
+export function :R32 $aggregate_abi_native_echo32(:R32 %a) {
+@e
+ret %a
+}
+export function :R32 $aggregate_abi_native_ret32(l %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_native_send32(l %p) {
+@e
+%r =w call $aggregate_abi_native_check32(:R32 %p)
+ret %r
+}
+export function :R4096 $aggregate_abi_native_echo4096(:R4096 %a) {
+@e
+ret %a
+}
+export function :R4096 $aggregate_abi_native_ret4096(l %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_native_send4096(l %p) {
+@e
+%r =w call $aggregate_abi_native_check4096(:R4096 %p)
+ret %r
+}
+export function :Aligned $aggregate_abi_native_aligned(:Aligned %a) {
+@e
+ret %a
+}
+export function w $aggregate_abi_native_mutate(:R17 %a, :R17 %b) {
+@e
+storeb 91, %a
+%r =w loadub %b
+ret %r
+}
+export function w $aggregate_abi_native_sendtwice(l %p) {
+@e
+%r =w call $aggregate_abi_native_cmutate(:R17 %p, :R17 %p)
+ret %r
+}
+export function :R17 $aggregate_abi_native_roundtrip(:R17 %a) {
+@e
+%r =:R17 call $aggregate_abi_native_cecho(:R17 %a)
+ret %r
+}
+export function :R17 $aggregate_abi_native_recurse(:R17 %a, w %n) {
+@e
+jnz %n, @recursive, @base
+@recursive
+%m =w sub %n, 1
+%r =:R17 call $aggregate_abi_native_recurse(:R17 %a, w %m)
+ret %r
+@base
+ret %a
+}
+export function :R17 $aggregate_abi_native_dynamic(l %p) {
+@e
+%a =l alloc16 17
+blit %p, %a, 17
+%r =:R17 call $aggregate_abi_native_cecho(:R17 %a)
+%gap =l alloc16 4097
+storeb 93, %gap
+%s =:R17 call $aggregate_abi_native_cecho(:R17 %r)
+ret %s
+}
+export function w $aggregate_abi_native_sites() {
+@e
+%a =:R17 call $aggregate_abi_native_make(w 11)
+%b =:R17 call $aggregate_abi_native_make(w 22)
+%x =w loadub %a
+%y =w loadub %b
+%r =w add %x, %y
+ret %r
+}
+export function w $aggregate_abi_native_loop(w %n) {
+@entry
+jmp @body
+@body
+%i =w phi @entry 0, @next %j
+%a =:R17 call $aggregate_abi_native_make(w %i)
+%ok =w call $aggregate_abi_native_observe(l %a, w %i)
+jnz %ok, @next, @bad
+@next
+%j =w add %i, 1
+%c =w cultw %j, %n
+jnz %c, @body, @done
+@bad
+ret 0
+@done
+ret 1
+}
+export function w $aggregate_abi_native_varcaller(l %p, ...) {
+@e
+%list =l alloc16 24
+vastart %list
+%a =:R17 call $aggregate_abi_native_cecho(:R17 %p)
+%v =l vaarg %list
+%x =w loadub %a
+%low =w copy %v
+%r =w add %x, %low
+ret %r
+}
+export function w $aggregate_abi_native_envcaller(env %env, l %p) {
+@e
+%a =:R17 call $aggregate_abi_native_cecho(:R17 %p)
+%x =w loadub %a
+%low =w copy %env
+%r =w add %x, %low
+ret %r
+}
+export function :R17 $aggregate_abi_native_scalarindirect(:R17 %a, l %fn) {
+@e
+%x =w call %fn(w 7)
+%v =w call $aggregate_abi_native_varcheck(w 1, ..., w 9, d d_2)
+%r =w add %x, %v
+storeb %r, %a
+ret %a
+}
+export function :R17 $aggregate_abi_native_mix(l %l0,l %l1,l %l2,l %l3,l %l4,l %l5, :R17 %a, :Aligned %b, d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,d %d7,d %d8) {
+@e
+%x =w loadub %a
+%y =l loadl %b
+%ok =w call $aggregate_abi_native_scalarcheck(l %l0,l %l1,l %l2,l %l3,l %l4,l %l5, w %x, l %y, d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,d %d7,d %d8)
+jnz %ok, @yes, @no
+@no
+storeb 0, %a
+ret %a
+@yes
+ret %a
+}
+export function w $aggregate_abi_native_callmix(l %a, l %b) {
+@e
+%r =:R17 call $aggregate_abi_native_cmix(l 11,l 22,l 33,l 44,l 55,l 66, :R17 %a, :Aligned %b, d d_1,d d_2,d d_3,d d_4,d d_5,d d_6,d d_7,d d_8,d d_9)
+%x =w loadub %r
+ret %x
+}
+export function w $aggregate_abi_native_callprobe(l %a, l %b) {
+@e
+%r =:R17 call $aggregate_abi_native_stackprobe(l 11,l 22,l 33,l 44,l 55,l 66, :R17 %a, :Aligned %b, d d_1,d d_2,d d_3,d d_4,d d_5,d d_6,d d_7,d d_8,d d_9)
+%x =w loadub %r
+ret %x
+}
+export function w $aggregate_abi_native_bits(l %p) {
+@e
+%z =d cast 9223372036854775808
+%n =d cast 9221120237041095220
+%last =d cast 9221120237041112696
+%r =:R17 call $aggregate_abi_native_cbits(:R17 %p,d %z,d %n,d d_3,d d_4,d d_5,d d_6,d d_7,d d_8,d %last)
+%x =w loadub %r
+ret %x
+}
+export function :R17 $aggregate_abi_native_bitreceiver(:R17 %a,d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,d %d7,d %d8) {
+@e
+%r =:R17 call $aggregate_abi_native_cbits(:R17 %a,d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,d %d7,d %d8)
+ret %r
+}
+export function :R17 $aggregate_abi_native_subincoming(sb %a,ub %b,sh %c,uh %d,sb %e,ub %f,:R17 %p) {
+@entry
+%a0 =w extsb %a
+%b0 =w extub %b
+%c0 =w extsh %c
+%d0 =w extuh %d
+%e0 =w extsb %e
+%f0 =w extub %f
+%ok =w call $aggregate_abi_native_normalized(w %a0,w %b0,w %c0,w %d0,w %e0,w %f0)
+jnz %ok, @yes, @no
+@no
+storeb 0, %p
+ret %p
+@yes
+storeb 236, %p
+ret %p
+}
+export function w $aggregate_abi_native_suboutgoing(l %p) {
+@entry
+%r =:R17 call $aggregate_abi_native_csub(sb 128,ub 255,sh 32768,uh 65535,sb 255,ub 254,:R17 %p)
+%x =w loadub %r
+ret %x
+}

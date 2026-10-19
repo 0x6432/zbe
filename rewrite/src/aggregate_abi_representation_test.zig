@@ -94,7 +94,7 @@ test "aggregate_abi_representation parser keeps ABI identity in every slot and a
     try record(caller.blocks.items[0].instructions.items[0].call.result_descriptor.?, 0);
 }
 
-test "aggregate_abi_representation all record native uses refuse before frame planning in all eight modes" {
+test "aggregate_abi_representation unsupported record native uses refuse before frame planning in all eight modes" {
     var module = try parse(t.allocator, metadata);
     defer module.deinit();
     for (0..8) |mask| {
@@ -103,7 +103,7 @@ test "aggregate_abi_representation all record native uses refuse before frame pl
         };
         try t.expectError(error.UnsupportedAggregateAbi, amd64.emitWithOptions(t.allocator, &module, .{ .reuse_stack_homes = mask & 2 != 0, .callee_saved_homes = mask & 4 != 0 }));
     }
-    // A valid record signature with enough scalar homes to exceed64KiB must
+    // A valid but target-ineligible tiny signature with homes beyond64KiB must
     // still refuse aggregate ABI BEFORE any frame/home planning attempt.
     var large = Module.init(t.allocator);
     defer large.deinit();

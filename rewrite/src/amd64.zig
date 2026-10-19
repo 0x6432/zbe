@@ -1,10 +1,11 @@
 const std = @import("std");
 const ir = @import("ir.zig");
 const abi = @import("abi_amd64.zig");
+const abi_plan = @import("abi_amd64_plan.zig");
 const module_validation = @import("module_validation.zig");
 const stack_homes = @import("stack_homes.zig");
 const Module = @import("module.zig").Module;
-pub const Error = stack_homes.Error || abi.Error || module_validation.Error || error{ FrameTooLarge, UnsupportedAggregateAbi };
+pub const Error = stack_homes.Error || abi.Error || module_validation.Error || abi_plan.Error || error{ FrameTooLarge, UnsupportedAggregateAbi };
 
 /// x86-64 qword immediate arithmetic sign-extends imm32. Never silently truncate
 /// a long constant, commute operands or infer facts for nonliteral operands.
@@ -29,7 +30,7 @@ pub const Options = struct {
     callee_saved_homes: bool = false,
 };
 
-/// Experimental Linux ELF/System V base-scalar slice. Values have persistent
+/// Experimental Linux ELF/SysV scalar and bounded MEMORY slice. Values have persistent
 /// stack/preserved homes; no instruction selection/register allocation parity.
 /// Caller owns the returned assembly. Invalid input never returns partial text.
 pub fn emit(allocator: std.mem.Allocator, module: *const Module) Error![]u8 {
@@ -37,25 +38,20 @@ pub fn emit(allocator: std.mem.Allocator, module: *const Module) Error![]u8 {
 }
 
 pub fn emitWithOptions(allocator: std.mem.Allocator, module: *const Module, options: Options) Error![]u8 {
-    try module_validation.validate(allocator, module);
-    // Representation only: refuse ALL record ABI metadata before frame/cursor
-    // planning or output, including unused functions and unreachable calls.
-    for (module.functions.items) |function| {
-        if (function.hasRecordSignature()) return error.UnsupportedAggregateAbi;
-        for (function.blocks.items) |block| for (block.instructions.items) |instruction| switch (instruction) {
-            .call => |call| if (call.hasRecordAbi()) return error.UnsupportedAggregateAbi,
-            else => {},
-        };
-    }
+    var plans = abi_plan.ModulePlans.init(allocator, module, .{ .reuse_stack_homes = options.reuse_stack_homes, .callee_saved_homes = options.callee_saved_homes }) catch |err| switch (err) {
+        error.UnsupportedAggregatePlan => return error.UnsupportedAggregateAbi,
+        else => return err,
+    };
+    defer plans.deinit();
     for (module.data.items) |object| {
         if (!validSymbol(module.symbols.get(object.name).?)) return error.InvalidSymbol;
         for (object.items.items) |item| if (item == .symbol_address) {
             if (!validSymbol(module.symbols.get(item.symbol_address.symbol).?)) return error.InvalidSymbol;
         };
     }
-    for (module.functions.items) |function| {
+    for (module.functions.items, 0..) |function, ordinal| {
         if (!validSymbol(module.symbols.get(function.name).?)) return error.InvalidSymbol;
-        if (!options.reuse_stack_homes and !options.callee_saved_homes) _ = try Frame.init(function);
+        if (plans.get(ordinal) == null and !options.reuse_stack_homes and !options.callee_saved_homes) _ = try Frame.init(function);
         for (function.blocks.items) |block| {
             for (block.phis.items) |phi| for (phi.inputs) |input| try validateOperandSymbol(module, input.value);
             for (block.instructions.items) |instruction| {
@@ -76,7 +72,7 @@ pub fn emitWithOptions(allocator: std.mem.Allocator, module: *const Module, opti
             else => {},
         };
     }
-    var emitter: Emitter = .{ .output = .init(allocator), .module = module, .allocator = allocator, .options = options };
+    var emitter: Emitter = .{ .output = .init(allocator), .module = module, .allocator = allocator, .options = options, .plans = &plans };
     defer emitter.output.deinit();
     if (module.data.items.len != 0) {
         for (module.data.items) |object| try emitter.dataDefinition(object);
@@ -97,6 +93,7 @@ const Frame = struct {
     saved_base: usize,
     outgoing_bytes: usize = 0,
     variadic_save_end: ?usize = null,
+    hidden_return_end: ?usize = null,
 
     fn init(function: *const ir.Function) error{FrameTooLarge}!Frame {
         var max_phis: usize = 0;
@@ -186,6 +183,9 @@ const Emitter = struct {
     current: *const ir.Function = undefined,
     ordinal: usize = 0,
     frame: Frame = undefined,
+    plans: ?*const abi_plan.ModulePlans = null,
+    current_plan: ?*const abi_plan.FunctionPlan = null,
+    plan_call_index: usize = 0,
 
     fn print(self: *Emitter, comptime format: []const u8, args: anytype) Error!void {
         // The allocating writer's only backing failure is allocator exhaustion.
@@ -262,24 +262,33 @@ const Emitter = struct {
     fn function(self: *Emitter, f: *const ir.Function, index: usize) Error!void {
         self.current = f;
         self.ordinal = index;
-        var layout: ?stack_homes.Layout = if (self.options.reuse_stack_homes or self.options.callee_saved_homes) try stack_homes.Layout.init(self.allocator, f, .{}) else null;
+        self.current_plan = if (self.plans) |plans| plans.get(index) else null;
+        defer self.current_plan = null;
+        self.plan_call_index = 0;
+        var layout: ?stack_homes.Layout = if (self.current_plan == null and (self.options.reuse_stack_homes or self.options.callee_saved_homes)) try stack_homes.Layout.init(self.allocator, f, .{}) else null;
         defer if (layout) |*owned| owned.deinit();
-        self.homes = if (layout) |owned| owned.slots else null;
+        self.homes = if (self.current_plan) |plan| (if (plan.home_layout) |owned| owned.slots else null) else if (layout) |owned| owned.slots else null;
         defer self.homes = null;
-        self.saved_count = if (self.options.callee_saved_homes) @min(preserved_registers.len, layout.?.slot_count) else 0;
-        if (layout) |owned| {
-            var max_phis: usize = 0;
-            for (f.blocks.items) |block| max_phis = @max(max_phis, block.phis.items.len);
-            self.frame = try Frame.withSavedCounts(owned.slot_count - self.saved_count, max_phis, f.parameters.items.len, self.saved_count);
-        } else self.frame = try Frame.init(f);
-        try self.frame.addVariadic(f.variadic);
-        try self.frame.addOutgoing(f);
+        if (self.current_plan) |plan| {
+            self.saved_count = plan.frame.saved_count;
+            self.frame = .{ .bytes = @intCast(plan.frame.bytes), .scratch_base = @intCast(plan.frame.scratch_base), .saved_base = @intCast(plan.frame.saved_base), .outgoing_bytes = @intCast(plan.frame.outgoing_bytes), .variadic_save_end = if (plan.frame.variadic_save_end) |end| @intCast(end) else null, .hidden_return_end = if (plan.frame.hidden_return_end) |end| @intCast(end) else null };
+        } else {
+            self.saved_count = if (self.options.callee_saved_homes) @min(preserved_registers.len, layout.?.slot_count) else 0;
+            if (layout) |owned| {
+                var max_phis: usize = 0;
+                for (f.blocks.items) |block| max_phis = @max(max_phis, block.phis.items.len);
+                self.frame = try Frame.withSavedCounts(owned.slot_count - self.saved_count, max_phis, f.parameters.items.len, self.saved_count);
+            } else self.frame = try Frame.init(f);
+            try self.frame.addVariadic(f.variadic);
+            try self.frame.addOutgoing(f);
+        }
         const name: AssemblySymbol = .{ .name = self.module.symbols.get(f.name).? };
         try self.print("{s} {f}\n.type {f}, @function\n{f}:\n\tpushq %rbp\n\tmovq %rsp, %rbp\n", .{ if (f.linkage == .exported) @as([]const u8, ".globl") else ".local", name, name, name });
         try self.reserveFrame(self.frame);
         for (preserved_registers[0..self.saved_count], 0..) |preserved, i| {
             try self.print("\tmovq {s}, -{d}(%rbp)\n", .{ preserved.name(.long), self.frame.saved_base + (i + 1) * 8 });
         }
+        if (self.frame.hidden_return_end) |offset| try self.print("\tmovq %rdi, -{d}(%rbp)\n", .{offset});
         if (self.frame.variadic_save_end) |offset| {
             const registers = [_]abi.General{ .rdi, .rsi, .rdx, .rcx, .r8, .r9 };
             for (registers, 0..) |reg, i| try self.print("\tmovq {s}, -{d}(%rbp)\n", .{ reg.name(.long), offset - i * 8 });
@@ -289,8 +298,26 @@ const Emitter = struct {
         }
         var arguments: abi.ArgumentCursor = .{};
         if (f.environment) |environment| try self.save(environment, "%rax");
-        for (f.ordinaryParameters()) |parameter| {
+        for (f.ordinaryParameters(), 0..) |parameter, position| {
             const ty = f.values.items[@backingInt(parameter)].scalar_type;
+            if (self.current_plan) |plan| {
+                const argument = plan.signature.arguments[position];
+                // A MEMORY parameter is the address of its caller-provided COPY.
+                switch (argument.location) {
+                    .general => |reg| try self.save(parameter, reg.name(if (ty == .word) .word else .long)),
+                    .vector => |reg| {
+                        try self.print("\tmov{c} {s}, {s}\n", .{ sseMove(ty), reg.name(), register(ty, .accumulator) });
+                        try self.save(parameter, register(ty, .accumulator));
+                    },
+                    .stack => |slot| {
+                        if (argument.descriptor == .record) try self.print("\tleaq {d}(%rbp), %rax\n", .{slot.incoming}) else try self.print("\tmov{c} {d}(%rbp), {s}\n", .{ suffix(ty), slot.incoming, register(ty, .accumulator) });
+                        try self.save(parameter, register(ty, .accumulator));
+                    },
+                }
+                // Only scalar variadic signatures use the old vastart cursor.
+                if (f.variadic) _ = try arguments.next(ty);
+                continue;
+            }
             switch (try arguments.next(ty)) {
                 .general => |reg| {
                     const width: ir.IntegerType = switch (ty) {
@@ -313,7 +340,7 @@ const Emitter = struct {
         for (f.blocks.items, 0..) |block, number| {
             const id: ir.BlockId = @fromBackingInt(@as(u32, @intCast(number)));
             try self.print("\".Lzbe@{d}@b{d}\":\n", .{ index, number });
-            for (block.instructions.items) |instruction| switch (instruction) {
+            for (block.instructions.items, 0..) |instruction, instruction_index| switch (instruction) {
                 .va_start => |start| try self.vaStart(start.list, arguments),
                 .va_argument => |argument| try self.vaArgument(argument.result, argument.list),
                 .allocate => |allocation| try self.allocate(allocation.result, allocation.size, allocation.alignment),
@@ -363,6 +390,16 @@ const Emitter = struct {
                     try self.print("\tmov{c} {s}, (%r10)\n", .{ width, source_register });
                 },
                 .call => |call| {
+                    const site: ?*const abi_plan.CallSite = if (self.current_plan) |plan| site: {
+                        const entry = &plan.calls[self.plan_call_index];
+                        std.debug.assert(entry.block == id and entry.instruction == instruction_index);
+                        self.plan_call_index += 1;
+                        break :site entry;
+                    } else null;
+                    if (call.hasRecordAbi()) {
+                        try self.memoryCall(call, site.?);
+                        continue;
+                    }
                     if (call.callee.addressOperand()) |address| {
                         try self.load(address, .accumulator);
                         try self.print("\tmovq %rax, %r11\n", .{});
@@ -544,9 +581,14 @@ const Emitter = struct {
                 },
                 .return_value => |operand| {
                     if (operand) |value| {
-                        try self.load(value, .accumulator);
-                        const ty = f.return_type.?;
-                        if (!ty.isInteger()) try self.print("\tmov{c} {s}, %xmm0\n", .{ sseMove(ty), register(ty, .accumulator) });
+                        if (self.frame.hidden_return_end) |hidden| {
+                            try self.load(value, .accumulator);
+                            try self.print("\tmovq %rax, %rsi\n\tmovq -{d}(%rbp), %rdi\n\tmovl ${d}, %ecx\n\trep movsb\n\tmovq -{d}(%rbp), %rax\n", .{ hidden, self.current_plan.?.signature.result.memory.declared_bytes, hidden });
+                        } else {
+                            try self.load(value, .accumulator);
+                            const ty = f.return_type.?;
+                            if (!ty.isInteger()) try self.print("\tmov{c} {s}, %xmm0\n", .{ sseMove(ty), register(ty, .accumulator) });
+                        }
                     }
                     for (preserved_registers[0..self.saved_count], 0..) |preserved, i| {
                         try self.print("\tmovq -{d}(%rbp), {s}\n", .{ self.frame.saved_base + (i + 1) * 8, preserved.name(.long) });
@@ -556,6 +598,39 @@ const Emitter = struct {
             }
         }
         try self.print(".size {f}, .-{f}\n", .{ name, name });
+    }
+
+    fn memoryCall(self: *Emitter, call: ir.Call, site: *const abi_plan.CallSite) Error!void {
+        // Copies clobber RSI/RDI/RCX: complete them BEFORE scalar marshalling.
+        for (call.arguments, site.signature.arguments) |argument, planned| if (planned.descriptor == .record) {
+            try self.load(argument.operand, .accumulator);
+            try self.print("\tmovq %rax, %rsi\n\tleaq {d}(%rsp), %rdi\n\tmovl ${d}, %ecx\n\trep movsb\n", .{ planned.location.stack.offset, planned.declared_bytes });
+        };
+        for (call.arguments, site.signature.arguments) |argument, planned| if (planned.descriptor == .scalar) {
+            try self.load(argument.operand, .accumulator);
+            const ty = planned.carrier;
+            switch (planned.location) {
+                .general => |reg| try self.print("\tmov{c} {s}, {s}\n", .{ suffix(ty), register(ty, .accumulator), reg.name(if (ty == .word) .word else .long) }),
+                .vector => |reg| try self.print("\tmov{c} {s}, {s}\n", .{ sseMove(ty), register(ty, .accumulator), reg.name() }),
+                .stack => |slot| try self.print("\tmov{c} {s}, {d}(%rsp)\n", .{ suffix(ty), register(ty, .accumulator), slot.offset }),
+            }
+        };
+        if (site.pad_index) |index| try self.print("\tleaq -{d}(%rbp), %rdi\n", .{self.current_plan.?.pads[index].end});
+        // Eligibility is checked globally before all planning/output allocation.
+        const symbol = switch (call.callee) {
+            .symbol => |symbol| symbol,
+            .address => return error.UnsupportedAggregateAbi,
+        };
+        try self.print("\tcall {f}\n", .{try self.symbolReference(symbol)});
+        if (call.result) |result| {
+            if (site.pad_index) |index| {
+                try self.print("\tleaq -{d}(%rbp), %rax\n", .{self.current_plan.?.pads[index].end});
+            } else {
+                const ty = self.current.values.items[@backingInt(result)].scalar_type;
+                if (!ty.isInteger()) try self.print("\tmov{c} %xmm0, {s}\n", .{ sseMove(ty), register(ty, .accumulator) });
+            }
+            try self.save(result, register(self.current.values.items[@backingInt(result)].scalar_type, .accumulator));
+        }
     }
 
     fn edge(self: *Emitter, from: ir.BlockId, to: ir.BlockId) Error!void {

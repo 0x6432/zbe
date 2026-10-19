@@ -58,7 +58,12 @@ test "aggregate_abi_planner independent mixed MEMORY hidden GP and SSE offset or
     try mixedOracle(plan.calls[0].signature);
     try t.expectEqual(@as(u64, 80), plan.frame.outgoing_bytes);
     try t.expectEqual(@as(usize, 1), plan.pads.len);
-    try t.expectError(error.UnsupportedAggregateAbi, amd64.emit(t.allocator, &module));
+    // This approved eligible case now lowers natively; independent C/assembly
+    // endpoint fixtures verify runtime ABI correctness, not just emission.
+    const assembly = try amd64.emit(t.allocator, &module);
+    defer t.allocator.free(assembly);
+    try t.expect(std.mem.indexOf(u8, assembly, "rep movsb") != null);
+    try t.expect(std.mem.indexOf(u8, assembly, "movq %rdi, -") != null);
     try t.expectError(error.UnsupportedAggregateAbi, interpreter.evaluateModule(t.allocator, &module, id(0), &.{}, .{}));
     // Remove only the record result: six GP args stay in registers, A starts0,
     // B still starts32 (hole24..31), overflow double remains64.

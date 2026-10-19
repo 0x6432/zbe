@@ -1,6 +1,6 @@
 # Zig-native backend rewrite
 
-**Status: experimental scalar and bounded MEMORY-record Linux AMD64 compiler slice, plus scalar interpreter. Not a complete QBE backend.** This directory is a new implementation, not a wrapper around or a mechanical cleanup of the existing C-shaped port. Its parser accepts the documented scalar subset plus bounded nonempty record declarations with owned layout metadata; first-class aggregate values remain refused; bounded native MEMORY-record calls/returns are supported ([AMD64-MEMORY-ABI.md](AMD64-MEMORY-ABI.md)). The experimental driver emits Linux AMD64 integer and single/double scalar assembly. Most IL/ABI/target support, optimizations and full register allocation are still missing. An opt-in conservative integer constant folder is implemented, not a complete optimizer. Passing its tests does not establish QBE compatibility or replace the legacy backend.
+**Status: experimental scalar and bounded INTEGER/MEMORY-record Linux AMD64 compiler slice, plus scalar interpreter. Not a complete QBE backend.** This directory is a new implementation, not a wrapper around or a mechanical cleanup of the existing C-shaped port. Its parser accepts the documented scalar subset plus bounded nonempty record declarations with owned layout metadata; first-class aggregate values remain refused; bounded native MEMORY-record calls/returns ([AMD64-MEMORY-ABI.md](AMD64-MEMORY-ABI.md)) and integer-only size1..16 record calls/returns ([SMALL-INTEGER-ABI.md](SMALL-INTEGER-ABI.md)) are supported. The experimental driver emits Linux AMD64 integer and single/double scalar assembly. Most IL/ABI/target support, optimizations and full register allocation are still missing. An opt-in conservative integer constant folder is implemented, not a complete optimizer. Passing its tests does not establish QBE compatibility or replace the legacy backend.
 
 Work lives on `rewrite/zig-native`. The existing compiler, build and regression suite remain the reference implementation and are unchanged by this foundation.
 
@@ -23,7 +23,7 @@ The independent build exports `zbe_native` without linking libc or importing the
 - Allocator-owned interned symbols, with stable string storage.
 - Bounded nonempty record declarations with owned checked layouts and earlier-record references; names live in a separate module-owned `record_names` pool, preserving scalar symbol IDs/assembly. The declaration layer does not itself classify target ABI uses ([RECORD-DECLARATIONS.md](RECORD-DECLARATIONS.md)).
 - Independent modules owning separately allocated functions and numeric/zero-fill data objects; pointers survive module-table growth (DATA.md).
-- Explicit scalar/record ABI descriptors retain nominal module type IDs and checked long pointer carriers in owned function/call metadata. The representation layer remains target-independent; bounded native MEMORY codegen is separate, while **all interpreter aggregate execution remains refused** ([AGGREGATE-ABI-REPRESENTATION.md](AGGREGATE-ABI-REPRESENTATION.md)).
+- Explicit scalar/record ABI descriptors retain nominal module type IDs and checked long pointer carriers in owned function/call metadata. The representation layer remains target-independent; bounded native INTEGER/MEMORY codegen is separate, while **all interpreter aggregate execution remains refused** ([AGGREGATE-ABI-REPRESENTATION.md](AGGREGATE-ABI-REPRESENTATION.md)).
 - Function-owned typed value/block IDs and growable instruction storage.
 - Explicit low-word operand projections normalize QBE long-to-word subtyping without changing source definitions or guessing reverse extension (LOW-WORD.md).
 - Tagged scalar constants and operands, typed copy/phi, integer/floating arithmetic subset, integer bitwise/extension operations and negation, typed shifts, signed/unsigned integer comparisons and ordered/unordered floating comparisons, branch/jump/return and explicit program-termination (`hlt`) terminators.
@@ -95,6 +95,6 @@ are accepted; same-module duplicates remain errors, while cross-object linker
 coalescing/strong override is native ELF behavior, not interpreter host linking.
 
 Checked target planning is available separately through `abi_amd64_plan`; see
-[AMD64-ABI-PLANS.md](AMD64-ABI-PLANS.md). The emitter constructs fresh emission-scoped plans for bounded direct MEMORY-record
+[AMD64-ABI-PLANS.md](AMD64-ABI-PLANS.md). The emitter constructs fresh emission-scoped plans for bounded direct INTEGER/MEMORY-record
 arguments/results ([AMD64-MEMORY-ABI.md](AMD64-MEMORY-ABI.md)); externally supplied
 or stale plans are never emitter inputs. Aggregate interpretation remains refused.

@@ -9,7 +9,9 @@ records are MEMORY under official psABI1.0 (March12,2025) §§3.2.2–3.2.3. Pin
 `e786f06032fefa2e3790d6b1c9e31ed138f475a6` `amd64/sysv.c`/`doc/abi.txt` is secondary
 source evidence. Layouts never come from the compiler host's C layout.
 
-Not supported: small-register aggregates, vectors, opaque/union/unaligned types,
+Small integer-only size1..16 records are a separate implemented subset described in
+[SMALL-INTEGER-ABI.md](SMALL-INTEGER-ABI.md), including stack fallback without GP consumption.
+Not supported: small SSE/mixed-register aggregates, vectors, opaque/union/unaligned types,
 non-SysV targets, record-bearing indirect/env/variadic signatures or calls. Rules
 are site-local: scalar env/variadic callers may call eligible record callees, and
 record functions may make scalar env/vararg/indirect calls. Valid unused generic

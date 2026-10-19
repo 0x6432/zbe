@@ -103,8 +103,8 @@ test "aggregate_abi_representation unsupported record native uses refuse before 
         };
         try t.expectError(error.UnsupportedAggregateAbi, amd64.emitWithOptions(t.allocator, &module, .{ .reuse_stack_homes = mask & 2 != 0, .callee_saved_homes = mask & 4 != 0 }));
     }
-    // A valid but target-ineligible tiny signature with homes beyond64KiB must
-    // still refuse aggregate ABI BEFORE any frame/home planning attempt.
+    // The now-eligible INTEGER byte signature reaches the existing frame cap;
+    // ineligible/SSE-before-frame priority is retained in dedicated native tests.
     var large = Module.init(t.allocator);
     defer large.deinit();
     const ty = try large.addRecord("T", null, &.{.{ .element = .{ .scalar = .byte } }});
@@ -113,7 +113,7 @@ test "aggregate_abi_representation unsupported record native uses refuse before 
     for (0..8193) |_| _ = try f.addParameter(.long);
     const b = try f.addBlock(null);
     try f.terminate(b, .{ .return_value = .{ .constant = .{ .long = 0 } } });
-    try t.expectError(error.UnsupportedAggregateAbi, amd64.emit(t.allocator, &large));
+    try t.expectError(error.FrameTooLarge, amd64.emit(t.allocator, &large));
 }
 
 test "aggregate_abi_representation root guards precede depth space and argument binding after validation" {
@@ -145,7 +145,11 @@ test "aggregate_abi_representation unused call IDs resolve but unreachable execu
     defer module.deinit();
     try t.expectEqual(@as(u32, 42), (try interpreter.evaluate(t.allocator, module.functions.items[0], &.{}, .{})).?.word);
     try t.expectEqual(@as(u32, 42), (try interpreter.evaluateModule(t.allocator, &module, @fromBackingInt(@as(u32, 0)), &.{}, .{})).?.word);
-    try t.expectError(error.UnsupportedAggregateAbi, amd64.emit(t.allocator, &module));
+    // A valid unreachable INTEGER-byte call is now compilable, not executed.
+    // Independent small-record C/ASM fixtures exercise actual reached calls.
+    const assembly = try amd64.emit(t.allocator, &module);
+    defer t.allocator.free(assembly);
+    try t.expect(std.mem.indexOf(u8, assembly, "call external") != null);
     const arguments = @constCast(module.functions.items[0].blocks.items[1].instructions.items[0].call.arguments);
     arguments[0].descriptor = .{ .record = bad_id };
     try allConsumersReject(&module, error.InvalidAggregateType);

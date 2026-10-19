@@ -167,7 +167,7 @@ test "aggregate_abi_planner scalar payload carrier stack extent and independent 
 }
 
 test "aggregate_abi_planner generic metadata limits target policy and module validation precedence" {
-    for ([_][]const u8{ "b", "l 2", "b 4097", "b 2147483647" }) |fields| {
+    for ([_][]const u8{ "s", "d 2", "b 4097", "b 2147483647" }) |fields| {
         const text = try std.fmt.allocPrint(t.allocator, "type :A={{{s}}}\nfunction $f(:A %p){{\n@e\nret\n}}", .{fields});
         defer t.allocator.free(text);
         var module = try parse(t.allocator, text);
@@ -193,7 +193,7 @@ test "aggregate_abi_planner generic metadata limits target policy and module val
 test "aggregate_abi_planner complete eligibility scan wins over huge home geometry and unreachable site" {
     var module = Module.init(t.allocator);
     defer module.deinit();
-    const tiny = try module.addRecord("Tiny", null, &.{.{ .element = .{ .scalar = .byte } }});
+    const tiny = try module.addRecord("FloatOnly", null, &.{.{ .element = .{ .scalar = .single } }});
     const f_id = try module.addFunction("f", null);
     const f = module.getFunction(f_id).?;
     for (0..8193) |_| _ = try f.addParameter(.long);

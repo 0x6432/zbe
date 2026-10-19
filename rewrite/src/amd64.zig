@@ -298,12 +298,21 @@ const Emitter = struct {
         }
         var arguments: abi.ArgumentCursor = .{};
         if (f.environment) |environment| try self.save(environment, "%rax");
+        var parameter_object_index: usize = 0;
         for (f.ordinaryParameters(), 0..) |parameter, position| {
             const ty = f.values.items[@backingInt(parameter)].scalar_type;
             if (self.current_plan) |plan| {
                 const argument = plan.signature.arguments[position];
                 // A MEMORY parameter is the address of its caller-provided COPY.
                 switch (argument.location) {
+                    .integer_record => |tuple| {
+                        const object = plan.parameter_objects[parameter_object_index];
+                        std.debug.assert(object.position == position);
+                        parameter_object_index += 1;
+                        for (0..tuple.lane_count) |lane| try self.unpackLane(tuple.registers[lane].name(.long), object.end, @intCast(lane * 8), tuple.lane_bytes[lane]);
+                        try self.print("\tleaq -{d}(%rbp), %rax\n", .{object.end});
+                        try self.save(parameter, "%rax");
+                    },
                     .general => |reg| try self.save(parameter, reg.name(if (ty == .word) .word else .long)),
                     .vector => |reg| {
                         try self.print("\tmov{c} {s}, {s}\n", .{ sseMove(ty), reg.name(), register(ty, .accumulator) });
@@ -397,7 +406,7 @@ const Emitter = struct {
                         break :site entry;
                     } else null;
                     if (call.hasRecordAbi()) {
-                        try self.memoryCall(call, site.?);
+                        try self.recordCall(call, site.?);
                         continue;
                     }
                     if (call.callee.addressOperand()) |address| {
@@ -581,7 +590,15 @@ const Emitter = struct {
                 },
                 .return_value => |operand| {
                     if (operand) |value| {
-                        if (self.frame.hidden_return_end) |hidden| {
+                        if (self.current_plan != null and self.current_plan.?.signature.result == .integer_record) {
+                            const record = self.current_plan.?.signature.result.integer_record;
+                            try self.load(value, .accumulator);
+                            try self.print("\tmovq %rax, %r11\n", .{});
+                            // Stable pointerR11 and scratchR10: packing RDX must
+                            // never destroy the already completed resultRAX.
+                            try self.packLane("%rax", 0, record.lane_bytes[0]);
+                            if (record.lane_count == 2) try self.packLane("%rdx", 8, record.lane_bytes[1]);
+                        } else if (self.frame.hidden_return_end) |hidden| {
                             try self.load(value, .accumulator);
                             try self.print("\tmovq %rax, %rsi\n\tmovq -{d}(%rbp), %rdi\n\tmovl ${d}, %ecx\n\trep movsb\n\tmovq -{d}(%rbp), %rax\n", .{ hidden, self.current_plan.?.signature.result.memory.declared_bytes, hidden });
                         } else {
@@ -600,22 +617,29 @@ const Emitter = struct {
         try self.print(".size {f}, .-{f}\n", .{ name, name });
     }
 
-    fn memoryCall(self: *Emitter, call: ir.Call, site: *const abi_plan.CallSite) Error!void {
+    fn recordCall(self: *Emitter, call: ir.Call, site: *const abi_plan.CallSite) Error!void {
         // Copies clobber RSI/RDI/RCX: complete them BEFORE scalar marshalling.
-        for (call.arguments, site.signature.arguments) |argument, planned| if (planned.descriptor == .record) {
+        for (call.arguments, site.signature.arguments) |argument, planned| if (planned.descriptor == .record and planned.location == .stack) {
             try self.load(argument.operand, .accumulator);
             try self.print("\tmovq %rax, %rsi\n\tleaq {d}(%rsp), %rdi\n\tmovl ${d}, %ecx\n\trep movsb\n", .{ planned.location.stack.offset, planned.declared_bytes });
+        };
+        for (call.arguments, site.signature.arguments) |argument, planned| if (planned.location == .integer_record) {
+            try self.load(argument.operand, .accumulator);
+            try self.print("\tmovq %rax, %r11\n", .{});
+            const tuple = planned.location.integer_record;
+            for (0..tuple.lane_count) |lane| try self.packLane(tuple.registers[lane].name(.long), @intCast(lane * 8), tuple.lane_bytes[lane]);
         };
         for (call.arguments, site.signature.arguments) |argument, planned| if (planned.descriptor == .scalar) {
             try self.load(argument.operand, .accumulator);
             const ty = planned.carrier;
             switch (planned.location) {
+                .integer_record => unreachable, // scalar descriptors never carry tuples
                 .general => |reg| try self.print("\tmov{c} {s}, {s}\n", .{ suffix(ty), register(ty, .accumulator), reg.name(if (ty == .word) .word else .long) }),
                 .vector => |reg| try self.print("\tmov{c} {s}, {s}\n", .{ sseMove(ty), register(ty, .accumulator), reg.name() }),
                 .stack => |slot| try self.print("\tmov{c} {s}, {d}(%rsp)\n", .{ suffix(ty), register(ty, .accumulator), slot.offset }),
             }
         };
-        if (site.pad_index) |index| try self.print("\tleaq -{d}(%rbp), %rdi\n", .{self.current_plan.?.pads[index].end});
+        if (site.signature.result == .memory) try self.print("\tleaq -{d}(%rbp), %rdi\n", .{self.current_plan.?.pads[site.pad_index.?].end});
         // Eligibility is checked globally before all planning/output allocation.
         const symbol = switch (call.callee) {
             .symbol => |symbol| symbol,
@@ -624,12 +648,70 @@ const Emitter = struct {
         try self.print("\tcall {f}\n", .{try self.symbolReference(symbol)});
         if (call.result) |result| {
             if (site.pad_index) |index| {
-                try self.print("\tleaq -{d}(%rbp), %rax\n", .{self.current_plan.?.pads[index].end});
+                const pad = self.current_plan.?.pads[index];
+                if (site.signature.result == .integer_record) {
+                    const record = site.signature.result.integer_record;
+                    // Capture BOTH lane values before LEA overwrites RAX. The
+                    // first unpack uses only R10 scratch, preserving resultRDX.
+                    try self.unpackLane("%rax", pad.end, 0, record.lane_bytes[0]);
+                    if (record.lane_count == 2) try self.unpackLane("%rdx", pad.end, 8, record.lane_bytes[1]);
+                }
+                try self.print("\tleaq -{d}(%rbp), %rax\n", .{pad.end});
             } else {
                 const ty = self.current.values.items[@backingInt(result)].scalar_type;
                 if (!ty.isInteger()) try self.print("\tmov{c} %xmm0, {s}\n", .{ sseMove(ty), register(ty, .accumulator) });
             }
             try self.save(result, register(self.current.values.items[@backingInt(result)].scalar_type, .accumulator));
+        }
+    }
+
+    /// Source pointer is R11, scratch is R10; target must be a GP argument or
+    /// RAX/RDX result. Never read a rounded tail, or clobber another live lane.
+    fn packLane(self: *Emitter, target: []const u8, offset: u8, bytes: u8) Error!void {
+        std.debug.assert(bytes >= 1 and bytes <= 8);
+        if (bytes == 8) return self.print("\tmovq {d}(%r11), {s}\n", .{ offset, target });
+        try self.print("\tmovq $0, {s}\n", .{target});
+        var consumed: u8 = 0;
+        while (consumed < bytes) {
+            const remaining = bytes - consumed;
+            const width: u8 = if (remaining >= 4) 4 else if (remaining >= 2) 2 else 1;
+            const opcode: []const u8 = switch (width) {
+                4 => "movl",
+                2 => "movzwl",
+                1 => "movzbl",
+                else => unreachable,
+            };
+            try self.print("\t{s} {d}(%r11), %r10d\n", .{ opcode, offset + consumed });
+            if (consumed != 0) try self.print("\tshlq ${d}, %r10\n", .{consumed * 8});
+            try self.print("\torq %r10, {s}\n", .{target});
+            consumed += width;
+        }
+    }
+    /// Fixed owned destination; use ONLY R10 scratch, preserving every incoming
+    /// argument and BOTH RAX/RDX result lanes until all required stores complete.
+    fn unpackLane(self: *Emitter, input_reg: []const u8, end: u64, offset: u8, bytes: u8) Error!void {
+        std.debug.assert(bytes >= 1 and bytes <= 8 and end >= offset + bytes);
+        if (bytes == 8) return self.print("\tmovq {s}, -{d}(%rbp)\n", .{ input_reg, end - offset });
+        try self.print("\tmovq {s}, %r10\n", .{input_reg});
+        var consumed: u8 = 0;
+        while (consumed < bytes) {
+            const remaining = bytes - consumed;
+            const width: u8 = if (remaining >= 4) 4 else if (remaining >= 2) 2 else 1;
+            const suffix_char: u8 = switch (width) {
+                4 => 'l',
+                2 => 'w',
+                1 => 'b',
+                else => unreachable,
+            };
+            const reg: []const u8 = switch (width) {
+                4 => "%r10d",
+                2 => "%r10w",
+                1 => "%r10b",
+                else => unreachable,
+            };
+            try self.print("\tmov{c} {s}, -{d}(%rbp)\n", .{ suffix_char, reg, end - offset - consumed });
+            consumed += width;
+            if (consumed < bytes) try self.print("\tshrq ${d}, %r10\n", .{width * 8});
         }
     }
 

@@ -107,3 +107,8 @@ and the private-label namespace; no host lookup or full identifier/target parity
 Zero-fill `common data` accepts independent optional export in either order,
 with each flag at most once; common function/TLS/section combinations remain
 refused. Only z-groups or an empty initializer are accepted (DATA-COMMON.md).
+
+Native lowering additionally supports direct integer-only size1..16, align<=8
+record signatures/calls with exact INTEGER register tuples and stack fallback
+([SMALL-INTEGER-ABI.md](SMALL-INTEGER-ABI.md)). This does not introduce aggregate
+arithmetic/copy/phi classes or any aggregate interpreter execution.

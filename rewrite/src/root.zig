@@ -26,6 +26,7 @@ pub const DataId = @import("module.zig").DataId;
 pub const Module = @import("module.zig").Module;
 
 test {
+    _ = @import("aggregate_abi_small_integer_test.zig");
     _ = @import("aggregate_abi_native_test.zig");
     _ = @import("abi_amd64_plan.zig");
     _ = @import("aggregate_abi_planner_test.zig");

@@ -45,7 +45,7 @@ test "aggregate_abi_native global eligibility precedes every legacy frame and pl
     for (0..8193) |_| _ = try f.addParameter(.long);
     const b = try f.addBlock(null);
     try f.terminate(b, .{ .return_value = null });
-    const tiny = try module.addRecord("Tiny", null, &.{.{ .element = .{ .scalar = .byte } }});
+    const tiny = try module.addRecord("FloatOnly", null, &.{.{ .element = .{ .scalar = .single } }});
     const next = try module.addFunctionDescriptor("unsupported", .{ .record = tiny });
     const later = module.getFunction(next).?;
     const block = try later.addBlock(null);

@@ -1,0 +1,132 @@
+{
+  "sizes": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16
+  ],
+  "pattern": "(37 + 13*i + n) modulo 256",
+  "primary_oracle": "Independent C language layouts plus hand-written psABI GP/SSE/stack locations; no compiler-generated expected assembly.",
+  "fixture_sha256": {
+    "aggregate_abi_small_integer.ssa": "d6285f3a8ea40c213a64c4d23a44c41173bfb7cf4f0d74ea79c6d2c53a1a8a3e",
+    "aggregate_abi_small_integer.c": "a9ce80962992dabb9613028e4ce424e66acf01af506f0e796d0ddc86a1b295a7",
+    "aggregate_abi_small_integer_shim.s": "b2a3950a5618840e666db89a9728125a42cfa22cbf61500b16fc95ca8843d8d9",
+    "aggregate_abi_small_integer_mixed.ssa": "5697cda848a1d01379d7e9c42581a700b01d07a6c1612fa925457248aa59e44a",
+    "aggregate_abi_small_integer_scalar_reference.ssa": "0cda63a7da553063e60062b5c03a968b1a5742c7d9e5ddcd756d3fcefa5759c2"
+  },
+  "baseline_commit": "2c5ce8f1f599effa1b1e62b0ac681c6e7ad75778",
+  "matched_fragments": {
+    "suffix": {
+      "0": {
+        "common_address": "31baff5090a11d0aa10db45852922cfd561e94dc0be1005360b2d947f0e7880b",
+        "ordinary_address": "f39e5924979411cba1784ecfdfd34c69f10bbe6e42ce26fe152da7e9887c022c",
+        "external_address": "7318a5f1edf1bc47e3b38c079e6f760310c10b808caa0696a7260571971ad280",
+        "T": "08201a8e3e2addc88235f7aea9302a26275dfdfd999adbdbd1614e244d0ac824"
+      },
+      "1": {
+        "common_address": "31baff5090a11d0aa10db45852922cfd561e94dc0be1005360b2d947f0e7880b",
+        "ordinary_address": "f39e5924979411cba1784ecfdfd34c69f10bbe6e42ce26fe152da7e9887c022c",
+        "external_address": "7318a5f1edf1bc47e3b38c079e6f760310c10b808caa0696a7260571971ad280",
+        "T": "08201a8e3e2addc88235f7aea9302a26275dfdfd999adbdbd1614e244d0ac824"
+      },
+      "2": {
+        "common_address": "31baff5090a11d0aa10db45852922cfd561e94dc0be1005360b2d947f0e7880b",
+        "ordinary_address": "f39e5924979411cba1784ecfdfd34c69f10bbe6e42ce26fe152da7e9887c022c",
+        "external_address": "7318a5f1edf1bc47e3b38c079e6f760310c10b808caa0696a7260571971ad280",
+        "T": "08201a8e3e2addc88235f7aea9302a26275dfdfd999adbdbd1614e244d0ac824"
+      },
+      "3": {
+        "common_address": "31baff5090a11d0aa10db45852922cfd561e94dc0be1005360b2d947f0e7880b",
+        "ordinary_address": "f39e5924979411cba1784ecfdfd34c69f10bbe6e42ce26fe152da7e9887c022c",
+        "external_address": "7318a5f1edf1bc47e3b38c079e6f760310c10b808caa0696a7260571971ad280",
+        "T": "08201a8e3e2addc88235f7aea9302a26275dfdfd999adbdbd1614e244d0ac824"
+      },
+      "4": {
+        "common_address": "31baff5090a11d0aa10db45852922cfd561e94dc0be1005360b2d947f0e7880b",
+        "ordinary_address": "f39e5924979411cba1784ecfdfd34c69f10bbe6e42ce26fe152da7e9887c022c",
+        "external_address": "7318a5f1edf1bc47e3b38c079e6f760310c10b808caa0696a7260571971ad280",
+        "T": "08201a8e3e2addc88235f7aea9302a26275dfdfd999adbdbd1614e244d0ac824"
+      },
+      "5": {
+        "common_address": "31baff5090a11d0aa10db45852922cfd561e94dc0be1005360b2d947f0e7880b",
+        "ordinary_address": "f39e5924979411cba1784ecfdfd34c69f10bbe6e42ce26fe152da7e9887c022c",
+        "external_address": "7318a5f1edf1bc47e3b38c079e6f760310c10b808caa0696a7260571971ad280",
+        "T": "08201a8e3e2addc88235f7aea9302a26275dfdfd999adbdbd1614e244d0ac824"
+      },
+      "6": {
+        "common_address": "31baff5090a11d0aa10db45852922cfd561e94dc0be1005360b2d947f0e7880b",
+        "ordinary_address": "f39e5924979411cba1784ecfdfd34c69f10bbe6e42ce26fe152da7e9887c022c",
+        "external_address": "7318a5f1edf1bc47e3b38c079e6f760310c10b808caa0696a7260571971ad280",
+        "T": "08201a8e3e2addc88235f7aea9302a26275dfdfd999adbdbd1614e244d0ac824"
+      },
+      "7": {
+        "common_address": "31baff5090a11d0aa10db45852922cfd561e94dc0be1005360b2d947f0e7880b",
+        "ordinary_address": "f39e5924979411cba1784ecfdfd34c69f10bbe6e42ce26fe152da7e9887c022c",
+        "external_address": "7318a5f1edf1bc47e3b38c079e6f760310c10b808caa0696a7260571971ad280",
+        "T": "08201a8e3e2addc88235f7aea9302a26275dfdfd999adbdbd1614e244d0ac824"
+      }
+    },
+    "prefix": {
+      "0": {
+        "common_address": "208dbba85c2ded7f342444a8723142d98c15996e9dece7eeb91ebd40366b2b27",
+        "ordinary_address": "548cdaed1637026684b44e2d3b871015878d3af47556cf880a0e41c71536bd32",
+        "external_address": "a17b0a7895c54967e06b7bd53b535c1a6ef721ce5fba56055ee4a9d2b115d697",
+        "T": "67fa7000e85e1c5f5ef3e8b68388e12c46706502bef7b7a4551ffad07193376c"
+      },
+      "1": {
+        "common_address": "208dbba85c2ded7f342444a8723142d98c15996e9dece7eeb91ebd40366b2b27",
+        "ordinary_address": "548cdaed1637026684b44e2d3b871015878d3af47556cf880a0e41c71536bd32",
+        "external_address": "a17b0a7895c54967e06b7bd53b535c1a6ef721ce5fba56055ee4a9d2b115d697",
+        "T": "67fa7000e85e1c5f5ef3e8b68388e12c46706502bef7b7a4551ffad07193376c"
+      },
+      "2": {
+        "common_address": "208dbba85c2ded7f342444a8723142d98c15996e9dece7eeb91ebd40366b2b27",
+        "ordinary_address": "548cdaed1637026684b44e2d3b871015878d3af47556cf880a0e41c71536bd32",
+        "external_address": "a17b0a7895c54967e06b7bd53b535c1a6ef721ce5fba56055ee4a9d2b115d697",
+        "T": "67fa7000e85e1c5f5ef3e8b68388e12c46706502bef7b7a4551ffad07193376c"
+      },
+      "3": {
+        "common_address": "208dbba85c2ded7f342444a8723142d98c15996e9dece7eeb91ebd40366b2b27",
+        "ordinary_address": "548cdaed1637026684b44e2d3b871015878d3af47556cf880a0e41c71536bd32",
+        "external_address": "a17b0a7895c54967e06b7bd53b535c1a6ef721ce5fba56055ee4a9d2b115d697",
+        "T": "67fa7000e85e1c5f5ef3e8b68388e12c46706502bef7b7a4551ffad07193376c"
+      },
+      "4": {
+        "common_address": "208dbba85c2ded7f342444a8723142d98c15996e9dece7eeb91ebd40366b2b27",
+        "ordinary_address": "548cdaed1637026684b44e2d3b871015878d3af47556cf880a0e41c71536bd32",
+        "external_address": "a17b0a7895c54967e06b7bd53b535c1a6ef721ce5fba56055ee4a9d2b115d697",
+        "T": "67fa7000e85e1c5f5ef3e8b68388e12c46706502bef7b7a4551ffad07193376c"
+      },
+      "5": {
+        "common_address": "208dbba85c2ded7f342444a8723142d98c15996e9dece7eeb91ebd40366b2b27",
+        "ordinary_address": "548cdaed1637026684b44e2d3b871015878d3af47556cf880a0e41c71536bd32",
+        "external_address": "a17b0a7895c54967e06b7bd53b535c1a6ef721ce5fba56055ee4a9d2b115d697",
+        "T": "67fa7000e85e1c5f5ef3e8b68388e12c46706502bef7b7a4551ffad07193376c"
+      },
+      "6": {
+        "common_address": "208dbba85c2ded7f342444a8723142d98c15996e9dece7eeb91ebd40366b2b27",
+        "ordinary_address": "548cdaed1637026684b44e2d3b871015878d3af47556cf880a0e41c71536bd32",
+        "external_address": "a17b0a7895c54967e06b7bd53b535c1a6ef721ce5fba56055ee4a9d2b115d697",
+        "T": "67fa7000e85e1c5f5ef3e8b68388e12c46706502bef7b7a4551ffad07193376c"
+      },
+      "7": {
+        "common_address": "208dbba85c2ded7f342444a8723142d98c15996e9dece7eeb91ebd40366b2b27",
+        "ordinary_address": "548cdaed1637026684b44e2d3b871015878d3af47556cf880a0e41c71536bd32",
+        "external_address": "a17b0a7895c54967e06b7bd53b535c1a6ef721ce5fba56055ee4a9d2b115d697",
+        "T": "67fa7000e85e1c5f5ef3e8b68388e12c46706502bef7b7a4551ffad07193376c"
+      }
+    }
+  }
+}

@@ -123,8 +123,12 @@ def main():
                 if name.startswith('rounded-') and run.returncode != -11:
                     raise SystemExit('Rounded-copy control did not produce the expected real guard-page fault: '+name)
                 print('Runtime defect caught: '+name+' exit='+str(run.returncode))
+        # Approved INTEGER16 upgrade: its runtime path is independently checked
+        # by aggregate_abi_small_integer_check.py, not a blanket allowed exit.
+        il.write_text('type :T={b 16}\nfunction $f(:T %p){\n@e\nret\n}')
+        subprocess.run([*compiler, str(il), str(asm)], check=True, timeout=45)
+        print('1 newly eligible INTEGER16 signature emits successfully')
         cases = [
-            'type :T={b 16}\nfunction $f(:T %p){\n@e\nret\n}',
             'type :T={b 4097}\nfunction $f(:T %p){\n@e\nret\n}',
             'type :T=align 32 {b 17}\nfunction $f(:T %p){\n@e\nret\n}',
             'type :T=align 64 {b 17}\nfunction $f(:T %p){\n@e\nret\n}',

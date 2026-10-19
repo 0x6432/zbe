@@ -1,0 +1,584 @@
+type :I1={b 1}
+type :I2={b 2}
+type :I3={b 3}
+type :I4={b 4}
+type :I5={b 5}
+type :I6={b 6}
+type :I7={b 7}
+type :I8={b 8}
+type :I9={b 9}
+type :I10={b 10}
+type :I11={b 11}
+type :I12={b 12}
+type :I13={b 13}
+type :I14={b 14}
+type :I15={b 15}
+type :I16={b 16}
+export function :I1 $aggregate_abi_small_integer_echo1(:I1 %a) {
+@e
+ret %a
+}
+export function :I1 $aggregate_abi_small_integer_ret1(l %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_small_integer_send1(l %p) {
+@e
+%r =w call $aggregate_abi_small_integer_check1(:I1 %p)
+ret %r
+}
+export function w $aggregate_abi_small_integer_roundtrip1(l %p) {
+@e
+%a =:I1 call $aggregate_abi_small_integer_cmake1(l %p)
+%r =w call $aggregate_abi_small_integer_check1(:I1 %a)
+ret %r
+}
+export function w $aggregate_abi_small_integer_mutate1(:I1 %a,:I1 %b) {
+@e
+storeb 201, %a
+%x =w loadub %b
+ret %x
+}
+export function :I2 $aggregate_abi_small_integer_echo2(:I2 %a) {
+@e
+ret %a
+}
+export function :I2 $aggregate_abi_small_integer_ret2(l %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_small_integer_send2(l %p) {
+@e
+%r =w call $aggregate_abi_small_integer_check2(:I2 %p)
+ret %r
+}
+export function w $aggregate_abi_small_integer_roundtrip2(l %p) {
+@e
+%a =:I2 call $aggregate_abi_small_integer_cmake2(l %p)
+%r =w call $aggregate_abi_small_integer_check2(:I2 %a)
+ret %r
+}
+export function w $aggregate_abi_small_integer_mutate2(:I2 %a,:I2 %b) {
+@e
+storeb 201, %a
+%x =w loadub %b
+ret %x
+}
+export function :I3 $aggregate_abi_small_integer_echo3(:I3 %a) {
+@e
+ret %a
+}
+export function :I3 $aggregate_abi_small_integer_ret3(l %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_small_integer_send3(l %p) {
+@e
+%r =w call $aggregate_abi_small_integer_check3(:I3 %p)
+ret %r
+}
+export function w $aggregate_abi_small_integer_roundtrip3(l %p) {
+@e
+%a =:I3 call $aggregate_abi_small_integer_cmake3(l %p)
+%r =w call $aggregate_abi_small_integer_check3(:I3 %a)
+ret %r
+}
+export function w $aggregate_abi_small_integer_mutate3(:I3 %a,:I3 %b) {
+@e
+storeb 201, %a
+%x =w loadub %b
+ret %x
+}
+export function :I4 $aggregate_abi_small_integer_echo4(:I4 %a) {
+@e
+ret %a
+}
+export function :I4 $aggregate_abi_small_integer_ret4(l %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_small_integer_send4(l %p) {
+@e
+%r =w call $aggregate_abi_small_integer_check4(:I4 %p)
+ret %r
+}
+export function w $aggregate_abi_small_integer_roundtrip4(l %p) {
+@e
+%a =:I4 call $aggregate_abi_small_integer_cmake4(l %p)
+%r =w call $aggregate_abi_small_integer_check4(:I4 %a)
+ret %r
+}
+export function w $aggregate_abi_small_integer_mutate4(:I4 %a,:I4 %b) {
+@e
+storeb 201, %a
+%x =w loadub %b
+ret %x
+}
+export function :I5 $aggregate_abi_small_integer_echo5(:I5 %a) {
+@e
+ret %a
+}
+export function :I5 $aggregate_abi_small_integer_ret5(l %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_small_integer_send5(l %p) {
+@e
+%r =w call $aggregate_abi_small_integer_check5(:I5 %p)
+ret %r
+}
+export function w $aggregate_abi_small_integer_roundtrip5(l %p) {
+@e
+%a =:I5 call $aggregate_abi_small_integer_cmake5(l %p)
+%r =w call $aggregate_abi_small_integer_check5(:I5 %a)
+ret %r
+}
+export function w $aggregate_abi_small_integer_mutate5(:I5 %a,:I5 %b) {
+@e
+storeb 201, %a
+%x =w loadub %b
+ret %x
+}
+export function :I6 $aggregate_abi_small_integer_echo6(:I6 %a) {
+@e
+ret %a
+}
+export function :I6 $aggregate_abi_small_integer_ret6(l %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_small_integer_send6(l %p) {
+@e
+%r =w call $aggregate_abi_small_integer_check6(:I6 %p)
+ret %r
+}
+export function w $aggregate_abi_small_integer_roundtrip6(l %p) {
+@e
+%a =:I6 call $aggregate_abi_small_integer_cmake6(l %p)
+%r =w call $aggregate_abi_small_integer_check6(:I6 %a)
+ret %r
+}
+export function w $aggregate_abi_small_integer_mutate6(:I6 %a,:I6 %b) {
+@e
+storeb 201, %a
+%x =w loadub %b
+ret %x
+}
+export function :I7 $aggregate_abi_small_integer_echo7(:I7 %a) {
+@e
+ret %a
+}
+export function :I7 $aggregate_abi_small_integer_ret7(l %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_small_integer_send7(l %p) {
+@e
+%r =w call $aggregate_abi_small_integer_check7(:I7 %p)
+ret %r
+}
+export function w $aggregate_abi_small_integer_roundtrip7(l %p) {
+@e
+%a =:I7 call $aggregate_abi_small_integer_cmake7(l %p)
+%r =w call $aggregate_abi_small_integer_check7(:I7 %a)
+ret %r
+}
+export function w $aggregate_abi_small_integer_mutate7(:I7 %a,:I7 %b) {
+@e
+storeb 201, %a
+%x =w loadub %b
+ret %x
+}
+export function :I8 $aggregate_abi_small_integer_echo8(:I8 %a) {
+@e
+ret %a
+}
+export function :I8 $aggregate_abi_small_integer_ret8(l %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_small_integer_send8(l %p) {
+@e
+%r =w call $aggregate_abi_small_integer_check8(:I8 %p)
+ret %r
+}
+export function w $aggregate_abi_small_integer_roundtrip8(l %p) {
+@e
+%a =:I8 call $aggregate_abi_small_integer_cmake8(l %p)
+%r =w call $aggregate_abi_small_integer_check8(:I8 %a)
+ret %r
+}
+export function w $aggregate_abi_small_integer_mutate8(:I8 %a,:I8 %b) {
+@e
+storeb 201, %a
+%x =w loadub %b
+ret %x
+}
+export function :I9 $aggregate_abi_small_integer_echo9(:I9 %a) {
+@e
+ret %a
+}
+export function :I9 $aggregate_abi_small_integer_ret9(l %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_small_integer_send9(l %p) {
+@e
+%r =w call $aggregate_abi_small_integer_check9(:I9 %p)
+ret %r
+}
+export function w $aggregate_abi_small_integer_roundtrip9(l %p) {
+@e
+%a =:I9 call $aggregate_abi_small_integer_cmake9(l %p)
+%r =w call $aggregate_abi_small_integer_check9(:I9 %a)
+ret %r
+}
+export function w $aggregate_abi_small_integer_mutate9(:I9 %a,:I9 %b) {
+@e
+storeb 201, %a
+%x =w loadub %b
+ret %x
+}
+export function :I10 $aggregate_abi_small_integer_echo10(:I10 %a) {
+@e
+ret %a
+}
+export function :I10 $aggregate_abi_small_integer_ret10(l %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_small_integer_send10(l %p) {
+@e
+%r =w call $aggregate_abi_small_integer_check10(:I10 %p)
+ret %r
+}
+export function w $aggregate_abi_small_integer_roundtrip10(l %p) {
+@e
+%a =:I10 call $aggregate_abi_small_integer_cmake10(l %p)
+%r =w call $aggregate_abi_small_integer_check10(:I10 %a)
+ret %r
+}
+export function w $aggregate_abi_small_integer_mutate10(:I10 %a,:I10 %b) {
+@e
+storeb 201, %a
+%x =w loadub %b
+ret %x
+}
+export function :I11 $aggregate_abi_small_integer_echo11(:I11 %a) {
+@e
+ret %a
+}
+export function :I11 $aggregate_abi_small_integer_ret11(l %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_small_integer_send11(l %p) {
+@e
+%r =w call $aggregate_abi_small_integer_check11(:I11 %p)
+ret %r
+}
+export function w $aggregate_abi_small_integer_roundtrip11(l %p) {
+@e
+%a =:I11 call $aggregate_abi_small_integer_cmake11(l %p)
+%r =w call $aggregate_abi_small_integer_check11(:I11 %a)
+ret %r
+}
+export function w $aggregate_abi_small_integer_mutate11(:I11 %a,:I11 %b) {
+@e
+storeb 201, %a
+%x =w loadub %b
+ret %x
+}
+export function :I12 $aggregate_abi_small_integer_echo12(:I12 %a) {
+@e
+ret %a
+}
+export function :I12 $aggregate_abi_small_integer_ret12(l %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_small_integer_send12(l %p) {
+@e
+%r =w call $aggregate_abi_small_integer_check12(:I12 %p)
+ret %r
+}
+export function w $aggregate_abi_small_integer_roundtrip12(l %p) {
+@e
+%a =:I12 call $aggregate_abi_small_integer_cmake12(l %p)
+%r =w call $aggregate_abi_small_integer_check12(:I12 %a)
+ret %r
+}
+export function w $aggregate_abi_small_integer_mutate12(:I12 %a,:I12 %b) {
+@e
+storeb 201, %a
+%x =w loadub %b
+ret %x
+}
+export function :I13 $aggregate_abi_small_integer_echo13(:I13 %a) {
+@e
+ret %a
+}
+export function :I13 $aggregate_abi_small_integer_ret13(l %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_small_integer_send13(l %p) {
+@e
+%r =w call $aggregate_abi_small_integer_check13(:I13 %p)
+ret %r
+}
+export function w $aggregate_abi_small_integer_roundtrip13(l %p) {
+@e
+%a =:I13 call $aggregate_abi_small_integer_cmake13(l %p)
+%r =w call $aggregate_abi_small_integer_check13(:I13 %a)
+ret %r
+}
+export function w $aggregate_abi_small_integer_mutate13(:I13 %a,:I13 %b) {
+@e
+storeb 201, %a
+%x =w loadub %b
+ret %x
+}
+export function :I14 $aggregate_abi_small_integer_echo14(:I14 %a) {
+@e
+ret %a
+}
+export function :I14 $aggregate_abi_small_integer_ret14(l %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_small_integer_send14(l %p) {
+@e
+%r =w call $aggregate_abi_small_integer_check14(:I14 %p)
+ret %r
+}
+export function w $aggregate_abi_small_integer_roundtrip14(l %p) {
+@e
+%a =:I14 call $aggregate_abi_small_integer_cmake14(l %p)
+%r =w call $aggregate_abi_small_integer_check14(:I14 %a)
+ret %r
+}
+export function w $aggregate_abi_small_integer_mutate14(:I14 %a,:I14 %b) {
+@e
+storeb 201, %a
+%x =w loadub %b
+ret %x
+}
+export function :I15 $aggregate_abi_small_integer_echo15(:I15 %a) {
+@e
+ret %a
+}
+export function :I15 $aggregate_abi_small_integer_ret15(l %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_small_integer_send15(l %p) {
+@e
+%r =w call $aggregate_abi_small_integer_check15(:I15 %p)
+ret %r
+}
+export function w $aggregate_abi_small_integer_roundtrip15(l %p) {
+@e
+%a =:I15 call $aggregate_abi_small_integer_cmake15(l %p)
+%r =w call $aggregate_abi_small_integer_check15(:I15 %a)
+ret %r
+}
+export function w $aggregate_abi_small_integer_mutate15(:I15 %a,:I15 %b) {
+@e
+storeb 201, %a
+%x =w loadub %b
+ret %x
+}
+export function :I16 $aggregate_abi_small_integer_echo16(:I16 %a) {
+@e
+ret %a
+}
+export function :I16 $aggregate_abi_small_integer_ret16(l %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_small_integer_send16(l %p) {
+@e
+%r =w call $aggregate_abi_small_integer_check16(:I16 %p)
+ret %r
+}
+export function w $aggregate_abi_small_integer_roundtrip16(l %p) {
+@e
+%a =:I16 call $aggregate_abi_small_integer_cmake16(l %p)
+%r =w call $aggregate_abi_small_integer_check16(:I16 %a)
+ret %r
+}
+export function w $aggregate_abi_small_integer_mutate16(:I16 %a,:I16 %b) {
+@e
+storeb 201, %a
+%x =w loadub %b
+ret %x
+}
+type :M={b 17}
+type :N={h,b}
+type :Nested={:N 2,l}
+export function :M $aggregate_abi_small_integer_memory_mix(l %l0,l %l1,l %l2,l %l3,:I9 %a,l %after,:I1 %b,d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,d %d7,d %d8) {
+@e
+%ok =w call $aggregate_abi_small_integer_verify(l %l0,l %l1,l %l2,l %l3,:I9 %a,l %after,:I1 %b,d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,d %d7,d %d8)
+jnz %ok, @yes, @no
+@no
+hlt
+@yes
+%r =:M call $aggregate_abi_small_integer_mmake(w 209)
+ret %r
+}
+export function :I9 $aggregate_abi_small_integer_integer_mix(l %l0,l %l1,l %l2,l %l3,:I9 %a,l %after,:I1 %b,d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,d %d7,d %d8) {
+@e
+%ok =w call $aggregate_abi_small_integer_verify(l %l0,l %l1,l %l2,l %l3,:I9 %a,l %after,:I1 %b,d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,d %d7,d %d8)
+jnz %ok, @yes, @no
+@no
+hlt
+@yes
+ret %a
+}
+export function w $aggregate_abi_small_integer_call_memory_mix(l %a,l %b) {
+@e
+%r =:M call $aggregate_abi_small_integer_cmemory_mix(l 11,l 22,l 33,l 44,:I9 %a,l 55,:I1 %b,d d_1,d d_2,d d_3,d d_4,d d_5,d d_6,d d_7,d d_8,d d_9)
+%x =w loadub %r
+ret %x
+}
+export function w $aggregate_abi_small_integer_call_integer_mix(l %a,l %b) {
+@e
+%r =:I9 call $aggregate_abi_small_integer_cinteger_mix(l 11,l 22,l 33,l 44,:I9 %a,l 55,:I1 %b,d d_1,d d_2,d d_3,d d_4,d d_5,d d_6,d d_7,d d_8,d d_9)
+%x =w loadub %r
+ret %x
+}
+export function w $aggregate_abi_small_integer_call_memory_probe(l %a,l %b) {
+@e
+%r =:M call $aggregate_abi_small_integer_cmemory_probe(l 11,l 22,l 33,l 44,:I9 %a,l 55,:I1 %b,d d_1,d d_2,d d_3,d d_4,d d_5,d d_6,d d_7,d d_8,d d_9)
+%x =w loadub %r
+ret %x
+}
+export function w $aggregate_abi_small_integer_call_integer_probe(l %a,l %b) {
+@e
+%r =:I9 call $aggregate_abi_small_integer_cinteger_probe(l 11,l 22,l 33,l 44,:I9 %a,l 55,:I1 %b,d d_1,d d_2,d d_3,d d_4,d d_5,d d_6,d d_7,d d_8,d d_9)
+%x =w loadub %r
+ret %x
+}
+export function :Nested $aggregate_abi_small_integer_nested(:Nested %p) {
+@e
+ret %p
+}
+export function w $aggregate_abi_small_integer_sites() {
+@e
+%a =:I9 call $aggregate_abi_small_integer_make(w 11)
+%b =:I9 call $aggregate_abi_small_integer_make(w 22)
+%x =w loadub %a
+%y =w loadub %b
+%r =w add %x,%y
+ret %r
+}
+export function w $aggregate_abi_small_integer_loop(w %n) {
+@entry
+jmp @body
+@body
+%i =w phi @entry 0,@next %j
+%p =:I9 call $aggregate_abi_small_integer_make(w %i)
+%ok =w call $aggregate_abi_small_integer_observe(l %p,w %i)
+jnz %ok,@next,@bad
+@next
+%j =w add %i,1
+%c =w cultw %j,%n
+jnz %c,@body,@done
+@bad
+ret 0
+@done
+ret 1
+}
+export function :I9 $aggregate_abi_small_integer_recurse(:I9 %a,w %n) {
+@e
+jnz %n,@recursive,@base
+@recursive
+%m =w sub %n,1
+%r =:I9 call $aggregate_abi_small_integer_recurse(:I9 %a,w %m)
+ret %r
+@base
+ret %a
+}
+export function :I9 $aggregate_abi_small_integer_dynamic(l %p,l %b) {
+@e
+%a =l alloc16 9
+blit %p,%a,9
+%r =:I9 call $aggregate_abi_small_integer_cinteger_mix(l 11,l 22,l 33,l 44,:I9 %a,l 55,:I1 %b,d d_1,d d_2,d d_3,d d_4,d d_5,d d_6,d d_7,d d_8,d d_9)
+%gap =l alloc16 4097
+storeb 39,%gap
+%v =:I9 call $aggregate_abi_small_integer_cinteger_mix(l 11,l 22,l 33,l 44,:I9 %r,l 55,:I1 %b,d d_1,d d_2,d d_3,d d_4,d d_5,d d_6,d d_7,d d_8,d d_9)
+ret %v
+}
+export function w $aggregate_abi_small_integer_varcaller(l %p,...) {
+@e
+%list =l alloc16 24
+vastart %list
+%a =:I9 call $aggregate_abi_small_integer_cmake9(l %p)
+%v =l vaarg %list
+%x =w loadub %a
+%low =w copy %v
+%r =w add %x,%low
+ret %r
+}
+export function w $aggregate_abi_small_integer_envcaller(env %env,l %p) {
+@e
+%a =:I9 call $aggregate_abi_small_integer_cmake9(l %p)
+%x =w loadub %a
+%low =w copy %env
+%r =w add %x,%low
+ret %r
+}
+export function :I9 $aggregate_abi_small_integer_scalarindirect(:I9 %a,l %fn) {
+@e
+%x =w call %fn(w 7)
+%v =w call $aggregate_abi_small_integer_varcheck(w 1,...,w 9,d d_2)
+%e =w call $aggregate_abi_small_integer_envadd(env 7,w 1)
+%r =w add %x,%v
+%answer =w add %r,%e
+storeb %answer,%a
+ret %a
+}
+export function w $aggregate_abi_small_integer_bits(l %p) {
+@e
+%z =d cast 9223372036854775808
+%n =d cast 9221120237041095220
+%last =d cast 9221120237041112696
+%r =:I9 call $aggregate_abi_small_integer_cbits(:I9 %p,d %z,d %n,d d_3,d d_4,d d_5,d d_6,d d_7,d d_8,d %last)
+%x =w loadub %r
+ret %x
+}
+export function :I9 $aggregate_abi_small_integer_bitreceiver(:I9 %a,d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,d %d7,d %d8) {
+@e
+%r =:I9 call $aggregate_abi_small_integer_cbits(:I9 %a,d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,d %d7,d %d8)
+ret %r
+}
+export function :I9 $aggregate_abi_small_integer_subincoming(sb %a,ub %b,sh %c,uh %d,sb %e,ub %f,:I9 %p) {
+@entry
+%a0 =w extsb %a
+%b0 =w extub %b
+%c0 =w extsh %c
+%d0 =w extuh %d
+%e0 =w extsb %e
+%f0 =w extub %f
+%ok =w call $aggregate_abi_small_integer_normalized(w %a0,w %b0,w %c0,w %d0,w %e0,w %f0)
+jnz %ok,@yes,@no
+@no
+hlt
+@yes
+storeb 246,%p
+ret %p
+}
+export function w $aggregate_abi_small_integer_suboutgoing(l %p) {
+@entry
+%r =:I9 call $aggregate_abi_small_integer_csub(sb 128,ub 255,sh 32768,uh 65535,sb 255,ub 254,:I9 %p)
+%x =w loadub %r
+ret %x
+}
+
+export function w $aggregate_abi_small_integer_poison_capture(l %p) {
+@start
+ %r =:I9 call $aggregate_abi_small_integer_poison_result(l %p)
+ %ok =w call $aggregate_abi_small_integer_check9(:I9 %r)
+ ret %ok
+}

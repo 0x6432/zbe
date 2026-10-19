@@ -79,8 +79,17 @@ def main():
                 if digest(result) != expected['assembly_sha256'][str(mask)] or (baseline is not None and result != baseline):
                     raise SystemExit('Scalar assembly changed versus exact pre-change867 oracle: '+name)
                 identity += 1
+        # Individual plain Tiny signatures/calls (including unreachable calls)
+        # become positive native cases. Combined env/vararg/indirect/overaligned
+        # metadata and every malformed syntax case remain explicit refusals.
+        eligible = [positive[i] for i in (1, 2, 3, 4, 8)]
+        unsupported = [positive[i] for i in (0, 5, 6, 7, 9)]
+        for text in eligible:
+            il.write_text(text)
+            subprocess.run([*compiler, str(il), str(asm)], check=True, timeout=45)
+        print(f'{len(eligible)} newly eligible Tiny native cases emit; runtime checks live in small INTEGER harness')
         refused = 0
-        for aggregate, cases in ((True, positive), (False, negative)):
+        for aggregate, cases in ((True, unsupported), (False, negative)):
             for text in cases:
                 il.write_text(text)
                 for exists in (False, True):
@@ -95,7 +104,7 @@ def main():
                     refused += 1
         print(f'{identity} exact pre-change scalar assembly identities passed')
         print(f'{refused} aggregate ABI/syntax refusal output-preservation checks passed')
-        print('NO aggregate ABI execution or native lowering support claimed')
+        print('Only deferred metadata/syntax refusals and scalar bytes are checked by this harness')
 
 
 if __name__ == '__main__':

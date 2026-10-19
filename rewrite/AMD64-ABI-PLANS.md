@@ -17,7 +17,9 @@ The planner accepts mixed scalars and MEMORY records whose declared size is
 17..4096 bytes and effective alignment is at most16. This is a conservative target
 subset and resource policy, not a restriction on valid declarations. Generic
 metadata still permits tiny, align32/64 and UINT64_MAX records; unused declarations
-do not trigger target refusal. No small-register aggregate, vector, opaque,
+do not trigger target refusal. The additional integer-only size1..16, align1/2/4/8 target subset has whole-argument
+GP tuples and RAX/RDX results; see [SMALL-INTEGER-ABI.md](SMALL-INTEGER-ABI.md).
+No small SSE/mixed-register aggregate, vector, opaque,
 unaligned, C++ invisible-reference or non-SysV classification is provided.
 
 In this closed b/h/w/l/s/d record universe, a record larger than two eightbytes
@@ -64,7 +66,7 @@ planner. Old scalar marshalling instructions and the existing cursor are unchang
 
 Home options use the existing owned coloring layout; baseline identity homes,
 phi scratch and saved-original register slots preserve existing scalar geometry.
-The plan owns all argument/call/pad arrays and any home layout. It stores no borrowed
+The plan owns all argument/call/pad/private-parameter-object arrays and any home layout. It stores no borrowed
 Module/Function/record/name/layout pointers, hidden ownership links or global cache.
 Allocator lifetime must cover the plan; call `deinit` once. Module/source storage
 may be destroyed after construction. IDs remain nominal module-scoped ordinals,
@@ -102,4 +104,4 @@ secondary to independent prefix/register expectations.
 
 The standalone planning API is not itself execution. Bounded native MEMORY
 integration is separately documented in [AMD64-MEMORY-ABI.md](AMD64-MEMORY-ABI.md).
-Small-register aggregates and all aggregate interpretation remain unsupported.
+Other small-register aggregate classes and all aggregate interpretation remain unsupported.

@@ -51,8 +51,11 @@ int main(void) {
         'function l $f() {\n@e\njmp @b\n@b\n%x =l phi @e :T\nret %x\n}',
         'data $x = { :T 0 }',
     ]
-    invalid=declarations+['type :T = { w }\n'+use for use in uses]
-    assert len(invalid)==25
+    # Parameter and call annotations for INTEGER word records are now positive;
+    # malformed missing-value return and first-class aggregate syntax still fail.
+    eligible=['type :T = { w }\n'+uses[i] for i in (1,3,4)]
+    invalid=declarations+['type :T = { w }\n'+uses[i] for i in (0,2,5,6,7,8)]
+    assert len(invalid)==22
     with tempfile.TemporaryDirectory(prefix='record_declaration_') as directory:
         path=Path(directory)
         il,asm,baseline,driver,exe=[path/name for name in ('input.ssa','output.s','baseline.s','driver.c','run')]
@@ -85,6 +88,10 @@ int main(void) {
             if asm.read_bytes()!=expected:raise SystemExit('Unused record names changed COMMON/ordinary/external/normal scalar aliases')
             subprocess.run([args.cc,'-c',str(asm),'-o',str(path/'aliases.o')],check=True,timeout=30)
         print('2 complete COMMON/ordinary/external/normal namespace assembly identity checks passed')
+        for text in eligible:
+            il.write_text(text)
+            subprocess.run([*compiler,str(il),str(asm)],check=True,timeout=45)
+        print('3 newly eligible INTEGER-word parameter/call forms emit; independent runtime coverage is separate')
         rejected=0
         for text in invalid:
             il.write_text(text)

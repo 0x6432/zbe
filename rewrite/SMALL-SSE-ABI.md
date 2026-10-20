@@ -12,8 +12,7 @@ Align16 regular records and padding-only NO_CLASS lanes are additionally
 supported by [ALIGN16-ABI.md](ALIGN16-ABI.md), without changing this <=8-alignment
 API/output. No vectors/SSEUP/x87, alignment32/64, opaque/union/
 unaligned type, other target, first-class aggregate arithmetic/copy/phi/data
-class or interpreter aggregate execution is added. Record-bearing env/variadic/
-indirect signatures or call sites remain explicitly refused. Restrictions are
+class or interpreter aggregate execution is added. Record-bearing variadic signatures/sites remain explicitly refused. Nonvariadic ENV/indirect record calls are now supported (AGGREGATE-CALL-TARGETS.md). Restrictions are
 site-local: scalar env/variadic callers can contain ordinary direct record calls,
 and record-signature functions can retain scalar env/vararg/indirect calls.
 Long SSA carriers remain addresses; nominal ABI descriptors are not erased.

@@ -1,0 +1,867 @@
+type :B3={b 3}
+export function :B3 $aggregate_abi_call_targets_B3_plain(:B3 %p){
+@e
+ret %p
+}
+export function :B3 $aggregate_abi_call_targets_B3_indirect(l %fn,l %source){
+@e
+%r =:B3 call %fn(:B3 %source)
+ret %r
+}
+export function w $aggregate_abi_call_targets_B3_send(l %fn,l %source){
+@e
+%r =w call %fn(:B3 %source)
+ret %r
+}
+export function :B3 $aggregate_abi_call_targets_B3_env(env %e,:B3 %p){
+@e
+%v =w call $aggregate_abi_call_targets_vararg_probe(w 1,...,d d_0)
+call $aggregate_abi_call_targets_env_check(l %e,l %p,w 1)
+ret %p
+}
+export function :B3 $aggregate_abi_call_targets_B3_env_direct(l %source,l %e){
+@e
+%r =:B3 call $aggregate_abi_call_targets_B3_env(env %e,:B3 %source)
+ret %r
+}
+export function :B3 $aggregate_abi_call_targets_B3_env_indirect(l %fn,l %source,l %e){
+@e
+%r =:B3 call %fn(env %e,:B3 %source)
+ret %r
+}
+export function :B3 $aggregate_abi_call_targets_B3_alias(l %fn,l %source){
+@e
+%r =:B3 call %fn(env %fn,:B3 %source)
+ret %r
+}
+export function :B3 $aggregate_abi_call_targets_B3_loaded(l %cell,l %source,l %e){
+@e
+%fn =l loadl %cell
+%noise =w call $aggregate_abi_call_targets_clobber()
+%r =:B3 call %fn(env %e,:B3 %source)
+ret %r
+}
+export function :B3 $aggregate_abi_call_targets_B3_choose(w %which,l %first,l %second,l %source,l %e){
+@e
+jnz %which,@a,@b
+@a
+jmp @join
+@b
+jmp @join
+@join
+%fn =l phi @a %first,@b %second
+%r =:B3 call %fn(env %e,:B3 %source)
+ret %r
+}
+export function :B3 $aggregate_abi_call_targets_B3_module_target(l %source,l %e){
+@e
+%fn =l copy $aggregate_abi_call_targets_B3_env
+%r =:B3 call %fn(env %e,:B3 %source)
+ret %r
+}
+type :I13={b 13}
+export function :I13 $aggregate_abi_call_targets_I13_plain(:I13 %p){
+@e
+ret %p
+}
+export function :I13 $aggregate_abi_call_targets_I13_indirect(l %fn,l %source){
+@e
+%r =:I13 call %fn(:I13 %source)
+ret %r
+}
+export function w $aggregate_abi_call_targets_I13_send(l %fn,l %source){
+@e
+%r =w call %fn(:I13 %source)
+ret %r
+}
+export function :I13 $aggregate_abi_call_targets_I13_env(env %e,:I13 %p){
+@e
+%v =w call $aggregate_abi_call_targets_vararg_probe(w 1,...,d d_0)
+call $aggregate_abi_call_targets_env_check(l %e,l %p,w 1)
+ret %p
+}
+export function :I13 $aggregate_abi_call_targets_I13_env_direct(l %source,l %e){
+@e
+%r =:I13 call $aggregate_abi_call_targets_I13_env(env %e,:I13 %source)
+ret %r
+}
+export function :I13 $aggregate_abi_call_targets_I13_env_indirect(l %fn,l %source,l %e){
+@e
+%r =:I13 call %fn(env %e,:I13 %source)
+ret %r
+}
+export function :I13 $aggregate_abi_call_targets_I13_alias(l %fn,l %source){
+@e
+%r =:I13 call %fn(env %fn,:I13 %source)
+ret %r
+}
+export function :I13 $aggregate_abi_call_targets_I13_loaded(l %cell,l %source,l %e){
+@e
+%fn =l loadl %cell
+%noise =w call $aggregate_abi_call_targets_clobber()
+%r =:I13 call %fn(env %e,:I13 %source)
+ret %r
+}
+export function :I13 $aggregate_abi_call_targets_I13_choose(w %which,l %first,l %second,l %source,l %e){
+@e
+jnz %which,@a,@b
+@a
+jmp @join
+@b
+jmp @join
+@join
+%fn =l phi @a %first,@b %second
+%r =:I13 call %fn(env %e,:I13 %source)
+ret %r
+}
+export function :I13 $aggregate_abi_call_targets_I13_module_target(l %source,l %e){
+@e
+%fn =l copy $aggregate_abi_call_targets_I13_env
+%r =:I13 call %fn(env %e,:I13 %source)
+ret %r
+}
+type :W8={w,s}
+export function :W8 $aggregate_abi_call_targets_W8_plain(:W8 %p){
+@e
+ret %p
+}
+export function :W8 $aggregate_abi_call_targets_W8_indirect(l %fn,l %source){
+@e
+%r =:W8 call %fn(:W8 %source)
+ret %r
+}
+export function w $aggregate_abi_call_targets_W8_send(l %fn,l %source){
+@e
+%r =w call %fn(:W8 %source)
+ret %r
+}
+export function :W8 $aggregate_abi_call_targets_W8_env(env %e,:W8 %p){
+@e
+%v =w call $aggregate_abi_call_targets_vararg_probe(w 1,...,d d_0)
+call $aggregate_abi_call_targets_env_check(l %e,l %p,w 4)
+ret %p
+}
+export function :W8 $aggregate_abi_call_targets_W8_env_direct(l %source,l %e){
+@e
+%r =:W8 call $aggregate_abi_call_targets_W8_env(env %e,:W8 %source)
+ret %r
+}
+export function :W8 $aggregate_abi_call_targets_W8_env_indirect(l %fn,l %source,l %e){
+@e
+%r =:W8 call %fn(env %e,:W8 %source)
+ret %r
+}
+export function :W8 $aggregate_abi_call_targets_W8_alias(l %fn,l %source){
+@e
+%r =:W8 call %fn(env %fn,:W8 %source)
+ret %r
+}
+export function :W8 $aggregate_abi_call_targets_W8_loaded(l %cell,l %source,l %e){
+@e
+%fn =l loadl %cell
+%noise =w call $aggregate_abi_call_targets_clobber()
+%r =:W8 call %fn(env %e,:W8 %source)
+ret %r
+}
+export function :W8 $aggregate_abi_call_targets_W8_choose(w %which,l %first,l %second,l %source,l %e){
+@e
+jnz %which,@a,@b
+@a
+jmp @join
+@b
+jmp @join
+@join
+%fn =l phi @a %first,@b %second
+%r =:W8 call %fn(env %e,:W8 %source)
+ret %r
+}
+export function :W8 $aggregate_abi_call_targets_W8_module_target(l %source,l %e){
+@e
+%fn =l copy $aggregate_abi_call_targets_W8_env
+%r =:W8 call %fn(env %e,:W8 %source)
+ret %r
+}
+type :S4={s}
+export function :S4 $aggregate_abi_call_targets_S4_plain(:S4 %p){
+@e
+ret %p
+}
+export function :S4 $aggregate_abi_call_targets_S4_indirect(l %fn,l %source){
+@e
+%r =:S4 call %fn(:S4 %source)
+ret %r
+}
+export function w $aggregate_abi_call_targets_S4_send(l %fn,l %source){
+@e
+%r =w call %fn(:S4 %source)
+ret %r
+}
+export function :S4 $aggregate_abi_call_targets_S4_env(env %e,:S4 %p){
+@e
+%v =w call $aggregate_abi_call_targets_vararg_probe(w 1,...,d d_0)
+call $aggregate_abi_call_targets_env_check(l %e,l %p,w 4)
+ret %p
+}
+export function :S4 $aggregate_abi_call_targets_S4_env_direct(l %source,l %e){
+@e
+%r =:S4 call $aggregate_abi_call_targets_S4_env(env %e,:S4 %source)
+ret %r
+}
+export function :S4 $aggregate_abi_call_targets_S4_env_indirect(l %fn,l %source,l %e){
+@e
+%r =:S4 call %fn(env %e,:S4 %source)
+ret %r
+}
+export function :S4 $aggregate_abi_call_targets_S4_alias(l %fn,l %source){
+@e
+%r =:S4 call %fn(env %fn,:S4 %source)
+ret %r
+}
+export function :S4 $aggregate_abi_call_targets_S4_loaded(l %cell,l %source,l %e){
+@e
+%fn =l loadl %cell
+%noise =w call $aggregate_abi_call_targets_clobber()
+%r =:S4 call %fn(env %e,:S4 %source)
+ret %r
+}
+export function :S4 $aggregate_abi_call_targets_S4_choose(w %which,l %first,l %second,l %source,l %e){
+@e
+jnz %which,@a,@b
+@a
+jmp @join
+@b
+jmp @join
+@join
+%fn =l phi @a %first,@b %second
+%r =:S4 call %fn(env %e,:S4 %source)
+ret %r
+}
+export function :S4 $aggregate_abi_call_targets_S4_module_target(l %source,l %e){
+@e
+%fn =l copy $aggregate_abi_call_targets_S4_env
+%r =:S4 call %fn(env %e,:S4 %source)
+ret %r
+}
+type :D8={d}
+export function :D8 $aggregate_abi_call_targets_D8_plain(:D8 %p){
+@e
+ret %p
+}
+export function :D8 $aggregate_abi_call_targets_D8_indirect(l %fn,l %source){
+@e
+%r =:D8 call %fn(:D8 %source)
+ret %r
+}
+export function w $aggregate_abi_call_targets_D8_send(l %fn,l %source){
+@e
+%r =w call %fn(:D8 %source)
+ret %r
+}
+export function :D8 $aggregate_abi_call_targets_D8_env(env %e,:D8 %p){
+@e
+%v =w call $aggregate_abi_call_targets_vararg_probe(w 1,...,d d_0)
+call $aggregate_abi_call_targets_env_check(l %e,l %p,w 8)
+ret %p
+}
+export function :D8 $aggregate_abi_call_targets_D8_env_direct(l %source,l %e){
+@e
+%r =:D8 call $aggregate_abi_call_targets_D8_env(env %e,:D8 %source)
+ret %r
+}
+export function :D8 $aggregate_abi_call_targets_D8_env_indirect(l %fn,l %source,l %e){
+@e
+%r =:D8 call %fn(env %e,:D8 %source)
+ret %r
+}
+export function :D8 $aggregate_abi_call_targets_D8_alias(l %fn,l %source){
+@e
+%r =:D8 call %fn(env %fn,:D8 %source)
+ret %r
+}
+export function :D8 $aggregate_abi_call_targets_D8_loaded(l %cell,l %source,l %e){
+@e
+%fn =l loadl %cell
+%noise =w call $aggregate_abi_call_targets_clobber()
+%r =:D8 call %fn(env %e,:D8 %source)
+ret %r
+}
+export function :D8 $aggregate_abi_call_targets_D8_choose(w %which,l %first,l %second,l %source,l %e){
+@e
+jnz %which,@a,@b
+@a
+jmp @join
+@b
+jmp @join
+@join
+%fn =l phi @a %first,@b %second
+%r =:D8 call %fn(env %e,:D8 %source)
+ret %r
+}
+export function :D8 $aggregate_abi_call_targets_D8_module_target(l %source,l %e){
+@e
+%fn =l copy $aggregate_abi_call_targets_D8_env
+%r =:D8 call %fn(env %e,:D8 %source)
+ret %r
+}
+type :SS12={s 3}
+export function :SS12 $aggregate_abi_call_targets_SS12_plain(:SS12 %p){
+@e
+ret %p
+}
+export function :SS12 $aggregate_abi_call_targets_SS12_indirect(l %fn,l %source){
+@e
+%r =:SS12 call %fn(:SS12 %source)
+ret %r
+}
+export function w $aggregate_abi_call_targets_SS12_send(l %fn,l %source){
+@e
+%r =w call %fn(:SS12 %source)
+ret %r
+}
+export function :SS12 $aggregate_abi_call_targets_SS12_env(env %e,:SS12 %p){
+@e
+%v =w call $aggregate_abi_call_targets_vararg_probe(w 1,...,d d_0)
+call $aggregate_abi_call_targets_env_check(l %e,l %p,w 4)
+ret %p
+}
+export function :SS12 $aggregate_abi_call_targets_SS12_env_direct(l %source,l %e){
+@e
+%r =:SS12 call $aggregate_abi_call_targets_SS12_env(env %e,:SS12 %source)
+ret %r
+}
+export function :SS12 $aggregate_abi_call_targets_SS12_env_indirect(l %fn,l %source,l %e){
+@e
+%r =:SS12 call %fn(env %e,:SS12 %source)
+ret %r
+}
+export function :SS12 $aggregate_abi_call_targets_SS12_alias(l %fn,l %source){
+@e
+%r =:SS12 call %fn(env %fn,:SS12 %source)
+ret %r
+}
+export function :SS12 $aggregate_abi_call_targets_SS12_loaded(l %cell,l %source,l %e){
+@e
+%fn =l loadl %cell
+%noise =w call $aggregate_abi_call_targets_clobber()
+%r =:SS12 call %fn(env %e,:SS12 %source)
+ret %r
+}
+export function :SS12 $aggregate_abi_call_targets_SS12_choose(w %which,l %first,l %second,l %source,l %e){
+@e
+jnz %which,@a,@b
+@a
+jmp @join
+@b
+jmp @join
+@join
+%fn =l phi @a %first,@b %second
+%r =:SS12 call %fn(env %e,:SS12 %source)
+ret %r
+}
+export function :SS12 $aggregate_abi_call_targets_SS12_module_target(l %source,l %e){
+@e
+%fn =l copy $aggregate_abi_call_targets_SS12_env
+%r =:SS12 call %fn(env %e,:SS12 %source)
+ret %r
+}
+type :DD16={d 2}
+export function :DD16 $aggregate_abi_call_targets_DD16_plain(:DD16 %p){
+@e
+ret %p
+}
+export function :DD16 $aggregate_abi_call_targets_DD16_indirect(l %fn,l %source){
+@e
+%r =:DD16 call %fn(:DD16 %source)
+ret %r
+}
+export function w $aggregate_abi_call_targets_DD16_send(l %fn,l %source){
+@e
+%r =w call %fn(:DD16 %source)
+ret %r
+}
+export function :DD16 $aggregate_abi_call_targets_DD16_env(env %e,:DD16 %p){
+@e
+%v =w call $aggregate_abi_call_targets_vararg_probe(w 1,...,d d_0)
+call $aggregate_abi_call_targets_env_check(l %e,l %p,w 8)
+ret %p
+}
+export function :DD16 $aggregate_abi_call_targets_DD16_env_direct(l %source,l %e){
+@e
+%r =:DD16 call $aggregate_abi_call_targets_DD16_env(env %e,:DD16 %source)
+ret %r
+}
+export function :DD16 $aggregate_abi_call_targets_DD16_env_indirect(l %fn,l %source,l %e){
+@e
+%r =:DD16 call %fn(env %e,:DD16 %source)
+ret %r
+}
+export function :DD16 $aggregate_abi_call_targets_DD16_alias(l %fn,l %source){
+@e
+%r =:DD16 call %fn(env %fn,:DD16 %source)
+ret %r
+}
+export function :DD16 $aggregate_abi_call_targets_DD16_loaded(l %cell,l %source,l %e){
+@e
+%fn =l loadl %cell
+%noise =w call $aggregate_abi_call_targets_clobber()
+%r =:DD16 call %fn(env %e,:DD16 %source)
+ret %r
+}
+export function :DD16 $aggregate_abi_call_targets_DD16_choose(w %which,l %first,l %second,l %source,l %e){
+@e
+jnz %which,@a,@b
+@a
+jmp @join
+@b
+jmp @join
+@join
+%fn =l phi @a %first,@b %second
+%r =:DD16 call %fn(env %e,:DD16 %source)
+ret %r
+}
+export function :DD16 $aggregate_abi_call_targets_DD16_module_target(l %source,l %e){
+@e
+%fn =l copy $aggregate_abi_call_targets_DD16_env
+%r =:DD16 call %fn(env %e,:DD16 %source)
+ret %r
+}
+type :IS16={l,s}
+export function :IS16 $aggregate_abi_call_targets_IS16_plain(:IS16 %p){
+@e
+ret %p
+}
+export function :IS16 $aggregate_abi_call_targets_IS16_indirect(l %fn,l %source){
+@e
+%r =:IS16 call %fn(:IS16 %source)
+ret %r
+}
+export function w $aggregate_abi_call_targets_IS16_send(l %fn,l %source){
+@e
+%r =w call %fn(:IS16 %source)
+ret %r
+}
+export function :IS16 $aggregate_abi_call_targets_IS16_env(env %e,:IS16 %p){
+@e
+%v =w call $aggregate_abi_call_targets_vararg_probe(w 1,...,d d_0)
+call $aggregate_abi_call_targets_env_check(l %e,l %p,w 8)
+ret %p
+}
+export function :IS16 $aggregate_abi_call_targets_IS16_env_direct(l %source,l %e){
+@e
+%r =:IS16 call $aggregate_abi_call_targets_IS16_env(env %e,:IS16 %source)
+ret %r
+}
+export function :IS16 $aggregate_abi_call_targets_IS16_env_indirect(l %fn,l %source,l %e){
+@e
+%r =:IS16 call %fn(env %e,:IS16 %source)
+ret %r
+}
+export function :IS16 $aggregate_abi_call_targets_IS16_alias(l %fn,l %source){
+@e
+%r =:IS16 call %fn(env %fn,:IS16 %source)
+ret %r
+}
+export function :IS16 $aggregate_abi_call_targets_IS16_loaded(l %cell,l %source,l %e){
+@e
+%fn =l loadl %cell
+%noise =w call $aggregate_abi_call_targets_clobber()
+%r =:IS16 call %fn(env %e,:IS16 %source)
+ret %r
+}
+export function :IS16 $aggregate_abi_call_targets_IS16_choose(w %which,l %first,l %second,l %source,l %e){
+@e
+jnz %which,@a,@b
+@a
+jmp @join
+@b
+jmp @join
+@join
+%fn =l phi @a %first,@b %second
+%r =:IS16 call %fn(env %e,:IS16 %source)
+ret %r
+}
+export function :IS16 $aggregate_abi_call_targets_IS16_module_target(l %source,l %e){
+@e
+%fn =l copy $aggregate_abi_call_targets_IS16_env
+%r =:IS16 call %fn(env %e,:IS16 %source)
+ret %r
+}
+type :SI16={s,l}
+export function :SI16 $aggregate_abi_call_targets_SI16_plain(:SI16 %p){
+@e
+ret %p
+}
+export function :SI16 $aggregate_abi_call_targets_SI16_indirect(l %fn,l %source){
+@e
+%r =:SI16 call %fn(:SI16 %source)
+ret %r
+}
+export function w $aggregate_abi_call_targets_SI16_send(l %fn,l %source){
+@e
+%r =w call %fn(:SI16 %source)
+ret %r
+}
+export function :SI16 $aggregate_abi_call_targets_SI16_env(env %e,:SI16 %p){
+@e
+%v =w call $aggregate_abi_call_targets_vararg_probe(w 1,...,d d_0)
+call $aggregate_abi_call_targets_env_check(l %e,l %p,w 8)
+ret %p
+}
+export function :SI16 $aggregate_abi_call_targets_SI16_env_direct(l %source,l %e){
+@e
+%r =:SI16 call $aggregate_abi_call_targets_SI16_env(env %e,:SI16 %source)
+ret %r
+}
+export function :SI16 $aggregate_abi_call_targets_SI16_env_indirect(l %fn,l %source,l %e){
+@e
+%r =:SI16 call %fn(env %e,:SI16 %source)
+ret %r
+}
+export function :SI16 $aggregate_abi_call_targets_SI16_alias(l %fn,l %source){
+@e
+%r =:SI16 call %fn(env %fn,:SI16 %source)
+ret %r
+}
+export function :SI16 $aggregate_abi_call_targets_SI16_loaded(l %cell,l %source,l %e){
+@e
+%fn =l loadl %cell
+%noise =w call $aggregate_abi_call_targets_clobber()
+%r =:SI16 call %fn(env %e,:SI16 %source)
+ret %r
+}
+export function :SI16 $aggregate_abi_call_targets_SI16_choose(w %which,l %first,l %second,l %source,l %e){
+@e
+jnz %which,@a,@b
+@a
+jmp @join
+@b
+jmp @join
+@join
+%fn =l phi @a %first,@b %second
+%r =:SI16 call %fn(env %e,:SI16 %source)
+ret %r
+}
+export function :SI16 $aggregate_abi_call_targets_SI16_module_target(l %source,l %e){
+@e
+%fn =l copy $aggregate_abi_call_targets_SI16_env
+%r =:SI16 call %fn(env %e,:SI16 %source)
+ret %r
+}
+type :II16={l 2}
+export function :II16 $aggregate_abi_call_targets_II16_plain(:II16 %p){
+@e
+ret %p
+}
+export function :II16 $aggregate_abi_call_targets_II16_indirect(l %fn,l %source){
+@e
+%r =:II16 call %fn(:II16 %source)
+ret %r
+}
+export function w $aggregate_abi_call_targets_II16_send(l %fn,l %source){
+@e
+%r =w call %fn(:II16 %source)
+ret %r
+}
+export function :II16 $aggregate_abi_call_targets_II16_env(env %e,:II16 %p){
+@e
+%v =w call $aggregate_abi_call_targets_vararg_probe(w 1,...,d d_0)
+call $aggregate_abi_call_targets_env_check(l %e,l %p,w 8)
+ret %p
+}
+export function :II16 $aggregate_abi_call_targets_II16_env_direct(l %source,l %e){
+@e
+%r =:II16 call $aggregate_abi_call_targets_II16_env(env %e,:II16 %source)
+ret %r
+}
+export function :II16 $aggregate_abi_call_targets_II16_env_indirect(l %fn,l %source,l %e){
+@e
+%r =:II16 call %fn(env %e,:II16 %source)
+ret %r
+}
+export function :II16 $aggregate_abi_call_targets_II16_alias(l %fn,l %source){
+@e
+%r =:II16 call %fn(env %fn,:II16 %source)
+ret %r
+}
+export function :II16 $aggregate_abi_call_targets_II16_loaded(l %cell,l %source,l %e){
+@e
+%fn =l loadl %cell
+%noise =w call $aggregate_abi_call_targets_clobber()
+%r =:II16 call %fn(env %e,:II16 %source)
+ret %r
+}
+export function :II16 $aggregate_abi_call_targets_II16_choose(w %which,l %first,l %second,l %source,l %e){
+@e
+jnz %which,@a,@b
+@a
+jmp @join
+@b
+jmp @join
+@join
+%fn =l phi @a %first,@b %second
+%r =:II16 call %fn(env %e,:II16 %source)
+ret %r
+}
+export function :II16 $aggregate_abi_call_targets_II16_module_target(l %source,l %e){
+@e
+%fn =l copy $aggregate_abi_call_targets_II16_env
+%r =:II16 call %fn(env %e,:II16 %source)
+ret %r
+}
+type :N16=align 16 {s}
+export function :N16 $aggregate_abi_call_targets_N16_plain(:N16 %p){
+@e
+ret %p
+}
+export function :N16 $aggregate_abi_call_targets_N16_indirect(l %fn,l %source){
+@e
+%r =:N16 call %fn(:N16 %source)
+ret %r
+}
+export function w $aggregate_abi_call_targets_N16_send(l %fn,l %source){
+@e
+%r =w call %fn(:N16 %source)
+ret %r
+}
+export function :N16 $aggregate_abi_call_targets_N16_env(env %e,:N16 %p){
+@e
+%v =w call $aggregate_abi_call_targets_vararg_probe(w 1,...,d d_0)
+call $aggregate_abi_call_targets_env_check(l %e,l %p,w 16)
+ret %p
+}
+export function :N16 $aggregate_abi_call_targets_N16_env_direct(l %source,l %e){
+@e
+%r =:N16 call $aggregate_abi_call_targets_N16_env(env %e,:N16 %source)
+ret %r
+}
+export function :N16 $aggregate_abi_call_targets_N16_env_indirect(l %fn,l %source,l %e){
+@e
+%r =:N16 call %fn(env %e,:N16 %source)
+ret %r
+}
+export function :N16 $aggregate_abi_call_targets_N16_alias(l %fn,l %source){
+@e
+%r =:N16 call %fn(env %fn,:N16 %source)
+ret %r
+}
+export function :N16 $aggregate_abi_call_targets_N16_loaded(l %cell,l %source,l %e){
+@e
+%fn =l loadl %cell
+%noise =w call $aggregate_abi_call_targets_clobber()
+%r =:N16 call %fn(env %e,:N16 %source)
+ret %r
+}
+export function :N16 $aggregate_abi_call_targets_N16_choose(w %which,l %first,l %second,l %source,l %e){
+@e
+jnz %which,@a,@b
+@a
+jmp @join
+@b
+jmp @join
+@join
+%fn =l phi @a %first,@b %second
+%r =:N16 call %fn(env %e,:N16 %source)
+ret %r
+}
+export function :N16 $aggregate_abi_call_targets_N16_module_target(l %source,l %e){
+@e
+%fn =l copy $aggregate_abi_call_targets_N16_env
+%r =:N16 call %fn(env %e,:N16 %source)
+ret %r
+}
+type :M23={b 23}
+export function :M23 $aggregate_abi_call_targets_M23_plain(:M23 %p){
+@e
+ret %p
+}
+export function :M23 $aggregate_abi_call_targets_M23_indirect(l %fn,l %source){
+@e
+%r =:M23 call %fn(:M23 %source)
+ret %r
+}
+export function w $aggregate_abi_call_targets_M23_send(l %fn,l %source){
+@e
+%r =w call %fn(:M23 %source)
+ret %r
+}
+export function :M23 $aggregate_abi_call_targets_M23_env(env %e,:M23 %p){
+@e
+%v =w call $aggregate_abi_call_targets_vararg_probe(w 1,...,d d_0)
+call $aggregate_abi_call_targets_env_check(l %e,l %p,w 1)
+ret %p
+}
+export function :M23 $aggregate_abi_call_targets_M23_env_direct(l %source,l %e){
+@e
+%r =:M23 call $aggregate_abi_call_targets_M23_env(env %e,:M23 %source)
+ret %r
+}
+export function :M23 $aggregate_abi_call_targets_M23_env_indirect(l %fn,l %source,l %e){
+@e
+%r =:M23 call %fn(env %e,:M23 %source)
+ret %r
+}
+export function :M23 $aggregate_abi_call_targets_M23_alias(l %fn,l %source){
+@e
+%r =:M23 call %fn(env %fn,:M23 %source)
+ret %r
+}
+export function :M23 $aggregate_abi_call_targets_M23_loaded(l %cell,l %source,l %e){
+@e
+%fn =l loadl %cell
+%noise =w call $aggregate_abi_call_targets_clobber()
+%r =:M23 call %fn(env %e,:M23 %source)
+ret %r
+}
+export function :M23 $aggregate_abi_call_targets_M23_choose(w %which,l %first,l %second,l %source,l %e){
+@e
+jnz %which,@a,@b
+@a
+jmp @join
+@b
+jmp @join
+@join
+%fn =l phi @a %first,@b %second
+%r =:M23 call %fn(env %e,:M23 %source)
+ret %r
+}
+export function :M23 $aggregate_abi_call_targets_M23_module_target(l %source,l %e){
+@e
+%fn =l copy $aggregate_abi_call_targets_M23_env
+%r =:M23 call %fn(env %e,:M23 %source)
+ret %r
+}
+type :A32=align 16 {l 4}
+export function :A32 $aggregate_abi_call_targets_A32_plain(:A32 %p){
+@e
+ret %p
+}
+export function :A32 $aggregate_abi_call_targets_A32_indirect(l %fn,l %source){
+@e
+%r =:A32 call %fn(:A32 %source)
+ret %r
+}
+export function w $aggregate_abi_call_targets_A32_send(l %fn,l %source){
+@e
+%r =w call %fn(:A32 %source)
+ret %r
+}
+export function :A32 $aggregate_abi_call_targets_A32_env(env %e,:A32 %p){
+@e
+%v =w call $aggregate_abi_call_targets_vararg_probe(w 1,...,d d_0)
+call $aggregate_abi_call_targets_env_check(l %e,l %p,w 16)
+ret %p
+}
+export function :A32 $aggregate_abi_call_targets_A32_env_direct(l %source,l %e){
+@e
+%r =:A32 call $aggregate_abi_call_targets_A32_env(env %e,:A32 %source)
+ret %r
+}
+export function :A32 $aggregate_abi_call_targets_A32_env_indirect(l %fn,l %source,l %e){
+@e
+%r =:A32 call %fn(env %e,:A32 %source)
+ret %r
+}
+export function :A32 $aggregate_abi_call_targets_A32_alias(l %fn,l %source){
+@e
+%r =:A32 call %fn(env %fn,:A32 %source)
+ret %r
+}
+export function :A32 $aggregate_abi_call_targets_A32_loaded(l %cell,l %source,l %e){
+@e
+%fn =l loadl %cell
+%noise =w call $aggregate_abi_call_targets_clobber()
+%r =:A32 call %fn(env %e,:A32 %source)
+ret %r
+}
+export function :A32 $aggregate_abi_call_targets_A32_choose(w %which,l %first,l %second,l %source,l %e){
+@e
+jnz %which,@a,@b
+@a
+jmp @join
+@b
+jmp @join
+@join
+%fn =l phi @a %first,@b %second
+%r =:A32 call %fn(env %e,:A32 %source)
+ret %r
+}
+export function :A32 $aggregate_abi_call_targets_A32_module_target(l %source,l %e){
+@e
+%fn =l copy $aggregate_abi_call_targets_A32_env
+%r =:A32 call %fn(env %e,:A32 %source)
+ret %r
+}
+export function :M23 $aggregate_abi_call_targets_pressure(l %fn,l %si,l %m,l %ss,l %e){
+@e
+%arena =l alloc16 4097
+%noise =w call $aggregate_abi_call_targets_clobber()
+%r =:M23 call %fn(env %e,l 1,l 2,l 3,l 4,l 5,:SI16 %si,:M23 %m,l 99,d d_1,d d_2,d d_3,d d_4,d d_5,d d_6,d d_7,d d_8,:SS12 %ss,d d_9)
+ret %r
+}
+export function d $aggregate_abi_call_targets_double(l %fn,l %src,l %e){
+@e
+%r =d call %fn(env %e,:SS12 %src)
+ret %r
+}
+export function $aggregate_abi_call_targets_void(l %fn,l %src,l %e){
+@e
+call %fn(env %e,:SS12 %src)
+ret
+}
+common data $"target_env\\"={z 8}
+data $"ordinary_env\\"={l 0,l 0}
+export function l $aggregate_abi_call_targets_common_address(){
+@e
+ret $"target_env\\"+4
+}
+export function l $aggregate_abi_call_targets_ordinary_address(){
+@e
+ret $"ordinary_env\\"+8
+}
+function :SS12 $"quoted_target\\"(env %e,:SS12 %p){
+@e
+call $aggregate_abi_call_targets_env_check(l %e,l %p,w 4)
+ret %p
+}
+export function :SS12 $aggregate_abi_call_targets_quoted(l %src,l %e){
+@e
+%fn =l copy $"quoted_target\\"
+%r =:SS12 call %fn(env %e,:SS12 %src)
+ret %r
+}
+export function :SS12 $aggregate_abi_call_targets_common(l %fn,l %src){
+@e
+%r =:SS12 call %fn(env $"target_env\\"+4,:SS12 %src)
+ret %r
+}
+export function :SS12 $aggregate_abi_call_targets_ordinary(l %fn,l %src){
+@e
+%r =:SS12 call %fn(env $"ordinary_env\\"+8,:SS12 %src)
+ret %r
+}
+export function l $aggregate_abi_call_targets_varcaller(l %fn,l %src,l %env,...){
+@e
+%args =l alloc8 24
+vastart %args
+%first =d vaarg %args
+%a =l cast %first
+%r =:SS12 call %fn(env %env,:SS12 %src)
+%second =d vaarg %args
+%b =l cast %second
+%x =l xor %a,%b
+ret %x
+}
+export function :SS12 $aggregate_abi_call_targets_loop(l %fn,l %src,l %env,w %count){
+@entry
+jmp @head
+@head
+%n =w phi @entry %count,@body %next
+%source =l phi @entry %src,@body %r
+jnz %n,@body,@exit
+@body
+%r =:SS12 call %fn(env %env,:SS12 %source)
+%next =w sub %n,1
+jmp @head
+@exit
+ret %source
+}

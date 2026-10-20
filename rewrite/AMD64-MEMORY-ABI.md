@@ -13,7 +13,7 @@ Small integer-only size1..16 records are a separate implemented subset described
 [SMALL-INTEGER-ABI.md](SMALL-INTEGER-ABI.md), including stack fallback without GP consumption.
 Small SSE/mixed register records are separately supported in
 [SMALL-SSE-ABI.md](SMALL-SSE-ABI.md). Small align16/NO_CLASS records are supported in [ALIGN16-ABI.md](ALIGN16-ABI.md). Not supported: align32/64, vectors, opaque/union/unaligned types,
-non-SysV targets, record-bearing indirect/env/variadic signatures or calls. Rules
+non-SysV targets or record-bearing variadic signatures/calls. Nonvariadic indirect/ENV record calls are now supported (AGGREGATE-CALL-TARGETS.md). Rules
 are site-local: scalar env/variadic callers may call eligible record callees, and
 record functions may make scalar env/vararg/indirect calls. Valid unused generic
 types, including tiny, align64 or UINT64_MAX layouts, remain accepted metadata.

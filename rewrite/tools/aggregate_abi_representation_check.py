@@ -80,14 +80,14 @@ def main():
                     raise SystemExit('Scalar assembly changed versus exact pre-change867 oracle: '+name)
                 identity += 1
         # Individual plain Tiny signatures/calls (including unreachable calls)
-        # become positive native cases. Combined env/vararg/indirect/overaligned
+        # become positive native cases. Combined vararg/overaligned
         # metadata and every malformed syntax case remain explicit refusals.
-        eligible = [positive[i] for i in (1, 2, 3, 4, 8)]
-        unsupported = [positive[i] for i in (0, 5, 6, 7, 9)]
+        eligible = [positive[i] for i in (1, 2, 3, 4, 5, 7, 8)]
+        unsupported = [positive[i] for i in (0, 6, 9)]
         for text in eligible:
             il.write_text(text)
             subprocess.run([*compiler, str(il), str(asm)], check=True, timeout=45)
-        print(f'{len(eligible)} newly eligible Tiny native cases emit; runtime checks live in small INTEGER harness')
+        print(f'{len(eligible)} newly eligible Tiny native cases emit; runtime checks live in small INTEGER and call-targets harnesses')
         refused = 0
         for aggregate, cases in ((True, unsupported), (False, negative)):
             for text in cases:

@@ -138,4 +138,4 @@ relaxation of contradictory-metadata checks.
 Bounded regular align16 record calls/results omit padding-only NO_CLASS lanes
 without shrinking declared storage ([ALIGN16-ABI.md](ALIGN16-ABI.md)). This follows
 official SysV/C semantics, not pinned-QBE padding-lane oracle parity; aggregate
-interpreter and env/vararg/indirect refusals remain unchanged.
+interpreter and aggregate-vararg refusals remain unchanged. Native nonvariadic ENV/indirect record calls are now supported (AGGREGATE-CALL-TARGETS.md).

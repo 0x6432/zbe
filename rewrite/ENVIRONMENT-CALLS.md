@@ -54,7 +54,7 @@ Probes reserve/touch the unchanged bounded fixed frame without clobbering RAX.
 Original callee-preserved registers are saved before the hidden parameter is
 homed from RAX, then ordinary parameters are homed using their unchanged banks.
 No parameter scratch can destroy the incoming environment before its save.
-Outgoing indirect targets move to R11 first; ordinary argument marshalling uses
+For scalar-only calls, outgoing indirect targets move to R11 first; ordinary argument marshalling uses
 RAX scratch as before; the environment is loaded into RAX last immediately before
 the call. No environment shares RAX with variadic AL setup. The ordinary return
 may overwrite RAX. Homes survive calls in the existing stack/preserved modes.
@@ -94,3 +94,11 @@ indirect calls, symbolic environments/target aliases, large probed incoming fram
 recursion/phi, live values across calls, void stores and preserved originals,
 PIE/nonPIE, plus rejection/output preservation. Results must be recorded only
 after execution in HANDOFF.md; this document does not assert completed parity.
+
+## Aggregate native extension
+
+Nonvariadic record signatures/sites now support this same hidden long ENV
+convention and typed indirect targets (AGGREGATE-CALL-TARGETS.md). Record calls
+park targets in R11 only AFTER all record packing/ordinary marshalling and hidden
+RDI setup, then load ENV into RAX last. Incoming ENV is homed before record
+unpacking. Aggregate variadics and aggregate interpretation remain refused.

@@ -355,12 +355,12 @@ fn eligibleDescriptor(module: *const modules.Module, ty: ir.AbiDescriptor, shape
     }
 }
 fn eligibleFunction(module: *const modules.Module, function: *const ir.Function, shapes: *const SmallShapes) Error!void {
-    if (function.hasRecordSignature() and (function.variadic or function.environment != null)) return error.UnsupportedAggregatePlan;
+    if (function.hasRecordSignature() and function.variadic) return error.UnsupportedAggregatePlan;
     if (try function.returnAbi()) |ty| try eligibleDescriptor(module, ty, shapes);
     for (function.ordinaryParameters()) |id| try eligibleDescriptor(module, try function.parameterAbi(id), shapes);
     for (function.blocks.items) |block| for (block.instructions.items) |instruction| switch (instruction) {
         .call => |call| {
-            if (call.hasRecordAbi() and (call.environment != null or call.variadic_start != null or call.callee == .address)) return error.UnsupportedAggregatePlan;
+            if (call.hasRecordAbi() and call.variadic_start != null) return error.UnsupportedAggregatePlan;
             if (try call.resultAbi(function)) |ty| try eligibleDescriptor(module, ty, shapes);
             for (call.arguments) |argument| try eligibleDescriptor(module, try argument.abi(), shapes);
         },

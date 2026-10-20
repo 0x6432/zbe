@@ -10,7 +10,7 @@ Linux AMD64 ELF SysV LP64 direct record signatures/calls, declared size1..16,
 effective alignment1/2/4/8, recursively only b/h/w/l fields in the existing owned
 record DAG. All occupied one/two eightbytes must classify INTEGER. Small floating/mixed records are now separately supported by
 [SMALL-SSE-ABI.md](SMALL-SSE-ABI.md), and align16/NO_CLASS by [ALIGN16-ABI.md](ALIGN16-ABI.md). Alignment32/64, vectors/opaque/union,
-record-bearing env/vararg/indirect sites and ALL interpreter record uses remain
+record-bearing variadic sites and ALL interpreter record uses remain
 refused. Valid unused generic records remain metadata. Existing size17..4096 MEMORY
 support, including its permitted s/d leaves and align16, is not narrowed.
 
@@ -82,7 +82,7 @@ Do not assert unspecified C padding or derive production layout from host C.
 Scalar-only whole-module bytes must stay identical; unaffected mixed-module
 fragments need matched symbol IDs/order and function ordinals. Upgrade individual
 now-eligible tiny native refusals only with stronger positive independent checks;
-retain unsupported floating/overaligned/env/vararg/indirect and interpreter refusals.
+retain unsupported alignment/size, aggregate-vararg and interpreter refusals. Supported SSE and nonvariadic ENV/indirect record cases are now positive in their own C/ASM harnesses.
 Native pointer/lifetime/partial-overlap contracts remain explicit, not proven from
 long typing. Pre-write compiler refusal/OOM preserves CLI output; no claim of later
 filesystem atomic replacement. Focused/full gates and independent reviews are still

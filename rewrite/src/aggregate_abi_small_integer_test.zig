@@ -108,7 +108,16 @@ test "aggregate_abi_small_integer old variants and generic metadata remain while
         defer t.allocator.free(text);
         var rejected = try parse(t.allocator, text);
         defer rejected.deinit();
-        try t.expectError(error.UnsupportedAggregateAbi, amd64.emit(t.allocator, &rejected));
+        if (std.mem.indexOf(u8, text, "...") != null) {
+            try t.expectError(error.UnsupportedAggregateAbi, amd64.emit(t.allocator, &rejected));
+        } else {
+            // Approved nonvariadic ENV/indirect native paths have independent
+            // executed C/ASM oracles in aggregate_abi_call_targets_check.py.
+            // Interpreter aggregate execution remains explicitly refused above.
+            const output = try amd64.emit(t.allocator, &rejected);
+            defer t.allocator.free(output);
+            try t.expect(std.mem.indexOf(u8, output, ".text") != null);
+        }
     }
 }
 test "aggregate_abi_small_integer detached facts survive source and module lifetime and cannot authorize tampering" {

@@ -146,6 +146,18 @@ def main():
         )]
         cases += ['type :A={b 17}\ntype :B={b 17}\nfunction $f(){\n@e\ncall $g(:A 0)\nret\n}\nfunction $g(:B %p){\n@e\nret\n}',
                   'function w $f(){\n@e\nret 1\n@dead\ncall $bad(:Missing 0)\nret 0\n}']
+        # Precisely the newly approved nonvariadic ENV/indirect cases are
+        # positive compilation checks, not silently dropped refusals. Their
+        # execution is independently covered by aggregate_abi_call_targets_check.
+        eligible_call_targets = [source for source in cases
+                                 if '...' not in source and
+                                 ('env ' in source or 'call %' in source or 'call 0(' in source)]
+        for source in eligible_call_targets:
+            il.write_text(source)
+            subprocess.run([*compiler, str(il), str(asm)], check=True, timeout=90)
+            if not asm.read_bytes().startswith(b'.text'):
+                raise SystemExit('Eligible call target did not emit native code')
+        cases = [source for source in cases if source not in eligible_call_targets]
         for source in cases:
             il.write_text(source)
             for exists in (False, True):

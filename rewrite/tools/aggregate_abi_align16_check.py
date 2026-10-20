@@ -172,6 +172,18 @@ def main():
             'type :T=align 16 {s}\nfunction w $f(l %p){\n@e\n%r =:T call $external(env %p)\nret 1\n}',
             'type :T=align 32 {s}\nfunction w $f(){\n@e\nret 1\n@dead\n%r =:T call $external()\nret 2\n}',
         ]
+        # Precisely the newly approved nonvariadic ENV/indirect cases are
+        # positive compilation checks, not silently dropped refusals. Their
+        # execution is independently covered by aggregate_abi_call_targets_check.
+        eligible_call_targets = [source for source in invalid
+                                 if '...' not in source and
+                                 ('env ' in source or 'call %' in source or 'call 0(' in source)]
+        for source in eligible_call_targets:
+            il.write_text(source)
+            subprocess.run([*compiler, str(il), str(asm)], check=True, timeout=90)
+            if not asm.read_bytes().startswith(b'.text'):
+                raise SystemExit('Eligible call target did not emit native code')
+        invalid = [source for source in invalid if source not in eligible_call_targets]
         for text in invalid:
             il.write_text(text)
             sentinel = b'preserve existing output\n'

@@ -668,12 +668,19 @@ const Emitter = struct {
             }
         };
         if (site.signature.result == .memory) try self.print("\tleaq -{d}(%rbp), %rdi\n", .{self.current_plan.?.pads[site.pad_index.?].end});
-        // Eligibility is checked globally before all planning/output allocation.
-        const symbol = switch (call.callee) {
-            .symbol => |symbol| symbol,
-            .address => return error.UnsupportedAggregateAbi,
-        };
-        try self.print("\tcall {f}\n", .{try self.symbolReference(symbol)});
+        // R11 was scratch for record sources above. Reload the indirect target
+        // from its durable home only AFTER all copies/packs/scalars/hidden RDI.
+        if (call.callee.addressOperand()) |address| {
+            try self.load(address, .accumulator);
+            try self.print("\tmovq %rax, %r11\n", .{});
+        }
+        // All load(.accumulator) paths write only RAX, including quoted COMMON
+        // cells. Environment comes LAST, preserving target R11 and all ABI args.
+        if (call.environment) |environment| try self.load(environment, .accumulator);
+        switch (call.callee) {
+            .symbol => |symbol| try self.print("\tcall {f}\n", .{try self.symbolReference(symbol)}),
+            .address => try self.print("\tcall *%r11\n", .{}),
+        }
         if (call.result) |result| {
             if (site.pad_index) |index| {
                 const pad = self.current_plan.?.pads[index];

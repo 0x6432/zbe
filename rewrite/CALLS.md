@@ -7,7 +7,7 @@ This is a deliberately limited native Linux SysV AMD64 call slice, not full QBE 
 call $void_symbol(w|l|s|d operand, ...)
 ```
 
-The example's ellipsis describes repetition. Actual marked variadic call sites are now supported separately (VARIADIC-CALLS.md). Empty argument lists are supported. A result-bearing call has a scalar result even when unused. A void-result call is a statement with no dummy SSA value or result home. Known callees must match that result presence as well as the exact scalar type. Omitting a result is not permission to discard a known nonvoid return. Aggregates remain explicitly unsupported; nonvariadic environment parameters are a separate bounded slice (ENVIRONMENT-CALLS.md). Native scalar variadic definitions/vastart are a separate bounded slice (VARIADIC-FUNCTIONS.md); their internal calls are not interpreted. Typed sb/ub/sh/uh ABI annotations are supported separately, with unspecified upper bits and exact internal signature checks (SUBWORD-ABI.md). Indirect scalar/void calls are now supported natively with an explicit address/signature caller contract (see INDIRECT-CALLS.md).
+The example's ellipsis describes repetition. Actual marked variadic call sites are now supported separately (VARIADIC-CALLS.md). Empty argument lists are supported. A result-bearing call has a scalar result even when unused. A void-result call is a statement with no dummy SSA value or result home. Known callees must match that result presence as well as the exact scalar type. Omitting a result is not permission to discard a known nonvoid return. First-class aggregate operations remain refused. Bounded native record transport, including nonvariadic ENV/indirect sites, is supported separately (AGGREGATE-CALL-TARGETS.md); aggregate interpretation remains refused. Nonvariadic environment parameters are described in ENVIRONMENT-CALLS.md. Native scalar variadic definitions/vastart are a separate bounded slice (VARIADIC-FUNCTIONS.md); their internal calls are not interpreted. Typed sb/ub/sh/uh ABI annotations are supported separately, with unspecified upper bits and exact internal signature checks (SUBWORD-ABI.md). Indirect scalar/void calls are now supported natively with an explicit address/signature caller contract (see INDIRECT-CALLS.md).
 
 ## Owned representation and validation
 
@@ -51,4 +51,4 @@ Expected arithmetic uses bounded exact integers, not generated assembly or produ
 Nonvariadic scalar environment calls now have a distinct hidden long operand/
 parameter and Linux AMD64 RAX mapping, without shifting ordinary ABI arguments
 (ENVIRONMENT-CALLS.md). Root/module interpreter mapping remains synthetic and
-bounded; environment+varargs and aggregates remain unsupported.
+bounded; environment+varargs remains unsupported. Nonvariadic native record ENV/indirect sites are supported separately (AGGREGATE-CALL-TARGETS.md); aggregate interpretation remains refused.

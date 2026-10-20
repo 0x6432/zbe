@@ -82,7 +82,7 @@ vastart is separately opt-in (INTERPRETER-VASTART.md); opt-in manually prepared 
 Nonvariadic scalar environment calls now have a distinct hidden long operand/
 parameter and Linux AMD64 RAX mapping, without shifting ordinary ABI arguments
 (ENVIRONMENT-CALLS.md). Root/module interpreter mapping remains synthetic and
-bounded; environment+varargs and aggregates remain unsupported.
+bounded; environment+varargs remains unsupported. Native nonvariadic record ENV/indirect calls are supported separately (AGGREGATE-CALL-TARGETS.md); aggregate interpretation remains refused.
 
 Bounded printable-ASCII quoted globals (excluding ELF `@` syntax) decode to owned canonical symbol names
 across definitions/calls/scalar operands/data relocations (QUOTED-GLOBALS.md).
@@ -104,4 +104,12 @@ Small SSE/mixed record calls and returns are bounded separately in [SMALL-SSE-AB
 Bounded regular align16 record calls/results omit padding-only NO_CLASS lanes
 without shrinking declared storage ([ALIGN16-ABI.md](ALIGN16-ABI.md)). This follows
 official SysV/C semantics, not pinned-QBE padding-lane oracle parity; aggregate
-interpreter and env/vararg/indirect refusals remain unchanged.
+interpreter and aggregate-vararg refusals remain unchanged. Native nonvariadic ENV/indirect record calls are now supported (AGGREGATE-CALL-TARGETS.md).
+
+## Native record call targets
+
+Nonvariadic indirect and scalar-long ENV aggregate definitions/calls/results
+now use the existing typed Linux AMD64 SysV record plans, with late target
+parking and ENV-last marshalling. Aggregate variadics and aggregate interpreter
+execution remain refused. See [AGGREGATE-CALL-TARGETS.md](AGGREGATE-CALL-TARGETS.md)
+for caller contracts, resource/output boundaries and independent oracles.

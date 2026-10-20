@@ -6,7 +6,7 @@ alignment<=16. Existing17..4096-byte, alignment<=16 MEMORY records remain
 unchanged. Generic owned declarations are broader than target eligibility.
 This does not add vectors/SSEUP/x87, union/opaque/unaligned aggregates, C++
 invisible references, other targets, first-class aggregate arithmetic/copy/phi,
-record-bearing env/vararg/indirect sites, or aggregate interpreter execution.
+record-bearing variadic sites or aggregate interpreter execution. Nonvariadic ENV/indirect record calls are now supported (AGGREGATE-CALL-TARGETS.md).
 Alignment32/64 and used records above4096 remain explicit target refusals;
 unused valid declarations remain metadata, including UINT64_MAX layouts.
 

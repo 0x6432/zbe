@@ -31,8 +31,8 @@ Do not generalize that statement to future vector types. The basis is pinned QBE
 AMD64 psABI1.0 March12,2025 §§3.2.2–3.2.3.
 
 Eligibility is **per signature/call**, not whole-function contagion:
-- A record-bearing function signature cannot itself be variadic/environment-bearing.
-- A record-bearing call must itself be direct-symbol, nonvariadic and without env.
+- A record-bearing function signature cannot itself be variadic. Its optional scalar-long ENV is supported.
+- A record-bearing call must be nonvariadic. Direct/indirect targets and optional scalar-long ENV are supported (AGGREGATE-CALL-TARGETS.md).
 - A scalar-only env/variadic caller may contain an eligible direct record call.
 - An eligible record-signature function may contain scalar env/variadic/indirect calls.
 

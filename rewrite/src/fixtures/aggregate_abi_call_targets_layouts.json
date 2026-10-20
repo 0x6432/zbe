@@ -1,0 +1,426 @@
+{
+  "types": [
+    {
+      "name": "B3",
+      "IL": "{b 3}",
+      "size": 3,
+      "alignment": 1,
+      "fields": [
+        [
+          "b[0]",
+          0,
+          1
+        ],
+        [
+          "b[1]",
+          1,
+          1
+        ],
+        [
+          "b[2]",
+          2,
+          1
+        ]
+      ]
+    },
+    {
+      "name": "I13",
+      "IL": "{b 13}",
+      "size": 13,
+      "alignment": 1,
+      "fields": [
+        [
+          "b[0]",
+          0,
+          1
+        ],
+        [
+          "b[1]",
+          1,
+          1
+        ],
+        [
+          "b[2]",
+          2,
+          1
+        ],
+        [
+          "b[3]",
+          3,
+          1
+        ],
+        [
+          "b[4]",
+          4,
+          1
+        ],
+        [
+          "b[5]",
+          5,
+          1
+        ],
+        [
+          "b[6]",
+          6,
+          1
+        ],
+        [
+          "b[7]",
+          7,
+          1
+        ],
+        [
+          "b[8]",
+          8,
+          1
+        ],
+        [
+          "b[9]",
+          9,
+          1
+        ],
+        [
+          "b[10]",
+          10,
+          1
+        ],
+        [
+          "b[11]",
+          11,
+          1
+        ],
+        [
+          "b[12]",
+          12,
+          1
+        ]
+      ]
+    },
+    {
+      "name": "W8",
+      "IL": "{w,s}",
+      "size": 8,
+      "alignment": 4,
+      "fields": [
+        [
+          "u",
+          0,
+          4
+        ],
+        [
+          "f",
+          4,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "S4",
+      "IL": "{s}",
+      "size": 4,
+      "alignment": 4,
+      "fields": [
+        [
+          "f",
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "D8",
+      "IL": "{d}",
+      "size": 8,
+      "alignment": 8,
+      "fields": [
+        [
+          "d",
+          0,
+          8
+        ]
+      ]
+    },
+    {
+      "name": "SS12",
+      "IL": "{s 3}",
+      "size": 12,
+      "alignment": 4,
+      "fields": [
+        [
+          "f[0]",
+          0,
+          4
+        ],
+        [
+          "f[1]",
+          4,
+          4
+        ],
+        [
+          "f[2]",
+          8,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "DD16",
+      "IL": "{d 2}",
+      "size": 16,
+      "alignment": 8,
+      "fields": [
+        [
+          "d[0]",
+          0,
+          8
+        ],
+        [
+          "d[1]",
+          8,
+          8
+        ]
+      ]
+    },
+    {
+      "name": "IS16",
+      "IL": "{l,s}",
+      "size": 16,
+      "alignment": 8,
+      "fields": [
+        [
+          "u",
+          0,
+          8
+        ],
+        [
+          "f",
+          8,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "SI16",
+      "IL": "{s,l}",
+      "size": 16,
+      "alignment": 8,
+      "fields": [
+        [
+          "f",
+          0,
+          4
+        ],
+        [
+          "u",
+          8,
+          8
+        ]
+      ]
+    },
+    {
+      "name": "II16",
+      "IL": "{l 2}",
+      "size": 16,
+      "alignment": 8,
+      "fields": [
+        [
+          "u[0]",
+          0,
+          8
+        ],
+        [
+          "u[1]",
+          8,
+          8
+        ]
+      ]
+    },
+    {
+      "name": "N16",
+      "IL": "align 16 {s}",
+      "size": 16,
+      "alignment": 16,
+      "fields": [
+        [
+          "f",
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "M23",
+      "IL": "{b 23}",
+      "size": 23,
+      "alignment": 1,
+      "fields": [
+        [
+          "b[0]",
+          0,
+          1
+        ],
+        [
+          "b[1]",
+          1,
+          1
+        ],
+        [
+          "b[2]",
+          2,
+          1
+        ],
+        [
+          "b[3]",
+          3,
+          1
+        ],
+        [
+          "b[4]",
+          4,
+          1
+        ],
+        [
+          "b[5]",
+          5,
+          1
+        ],
+        [
+          "b[6]",
+          6,
+          1
+        ],
+        [
+          "b[7]",
+          7,
+          1
+        ],
+        [
+          "b[8]",
+          8,
+          1
+        ],
+        [
+          "b[9]",
+          9,
+          1
+        ],
+        [
+          "b[10]",
+          10,
+          1
+        ],
+        [
+          "b[11]",
+          11,
+          1
+        ],
+        [
+          "b[12]",
+          12,
+          1
+        ],
+        [
+          "b[13]",
+          13,
+          1
+        ],
+        [
+          "b[14]",
+          14,
+          1
+        ],
+        [
+          "b[15]",
+          15,
+          1
+        ],
+        [
+          "b[16]",
+          16,
+          1
+        ],
+        [
+          "b[17]",
+          17,
+          1
+        ],
+        [
+          "b[18]",
+          18,
+          1
+        ],
+        [
+          "b[19]",
+          19,
+          1
+        ],
+        [
+          "b[20]",
+          20,
+          1
+        ],
+        [
+          "b[21]",
+          21,
+          1
+        ],
+        [
+          "b[22]",
+          22,
+          1
+        ]
+      ]
+    },
+    {
+      "name": "A32",
+      "IL": "align 16 {l 4}",
+      "size": 32,
+      "alignment": 16,
+      "fields": [
+        [
+          "u[0]",
+          0,
+          8
+        ],
+        [
+          "u[1]",
+          8,
+          8
+        ],
+        [
+          "u[2]",
+          16,
+          8
+        ],
+        [
+          "u[3]",
+          24,
+          8
+        ]
+      ]
+    }
+  ],
+  "environment": "QBE hidden RAX extension; explicit assembly bridges, not ordinary C closure ABI",
+  "pressure_oracle": {
+    "result": "MEMORY M23, hidden RDI; exact original RAX checked independently",
+    "arguments": [
+      "RSI=1",
+      "RDX=2",
+      "RCX=3",
+      "R8=4",
+      "R9=5",
+      "SI16 stack+0 size16 (GP exhausted; SSE not consumed)",
+      "M23 stack+16 size23 extent24",
+      "long99 stack+40 size8",
+      "double1..8 XMM0..7",
+      "SS12 stack+48 size12 extent16",
+      "double9 stack+64 size8"
+    ],
+    "outgoing_bytes": 80,
+    "entry_rsp_bias": 8,
+    "stack_alignment": 16,
+    "copy_source_guard": 23,
+    "dynamic_alloc": 4097,
+    "environment": "raw RAX nonce; independent ASM checked before C tailjump"
+  }
+}

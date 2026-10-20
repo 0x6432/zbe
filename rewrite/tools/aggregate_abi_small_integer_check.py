@@ -154,6 +154,12 @@ def main():
         print('5 individually approved SSE/dominance/align16/unreachable native positive upgrades passed')
         invalid = [source for index, source in enumerate(invalid) if index not in (0, 1, 2, 3, 11)]
         refusals = 0
+        eligible_call_targets = [source for source in invalid if '...' not in source and ('env ' in source or 'call %' in source)]
+        for source in eligible_call_targets:
+            il.write_text(normalized(source))
+            subprocess.run([*compiler,str(il),str(asm)],check=True,timeout=90)
+            if not asm.read_bytes().startswith(b'.text'):raise SystemExit('Eligible call target emitted no code')
+        invalid = [source for source in invalid if source not in eligible_call_targets]
         for source in invalid:
             source = normalized(source)
             il.write_text(source)

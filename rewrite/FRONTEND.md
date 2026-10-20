@@ -8,7 +8,7 @@ Bounded nonempty `type :Name = [align A] { member [count], ... }` record
 declarations are accepted with owned checked layouts: scalar b/h/w/l/s/d fields
 and earlier-record references only. Type names belong to the module-owned
 `record_names` pool, separate from scalar/code-generation symbols; unused valid
-declarations leave scalar assembly byte-identical. Aggregate first-class values, ABI classification and execution remain refused.
+declarations leave scalar assembly byte-identical. Aggregate first-class values remain refused. Bounded native record ABI classification and transport are supported separately (AMD64-MEMORY-ABI.md, SMALL-INTEGER-ABI.md, SMALL-SSE-ABI.md, ALIGN16-ABI.md, AGGREGATE-CALL-TARGETS.md); aggregate interpreter execution remains refused.
 Typed record signatures/call annotations can be retained as generic owned metadata
 ONLY; native/interpreter use explicitly refuses them
 ([AGGREGATE-ABI-REPRESENTATION.md](AGGREGATE-ABI-REPRESENTATION.md)). Exact repeat/alignment/
@@ -52,7 +52,7 @@ resource bounds and deferred union/opaque syntax are documented in
 The ellipsis above describes repeated parameters, **not** variadic IL. A missing function result type means void. Every actual block must end in exactly one explicit terminator; the example lists alternative instruction/terminator forms, not a single valid block. Labels occupy their own lines; instructions end at a newline or closing brace. LF and CRLF input, comments and blank lines are supported. Function export linkage is retained in the IR.
 
 - `hlt` has no operands and closes its block with target-dependent program termination, independently of the function result type. The evaluator returns `Halted`; Linux AMD64 emits `ud2`. See HALT.md.
-- Direct nonvariadic scalar-result or void-result calls with explicitly typed base-scalar arguments are accepted; empty argument lists are allowed. Void calls are effect-only statements with no result definition. Known callee result presence/type must match; omitting a nonvoid return is not permitted. Indirect calls now accept a long temporary or integer-address literal as target; address/signature validity is a native caller contract and module interpretation refuses reached address targets (see INDIRECT-CALLS.md). Aggregate call annotations are metadata only; execution is refused (AGGREGATE-ABI-REPRESENTATION.md); environment calls are described in ENVIRONMENT-CALLS.md; native variadic definitions/vastart
+- Direct nonvariadic scalar-result or void-result calls with explicitly typed base-scalar arguments are accepted; empty argument lists are allowed. Void calls are effect-only statements with no result definition. Known callee result presence/type must match; omitting a nonvoid return is not permitted. Indirect calls now accept a long temporary or integer-address literal as target; address/signature validity is a native caller contract and module interpretation refuses reached address targets (see INDIRECT-CALLS.md). Aggregate call annotations retain generic typed metadata (AGGREGATE-ABI-REPRESENTATION.md); bounded native transport, including nonvariadic ENV/indirect sites, is supported separately (AGGREGATE-CALL-TARGETS.md), while aggregate interpretation remains refused; environment calls are described in ENVIRONMENT-CALLS.md; native variadic definitions/vastart
 are supported separately (VARIADIC-FUNCTIONS.md); external/indirect variadic call-site markers are supported separately (VARIADIC-CALLS.md); sb/ub/sh/uh annotations in scalar ABI positions are described in SUBWORD-ABI.md. Native emission checks known module-local signatures; external signatures remain a caller contract. The standalone evaluator reports `UnsupportedCall` only when a call is reached; module-aware evaluation can interpret internal direct calls, but never external functions (see MODULE-EVALUATION.md). See CALLS.md.
 - Scalar loads/stores accept long addresses and exact source/result classes; signed/unsigned narrow loads extend to word or long, while byte/half stores truncate word sources. `loadw` is an exact `loadsw` alias, including sign extension when its result is long. Stores are effect-only; both evaluators require an opt-in bounded image or synthetic stack model to execute memory, otherwise returning `UnsupportedMemory` without host dereferences (see MEMORY-EVALUATION.md). Effect-only `blit` now accepts two long addresses and an exact nonnegative decimal count through 2,147,483,647; partial overlap is invalid (BLITS.md). Native `alloc4`/`alloc8`/`alloc16` now accept a long size and produce a long address; evaluators default to `UnsupportedAllocation` even with an Image; opt-in `Options.stack_memory` supplies bounded synthetic objects (INTERPRETER-ALLOCATIONS.md). Bare unquoted `$symbol` long-address operands are now accepted (SYMBOL-ADDRESSES.md); bounded numeric/zero-fill data definitions are supported separately (DATA.md), while checked i32 scalar symbol+offset operands are described in SYMBOL-OFFSETS.md; TLS/extern forms remain unsupported. See MEMORY.md.
 - SSA arithmetic types are the four base scalar types. Function/call ABI positions additionally accept sb/ub/sh/uh, retaining word SSA values and unspecified upper bits (SUBWORD-ABI.md). Long temporaries in word contexts explicitly project their low 32 bits in the owned IR, including arithmetic, phi/call/return/store operands and shift counts (LOW-WORD.md). Other source/result classes remain exact; implicit word-to-long extension is rejected.
@@ -97,7 +97,7 @@ Base-scalar result-producing vaarg accepts a long caller-supplied descriptor
 Nonvariadic scalar environment calls now have a distinct hidden long operand/
 parameter and Linux AMD64 RAX mapping, without shifting ordinary ABI arguments
 (ENVIRONMENT-CALLS.md). Root/module interpreter mapping remains synthetic and
-bounded; environment+varargs and aggregates remain unsupported.
+bounded; environment+varargs remains unsupported. Native nonvariadic record ENV/indirect calls are supported separately (AGGREGATE-CALL-TARGETS.md); aggregate interpretation remains refused.
 
 Bounded printable-ASCII quoted globals (excluding ELF `@` syntax) decode to owned canonical symbol names
 across definitions/calls/scalar operands/data relocations (QUOTED-GLOBALS.md).
@@ -120,4 +120,12 @@ transport, without new first-class aggregate operations or interpreter execution
 Bounded regular align16 record calls/results omit padding-only NO_CLASS lanes
 without shrinking declared storage ([ALIGN16-ABI.md](ALIGN16-ABI.md)). This follows
 official SysV/C semantics, not pinned-QBE padding-lane oracle parity; aggregate
-interpreter and env/vararg/indirect refusals remain unchanged.
+interpreter and aggregate-vararg refusals remain unchanged. Native nonvariadic ENV/indirect record calls are now supported (AGGREGATE-CALL-TARGETS.md).
+
+## Native record call targets
+
+Nonvariadic indirect and scalar-long ENV aggregate definitions/calls/results
+now use the existing typed Linux AMD64 SysV record plans, with late target
+parking and ENV-last marshalling. Aggregate variadics and aggregate interpreter
+execution remain refused. See [AGGREGATE-CALL-TARGETS.md](AGGREGATE-CALL-TARGETS.md)
+for caller contracts, resource/output boundaries and independent oracles.

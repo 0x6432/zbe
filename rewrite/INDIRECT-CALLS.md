@@ -42,3 +42,11 @@ Converting C function pointers through `uintptr_t` is explicitly a native Linux 
 Typed sb/ub/sh/uh scalar ABI annotations retain word SSA classes and unspecified
 upper bits, with explicit extension instructions and exact internal signature
 checks (SUBWORD-ABI.md). This does not add aggregates, varargs or host invocation.
+
+## Aggregate native extension
+
+Typed nonvariadic record arguments/results now use the supported record plans,
+including optional hidden long ENV (AGGREGATE-CALL-TARGETS.md). Target/signature
+validity remains a native caller contract. Record packing uses R11, so its target
+is loaded/parked only after marshalling; ENV loads last. Aggregate variadics and
+interpreter aggregate/host-indirect execution remain refused.

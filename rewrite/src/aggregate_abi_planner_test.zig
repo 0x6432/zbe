@@ -142,19 +142,21 @@ test "aggregate_abi_planner site local aggregate eligibility retains scalar env 
         defer t.allocator.free(text);
         var module = try parse(t.allocator, text);
         defer module.deinit();
-        if (std.mem.indexOf(u8, body, "...") != null) {
-            try t.expectError(error.UnsupportedAggregatePlan, planner.FunctionPlan.init(t.allocator, &module, id(0), .{}));
-        } else {
-            var positive = try planner.FunctionPlan.init(t.allocator, &module, id(0), .{});
-            defer positive.deinit();
-            if (positive.calls.len == 0) {
+        var positive = try planner.FunctionPlan.init(t.allocator, &module, id(0), .{});
+        defer positive.deinit();
+        if (positive.calls.len == 0) {
+            if (positive.signature.variadic) {
+                try t.expect(positive.signature.result == .memory);
+                try t.expectEqual(@as(u8, 1), positive.signature.general_used);
+                try t.expectEqual(@as(u64, 0), positive.signature.outgoing_bytes);
+            } else {
                 try t.expect(positive.signature.environment);
                 try t.expectEqual(@as(u64, 32), positive.signature.outgoing_bytes);
-            } else {
-                try t.expectEqual(@as(usize, 1), positive.calls.len);
-                try t.expectEqual(@as(u64, 32), positive.calls[0].signature.outgoing_bytes);
-                try t.expect(positive.calls[0].signature.environment or positive.calls[0].target == .address);
             }
+        } else {
+            try t.expectEqual(@as(usize, 1), positive.calls.len);
+            try t.expectEqual(@as(u64, 32), positive.calls[0].signature.outgoing_bytes);
+            try t.expect(positive.calls[0].signature.environment or positive.calls[0].signature.variadic or positive.calls[0].target == .address);
         }
     }
 }

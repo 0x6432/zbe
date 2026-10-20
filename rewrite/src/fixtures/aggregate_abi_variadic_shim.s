@@ -1,0 +1,669 @@
+.text
+.globl aggregate_abi_variadic_B3_al
+.type aggregate_abi_variadic_B3_al,@function
+.p2align 4
+aggregate_abi_variadic_B3_al:
+ cmpb $1,%al
+ jne .Lbad_variadic_al
+ jmp aggregate_abi_variadic_B3_read
+.size aggregate_abi_variadic_B3_al,.-aggregate_abi_variadic_B3_al
+.globl aggregate_abi_variadic_I13_al
+.type aggregate_abi_variadic_I13_al,@function
+.p2align 4
+aggregate_abi_variadic_I13_al:
+ cmpb $1,%al
+ jne .Lbad_variadic_al
+ jmp aggregate_abi_variadic_I13_read
+.size aggregate_abi_variadic_I13_al,.-aggregate_abi_variadic_I13_al
+.globl aggregate_abi_variadic_W8_al
+.type aggregate_abi_variadic_W8_al,@function
+.p2align 4
+aggregate_abi_variadic_W8_al:
+ cmpb $1,%al
+ jne .Lbad_variadic_al
+ jmp aggregate_abi_variadic_W8_read
+.size aggregate_abi_variadic_W8_al,.-aggregate_abi_variadic_W8_al
+.globl aggregate_abi_variadic_S4_al
+.type aggregate_abi_variadic_S4_al,@function
+.p2align 4
+aggregate_abi_variadic_S4_al:
+ cmpb $2,%al
+ jne .Lbad_variadic_al
+ jmp aggregate_abi_variadic_S4_read
+.size aggregate_abi_variadic_S4_al,.-aggregate_abi_variadic_S4_al
+.globl aggregate_abi_variadic_D8_al
+.type aggregate_abi_variadic_D8_al,@function
+.p2align 4
+aggregate_abi_variadic_D8_al:
+ cmpb $2,%al
+ jne .Lbad_variadic_al
+ jmp aggregate_abi_variadic_D8_read
+.size aggregate_abi_variadic_D8_al,.-aggregate_abi_variadic_D8_al
+.globl aggregate_abi_variadic_SS12_al
+.type aggregate_abi_variadic_SS12_al,@function
+.p2align 4
+aggregate_abi_variadic_SS12_al:
+ cmpb $3,%al
+ jne .Lbad_variadic_al
+ jmp aggregate_abi_variadic_SS12_read
+.size aggregate_abi_variadic_SS12_al,.-aggregate_abi_variadic_SS12_al
+.globl aggregate_abi_variadic_DD16_al
+.type aggregate_abi_variadic_DD16_al,@function
+.p2align 4
+aggregate_abi_variadic_DD16_al:
+ cmpb $3,%al
+ jne .Lbad_variadic_al
+ jmp aggregate_abi_variadic_DD16_read
+.size aggregate_abi_variadic_DD16_al,.-aggregate_abi_variadic_DD16_al
+.globl aggregate_abi_variadic_IS16_al
+.type aggregate_abi_variadic_IS16_al,@function
+.p2align 4
+aggregate_abi_variadic_IS16_al:
+ cmpb $2,%al
+ jne .Lbad_variadic_al
+ jmp aggregate_abi_variadic_IS16_read
+.size aggregate_abi_variadic_IS16_al,.-aggregate_abi_variadic_IS16_al
+.globl aggregate_abi_variadic_SI16_al
+.type aggregate_abi_variadic_SI16_al,@function
+.p2align 4
+aggregate_abi_variadic_SI16_al:
+ cmpb $2,%al
+ jne .Lbad_variadic_al
+ jmp aggregate_abi_variadic_SI16_read
+.size aggregate_abi_variadic_SI16_al,.-aggregate_abi_variadic_SI16_al
+.globl aggregate_abi_variadic_II16_al
+.type aggregate_abi_variadic_II16_al,@function
+.p2align 4
+aggregate_abi_variadic_II16_al:
+ cmpb $1,%al
+ jne .Lbad_variadic_al
+ jmp aggregate_abi_variadic_II16_read
+.size aggregate_abi_variadic_II16_al,.-aggregate_abi_variadic_II16_al
+.globl aggregate_abi_variadic_N16_al
+.type aggregate_abi_variadic_N16_al,@function
+.p2align 4
+aggregate_abi_variadic_N16_al:
+ cmpb $2,%al
+ jne .Lbad_variadic_al
+ jmp aggregate_abi_variadic_N16_read
+.size aggregate_abi_variadic_N16_al,.-aggregate_abi_variadic_N16_al
+.globl aggregate_abi_variadic_M23_al
+.type aggregate_abi_variadic_M23_al,@function
+.p2align 4
+aggregate_abi_variadic_M23_al:
+ cmpb $1,%al
+ jne .Lbad_variadic_al
+ jmp aggregate_abi_variadic_M23_read
+.size aggregate_abi_variadic_M23_al,.-aggregate_abi_variadic_M23_al
+.globl aggregate_abi_variadic_A32_al
+.type aggregate_abi_variadic_A32_al,@function
+.p2align 4
+aggregate_abi_variadic_A32_al:
+ cmpb $1,%al
+ jne .Lbad_variadic_al
+ jmp aggregate_abi_variadic_A32_read
+.size aggregate_abi_variadic_A32_al,.-aggregate_abi_variadic_A32_al
+.Lbad_variadic_al:
+ ud2
+.section .note.GNU-stack,"",@progbits
+
+.text
+.globl aggregate_abi_variadic_pressure_A_target
+.type aggregate_abi_variadic_pressure_A_target,@function
+aggregate_abi_variadic_pressure_A_target:
+ cmpb $5,%al
+ jne .Lbad_pressure
+ movq %rsp,%r10
+ andq $15,%r10
+ cmpq $8,%r10
+ jne .Lbad_pressure
+ cmpq $1,%rsi
+ jne .Lbad_pressure
+ cmpq $2,%rdx
+ jne .Lbad_pressure
+ cmpq $3,%rcx
+ jne .Lbad_pressure
+ cmpq $4,%r8
+ jne .Lbad_pressure
+ cmpq $5,%r9
+ jne .Lbad_pressure
+ cmpb $0x44,8(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x44,9(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x44,10(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x44,11(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x44,12(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x44,13(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x44,14(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x44,15(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x44,16(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x44,17(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x44,18(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x44,19(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x44,20(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,24(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,25(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,26(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,27(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,28(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,29(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,30(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,31(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,32(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,33(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,34(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,35(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,36(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,37(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,38(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,39(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,40(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,41(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,42(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,43(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,44(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,45(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,46(%rsp)
+ jne .Lbad_pressure
+ cmpl $0x7fa12345,48(%rsp)
+ jne .Lbad_pressure
+ movabsq $0x9182736455463728,%r10
+ cmpq %r10,56(%rsp)
+ jne .Lbad_pressure
+ cmpq $99,64(%rsp)
+ jne .Lbad_pressure
+ movq %xmm0,%r10
+ movabsq $9196670694392332289,%r11
+ cmpq %r11,%r10
+ jne .Lbad_pressure
+ movd %xmm1,%r10d
+ movabsq $2147483648,%r11
+ cmpq %r11,%r10
+ jne .Lbad_pressure
+ movq %xmm2,%r10
+ movabsq $9196670694392332289,%r11
+ cmpq %r11,%r10
+ jne .Lbad_pressure
+ movd %xmm3,%r10d
+ movabsq $2147483648,%r11
+ cmpq %r11,%r10
+ jne .Lbad_pressure
+ movq %xmm4,%r10
+ movabsq $4607182418800017408,%r11
+ cmpq %r11,%r10
+ jne .Lbad_pressure
+ jmp aggregate_abi_variadic_pressure_A_c
+.size aggregate_abi_variadic_pressure_A_target,.-aggregate_abi_variadic_pressure_A_target
+.globl aggregate_abi_variadic_pressure_A_bridge
+.type aggregate_abi_variadic_pressure_A_bridge,@function
+aggregate_abi_variadic_pressure_A_bridge:
+ subq $24,%rsp
+ movq %rdi,(%rsp)
+ call aggregate_abi_variadic_pressure_A
+ cmpq (%rsp),%rax
+ jne .Lbad_pressure
+ addq $24,%rsp
+ ret
+.size aggregate_abi_variadic_pressure_A_bridge,.-aggregate_abi_variadic_pressure_A_bridge
+.globl aggregate_abi_variadic_pressure_B1_target
+.type aggregate_abi_variadic_pressure_B1_target,@function
+aggregate_abi_variadic_pressure_B1_target:
+ cmpb $8,%al
+ jne .Lbad_pressure
+ movq %rsp,%r10
+ andq $15,%r10
+ cmpq $8,%r10
+ jne .Lbad_pressure
+ cmpq $1,%rsi
+ jne .Lbad_pressure
+ cmpq $2,%rdx
+ jne .Lbad_pressure
+ cmpq $3,%rcx
+ jne .Lbad_pressure
+ cmpq $4,%r8
+ jne .Lbad_pressure
+ cmpq $5,%r9
+ jne .Lbad_pressure
+ cmpb $0x67,8(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,9(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,10(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,11(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,12(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,13(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,14(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,15(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,16(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,17(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,18(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,19(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,20(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,21(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,22(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,23(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,24(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,25(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,26(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,27(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,28(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,29(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,30(%rsp)
+ jne .Lbad_pressure
+ cmpl $0x80000000,40(%rsp)
+ jne .Lbad_pressure
+ cmpq $66,56(%rsp)
+ jne .Lbad_pressure
+ cmpl $0x80000000,72(%rsp)
+ jne .Lbad_pressure
+ cmpq $99,64(%rsp)
+ jne .Lbad_pressure
+ cmpq $101,88(%rsp)
+ jne .Lbad_pressure
+ movq %xmm0,%r10
+ movabsq $4607182418800017408,%r11
+ cmpq %r11,%r10
+ jne .Lbad_pressure
+ movq %xmm1,%r10
+ movabsq $4611686018427387904,%r11
+ cmpq %r11,%r10
+ jne .Lbad_pressure
+ movq %xmm2,%r10
+ movabsq $4613937818241073152,%r11
+ cmpq %r11,%r10
+ jne .Lbad_pressure
+ movq %xmm3,%r10
+ movabsq $4616189618054758400,%r11
+ cmpq %r11,%r10
+ jne .Lbad_pressure
+ movq %xmm4,%r10
+ movabsq $4617315517961601024,%r11
+ cmpq %r11,%r10
+ jne .Lbad_pressure
+ movq %xmm5,%r10
+ movabsq $4618441417868443648,%r11
+ cmpq %r11,%r10
+ jne .Lbad_pressure
+ movq %xmm6,%r10
+ movabsq $4619567317775286272,%r11
+ cmpq %r11,%r10
+ jne .Lbad_pressure
+ movq %xmm7,%r10
+ movabsq $4620693217682128896,%r11
+ cmpq %r11,%r10
+ jne .Lbad_pressure
+ jmp aggregate_abi_variadic_pressure_B1_c
+.size aggregate_abi_variadic_pressure_B1_target,.-aggregate_abi_variadic_pressure_B1_target
+.globl aggregate_abi_variadic_pressure_B1_bridge
+.type aggregate_abi_variadic_pressure_B1_bridge,@function
+aggregate_abi_variadic_pressure_B1_bridge:
+ subq $24,%rsp
+ movq %rdi,(%rsp)
+ call aggregate_abi_variadic_pressure_B1
+ cmpq (%rsp),%rax
+ jne .Lbad_pressure
+ addq $24,%rsp
+ ret
+.size aggregate_abi_variadic_pressure_B1_bridge,.-aggregate_abi_variadic_pressure_B1_bridge
+.globl aggregate_abi_variadic_pressure_B2_target
+.type aggregate_abi_variadic_pressure_B2_target,@function
+aggregate_abi_variadic_pressure_B2_target:
+ cmpb $8,%al
+ jne .Lbad_pressure
+ movq %rsp,%r10
+ andq $15,%r10
+ cmpq $8,%r10
+ jne .Lbad_pressure
+ cmpq $1,%rsi
+ jne .Lbad_pressure
+ cmpq $2,%rdx
+ jne .Lbad_pressure
+ cmpq $3,%rcx
+ jne .Lbad_pressure
+ cmpq $4,%r8
+ jne .Lbad_pressure
+ cmpq $5,%r9
+ jne .Lbad_pressure
+ cmpb $0x67,8(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,9(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,10(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,11(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,12(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,13(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,14(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,15(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,16(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,17(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,18(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,19(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,20(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,21(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,22(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,23(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,24(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,25(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,26(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,27(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,28(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,29(%rsp)
+ jne .Lbad_pressure
+ cmpb $0x67,30(%rsp)
+ jne .Lbad_pressure
+ cmpl $0x80000000,40(%rsp)
+ jne .Lbad_pressure
+ cmpq $66,56(%rsp)
+ jne .Lbad_pressure
+ cmpl $0x80000000,72(%rsp)
+ jne .Lbad_pressure
+ cmpq $99,88(%rsp)
+ jne .Lbad_pressure
+ cmpq $101,96(%rsp)
+ jne .Lbad_pressure
+ movq %xmm0,%r10
+ movabsq $4607182418800017408,%r11
+ cmpq %r11,%r10
+ jne .Lbad_pressure
+ movq %xmm1,%r10
+ movabsq $4611686018427387904,%r11
+ cmpq %r11,%r10
+ jne .Lbad_pressure
+ movq %xmm2,%r10
+ movabsq $4613937818241073152,%r11
+ cmpq %r11,%r10
+ jne .Lbad_pressure
+ movq %xmm3,%r10
+ movabsq $4616189618054758400,%r11
+ cmpq %r11,%r10
+ jne .Lbad_pressure
+ movq %xmm4,%r10
+ movabsq $4617315517961601024,%r11
+ cmpq %r11,%r10
+ jne .Lbad_pressure
+ movq %xmm5,%r10
+ movabsq $4618441417868443648,%r11
+ cmpq %r11,%r10
+ jne .Lbad_pressure
+ movq %xmm6,%r10
+ movabsq $4619567317775286272,%r11
+ cmpq %r11,%r10
+ jne .Lbad_pressure
+ movq %xmm7,%r10
+ movabsq $4620693217682128896,%r11
+ cmpq %r11,%r10
+ jne .Lbad_pressure
+ jmp aggregate_abi_variadic_pressure_B2_c
+.size aggregate_abi_variadic_pressure_B2_target,.-aggregate_abi_variadic_pressure_B2_target
+.globl aggregate_abi_variadic_pressure_B2_bridge
+.type aggregate_abi_variadic_pressure_B2_bridge,@function
+aggregate_abi_variadic_pressure_B2_bridge:
+ subq $24,%rsp
+ movq %rdi,(%rsp)
+ call aggregate_abi_variadic_pressure_B2
+ cmpq (%rsp),%rax
+ jne .Lbad_pressure
+ addq $24,%rsp
+ ret
+.size aggregate_abi_variadic_pressure_B2_bridge,.-aggregate_abi_variadic_pressure_B2_bridge
+.Lbad_pressure:
+ ud2
+.section .note.GNU-stack,"",@progbits
+
+.text
+.globl aggregate_abi_variadic_al_count0
+.type aggregate_abi_variadic_al_count0,@function
+aggregate_abi_variadic_al_count0:
+ cmpb $0,%al
+ jne .Lbad_count_al
+ jmp aggregate_abi_variadic_read_count
+.size aggregate_abi_variadic_al_count0,.-aggregate_abi_variadic_al_count0
+.globl aggregate_abi_variadic_al_count1
+.type aggregate_abi_variadic_al_count1,@function
+aggregate_abi_variadic_al_count1:
+ cmpb $1,%al
+ jne .Lbad_count_al
+ jmp aggregate_abi_variadic_read_count
+.size aggregate_abi_variadic_al_count1,.-aggregate_abi_variadic_al_count1
+.globl aggregate_abi_variadic_al_count2
+.type aggregate_abi_variadic_al_count2,@function
+aggregate_abi_variadic_al_count2:
+ cmpb $2,%al
+ jne .Lbad_count_al
+ jmp aggregate_abi_variadic_read_count
+.size aggregate_abi_variadic_al_count2,.-aggregate_abi_variadic_al_count2
+.globl aggregate_abi_variadic_al_count3
+.type aggregate_abi_variadic_al_count3,@function
+aggregate_abi_variadic_al_count3:
+ cmpb $3,%al
+ jne .Lbad_count_al
+ jmp aggregate_abi_variadic_read_count
+.size aggregate_abi_variadic_al_count3,.-aggregate_abi_variadic_al_count3
+.globl aggregate_abi_variadic_al_count4
+.type aggregate_abi_variadic_al_count4,@function
+aggregate_abi_variadic_al_count4:
+ cmpb $4,%al
+ jne .Lbad_count_al
+ jmp aggregate_abi_variadic_read_count
+.size aggregate_abi_variadic_al_count4,.-aggregate_abi_variadic_al_count4
+.globl aggregate_abi_variadic_al_count5
+.type aggregate_abi_variadic_al_count5,@function
+aggregate_abi_variadic_al_count5:
+ cmpb $5,%al
+ jne .Lbad_count_al
+ jmp aggregate_abi_variadic_read_count
+.size aggregate_abi_variadic_al_count5,.-aggregate_abi_variadic_al_count5
+.globl aggregate_abi_variadic_al_count6
+.type aggregate_abi_variadic_al_count6,@function
+aggregate_abi_variadic_al_count6:
+ cmpb $6,%al
+ jne .Lbad_count_al
+ jmp aggregate_abi_variadic_read_count
+.size aggregate_abi_variadic_al_count6,.-aggregate_abi_variadic_al_count6
+.globl aggregate_abi_variadic_al_count7
+.type aggregate_abi_variadic_al_count7,@function
+aggregate_abi_variadic_al_count7:
+ cmpb $7,%al
+ jne .Lbad_count_al
+ jmp aggregate_abi_variadic_read_count
+.size aggregate_abi_variadic_al_count7,.-aggregate_abi_variadic_al_count7
+.globl aggregate_abi_variadic_al_count8
+.type aggregate_abi_variadic_al_count8,@function
+aggregate_abi_variadic_al_count8:
+ cmpb $8,%al
+ jne .Lbad_count_al
+ jmp aggregate_abi_variadic_read_count
+.size aggregate_abi_variadic_al_count8,.-aggregate_abi_variadic_al_count8
+.globl aggregate_abi_variadic_al_count9
+.type aggregate_abi_variadic_al_count9,@function
+aggregate_abi_variadic_al_count9:
+ cmpb $8,%al
+ jne .Lbad_count_al
+ jmp aggregate_abi_variadic_read_count
+.size aggregate_abi_variadic_al_count9,.-aggregate_abi_variadic_al_count9
+.globl aggregate_abi_variadic_al_count10
+.type aggregate_abi_variadic_al_count10,@function
+aggregate_abi_variadic_al_count10:
+ cmpb $8,%al
+ jne .Lbad_count_al
+ jmp aggregate_abi_variadic_read_count
+.size aggregate_abi_variadic_al_count10,.-aggregate_abi_variadic_al_count10
+.Lbad_count_al:
+ ud2
+.section .note.GNU-stack,"",@progbits
+
+.text
+.globl aggregate_abi_variadic_clobber
+.type aggregate_abi_variadic_clobber,@function
+aggregate_abi_variadic_clobber:
+ xorq %rax,%rax
+ xorq %rdi,%rdi
+ xorq %rsi,%rsi
+ xorq %rdx,%rdx
+ xorq %rcx,%rcx
+ xorq %r8,%r8
+ xorq %r9,%r9
+ xorq %r10,%r10
+ xorq %r11,%r11
+ pxor %xmm0,%xmm0
+ pxor %xmm1,%xmm1
+ pxor %xmm2,%xmm2
+ pxor %xmm3,%xmm3
+ pxor %xmm4,%xmm4
+ pxor %xmm5,%xmm5
+ pxor %xmm6,%xmm6
+ pxor %xmm7,%xmm7
+ pxor %xmm8,%xmm8
+ pxor %xmm9,%xmm9
+ pxor %xmm10,%xmm10
+ pxor %xmm11,%xmm11
+ pxor %xmm12,%xmm12
+ pxor %xmm13,%xmm13
+ pxor %xmm14,%xmm14
+ pxor %xmm15,%xmm15
+ movl $1,%eax
+ ret
+.size aggregate_abi_variadic_clobber,.-aggregate_abi_variadic_clobber
+.section .note.GNU-stack,"",@progbits
+
+.p2align 4
+.text
+.globl aggregate_abi_variadic_zero_al
+.type aggregate_abi_variadic_zero_al,@function
+.p2align 4
+aggregate_abi_variadic_zero_al:
+ cmpb $0,%al
+ jne .Lbad_variadic_al
+ jmp aggregate_abi_variadic_zero_read
+.size aggregate_abi_variadic_zero_al,.-aggregate_abi_variadic_zero_al
+
+.text
+.p2align 4
+.globl aggregate_abi_variadic_pressure_C_entry
+.type aggregate_abi_variadic_pressure_C_entry,@function
+aggregate_abi_variadic_pressure_C_entry:
+ cmpb $8,%al
+ jne .Lbad_variadic_al
+ cmpq $77,%rdi
+ jne .Lbad_variadic_al
+ cmpq $99,%rsi
+ jne .Lbad_variadic_al
+ movabsq $0x4444444444444444,%r10
+ cmpq %r10,%rdx
+ jne .Lbad_variadic_al
+ movq %rcx,%r10
+ movabsq $0xffffffffff,%r11
+ andq %r11,%r10
+ movabsq $0x4444444444,%r11
+ cmpq %r11,%r10
+ jne .Lbad_variadic_al
+ movabsq $0x3ff0000000000000,%r10
+ cmpq %r10,24(%rsp)
+ jne .Lbad_variadic_al
+ movq %xmm0,%r10
+ movabsq $4607182418800017408,%r11
+ cmpq %r11,%r10
+ jne .Lbad_variadic_al
+ movq %xmm1,%r10
+ movabsq $4611686018427387904,%r11
+ cmpq %r11,%r10
+ jne .Lbad_variadic_al
+ movq %xmm2,%r10
+ movabsq $4613937818241073152,%r11
+ cmpq %r11,%r10
+ jne .Lbad_variadic_al
+ movq %xmm3,%r10
+ movabsq $4616189618054758400,%r11
+ cmpq %r11,%r10
+ jne .Lbad_variadic_al
+ movq %xmm4,%r10
+ movabsq $4617315517961601024,%r11
+ cmpq %r11,%r10
+ jne .Lbad_variadic_al
+ movq %xmm5,%r10
+ movabsq $4618441417868443648,%r11
+ cmpq %r11,%r10
+ jne .Lbad_variadic_al
+ movq %xmm6,%r10
+ movabsq $4619567317775286272,%r11
+ cmpq %r11,%r10
+ jne .Lbad_variadic_al
+ movq %xmm7,%r10
+ movabsq $4620693217682128896,%r11
+ cmpq %r11,%r10
+ jne .Lbad_variadic_al
+ jmp aggregate_abi_variadic_pressure_C_read
+.size aggregate_abi_variadic_pressure_C_entry,.-aggregate_abi_variadic_pressure_C_entry

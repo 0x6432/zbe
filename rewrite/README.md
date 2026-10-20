@@ -103,13 +103,17 @@ Small SSE/mixed record calls and returns are bounded separately in [SMALL-SSE-AB
 
 Bounded regular align16 record calls/results omit padding-only NO_CLASS lanes
 without shrinking declared storage ([ALIGN16-ABI.md](ALIGN16-ABI.md)). This follows
-official SysV/C semantics, not pinned-QBE padding-lane oracle parity; aggregate
-interpreter and aggregate-vararg refusals remain unchanged. Native nonvariadic ENV/indirect record calls are now supported (AGGREGATE-CALL-TARGETS.md).
+official SysV/C semantics, not pinned-QBE padding-lane oracle parity;
+aggregate interpreter refusals remain unchanged; bounded native aggregate variadics are supported separately (AGGREGATE-VARIADIC.md). Native nonvariadic ENV/indirect record calls are now supported (AGGREGATE-CALL-TARGETS.md).
 
 ## Native record call targets
 
 Nonvariadic indirect and scalar-long ENV aggregate definitions/calls/results
 now use the existing typed Linux AMD64 SysV record plans, with late target
-parking and ENV-last marshalling. Aggregate variadics and aggregate interpreter
-execution remain refused. See [AGGREGATE-CALL-TARGETS.md](AGGREGATE-CALL-TARGETS.md)
+parking and ENV-last marshalling. Bounded native aggregate variadics are supported separately (AGGREGATE-VARIADIC.md); aggregate interpreter
+execution remains refused. See [AGGREGATE-CALL-TARGETS.md](AGGREGATE-CALL-TARGETS.md)
 for caller contracts, resource/output boundaries and independent oracles.
+
+Native marked record calls and record-bearing variadic definitions/vastart use
+checked raw stack ends and the176-byte save area (AGGREGATE-VARIADIC.md).
+IL vaarg remains scalar-only; ENV+varargs and aggregate interpretation stay refused.

@@ -146,6 +146,12 @@ def main():
         )]
         cases += ['type :A={b 17}\ntype :B={b 17}\nfunction $f(){\n@e\ncall $g(:A 0)\nret\n}\nfunction $g(:B %p){\n@e\nret\n}',
                   'function w $f(){\n@e\nret 1\n@dead\ncall $bad(:Missing 0)\nret 0\n}']
+        approved_variadic = [cases[i] for i in (4, 6)]
+        for text in approved_variadic:
+            il.write_text(text)
+            subprocess.run([*compiler, str(il), str(asm)], check=True, timeout=90)
+            if not asm.read_bytes().startswith(b'.text'): raise SystemExit('Approved variadic case emitted no code')
+        cases = [text for text in cases if text not in approved_variadic]
         # Precisely the newly approved nonvariadic ENV/indirect cases are
         # positive compilation checks, not silently dropped refusals. Their
         # execution is independently covered by aggregate_abi_call_targets_check.

@@ -171,6 +171,15 @@ def main():
             'type :T={s}\nfunction w $f(l %p){\n@e\n%r =:T call $external(env %p)\nret 1\n}',
             'type :T=align 16 {s}\nfunction w $f(){\n@e\nret 1\n@dead\n%r =:T call $external()\nret 2\n}',
         ]
+        # Exactly these two formerly refused cases are approved by the variadic
+        # endpoint. Their execution oracle is aggregate_abi_variadic_check.py.
+        approved_variadic = [invalid[i] for i in (5, 7)]
+        for text in approved_variadic:
+            text = text.replace("{ @start ", "{\n@start\n").replace(" ret ", "\nret ").replace(" }\n", "\n}\n")
+            il.write_text(text)
+            subprocess.run([*compiler, str(il), str(asm)], check=True, timeout=90)
+            if not asm.read_bytes().startswith(b'.text'): raise SystemExit('Approved variadic case emitted no code')
+
         # The three individually approved align16 cases now have independent
         # C/hand-ASM positive coverage. Other boundary expectations are unchanged.
         for index in (0, 1, 9):
@@ -190,6 +199,7 @@ def main():
             if not asm.read_bytes().startswith(b'.text'):
                 raise SystemExit('Eligible call target did not emit native code')
         invalid = [source for source in invalid if source not in eligible_call_targets]
+        invalid = [source for source in invalid if source not in approved_variadic]
         for text in invalid:
             il.write_text(text)
             sentinel = b'preserve existing output\n'

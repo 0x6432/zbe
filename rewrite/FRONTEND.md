@@ -8,9 +8,9 @@ Bounded nonempty `type :Name = [align A] { member [count], ... }` record
 declarations are accepted with owned checked layouts: scalar b/h/w/l/s/d fields
 and earlier-record references only. Type names belong to the module-owned
 `record_names` pool, separate from scalar/code-generation symbols; unused valid
-declarations leave scalar assembly byte-identical. Aggregate first-class values remain refused. Bounded native record ABI classification and transport are supported separately (AMD64-MEMORY-ABI.md, SMALL-INTEGER-ABI.md, SMALL-SSE-ABI.md, ALIGN16-ABI.md, AGGREGATE-CALL-TARGETS.md); aggregate interpreter execution remains refused.
-Typed record signatures/call annotations can be retained as generic owned metadata
-ONLY; native/interpreter use explicitly refuses them
+declarations leave scalar assembly byte-identical. Aggregate first-class values remain refused. Bounded native record ABI classification and transport are supported separately (AMD64-MEMORY-ABI.md, SMALL-INTEGER-ABI.md, SMALL-SSE-ABI.md, ALIGN16-ABI.md, AGGREGATE-CALL-TARGETS.md, AGGREGATE-VARIADIC.md); aggregate interpreter execution remains refused.
+Typed record signatures/call annotations are retained as generic owned metadata;
+bounded native uses are supported while aggregate interpreter use remains refused
 ([AGGREGATE-ABI-REPRESENTATION.md](AGGREGATE-ABI-REPRESENTATION.md)). Exact repeat/alignment/
 resource bounds and deferred union/opaque syntax are documented in
 [RECORD-DECLARATIONS.md](RECORD-DECLARATIONS.md).

@@ -143,6 +143,15 @@ def main():
             'type :T = { b }\nexport function w $f(l %p) { @start %r =:T call $g(env %p) ret 1 }\n',
             'type :T = { s }\nexport function w $f() { @start ret 1 @dead %r =:T call $g() ret 2 }\n',
         ]
+        # Exactly these two formerly refused cases are approved by the variadic
+        # endpoint. Their execution oracle is aggregate_abi_variadic_check.py.
+        approved_variadic = [invalid[i] for i in (7, 9)]
+        for text in approved_variadic:
+            text = text.replace("{ @start ", "{\n@start\n").replace(" ret ", "\nret ").replace(" }\n", "\n}\n")
+            il.write_text(text)
+            subprocess.run([*compiler, str(il), str(asm)], check=True, timeout=90)
+            if not asm.read_bytes().startswith(b'.text'): raise SystemExit('Approved variadic case emitted no code')
+
         def normalized(source):
             return source.replace("{ @start ", "{\n@start\n").replace(" @dead ", "\n@dead\n").replace(" ret ", "\nret ").replace(" }\n", "\n}\n")
 
@@ -160,6 +169,7 @@ def main():
             subprocess.run([*compiler,str(il),str(asm)],check=True,timeout=90)
             if not asm.read_bytes().startswith(b'.text'):raise SystemExit('Eligible call target emitted no code')
         invalid = [source for source in invalid if source not in eligible_call_targets]
+        invalid = [source for source in invalid if source not in approved_variadic]
         for source in invalid:
             source = normalized(source)
             il.write_text(source)

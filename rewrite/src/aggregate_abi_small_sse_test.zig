@@ -204,20 +204,16 @@ test "aggregate_abi_small_sse retained interpreter guards and unsupported site r
     try t.expectError(error.UnsupportedAggregateAbi, interpreter.evaluate(t.allocator, module.functions.items[0], &.{}, .{ .max_call_depth = 0 }));
     try t.expectError(error.UnsupportedAggregateAbi, interpreter.evaluateModule(t.allocator, &module, id(0), &.{}, .{ .max_call_depth = 0, .internal_variadic_calls = true }));
     // align16{s} is separately positive with active-lane and native C/ASM
-    // coverage; nonvariadic env/indirect native sites are now positive, variadic stays refused.
+    // coverage; ENV/indirect and now variadic native sites are positive; interpreter stays refused.
     for ([_][]const u8{ "type :T={s}\nfunction :T $f(env %e,l %p){\n@e\nret %p\n}", "type :T={s}\nfunction :T $f(l %p,...){\n@e\nret %p\n}", "type :T={s}\nfunction $f(){\n@e\ncall 0(:T 0)\nret\n}" }) |text| {
         var rejected = try parse(t.allocator, text);
         defer rejected.deinit();
-        if (std.mem.indexOf(u8, text, "...") != null) {
-            try t.expectError(error.UnsupportedAggregateAbi, amd64.emit(t.allocator, &rejected));
-        } else {
-            // Approved nonvariadic ENV/indirect native paths have independent
-            // executed C/ASM oracles in aggregate_abi_call_targets_check.py.
-            // Interpreter aggregate execution remains explicitly refused above.
-            const output = try amd64.emit(t.allocator, &rejected);
-            defer t.allocator.free(output);
-            try t.expect(std.mem.indexOf(u8, output, ".text") != null);
-        }
+        // This milestone approves the formerly refused variadic native case;
+        // independent C stdarg/ASM expectations live in aggregate_abi_variadic_check.py.
+        // Interpreter execution remains refused by the assertions above.
+        const output = try amd64.emit(t.allocator, &rejected);
+        defer t.allocator.free(output);
+        try t.expect(std.mem.indexOf(u8, output, ".text") != null);
     }
     var caller = try parse(t.allocator, "type :T={s}\nfunction $f(){\n@e\ncall $missing(:T $absent)\nret\n}");
     defer caller.deinit();

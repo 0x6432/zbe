@@ -21,9 +21,10 @@ host symbol resolution, ownership backpointer or hidden global is added.
 
 Generic validation still checks ALL descriptor IDs (including unreachable and
 external/indirect slots) before known signatures. Native eligibility scans ALL
-functions and sites before any plan/home/frame/writer allocation. Aggregate
-variadic signatures/sites, unsupported classes/alignment/size and invalid
-metadata remain explicit failures, including unreachable sites. Interpreter
+functions and sites before any plan/home/frame/writer allocation. Bounded aggregate
+variadic signatures/sites are supported separately (AGGREGATE-VARIADIC.md);
+unsupported classes/alignment/size and invalid metadata remain explicit failures,
+including unreachable sites. Interpreter
 aggregate execution and indirect host execution remain refused: root aggregate
 guards follow validation and precede depth/space/argument binding; reached calls
 retain step-budget-first refusal before target/environment/argument resolution.
@@ -72,3 +73,11 @@ actually fail; unspecified padding bytes are never value oracles.
 
 Original reviewed design: SHA256
 `abd0590902c878f1a493c34a7d6c28f851a4f877dad4073fca0a0f6be61142c2`.
+
+## Aggregate variadic extension
+
+Bounded native record variadic calls and record-bearing definitions/vastart are
+now supported separately: [AGGREGATE-VARIADIC.md](AGGREGATE-VARIADIC.md). Earlier
+scalar/nonvariadic descriptions above describe their original slice, not a blanket
+refusal of this extension. IL vaarg remains scalar-only; ENV+varargs and aggregate
+interpretation remain refused. Raw stack end differs from rounded outgoing bytes.

@@ -107,3 +107,11 @@ secondary to independent prefix/register expectations.
 The standalone planning API is not itself execution. Bounded native MEMORY
 integration is separately documented in [AMD64-MEMORY-ABI.md](AMD64-MEMORY-ABI.md).
 Other aggregate classes and all aggregate interpretation remain unsupported.
+
+## Aggregate variadic extension
+
+Bounded native record variadic calls and record-bearing definitions/vastart are
+now supported separately: [AGGREGATE-VARIADIC.md](AGGREGATE-VARIADIC.md). Earlier
+scalar/nonvariadic descriptions above describe their original slice, not a blanket
+refusal of this extension. IL vaarg remains scalar-only; ENV+varargs and aggregate
+interpretation remain refused. Raw stack end differs from rounded outgoing bytes.

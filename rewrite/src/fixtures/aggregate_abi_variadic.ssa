@@ -1,0 +1,711 @@
+type :B3={b 3}
+export function :B3 $aggregate_abi_variadic_B3_direct(l %p){
+@e
+%r =:B3 call $aggregate_abi_variadic_B3_al(w 77,...,:B3 %p,l 99,d d_1)
+ret %r
+}
+export function :B3 $aggregate_abi_variadic_B3_indirect(l %fn,l %p){
+@e
+%r =:B3 call %fn(w 77,...,:B3 %p,l 99,d d_1)
+ret %r
+}
+export function :B3 $aggregate_abi_variadic_B3_definition(:B3 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n,d %d)
+vastart %list
+%n2 =l vaarg %list
+%d2 =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n2,d %d2)
+ret %p
+}
+export function :B3 $aggregate_abi_variadic_B3_tail(:B3 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%ok =w call $aggregate_abi_variadic_B3_consume(l %list)
+%next =l vaarg %list
+call $aggregate_abi_variadic_after(l %next)
+vastart %list
+%ok2 =w call $aggregate_abi_variadic_B3_consume(l %list)
+%last =l vaarg %list
+call $aggregate_abi_variadic_after(l %last)
+ret %p
+}
+type :I13={b 13}
+export function :I13 $aggregate_abi_variadic_I13_direct(l %p){
+@e
+%r =:I13 call $aggregate_abi_variadic_I13_al(w 77,...,:I13 %p,l 99,d d_1)
+ret %r
+}
+export function :I13 $aggregate_abi_variadic_I13_indirect(l %fn,l %p){
+@e
+%r =:I13 call %fn(w 77,...,:I13 %p,l 99,d d_1)
+ret %r
+}
+export function :I13 $aggregate_abi_variadic_I13_definition(:I13 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n,d %d)
+vastart %list
+%n2 =l vaarg %list
+%d2 =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n2,d %d2)
+ret %p
+}
+export function :I13 $aggregate_abi_variadic_I13_tail(:I13 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%ok =w call $aggregate_abi_variadic_I13_consume(l %list)
+%next =l vaarg %list
+call $aggregate_abi_variadic_after(l %next)
+vastart %list
+%ok2 =w call $aggregate_abi_variadic_I13_consume(l %list)
+%last =l vaarg %list
+call $aggregate_abi_variadic_after(l %last)
+ret %p
+}
+type :W8={w,s}
+export function :W8 $aggregate_abi_variadic_W8_direct(l %p){
+@e
+%r =:W8 call $aggregate_abi_variadic_W8_al(w 77,...,:W8 %p,l 99,d d_1)
+ret %r
+}
+export function :W8 $aggregate_abi_variadic_W8_indirect(l %fn,l %p){
+@e
+%r =:W8 call %fn(w 77,...,:W8 %p,l 99,d d_1)
+ret %r
+}
+export function :W8 $aggregate_abi_variadic_W8_definition(:W8 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n,d %d)
+vastart %list
+%n2 =l vaarg %list
+%d2 =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n2,d %d2)
+ret %p
+}
+export function :W8 $aggregate_abi_variadic_W8_tail(:W8 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%ok =w call $aggregate_abi_variadic_W8_consume(l %list)
+%next =l vaarg %list
+call $aggregate_abi_variadic_after(l %next)
+vastart %list
+%ok2 =w call $aggregate_abi_variadic_W8_consume(l %list)
+%last =l vaarg %list
+call $aggregate_abi_variadic_after(l %last)
+ret %p
+}
+type :S4={s}
+export function :S4 $aggregate_abi_variadic_S4_direct(l %p){
+@e
+%r =:S4 call $aggregate_abi_variadic_S4_al(w 77,...,:S4 %p,l 99,d d_1)
+ret %r
+}
+export function :S4 $aggregate_abi_variadic_S4_indirect(l %fn,l %p){
+@e
+%r =:S4 call %fn(w 77,...,:S4 %p,l 99,d d_1)
+ret %r
+}
+export function :S4 $aggregate_abi_variadic_S4_definition(:S4 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n,d %d)
+vastart %list
+%n2 =l vaarg %list
+%d2 =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n2,d %d2)
+ret %p
+}
+export function :S4 $aggregate_abi_variadic_S4_tail(:S4 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%ok =w call $aggregate_abi_variadic_S4_consume(l %list)
+%next =l vaarg %list
+call $aggregate_abi_variadic_after(l %next)
+vastart %list
+%ok2 =w call $aggregate_abi_variadic_S4_consume(l %list)
+%last =l vaarg %list
+call $aggregate_abi_variadic_after(l %last)
+ret %p
+}
+type :D8={d}
+export function :D8 $aggregate_abi_variadic_D8_direct(l %p){
+@e
+%r =:D8 call $aggregate_abi_variadic_D8_al(w 77,...,:D8 %p,l 99,d d_1)
+ret %r
+}
+export function :D8 $aggregate_abi_variadic_D8_indirect(l %fn,l %p){
+@e
+%r =:D8 call %fn(w 77,...,:D8 %p,l 99,d d_1)
+ret %r
+}
+export function :D8 $aggregate_abi_variadic_D8_definition(:D8 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n,d %d)
+vastart %list
+%n2 =l vaarg %list
+%d2 =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n2,d %d2)
+ret %p
+}
+export function :D8 $aggregate_abi_variadic_D8_tail(:D8 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%ok =w call $aggregate_abi_variadic_D8_consume(l %list)
+%next =l vaarg %list
+call $aggregate_abi_variadic_after(l %next)
+vastart %list
+%ok2 =w call $aggregate_abi_variadic_D8_consume(l %list)
+%last =l vaarg %list
+call $aggregate_abi_variadic_after(l %last)
+ret %p
+}
+type :SS12={s 3}
+export function :SS12 $aggregate_abi_variadic_SS12_direct(l %p){
+@e
+%r =:SS12 call $aggregate_abi_variadic_SS12_al(w 77,...,:SS12 %p,l 99,d d_1)
+ret %r
+}
+export function :SS12 $aggregate_abi_variadic_SS12_indirect(l %fn,l %p){
+@e
+%r =:SS12 call %fn(w 77,...,:SS12 %p,l 99,d d_1)
+ret %r
+}
+export function :SS12 $aggregate_abi_variadic_SS12_definition(:SS12 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n,d %d)
+vastart %list
+%n2 =l vaarg %list
+%d2 =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n2,d %d2)
+ret %p
+}
+export function :SS12 $aggregate_abi_variadic_SS12_tail(:SS12 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%ok =w call $aggregate_abi_variadic_SS12_consume(l %list)
+%next =l vaarg %list
+call $aggregate_abi_variadic_after(l %next)
+vastart %list
+%ok2 =w call $aggregate_abi_variadic_SS12_consume(l %list)
+%last =l vaarg %list
+call $aggregate_abi_variadic_after(l %last)
+ret %p
+}
+type :DD16={d 2}
+export function :DD16 $aggregate_abi_variadic_DD16_direct(l %p){
+@e
+%r =:DD16 call $aggregate_abi_variadic_DD16_al(w 77,...,:DD16 %p,l 99,d d_1)
+ret %r
+}
+export function :DD16 $aggregate_abi_variadic_DD16_indirect(l %fn,l %p){
+@e
+%r =:DD16 call %fn(w 77,...,:DD16 %p,l 99,d d_1)
+ret %r
+}
+export function :DD16 $aggregate_abi_variadic_DD16_definition(:DD16 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n,d %d)
+vastart %list
+%n2 =l vaarg %list
+%d2 =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n2,d %d2)
+ret %p
+}
+export function :DD16 $aggregate_abi_variadic_DD16_tail(:DD16 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%ok =w call $aggregate_abi_variadic_DD16_consume(l %list)
+%next =l vaarg %list
+call $aggregate_abi_variadic_after(l %next)
+vastart %list
+%ok2 =w call $aggregate_abi_variadic_DD16_consume(l %list)
+%last =l vaarg %list
+call $aggregate_abi_variadic_after(l %last)
+ret %p
+}
+type :IS16={l,s}
+export function :IS16 $aggregate_abi_variadic_IS16_direct(l %p){
+@e
+%r =:IS16 call $aggregate_abi_variadic_IS16_al(w 77,...,:IS16 %p,l 99,d d_1)
+ret %r
+}
+export function :IS16 $aggregate_abi_variadic_IS16_indirect(l %fn,l %p){
+@e
+%r =:IS16 call %fn(w 77,...,:IS16 %p,l 99,d d_1)
+ret %r
+}
+export function :IS16 $aggregate_abi_variadic_IS16_definition(:IS16 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n,d %d)
+vastart %list
+%n2 =l vaarg %list
+%d2 =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n2,d %d2)
+ret %p
+}
+export function :IS16 $aggregate_abi_variadic_IS16_tail(:IS16 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%ok =w call $aggregate_abi_variadic_IS16_consume(l %list)
+%next =l vaarg %list
+call $aggregate_abi_variadic_after(l %next)
+vastart %list
+%ok2 =w call $aggregate_abi_variadic_IS16_consume(l %list)
+%last =l vaarg %list
+call $aggregate_abi_variadic_after(l %last)
+ret %p
+}
+type :SI16={s,l}
+export function :SI16 $aggregate_abi_variadic_SI16_direct(l %p){
+@e
+%r =:SI16 call $aggregate_abi_variadic_SI16_al(w 77,...,:SI16 %p,l 99,d d_1)
+ret %r
+}
+export function :SI16 $aggregate_abi_variadic_SI16_indirect(l %fn,l %p){
+@e
+%r =:SI16 call %fn(w 77,...,:SI16 %p,l 99,d d_1)
+ret %r
+}
+export function :SI16 $aggregate_abi_variadic_SI16_definition(:SI16 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n,d %d)
+vastart %list
+%n2 =l vaarg %list
+%d2 =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n2,d %d2)
+ret %p
+}
+export function :SI16 $aggregate_abi_variadic_SI16_tail(:SI16 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%ok =w call $aggregate_abi_variadic_SI16_consume(l %list)
+%next =l vaarg %list
+call $aggregate_abi_variadic_after(l %next)
+vastart %list
+%ok2 =w call $aggregate_abi_variadic_SI16_consume(l %list)
+%last =l vaarg %list
+call $aggregate_abi_variadic_after(l %last)
+ret %p
+}
+type :II16={l 2}
+export function :II16 $aggregate_abi_variadic_II16_direct(l %p){
+@e
+%r =:II16 call $aggregate_abi_variadic_II16_al(w 77,...,:II16 %p,l 99,d d_1)
+ret %r
+}
+export function :II16 $aggregate_abi_variadic_II16_indirect(l %fn,l %p){
+@e
+%r =:II16 call %fn(w 77,...,:II16 %p,l 99,d d_1)
+ret %r
+}
+export function :II16 $aggregate_abi_variadic_II16_definition(:II16 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n,d %d)
+vastart %list
+%n2 =l vaarg %list
+%d2 =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n2,d %d2)
+ret %p
+}
+export function :II16 $aggregate_abi_variadic_II16_tail(:II16 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%ok =w call $aggregate_abi_variadic_II16_consume(l %list)
+%next =l vaarg %list
+call $aggregate_abi_variadic_after(l %next)
+vastart %list
+%ok2 =w call $aggregate_abi_variadic_II16_consume(l %list)
+%last =l vaarg %list
+call $aggregate_abi_variadic_after(l %last)
+ret %p
+}
+type :N16=align 16 {s}
+export function :N16 $aggregate_abi_variadic_N16_direct(l %p){
+@e
+%r =:N16 call $aggregate_abi_variadic_N16_al(w 77,...,:N16 %p,l 99,d d_1)
+ret %r
+}
+export function :N16 $aggregate_abi_variadic_N16_indirect(l %fn,l %p){
+@e
+%r =:N16 call %fn(w 77,...,:N16 %p,l 99,d d_1)
+ret %r
+}
+export function :N16 $aggregate_abi_variadic_N16_definition(:N16 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n,d %d)
+vastart %list
+%n2 =l vaarg %list
+%d2 =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n2,d %d2)
+ret %p
+}
+export function :N16 $aggregate_abi_variadic_N16_tail(:N16 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%ok =w call $aggregate_abi_variadic_N16_consume(l %list)
+%next =l vaarg %list
+call $aggregate_abi_variadic_after(l %next)
+vastart %list
+%ok2 =w call $aggregate_abi_variadic_N16_consume(l %list)
+%last =l vaarg %list
+call $aggregate_abi_variadic_after(l %last)
+ret %p
+}
+type :M23={b 23}
+export function :M23 $aggregate_abi_variadic_M23_direct(l %p){
+@e
+%r =:M23 call $aggregate_abi_variadic_M23_al(w 77,...,:M23 %p,l 99,d d_1)
+ret %r
+}
+export function :M23 $aggregate_abi_variadic_M23_indirect(l %fn,l %p){
+@e
+%r =:M23 call %fn(w 77,...,:M23 %p,l 99,d d_1)
+ret %r
+}
+export function :M23 $aggregate_abi_variadic_M23_definition(:M23 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n,d %d)
+vastart %list
+%n2 =l vaarg %list
+%d2 =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n2,d %d2)
+ret %p
+}
+export function :M23 $aggregate_abi_variadic_M23_tail(:M23 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%ok =w call $aggregate_abi_variadic_M23_consume(l %list)
+%next =l vaarg %list
+call $aggregate_abi_variadic_after(l %next)
+vastart %list
+%ok2 =w call $aggregate_abi_variadic_M23_consume(l %list)
+%last =l vaarg %list
+call $aggregate_abi_variadic_after(l %last)
+ret %p
+}
+type :A32=align 16 {l 4}
+export function :A32 $aggregate_abi_variadic_A32_direct(l %p){
+@e
+%r =:A32 call $aggregate_abi_variadic_A32_al(w 77,...,:A32 %p,l 99,d d_1)
+ret %r
+}
+export function :A32 $aggregate_abi_variadic_A32_indirect(l %fn,l %p){
+@e
+%r =:A32 call %fn(w 77,...,:A32 %p,l 99,d d_1)
+ret %r
+}
+export function :A32 $aggregate_abi_variadic_A32_definition(:A32 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n,d %d)
+vastart %list
+%n2 =l vaarg %list
+%d2 =d vaarg %list
+call $aggregate_abi_variadic_scalar_check(w %tag,l %n2,d %d2)
+ret %p
+}
+export function :A32 $aggregate_abi_variadic_A32_tail(:A32 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%ok =w call $aggregate_abi_variadic_A32_consume(l %list)
+%next =l vaarg %list
+call $aggregate_abi_variadic_after(l %next)
+vastart %list
+%ok2 =w call $aggregate_abi_variadic_A32_consume(l %list)
+%last =l vaarg %list
+call $aggregate_abi_variadic_after(l %last)
+ret %p
+}
+export function :M23 $aggregate_abi_variadic_pressure_A(l %fn,l %ss,l %ii,l %m,l %si){
+@e
+%arena =l alloc16 4097
+%r =:M23 call %fn(l 1,l 2,l 3,l 4,:SS12 %ss,:I13 %ii,l 5,:M23 %m,...,:SS12 %ss,:SI16 %si,d d_1,l 99)
+ret %r
+}
+export function :M23 $aggregate_abi_variadic_definition_A(l %a,l %b,l %c,l %d,:SS12 %ss,:I13 %ii,l %last,:M23 %m,...){
+@e
+%list =l alloc8 24
+vastart %list
+%ok =w call $aggregate_abi_variadic_consume_A(l %list,l %ss,l %ii,l %m,l %a,l %b,l %c,l %d,l %last)
+%after =l vaarg %list
+call $aggregate_abi_variadic_check99(l %after)
+ret %m
+}
+export function :M23 $aggregate_abi_variadic_pressure_B1(l %fn,l %m,l %n){
+@e
+%arena =l alloc16 4097
+%r =:M23 call %fn(l 1,l 2,l 3,l 4,l 5,d d_1,d d_2,d d_3,d d_4,d d_5,d d_6,d d_7,d d_8,:M23 %m,:N16 %n,l 66,...,l 99,:N16 %n,l 101)
+ret %r
+}
+export function :M23 $aggregate_abi_variadic_definition_B1(l %a,l %b,l %c,l %d,l %e,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,d %d7,d %d8,:M23 %m,:N16 %n,l %last,...){
+@e
+%list =l alloc8 24
+vastart %list
+%ok =w call $aggregate_abi_variadic_consume_B1(l %list,l %m,l %n)
+%after =l vaarg %list
+call $aggregate_abi_variadic_after(l %after)
+ret %m
+}
+export function :M23 $aggregate_abi_variadic_pressure_B2(l %fn,l %m,l %n){
+@e
+%arena =l alloc16 4097
+%r =:M23 call %fn(l 1,l 2,l 3,l 4,l 5,d d_1,d d_2,d d_3,d d_4,d d_5,d d_6,d d_7,d d_8,:M23 %m,:N16 %n,l 66,...,:N16 %n,l 99,l 101)
+ret %r
+}
+export function :M23 $aggregate_abi_variadic_definition_B2(l %a,l %b,l %c,l %d,l %e,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,d %d7,d %d8,:M23 %m,:N16 %n,l %last,...){
+@e
+%list =l alloc8 24
+vastart %list
+%ok =w call $aggregate_abi_variadic_consume_B2(l %list,l %m,l %n)
+%after =l vaarg %list
+call $aggregate_abi_variadic_after(l %after)
+ret %m
+}
+export function :M23 $aggregate_abi_variadic_definition_count(:M23 %m,w %count,...){
+@e
+%list =l alloc8 48
+%copy =l add %list,24
+vastart %list
+call $aggregate_abi_variadic_copy_list(l %copy,l %list)
+call $aggregate_abi_variadic_consume_count(l %list,w %count)
+call $aggregate_abi_variadic_consume_count(l %copy,w %count)
+vastart %list
+call $aggregate_abi_variadic_consume_count(l %list,w %count)
+ret %m
+}
+export function :M23 $aggregate_abi_variadic_count0(l %m){
+@e
+%r =:M23 call $aggregate_abi_variadic_al_count0(:M23 %m,w 0,...)
+ret %r
+}
+export function :M23 $aggregate_abi_variadic_count1(l %m){
+@e
+%r =:M23 call $aggregate_abi_variadic_al_count1(:M23 %m,w 1,...,d d_1)
+ret %r
+}
+export function :M23 $aggregate_abi_variadic_count2(l %m){
+@e
+%r =:M23 call $aggregate_abi_variadic_al_count2(:M23 %m,w 2,...,d d_1,d d_2)
+ret %r
+}
+export function :M23 $aggregate_abi_variadic_count3(l %m){
+@e
+%r =:M23 call $aggregate_abi_variadic_al_count3(:M23 %m,w 3,...,d d_1,d d_2,d d_3)
+ret %r
+}
+export function :M23 $aggregate_abi_variadic_count4(l %m){
+@e
+%r =:M23 call $aggregate_abi_variadic_al_count4(:M23 %m,w 4,...,d d_1,d d_2,d d_3,d d_4)
+ret %r
+}
+export function :M23 $aggregate_abi_variadic_count5(l %m){
+@e
+%r =:M23 call $aggregate_abi_variadic_al_count5(:M23 %m,w 5,...,d d_1,d d_2,d d_3,d d_4,d d_5)
+ret %r
+}
+export function :M23 $aggregate_abi_variadic_count6(l %m){
+@e
+%r =:M23 call $aggregate_abi_variadic_al_count6(:M23 %m,w 6,...,d d_1,d d_2,d d_3,d d_4,d d_5,d d_6)
+ret %r
+}
+export function :M23 $aggregate_abi_variadic_count7(l %m){
+@e
+%r =:M23 call $aggregate_abi_variadic_al_count7(:M23 %m,w 7,...,d d_1,d d_2,d d_3,d d_4,d d_5,d d_6,d d_7)
+ret %r
+}
+export function :M23 $aggregate_abi_variadic_count8(l %m){
+@e
+%r =:M23 call $aggregate_abi_variadic_al_count8(:M23 %m,w 8,...,d d_1,d d_2,d d_3,d d_4,d d_5,d d_6,d d_7,d d_8)
+ret %r
+}
+export function :M23 $aggregate_abi_variadic_count9(l %m){
+@e
+%r =:M23 call $aggregate_abi_variadic_al_count9(:M23 %m,w 9,...,d d_1,d d_2,d d_3,d d_4,d d_5,d d_6,d d_7,d d_8,d d_9)
+ret %r
+}
+export function :M23 $aggregate_abi_variadic_count10(l %m){
+@e
+%r =:M23 call $aggregate_abi_variadic_al_count10(:M23 %m,w 10,...,d d_1,d d_2,d d_3,d d_4,d d_5,d d_6,d d_7,d d_8,d d_9,d d_10)
+ret %r
+}
+export function w $aggregate_abi_variadic_summary(l %p){
+@e
+%r =w call $aggregate_abi_variadic_read_summary(w 77,...,:SS12 %p,l 99,d d_1)
+ret %r
+}
+export function d $aggregate_abi_variadic_double(l %p){
+@e
+%r =d call $aggregate_abi_variadic_read_double(w 77,...,:SS12 %p,l 99,d d_1)
+ret %r
+}
+export function $aggregate_abi_variadic_effect(l %p){
+@e
+call $aggregate_abi_variadic_read_effect(w 77,...,:SS12 %p,l 99,d d_1)
+ret
+}
+export function :SS12 $aggregate_abi_variadic_recurse(:SS12 %p,w %n,...){
+@e
+%list =l alloc8 24
+vastart %list
+%tail =l vaarg %list
+call $aggregate_abi_variadic_check99(l %tail)
+jnz %n,@again,@done
+@again
+%next =w sub %n,1
+%r =:SS12 call $aggregate_abi_variadic_recurse(:SS12 %p,w %next,...,l 99)
+ret %r
+@done
+ret %p
+}
+export function :M23 $aggregate_abi_variadic_loop(l %fn,l %p,w %count){
+@e
+%arena =l alloc16 4097
+jmp @head
+@head
+%n =w phi @e %count,@body %next
+%source =l phi @e %p,@body %r
+%target =l phi @e %fn,@body %nextfn
+jnz %n,@body,@done
+@body
+%noise =w call $aggregate_abi_variadic_clobber()
+%r =:M23 call %target(w 77,...,:M23 %source,l 99,d d_1)
+%nextfn =l copy %target
+%next =w sub %n,1
+jmp @head
+@done
+ret %source
+}
+export function l $aggregate_abi_variadic_scalar_caller(l %fn,l %p,...){
+@e
+%list =l alloc8 24
+vastart %list
+%first =l vaarg %list
+%r =:SS12 call %fn(w 77,...,:SS12 %p,l 99,d d_1)
+%second =d vaarg %list
+%bits =l cast %second
+%out =l xor %first,%bits
+ret %out
+}
+
+export function :B3 $aggregate_abi_variadic_zero(l %p) {
+@e
+%r =:B3 call $aggregate_abi_variadic_zero_al(w 77,...,:B3 %p,l 99)
+ret %r
+}
+
+common data $"variadic_common\\"={z 16}
+data $"variadic_ordinary\\"={l 0,l 0}
+export function :SS12 $aggregate_abi_variadic_quoted_common(l %fn,l %src) {
+@e
+storel %fn,$"variadic_common\\"+8
+%target =l loadl $"variadic_common\\"+8
+call $aggregate_abi_variadic_clobber()
+%r =:SS12 call %target(w 77,...,:SS12 %src,l 99,d d_1)
+ret %r
+}
+export function :SS12 $aggregate_abi_variadic_quoted_ordinary(l %fn,l %src) {
+@e
+storel %fn,$"variadic_ordinary\\"+8
+%target =l loadl $"variadic_ordinary\\"+8
+call $aggregate_abi_variadic_clobber()
+%r =:SS12 call %target(w 77,...,:SS12 %src,l 99,d d_1)
+ret %r
+}
+export function :SI16 $aggregate_abi_variadic_pressure_C(l %fn,l %si,l %ii) {
+@e
+%r =:SI16 call %fn(w 77,d d_1,d d_2,d d_3,d d_4,d d_5,d d_6,d d_7,d d_8,...,:SI16 %si,l 99,:I13 %ii,d d_1)
+ret %r
+}
+
+export function :SS12 $aggregate_abi_variadic_SS12_isolation(:SS12 %p,...) {
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+call $aggregate_abi_variadic_check99(l %n)
+call $aggregate_abi_variadic_mutate_SS12(l %p)
+ret %p
+}
+
+export function :N16 $aggregate_abi_variadic_N16_isolation(:N16 %p,...) {
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+call $aggregate_abi_variadic_check99(l %n)
+call $aggregate_abi_variadic_mutate_N16(l %p)
+ret %p
+}
+
+export function :M23 $aggregate_abi_variadic_M23_isolation(:M23 %p,...) {
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+call $aggregate_abi_variadic_check99(l %n)
+call $aggregate_abi_variadic_mutate_M23(l %p)
+ret %p
+}

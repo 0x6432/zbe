@@ -66,10 +66,15 @@ pub const Signature = struct {
     arguments: []Argument,
     general_used: u8,
     vector_used: u8,
+    /// Unrounded stack end, including real inter-argument alignment only.
+    stack_bytes: u64,
     outgoing_bytes: u64,
     environment: bool,
     variadic: bool,
     variadic_start: ?usize,
+    pub fn stackEndIncomingOffset(self: *const Signature) error{StackArgumentsTooLarge}!i32 {
+        return incomingOffset(self.stack_bytes, 1, false);
+    }
     pub fn deinit(self: *Signature) void {
         self.allocator.free(self.arguments);
         self.* = undefined;
@@ -355,12 +360,10 @@ fn eligibleDescriptor(module: *const modules.Module, ty: ir.AbiDescriptor, shape
     }
 }
 fn eligibleFunction(module: *const modules.Module, function: *const ir.Function, shapes: *const SmallShapes) Error!void {
-    if (function.hasRecordSignature() and function.variadic) return error.UnsupportedAggregatePlan;
     if (try function.returnAbi()) |ty| try eligibleDescriptor(module, ty, shapes);
     for (function.ordinaryParameters()) |id| try eligibleDescriptor(module, try function.parameterAbi(id), shapes);
     for (function.blocks.items) |block| for (block.instructions.items) |instruction| switch (instruction) {
         .call => |call| {
-            if (call.hasRecordAbi() and call.variadic_start != null) return error.UnsupportedAggregatePlan;
             if (try call.resultAbi(function)) |ty| try eligibleDescriptor(module, ty, shapes);
             for (call.arguments) |argument| try eligibleDescriptor(module, try argument.abi(), shapes);
         },
@@ -485,7 +488,16 @@ fn planSignature(allocator: std.mem.Allocator, module: *const modules.Module, vi
         };
         argument.* = .{ .descriptor = ty, .carrier = ty.carrierType(), .declared_bytes = payload, .location = location };
     }
-    return .{ .allocator = allocator, .result = result, .arguments = arguments, .general_used = gp, .vector_used = sse, .outgoing_bytes = try stackAlign(cursor, 16), .environment = switch (view) {
+    // A newly supported record-bearing variadic function needs a representable
+    // native descriptor pointer to the FIRST unnamed overflow slot. Final call
+    // padding is not part of that coordinate; scalar historical policy is kept.
+    switch (view) {
+        .function => |f| if (f.variadic and f.hasRecordSignature()) {
+            _ = try incomingOffset(cursor, 1, false);
+        },
+        .call => {},
+    }
+    return .{ .allocator = allocator, .result = result, .arguments = arguments, .general_used = gp, .vector_used = sse, .stack_bytes = cursor, .outgoing_bytes = try stackAlign(cursor, 16), .environment = switch (view) {
         .function => |f| f.environment != null,
         .call => |c| c.call.environment != null,
     }, .variadic = switch (view) {

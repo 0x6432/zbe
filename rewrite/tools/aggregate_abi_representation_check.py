@@ -82,8 +82,8 @@ def main():
         # Individual plain Tiny signatures/calls (including unreachable calls)
         # become positive native cases. Combined vararg/overaligned
         # metadata and every malformed syntax case remain explicit refusals.
-        eligible = [positive[i] for i in (1, 2, 3, 4, 5, 7, 8)]
-        unsupported = [positive[i] for i in (0, 6, 9)]
+        eligible = [positive[i] for i in (1, 2, 3, 4, 5, 6, 7, 8)]
+        unsupported = [positive[i] for i in (0, 9)]
         for text in eligible:
             il.write_text(text)
             subprocess.run([*compiler, str(il), str(asm)], check=True, timeout=45)

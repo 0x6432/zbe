@@ -1,0 +1,469 @@
+{
+  "types": [
+    {
+      "name": "B3",
+      "IL": "{b 3}",
+      "size": 3,
+      "alignment": 1,
+      "fields": [
+        [
+          "b[0]",
+          0,
+          1
+        ],
+        [
+          "b[1]",
+          1,
+          1
+        ],
+        [
+          "b[2]",
+          2,
+          1
+        ]
+      ]
+    },
+    {
+      "name": "I13",
+      "IL": "{b 13}",
+      "size": 13,
+      "alignment": 1,
+      "fields": [
+        [
+          "b[0]",
+          0,
+          1
+        ],
+        [
+          "b[1]",
+          1,
+          1
+        ],
+        [
+          "b[2]",
+          2,
+          1
+        ],
+        [
+          "b[3]",
+          3,
+          1
+        ],
+        [
+          "b[4]",
+          4,
+          1
+        ],
+        [
+          "b[5]",
+          5,
+          1
+        ],
+        [
+          "b[6]",
+          6,
+          1
+        ],
+        [
+          "b[7]",
+          7,
+          1
+        ],
+        [
+          "b[8]",
+          8,
+          1
+        ],
+        [
+          "b[9]",
+          9,
+          1
+        ],
+        [
+          "b[10]",
+          10,
+          1
+        ],
+        [
+          "b[11]",
+          11,
+          1
+        ],
+        [
+          "b[12]",
+          12,
+          1
+        ]
+      ]
+    },
+    {
+      "name": "W8",
+      "IL": "{w,s}",
+      "size": 8,
+      "alignment": 4,
+      "fields": [
+        [
+          "u",
+          0,
+          4
+        ],
+        [
+          "f",
+          4,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "S4",
+      "IL": "{s}",
+      "size": 4,
+      "alignment": 4,
+      "fields": [
+        [
+          "f",
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "D8",
+      "IL": "{d}",
+      "size": 8,
+      "alignment": 8,
+      "fields": [
+        [
+          "d",
+          0,
+          8
+        ]
+      ]
+    },
+    {
+      "name": "SS12",
+      "IL": "{s 3}",
+      "size": 12,
+      "alignment": 4,
+      "fields": [
+        [
+          "f[0]",
+          0,
+          4
+        ],
+        [
+          "f[1]",
+          4,
+          4
+        ],
+        [
+          "f[2]",
+          8,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "DD16",
+      "IL": "{d 2}",
+      "size": 16,
+      "alignment": 8,
+      "fields": [
+        [
+          "d[0]",
+          0,
+          8
+        ],
+        [
+          "d[1]",
+          8,
+          8
+        ]
+      ]
+    },
+    {
+      "name": "IS16",
+      "IL": "{l,s}",
+      "size": 16,
+      "alignment": 8,
+      "fields": [
+        [
+          "u",
+          0,
+          8
+        ],
+        [
+          "f",
+          8,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "SI16",
+      "IL": "{s,l}",
+      "size": 16,
+      "alignment": 8,
+      "fields": [
+        [
+          "f",
+          0,
+          4
+        ],
+        [
+          "u",
+          8,
+          8
+        ]
+      ]
+    },
+    {
+      "name": "II16",
+      "IL": "{l 2}",
+      "size": 16,
+      "alignment": 8,
+      "fields": [
+        [
+          "u[0]",
+          0,
+          8
+        ],
+        [
+          "u[1]",
+          8,
+          8
+        ]
+      ]
+    },
+    {
+      "name": "N16",
+      "IL": "align 16 {s}",
+      "size": 16,
+      "alignment": 16,
+      "fields": [
+        [
+          "f",
+          0,
+          4
+        ]
+      ]
+    },
+    {
+      "name": "M23",
+      "IL": "{b 23}",
+      "size": 23,
+      "alignment": 1,
+      "fields": [
+        [
+          "b[0]",
+          0,
+          1
+        ],
+        [
+          "b[1]",
+          1,
+          1
+        ],
+        [
+          "b[2]",
+          2,
+          1
+        ],
+        [
+          "b[3]",
+          3,
+          1
+        ],
+        [
+          "b[4]",
+          4,
+          1
+        ],
+        [
+          "b[5]",
+          5,
+          1
+        ],
+        [
+          "b[6]",
+          6,
+          1
+        ],
+        [
+          "b[7]",
+          7,
+          1
+        ],
+        [
+          "b[8]",
+          8,
+          1
+        ],
+        [
+          "b[9]",
+          9,
+          1
+        ],
+        [
+          "b[10]",
+          10,
+          1
+        ],
+        [
+          "b[11]",
+          11,
+          1
+        ],
+        [
+          "b[12]",
+          12,
+          1
+        ],
+        [
+          "b[13]",
+          13,
+          1
+        ],
+        [
+          "b[14]",
+          14,
+          1
+        ],
+        [
+          "b[15]",
+          15,
+          1
+        ],
+        [
+          "b[16]",
+          16,
+          1
+        ],
+        [
+          "b[17]",
+          17,
+          1
+        ],
+        [
+          "b[18]",
+          18,
+          1
+        ],
+        [
+          "b[19]",
+          19,
+          1
+        ],
+        [
+          "b[20]",
+          20,
+          1
+        ],
+        [
+          "b[21]",
+          21,
+          1
+        ],
+        [
+          "b[22]",
+          22,
+          1
+        ]
+      ]
+    },
+    {
+      "name": "A32",
+      "IL": "align 16 {l 4}",
+      "size": 32,
+      "alignment": 16,
+      "fields": [
+        [
+          "u[0]",
+          0,
+          8
+        ],
+        [
+          "u[1]",
+          8,
+          8
+        ],
+        [
+          "u[2]",
+          16,
+          8
+        ],
+        [
+          "u[3]",
+          24,
+          8
+        ]
+      ]
+    }
+  ],
+  "contract": "C stdarg aggregate tail consumption and native named record variadic definitions; C helper shares SAME LIVE va_list pointer; aggregate field types NOT default promoted",
+  "literal_stack_oracles": {
+    "A": {
+      "hidden_RDI": true,
+      "named_gp_used": 6,
+      "named_sse_used": 2,
+      "named_stack_raw": 40,
+      "named_outgoing": 48,
+      "overflow_rbp": 56,
+      "I13_stack": 0,
+      "M23_stack": 16,
+      "tail_SS12_xmm": [
+        2,
+        3
+      ],
+      "tail_SI16_stack": 40,
+      "tail_double_xmm": 4,
+      "tail_long_stack": 56,
+      "call_raw": 64,
+      "call_outgoing": 64,
+      "AL": 5
+    },
+    "B1": {
+      "hidden_RDI": true,
+      "named_gp_used": 6,
+      "named_sse_used": 8,
+      "named_M23_stack": 0,
+      "named_N16_stack": 32,
+      "last_named_long_stack": 48,
+      "named_stack_raw": 56,
+      "named_outgoing": 64,
+      "overflow_rbp": 72,
+      "tail_long_stack": 56,
+      "tail_N16_stack": 64,
+      "last_tail_long_stack": 80,
+      "call_raw": 88,
+      "call_outgoing": 96,
+      "AL": 8
+    },
+    "B2": {
+      "named_stack_raw": 56,
+      "named_outgoing": 64,
+      "overflow_rbp": 72,
+      "tail_N16_stack": 64,
+      "tail_long_stack": 80,
+      "last_tail_long_stack": 88,
+      "call_raw": 96,
+      "call_outgoing": 96,
+      "AL": 8
+    },
+    "C": {
+      "named_gp_used": 1,
+      "named_sse_used": 8,
+      "tail_SI16_stack": 0,
+      "tail_long_register": "RSI",
+      "tail_I13_registers": [
+        "RDX",
+        "RCX"
+      ],
+      "tail_double_stack": 16,
+      "call_raw": 24,
+      "call_outgoing": 32,
+      "AL": 8,
+      "declared_I13_bytes": "all 0x44"
+    }
+  }
+}

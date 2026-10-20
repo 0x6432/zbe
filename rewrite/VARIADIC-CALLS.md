@@ -5,7 +5,8 @@ long-address indirect scalar/void call argument list. It records the number of
 named arguments before the marker. The marker is not an argument, SSA value or
 implicit type conversion. Native variadic definitions/vastart are a separate slice
 (VARIADIC-FUNCTIONS.md);
-aggregates and combined environment/variadic calls remain unsupported; nonvariadic environments are separate (ENVIRONMENT-CALLS.md).
+bounded aggregate variadics are supported separately (AGGREGATE-VARIADIC.md);
+combined environment/variadic calls remain unsupported; nonvariadic environments are separate (ENVIRONMENT-CALLS.md).
 
 ```text
 %count =w call $snprintf(l %buffer, l 64, l $format, ..., w 123, d d_1.5)
@@ -108,3 +109,11 @@ counts/results and any corrections are recorded in HANDOFF.md.
 A separate consumer-only slice now accepts scalar vaarg using a caller-supplied
 native descriptor in ordinary functions (VAARG-CONSUMERS.md). Native headers/vastart now reuse this consumer in VARIADIC-FUNCTIONS.md;
 interpreter descriptor emulation remains unsupported.
+
+## Aggregate variadic extension
+
+Bounded native record variadic calls and record-bearing definitions/vastart are
+now supported separately: [AGGREGATE-VARIADIC.md](AGGREGATE-VARIADIC.md). Earlier
+scalar/nonvariadic descriptions above describe their original slice, not a blanket
+refusal of this extension. IL vaarg remains scalar-only; ENV+varargs and aggregate
+interpretation remain refused. Raw stack end differs from rounded outgoing bytes.

@@ -335,7 +335,7 @@ const Emitter = struct {
                     },
                 }
                 // Only scalar variadic signatures use the old vastart cursor.
-                if (f.variadic) _ = try arguments.next(ty);
+                if (f.variadic and !f.hasRecordSignature()) _ = try arguments.next(ty);
                 continue;
             }
             switch (try arguments.next(ty)) {
@@ -361,7 +361,10 @@ const Emitter = struct {
             const id: ir.BlockId = @fromBackingInt(@as(u32, @intCast(number)));
             try self.print("\".Lzbe@{d}@b{d}\":\n", .{ index, number });
             for (block.instructions.items, 0..) |instruction, instruction_index| switch (instruction) {
-                .va_start => |start| try self.vaStart(start.list, arguments),
+                .va_start => |start| if (f.hasRecordSignature())
+                    try self.vaStartRecord(start.list, &self.current_plan.?.signature)
+                else
+                    try self.vaStart(start.list, arguments),
                 .va_argument => |argument| try self.vaArgument(argument.result, argument.list),
                 .allocate => |allocation| try self.allocate(allocation.result, allocation.size, allocation.alignment),
                 .convert => |conversion| try self.convert(conversion.result, conversion.op, conversion.operand),
@@ -677,6 +680,9 @@ const Emitter = struct {
         // All load(.accumulator) paths write only RAX, including quoted COMMON
         // cells. Environment comes LAST, preserving target R11 and all ABI args.
         if (call.environment) |environment| try self.load(environment, .accumulator);
+        // Marked sites cannot have ENV. AL follows EVERY accumulator/address
+        // load, including late target parking, and counts occupied XMM lanes.
+        if (call.variadic_start != null) try self.print("\tmovb ${d}, %al\n", .{site.signature.vector_used});
         switch (call.callee) {
             .symbol => |symbol| try self.print("\tcall {f}\n", .{try self.symbolReference(symbol)}),
             .address => try self.print("\tcall *%r11\n", .{}),
@@ -845,6 +851,14 @@ const Emitter = struct {
         try self.load(list, .accumulator);
         try self.print("\tmovq %rax, %r10\n\tmovl ${d}, 0(%r10)\n\tmovl ${d}, 4(%r10)\n", .{ named.general_used * 8, 48 + named.vector_used * 16 });
         try self.print("\tleaq {d}(%rbp), %rax\n\tmovq %rax, 8(%r10)\n", .{16 + named.stack_used * 8});
+        try self.print("\tleaq -{d}(%rbp), %rax\n\tmovq %rax, 16(%r10)\n", .{self.frame.variadic_save_end.?});
+    }
+
+    fn vaStartRecord(self: *Emitter, list: ir.Operand, named: *const abi_plan.Signature) Error!void {
+        const incoming = try named.stackEndIncomingOffset();
+        try self.load(list, .accumulator);
+        try self.print("\tmovq %rax, %r10\n\tmovl ${d}, 0(%r10)\n\tmovl ${d}, 4(%r10)\n", .{ named.general_used * 8, 48 + named.vector_used * 16 });
+        try self.print("\tleaq {d}(%rbp), %rax\n\tmovq %rax, 8(%r10)\n", .{incoming});
         try self.print("\tleaq -{d}(%rbp), %rax\n\tmovq %rax, 16(%r10)\n", .{self.frame.variadic_save_end.?});
     }
 

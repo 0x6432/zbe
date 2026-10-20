@@ -1,0 +1,203 @@
+{
+  "baseline_commit": "b3fec4ae1ad65c6f8ef5e9d6b0620463bad6d0c8",
+  "primary_oracle": "Independent C literal field layouts, explicit QBE ENV ASM bridges, raw bit/guard contents and GP/SSE/stack coordinates. Golden assembly generated ONLY with published b3fec4, never candidate.",
+  "fixture_sha256": {
+    "aggregate_abi_variadic.ssa": "530a9b187e7a22e572a8b596a57c86a80a8939e5478d78097ad0891ace253256",
+    "aggregate_abi_variadic.c": "2f58700073b55ebdc91748ef7a59788f9301addb8c2259df17157de5271eec13",
+    "aggregate_abi_variadic_shim.s": "ead7ec71b09ebaf2f6b737e6a69d1daaeff62d1518e755473200be280e0bf8c0",
+    "aggregate_abi_variadic_layouts.json": "f6c987ec9c7fef196d323081f2163a12d4026517a6fd43592779197e9b3c4c0a",
+    "aggregate_abi_variadic_mixed.ssa": "63e99369850dce2c2bd3298d198190d1115069d8561169bbbef3ffb88060b137",
+    "aggregate_abi_variadic_scalar_reference.ssa": "5ae10d5cef198cde2258ec3d5c5e09c338184a1163d1fd8d848f44651764229c"
+  },
+  "whole_record": {
+    "aggregate_abi_native.ssa": {
+      "source_sha256": "b2152654e6fef9d33c55a724a627c1223d66a1a2180f979a41a5dad7bd10d57a",
+      "assembly_sha256": {
+        "0": "ba6f5685d655ca05f7f5aa92e26fe5f151cf61179c148b633c49d554b148f852",
+        "1": "ba6f5685d655ca05f7f5aa92e26fe5f151cf61179c148b633c49d554b148f852",
+        "2": "c1e4b2817562b5ac05d77594ba569a55929f3f36417a7bdc94f6183090b61f2c",
+        "3": "c1e4b2817562b5ac05d77594ba569a55929f3f36417a7bdc94f6183090b61f2c",
+        "4": "f4f0a51ba754515bf1d1e963c5e12e034e541c02f1bfd9d05bfd619a4adb420e",
+        "5": "f4f0a51ba754515bf1d1e963c5e12e034e541c02f1bfd9d05bfd619a4adb420e",
+        "6": "f4f0a51ba754515bf1d1e963c5e12e034e541c02f1bfd9d05bfd619a4adb420e",
+        "7": "f4f0a51ba754515bf1d1e963c5e12e034e541c02f1bfd9d05bfd619a4adb420e"
+      }
+    },
+    "aggregate_abi_small_integer.ssa": {
+      "source_sha256": "d6285f3a8ea40c213a64c4d23a44c41173bfb7cf4f0d74ea79c6d2c53a1a8a3e",
+      "assembly_sha256": {
+        "0": "f2403f2474f24f7dc01e583a1900f67191d05683cea1b160003bc3178080d710",
+        "1": "f2403f2474f24f7dc01e583a1900f67191d05683cea1b160003bc3178080d710",
+        "2": "f1cc6d06952ec5e60621b6349bfc6952438d5c1ba91434ccd004caa49132bc3f",
+        "3": "f1cc6d06952ec5e60621b6349bfc6952438d5c1ba91434ccd004caa49132bc3f",
+        "4": "382ab3c9c439db255a65eb3dd444dc27fd0ad42135e32620114cec590de8c42a",
+        "5": "382ab3c9c439db255a65eb3dd444dc27fd0ad42135e32620114cec590de8c42a",
+        "6": "382ab3c9c439db255a65eb3dd444dc27fd0ad42135e32620114cec590de8c42a",
+        "7": "382ab3c9c439db255a65eb3dd444dc27fd0ad42135e32620114cec590de8c42a"
+      }
+    },
+    "aggregate_abi_small_sse.ssa": {
+      "source_sha256": "4f17966330717ed86638159ad1c2c104a84fb56e49f2a0290b0ecb29e8658313",
+      "assembly_sha256": {
+        "0": "6978419f59e17f68ee677c6f4235ec9ce923af6a6aae1a17d1c3fc7622d06b05",
+        "1": "6978419f59e17f68ee677c6f4235ec9ce923af6a6aae1a17d1c3fc7622d06b05",
+        "2": "624f6d322dbdaef60ce591b9b7ae0f50d7be78e99cbc1722f19755bfbf23a78f",
+        "3": "624f6d322dbdaef60ce591b9b7ae0f50d7be78e99cbc1722f19755bfbf23a78f",
+        "4": "a9428f13e5529e55c080e9ade88a7fb0e77103b9e56d387a9d2afe62d4b9eee5",
+        "5": "a9428f13e5529e55c080e9ade88a7fb0e77103b9e56d387a9d2afe62d4b9eee5",
+        "6": "a9428f13e5529e55c080e9ade88a7fb0e77103b9e56d387a9d2afe62d4b9eee5",
+        "7": "a9428f13e5529e55c080e9ade88a7fb0e77103b9e56d387a9d2afe62d4b9eee5"
+      }
+    },
+    "aggregate_abi_align16.ssa": {
+      "source_sha256": "e5de81cbecc3edb1b9197655e578dc9a3d856c7ce6a01bc1d117807512c0d3f2",
+      "assembly_sha256": {
+        "0": "3adcee2fdc630f174b04bd9078bc0f3ea598988598f8db8d0e6e4da9b017d5be",
+        "1": "3adcee2fdc630f174b04bd9078bc0f3ea598988598f8db8d0e6e4da9b017d5be",
+        "2": "6e530905f043cbb71d7053583d36d114a48f0e1f30d50383b13a25661fafd733",
+        "3": "6e530905f043cbb71d7053583d36d114a48f0e1f30d50383b13a25661fafd733",
+        "4": "54700908810642c9a26ec1dd45a998081f0b2c14d42db1f47c4f0f4827448f13",
+        "5": "54700908810642c9a26ec1dd45a998081f0b2c14d42db1f47c4f0f4827448f13",
+        "6": "54700908810642c9a26ec1dd45a998081f0b2c14d42db1f47c4f0f4827448f13",
+        "7": "54700908810642c9a26ec1dd45a998081f0b2c14d42db1f47c4f0f4827448f13"
+      }
+    },
+    "aggregate_abi_call_targets.ssa": {
+      "source_sha256": "b441027b3a7a75159d9ae51833914e879704e83563a92c62af9d24bdde305d76",
+      "assembly_sha256": {
+        "0": "8365d2cf13345d1d73fae2a314a93ed177f3e723f62a2d070148e44f3be293f6",
+        "1": "8365d2cf13345d1d73fae2a314a93ed177f3e723f62a2d070148e44f3be293f6",
+        "2": "e7405be8d9628c7e275fa0e96d3b01949cfd92ed23592ae4e5258b6daa785091",
+        "3": "e7405be8d9628c7e275fa0e96d3b01949cfd92ed23592ae4e5258b6daa785091",
+        "4": "d6659d9d5ba274253215310c073e5710a5a3b06c466e717f72aa13fef7299e0a",
+        "5": "d6659d9d5ba274253215310c073e5710a5a3b06c466e717f72aa13fef7299e0a",
+        "6": "d6659d9d5ba274253215310c073e5710a5a3b06c466e717f72aa13fef7299e0a",
+        "7": "d6659d9d5ba274253215310c073e5710a5a3b06c466e717f72aa13fef7299e0a"
+      }
+    }
+  },
+  "matched_fragments": {
+    "prefix": {
+      "0": {
+        "common_address": "208dbba85c2ded7f342444a8723142d98c15996e9dece7eeb91ebd40366b2b27",
+        "ordinary_address": "548cdaed1637026684b44e2d3b871015878d3af47556cf880a0e41c71536bd32",
+        "external_address": "a17b0a7895c54967e06b7bd53b535c1a6ef721ce5fba56055ee4a9d2b115d697",
+        "T": "67fa7000e85e1c5f5ef3e8b68388e12c46706502bef7b7a4551ffad07193376c"
+      },
+      "1": {
+        "common_address": "208dbba85c2ded7f342444a8723142d98c15996e9dece7eeb91ebd40366b2b27",
+        "ordinary_address": "548cdaed1637026684b44e2d3b871015878d3af47556cf880a0e41c71536bd32",
+        "external_address": "a17b0a7895c54967e06b7bd53b535c1a6ef721ce5fba56055ee4a9d2b115d697",
+        "T": "67fa7000e85e1c5f5ef3e8b68388e12c46706502bef7b7a4551ffad07193376c"
+      },
+      "2": {
+        "common_address": "208dbba85c2ded7f342444a8723142d98c15996e9dece7eeb91ebd40366b2b27",
+        "ordinary_address": "548cdaed1637026684b44e2d3b871015878d3af47556cf880a0e41c71536bd32",
+        "external_address": "a17b0a7895c54967e06b7bd53b535c1a6ef721ce5fba56055ee4a9d2b115d697",
+        "T": "67fa7000e85e1c5f5ef3e8b68388e12c46706502bef7b7a4551ffad07193376c"
+      },
+      "3": {
+        "common_address": "208dbba85c2ded7f342444a8723142d98c15996e9dece7eeb91ebd40366b2b27",
+        "ordinary_address": "548cdaed1637026684b44e2d3b871015878d3af47556cf880a0e41c71536bd32",
+        "external_address": "a17b0a7895c54967e06b7bd53b535c1a6ef721ce5fba56055ee4a9d2b115d697",
+        "T": "67fa7000e85e1c5f5ef3e8b68388e12c46706502bef7b7a4551ffad07193376c"
+      },
+      "4": {
+        "common_address": "208dbba85c2ded7f342444a8723142d98c15996e9dece7eeb91ebd40366b2b27",
+        "ordinary_address": "548cdaed1637026684b44e2d3b871015878d3af47556cf880a0e41c71536bd32",
+        "external_address": "a17b0a7895c54967e06b7bd53b535c1a6ef721ce5fba56055ee4a9d2b115d697",
+        "T": "67fa7000e85e1c5f5ef3e8b68388e12c46706502bef7b7a4551ffad07193376c"
+      },
+      "5": {
+        "common_address": "208dbba85c2ded7f342444a8723142d98c15996e9dece7eeb91ebd40366b2b27",
+        "ordinary_address": "548cdaed1637026684b44e2d3b871015878d3af47556cf880a0e41c71536bd32",
+        "external_address": "a17b0a7895c54967e06b7bd53b535c1a6ef721ce5fba56055ee4a9d2b115d697",
+        "T": "67fa7000e85e1c5f5ef3e8b68388e12c46706502bef7b7a4551ffad07193376c"
+      },
+      "6": {
+        "common_address": "208dbba85c2ded7f342444a8723142d98c15996e9dece7eeb91ebd40366b2b27",
+        "ordinary_address": "548cdaed1637026684b44e2d3b871015878d3af47556cf880a0e41c71536bd32",
+        "external_address": "a17b0a7895c54967e06b7bd53b535c1a6ef721ce5fba56055ee4a9d2b115d697",
+        "T": "67fa7000e85e1c5f5ef3e8b68388e12c46706502bef7b7a4551ffad07193376c"
+      },
+      "7": {
+        "common_address": "208dbba85c2ded7f342444a8723142d98c15996e9dece7eeb91ebd40366b2b27",
+        "ordinary_address": "548cdaed1637026684b44e2d3b871015878d3af47556cf880a0e41c71536bd32",
+        "external_address": "a17b0a7895c54967e06b7bd53b535c1a6ef721ce5fba56055ee4a9d2b115d697",
+        "T": "67fa7000e85e1c5f5ef3e8b68388e12c46706502bef7b7a4551ffad07193376c"
+      }
+    },
+    "suffix": {
+      "0": {
+        "common_address": "31baff5090a11d0aa10db45852922cfd561e94dc0be1005360b2d947f0e7880b",
+        "ordinary_address": "f39e5924979411cba1784ecfdfd34c69f10bbe6e42ce26fe152da7e9887c022c",
+        "external_address": "7318a5f1edf1bc47e3b38c079e6f760310c10b808caa0696a7260571971ad280",
+        "T": "08201a8e3e2addc88235f7aea9302a26275dfdfd999adbdbd1614e244d0ac824"
+      },
+      "1": {
+        "common_address": "31baff5090a11d0aa10db45852922cfd561e94dc0be1005360b2d947f0e7880b",
+        "ordinary_address": "f39e5924979411cba1784ecfdfd34c69f10bbe6e42ce26fe152da7e9887c022c",
+        "external_address": "7318a5f1edf1bc47e3b38c079e6f760310c10b808caa0696a7260571971ad280",
+        "T": "08201a8e3e2addc88235f7aea9302a26275dfdfd999adbdbd1614e244d0ac824"
+      },
+      "2": {
+        "common_address": "31baff5090a11d0aa10db45852922cfd561e94dc0be1005360b2d947f0e7880b",
+        "ordinary_address": "f39e5924979411cba1784ecfdfd34c69f10bbe6e42ce26fe152da7e9887c022c",
+        "external_address": "7318a5f1edf1bc47e3b38c079e6f760310c10b808caa0696a7260571971ad280",
+        "T": "08201a8e3e2addc88235f7aea9302a26275dfdfd999adbdbd1614e244d0ac824"
+      },
+      "3": {
+        "common_address": "31baff5090a11d0aa10db45852922cfd561e94dc0be1005360b2d947f0e7880b",
+        "ordinary_address": "f39e5924979411cba1784ecfdfd34c69f10bbe6e42ce26fe152da7e9887c022c",
+        "external_address": "7318a5f1edf1bc47e3b38c079e6f760310c10b808caa0696a7260571971ad280",
+        "T": "08201a8e3e2addc88235f7aea9302a26275dfdfd999adbdbd1614e244d0ac824"
+      },
+      "4": {
+        "common_address": "31baff5090a11d0aa10db45852922cfd561e94dc0be1005360b2d947f0e7880b",
+        "ordinary_address": "f39e5924979411cba1784ecfdfd34c69f10bbe6e42ce26fe152da7e9887c022c",
+        "external_address": "7318a5f1edf1bc47e3b38c079e6f760310c10b808caa0696a7260571971ad280",
+        "T": "08201a8e3e2addc88235f7aea9302a26275dfdfd999adbdbd1614e244d0ac824"
+      },
+      "5": {
+        "common_address": "31baff5090a11d0aa10db45852922cfd561e94dc0be1005360b2d947f0e7880b",
+        "ordinary_address": "f39e5924979411cba1784ecfdfd34c69f10bbe6e42ce26fe152da7e9887c022c",
+        "external_address": "7318a5f1edf1bc47e3b38c079e6f760310c10b808caa0696a7260571971ad280",
+        "T": "08201a8e3e2addc88235f7aea9302a26275dfdfd999adbdbd1614e244d0ac824"
+      },
+      "6": {
+        "common_address": "31baff5090a11d0aa10db45852922cfd561e94dc0be1005360b2d947f0e7880b",
+        "ordinary_address": "f39e5924979411cba1784ecfdfd34c69f10bbe6e42ce26fe152da7e9887c022c",
+        "external_address": "7318a5f1edf1bc47e3b38c079e6f760310c10b808caa0696a7260571971ad280",
+        "T": "08201a8e3e2addc88235f7aea9302a26275dfdfd999adbdbd1614e244d0ac824"
+      },
+      "7": {
+        "common_address": "31baff5090a11d0aa10db45852922cfd561e94dc0be1005360b2d947f0e7880b",
+        "ordinary_address": "f39e5924979411cba1784ecfdfd34c69f10bbe6e42ce26fe152da7e9887c022c",
+        "external_address": "7318a5f1edf1bc47e3b38c079e6f760310c10b808caa0696a7260571971ad280",
+        "T": "08201a8e3e2addc88235f7aea9302a26275dfdfd999adbdbd1614e244d0ac824"
+      }
+    }
+  },
+  "whole_scalar_reference": {
+    "prefix": {
+      "0": "537ed56132983d3a8ed5e756d7a0909c74f173e43bc6a6f0ccce3d41e876811f",
+      "1": "537ed56132983d3a8ed5e756d7a0909c74f173e43bc6a6f0ccce3d41e876811f",
+      "2": "537ed56132983d3a8ed5e756d7a0909c74f173e43bc6a6f0ccce3d41e876811f",
+      "3": "537ed56132983d3a8ed5e756d7a0909c74f173e43bc6a6f0ccce3d41e876811f",
+      "4": "2a01c12cb372de2127ec9701f91b7e891a3cb5a94c3ee1fccafbf86d4c864777",
+      "5": "2a01c12cb372de2127ec9701f91b7e891a3cb5a94c3ee1fccafbf86d4c864777",
+      "6": "2a01c12cb372de2127ec9701f91b7e891a3cb5a94c3ee1fccafbf86d4c864777",
+      "7": "2a01c12cb372de2127ec9701f91b7e891a3cb5a94c3ee1fccafbf86d4c864777"
+    },
+    "suffix": {
+      "0": "d05c26ba2ce2fb75dcdad6d169b293d0cf10443a958e27005916ffaf1283ef13",
+      "1": "d05c26ba2ce2fb75dcdad6d169b293d0cf10443a958e27005916ffaf1283ef13",
+      "2": "d05c26ba2ce2fb75dcdad6d169b293d0cf10443a958e27005916ffaf1283ef13",
+      "3": "d05c26ba2ce2fb75dcdad6d169b293d0cf10443a958e27005916ffaf1283ef13",
+      "4": "1dd85ea6bb17efca3f773bdf4cf3b6d846426f12aef0e60d1b28d2eadec68454",
+      "5": "1dd85ea6bb17efca3f773bdf4cf3b6d846426f12aef0e60d1b28d2eadec68454",
+      "6": "1dd85ea6bb17efca3f773bdf4cf3b6d846426f12aef0e60d1b28d2eadec68454",
+      "7": "1dd85ea6bb17efca3f773bdf4cf3b6d846426f12aef0e60d1b28d2eadec68454"
+    }
+  }
+}

@@ -173,6 +173,16 @@ def main():
             'type :T={s}\nfunction w $f(l %p,l %fn){\n@e\n%r =:T call %fn(l %p,...)\nret 1\n}',
             'type :T={s}\nfunction w $f(l %p){\n@e\n%r =:T call $external(env %p,...)\nret 1\n}',
         ]
+        # Exactly these two formerly refused cases are approved by the variadic
+        # endpoint. Their execution oracle is aggregate_abi_variadic_check.py.
+        approved_variadic = [invalid[i] for i in (3, 4)]
+        for text in approved_variadic:
+            text = text.replace("{ @start ", "{\n@start\n").replace(" ret ", "\nret ").replace(" }\n", "\n}\n")
+            il.write_text(text)
+            subprocess.run([*compiler, str(il), str(asm)], check=True, timeout=90)
+            if not asm.read_bytes().startswith(b'.text'): raise SystemExit('Approved variadic case emitted no code')
+
+        invalid = [source for source in invalid if source not in approved_variadic]
         for text in invalid:
             expected_error = b'invalid_ir' if 'env %e,l %p,...' in text or 'env %p,...' in text else b'UnsupportedAggregateAbi'
             il.write_text(text)

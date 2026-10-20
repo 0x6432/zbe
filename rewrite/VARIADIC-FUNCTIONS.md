@@ -4,8 +4,9 @@ The Linux AMD64 scalar slice accepts one final `...` marker in a function header
 including a sole marker. `Function.variadic` defaults false; named parameters keep
 their existing identities and base/subword ABI annotations. The marker is not an
 SSA value, named parameter or implicit promotion. Missing commas, repeated/nonfinal
-markers and trailing commas are rejected. Aggregates, combined environment/variadic calls, other
-platforms and full ABI/backend parity remain outside this slice.
+markers and trailing commas are rejected. Bounded aggregate variadic definitions
+are supported separately (AGGREGATE-VARIADIC.md). Combined environment/variadic
+calls, other platforms and full ABI/backend parity remain outside this slice.
 
 ```text
 function l $first(w %anchor, ...) {
@@ -99,3 +100,11 @@ va_list descriptors. Reset/copy/loop/recursive behavior, live descriptor/object
 state across calls, outgoing reservation, preserved originals and protected-stack
 probe negative controls are exercised in PIE/nonPIE and every option combination.
 Actual completed results and corrections are recorded in HANDOFF.md, not assumed.
+
+## Aggregate variadic extension
+
+Bounded native record variadic calls and record-bearing definitions/vastart are
+now supported separately: [AGGREGATE-VARIADIC.md](AGGREGATE-VARIADIC.md). Earlier
+scalar/nonvariadic descriptions above describe their original slice, not a blanket
+refusal of this extension. IL vaarg remains scalar-only; ENV+varargs and aggregate
+interpretation remain refused. Raw stack end differs from rounded outgoing bytes.

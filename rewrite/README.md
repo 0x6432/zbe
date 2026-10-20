@@ -100,3 +100,8 @@ arguments/results ([AMD64-MEMORY-ABI.md](AMD64-MEMORY-ABI.md)); externally suppl
 or stale plans are never emitter inputs. Aggregate interpretation remains refused.
 
 Small SSE/mixed record calls and returns are bounded separately in [SMALL-SSE-ABI.md](SMALL-SSE-ABI.md), with offset-sensitive class merging and whole-argument rollback across both register banks.
+
+Bounded regular align16 record calls/results omit padding-only NO_CLASS lanes
+without shrinking declared storage ([ALIGN16-ABI.md](ALIGN16-ABI.md)). This follows
+official SysV/C semantics, not pinned-QBE padding-lane oracle parity; aggregate
+interpreter and env/vararg/indirect refusals remain unchanged.

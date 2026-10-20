@@ -1,0 +1,237 @@
+{
+  "cases": [
+    {
+      "name": "B",
+      "fields": "b",
+      "size": 16,
+      "alignment": 16,
+      "initialized_fields": [
+        [
+          "b",
+          0,
+          1
+        ]
+      ],
+      "classes": "I"
+    },
+    {
+      "name": "H",
+      "fields": "h",
+      "size": 16,
+      "alignment": 16,
+      "initialized_fields": [
+        [
+          "h",
+          0,
+          2
+        ]
+      ],
+      "classes": "I"
+    },
+    {
+      "name": "W",
+      "fields": "w,s",
+      "size": 16,
+      "alignment": 16,
+      "initialized_fields": [
+        [
+          "u",
+          0,
+          4
+        ],
+        [
+          "f",
+          4,
+          4
+        ]
+      ],
+      "classes": "I"
+    },
+    {
+      "name": "L",
+      "fields": "l",
+      "size": 16,
+      "alignment": 16,
+      "initialized_fields": [
+        [
+          "u",
+          0,
+          8
+        ]
+      ],
+      "classes": "I"
+    },
+    {
+      "name": "S",
+      "fields": "s",
+      "size": 16,
+      "alignment": 16,
+      "initialized_fields": [
+        [
+          "f",
+          0,
+          4
+        ]
+      ],
+      "classes": "S"
+    },
+    {
+      "name": "D",
+      "fields": "d",
+      "size": 16,
+      "alignment": 16,
+      "initialized_fields": [
+        [
+          "d",
+          0,
+          8
+        ]
+      ],
+      "classes": "S"
+    },
+    {
+      "name": "SS3",
+      "fields": "s 3",
+      "size": 16,
+      "alignment": 16,
+      "initialized_fields": [
+        [
+          "f[0]",
+          0,
+          4
+        ],
+        [
+          "f[1]",
+          4,
+          4
+        ],
+        [
+          "f[2]",
+          8,
+          4
+        ]
+      ],
+      "classes": "SS"
+    },
+    {
+      "name": "SS4",
+      "fields": "s 4",
+      "size": 16,
+      "alignment": 16,
+      "initialized_fields": [
+        [
+          "f[0]",
+          0,
+          4
+        ],
+        [
+          "f[1]",
+          4,
+          4
+        ],
+        [
+          "f[2]",
+          8,
+          4
+        ],
+        [
+          "f[3]",
+          12,
+          4
+        ]
+      ],
+      "classes": "SS"
+    },
+    {
+      "name": "DD",
+      "fields": "d 2",
+      "size": 16,
+      "alignment": 16,
+      "initialized_fields": [
+        [
+          "d[0]",
+          0,
+          8
+        ],
+        [
+          "d[1]",
+          8,
+          8
+        ]
+      ],
+      "classes": "SS"
+    },
+    {
+      "name": "SI",
+      "fields": "s,l",
+      "size": 16,
+      "alignment": 16,
+      "initialized_fields": [
+        [
+          "f",
+          0,
+          4
+        ],
+        [
+          "u",
+          8,
+          8
+        ]
+      ],
+      "classes": "SI"
+    },
+    {
+      "name": "IS",
+      "fields": "l,s",
+      "size": 16,
+      "alignment": 16,
+      "initialized_fields": [
+        [
+          "u",
+          0,
+          8
+        ],
+        [
+          "f",
+          8,
+          4
+        ]
+      ],
+      "classes": "IS"
+    },
+    {
+      "name": "II",
+      "fields": "l 2",
+      "size": 16,
+      "alignment": 16,
+      "initialized_fields": [
+        [
+          "u[0]",
+          0,
+          8
+        ],
+        [
+          "u[1]",
+          8,
+          8
+        ]
+      ],
+      "classes": "II"
+    },
+    {
+      "name": "N",
+      "fields": ":Child",
+      "size": 16,
+      "alignment": 16,
+      "initialized_fields": [
+        [
+          "child.f",
+          0,
+          4
+        ]
+      ],
+      "classes": "S"
+    }
+  ],
+  "policy": "Official SysV/C NO_CLASS; pinned QBE padding-only lanes NOT an oracle"
+}

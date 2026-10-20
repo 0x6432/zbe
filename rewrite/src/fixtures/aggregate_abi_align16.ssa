@@ -1,0 +1,565 @@
+type :Child=align 16 {s}
+type :B=align 16 {b}
+export function :B $aggregate_abi_align16_B_echo(:B %p){
+@e
+ret %p
+}
+export function :B $aggregate_abi_align16_B_ret(l %p){
+@e
+ret %p
+}
+export function w $aggregate_abi_align16_B_send(l %p){
+@e
+%r =w call $aggregate_abi_align16_B_check(:B %p)
+ret %r
+}
+export function w $aggregate_abi_align16_B_roundtrip(l %p){
+@e
+%r =:B call $aggregate_abi_align16_B_make(l %p)
+%x =w call $aggregate_abi_align16_B_check(:B %r)
+ret %x
+}
+export function w $aggregate_abi_align16_B_mutate(:B %a,:B %b){
+@e
+storeb 0,%a
+%x =w call $aggregate_abi_align16_B_check(:B %b)
+ret %x
+}
+type :H=align 16 {h}
+export function :H $aggregate_abi_align16_H_echo(:H %p){
+@e
+ret %p
+}
+export function :H $aggregate_abi_align16_H_ret(l %p){
+@e
+ret %p
+}
+export function w $aggregate_abi_align16_H_send(l %p){
+@e
+%r =w call $aggregate_abi_align16_H_check(:H %p)
+ret %r
+}
+export function w $aggregate_abi_align16_H_roundtrip(l %p){
+@e
+%r =:H call $aggregate_abi_align16_H_make(l %p)
+%x =w call $aggregate_abi_align16_H_check(:H %r)
+ret %x
+}
+export function w $aggregate_abi_align16_H_mutate(:H %a,:H %b){
+@e
+storeb 0,%a
+%x =w call $aggregate_abi_align16_H_check(:H %b)
+ret %x
+}
+type :W=align 16 {w,s}
+export function :W $aggregate_abi_align16_W_echo(:W %p){
+@e
+ret %p
+}
+export function :W $aggregate_abi_align16_W_ret(l %p){
+@e
+ret %p
+}
+export function w $aggregate_abi_align16_W_send(l %p){
+@e
+%r =w call $aggregate_abi_align16_W_check(:W %p)
+ret %r
+}
+export function w $aggregate_abi_align16_W_roundtrip(l %p){
+@e
+%r =:W call $aggregate_abi_align16_W_make(l %p)
+%x =w call $aggregate_abi_align16_W_check(:W %r)
+ret %x
+}
+export function w $aggregate_abi_align16_W_mutate(:W %a,:W %b){
+@e
+storeb 0,%a
+%x =w call $aggregate_abi_align16_W_check(:W %b)
+ret %x
+}
+type :L=align 16 {l}
+export function :L $aggregate_abi_align16_L_echo(:L %p){
+@e
+ret %p
+}
+export function :L $aggregate_abi_align16_L_ret(l %p){
+@e
+ret %p
+}
+export function w $aggregate_abi_align16_L_send(l %p){
+@e
+%r =w call $aggregate_abi_align16_L_check(:L %p)
+ret %r
+}
+export function w $aggregate_abi_align16_L_roundtrip(l %p){
+@e
+%r =:L call $aggregate_abi_align16_L_make(l %p)
+%x =w call $aggregate_abi_align16_L_check(:L %r)
+ret %x
+}
+export function w $aggregate_abi_align16_L_mutate(:L %a,:L %b){
+@e
+storeb 0,%a
+%x =w call $aggregate_abi_align16_L_check(:L %b)
+ret %x
+}
+type :S=align 16 {s}
+export function :S $aggregate_abi_align16_S_echo(:S %p){
+@e
+ret %p
+}
+export function :S $aggregate_abi_align16_S_ret(l %p){
+@e
+ret %p
+}
+export function w $aggregate_abi_align16_S_send(l %p){
+@e
+%r =w call $aggregate_abi_align16_S_check(:S %p)
+ret %r
+}
+export function w $aggregate_abi_align16_S_roundtrip(l %p){
+@e
+%r =:S call $aggregate_abi_align16_S_make(l %p)
+%x =w call $aggregate_abi_align16_S_check(:S %r)
+ret %x
+}
+export function w $aggregate_abi_align16_S_mutate(:S %a,:S %b){
+@e
+storeb 0,%a
+%x =w call $aggregate_abi_align16_S_check(:S %b)
+ret %x
+}
+type :D=align 16 {d}
+export function :D $aggregate_abi_align16_D_echo(:D %p){
+@e
+ret %p
+}
+export function :D $aggregate_abi_align16_D_ret(l %p){
+@e
+ret %p
+}
+export function w $aggregate_abi_align16_D_send(l %p){
+@e
+%r =w call $aggregate_abi_align16_D_check(:D %p)
+ret %r
+}
+export function w $aggregate_abi_align16_D_roundtrip(l %p){
+@e
+%r =:D call $aggregate_abi_align16_D_make(l %p)
+%x =w call $aggregate_abi_align16_D_check(:D %r)
+ret %x
+}
+export function w $aggregate_abi_align16_D_mutate(:D %a,:D %b){
+@e
+storeb 0,%a
+%x =w call $aggregate_abi_align16_D_check(:D %b)
+ret %x
+}
+type :SS3=align 16 {s 3}
+export function :SS3 $aggregate_abi_align16_SS3_echo(:SS3 %p){
+@e
+ret %p
+}
+export function :SS3 $aggregate_abi_align16_SS3_ret(l %p){
+@e
+ret %p
+}
+export function w $aggregate_abi_align16_SS3_send(l %p){
+@e
+%r =w call $aggregate_abi_align16_SS3_check(:SS3 %p)
+ret %r
+}
+export function w $aggregate_abi_align16_SS3_roundtrip(l %p){
+@e
+%r =:SS3 call $aggregate_abi_align16_SS3_make(l %p)
+%x =w call $aggregate_abi_align16_SS3_check(:SS3 %r)
+ret %x
+}
+export function w $aggregate_abi_align16_SS3_mutate(:SS3 %a,:SS3 %b){
+@e
+storeb 0,%a
+%x =w call $aggregate_abi_align16_SS3_check(:SS3 %b)
+ret %x
+}
+type :SS4=align 16 {s 4}
+export function :SS4 $aggregate_abi_align16_SS4_echo(:SS4 %p){
+@e
+ret %p
+}
+export function :SS4 $aggregate_abi_align16_SS4_ret(l %p){
+@e
+ret %p
+}
+export function w $aggregate_abi_align16_SS4_send(l %p){
+@e
+%r =w call $aggregate_abi_align16_SS4_check(:SS4 %p)
+ret %r
+}
+export function w $aggregate_abi_align16_SS4_roundtrip(l %p){
+@e
+%r =:SS4 call $aggregate_abi_align16_SS4_make(l %p)
+%x =w call $aggregate_abi_align16_SS4_check(:SS4 %r)
+ret %x
+}
+export function w $aggregate_abi_align16_SS4_mutate(:SS4 %a,:SS4 %b){
+@e
+storeb 0,%a
+%x =w call $aggregate_abi_align16_SS4_check(:SS4 %b)
+ret %x
+}
+type :DD=align 16 {d 2}
+export function :DD $aggregate_abi_align16_DD_echo(:DD %p){
+@e
+ret %p
+}
+export function :DD $aggregate_abi_align16_DD_ret(l %p){
+@e
+ret %p
+}
+export function w $aggregate_abi_align16_DD_send(l %p){
+@e
+%r =w call $aggregate_abi_align16_DD_check(:DD %p)
+ret %r
+}
+export function w $aggregate_abi_align16_DD_roundtrip(l %p){
+@e
+%r =:DD call $aggregate_abi_align16_DD_make(l %p)
+%x =w call $aggregate_abi_align16_DD_check(:DD %r)
+ret %x
+}
+export function w $aggregate_abi_align16_DD_mutate(:DD %a,:DD %b){
+@e
+storeb 0,%a
+%x =w call $aggregate_abi_align16_DD_check(:DD %b)
+ret %x
+}
+type :SI=align 16 {s,l}
+export function :SI $aggregate_abi_align16_SI_echo(:SI %p){
+@e
+ret %p
+}
+export function :SI $aggregate_abi_align16_SI_ret(l %p){
+@e
+ret %p
+}
+export function w $aggregate_abi_align16_SI_send(l %p){
+@e
+%r =w call $aggregate_abi_align16_SI_check(:SI %p)
+ret %r
+}
+export function w $aggregate_abi_align16_SI_roundtrip(l %p){
+@e
+%r =:SI call $aggregate_abi_align16_SI_make(l %p)
+%x =w call $aggregate_abi_align16_SI_check(:SI %r)
+ret %x
+}
+export function w $aggregate_abi_align16_SI_mutate(:SI %a,:SI %b){
+@e
+storeb 0,%a
+%x =w call $aggregate_abi_align16_SI_check(:SI %b)
+ret %x
+}
+type :IS=align 16 {l,s}
+export function :IS $aggregate_abi_align16_IS_echo(:IS %p){
+@e
+ret %p
+}
+export function :IS $aggregate_abi_align16_IS_ret(l %p){
+@e
+ret %p
+}
+export function w $aggregate_abi_align16_IS_send(l %p){
+@e
+%r =w call $aggregate_abi_align16_IS_check(:IS %p)
+ret %r
+}
+export function w $aggregate_abi_align16_IS_roundtrip(l %p){
+@e
+%r =:IS call $aggregate_abi_align16_IS_make(l %p)
+%x =w call $aggregate_abi_align16_IS_check(:IS %r)
+ret %x
+}
+export function w $aggregate_abi_align16_IS_mutate(:IS %a,:IS %b){
+@e
+storeb 0,%a
+%x =w call $aggregate_abi_align16_IS_check(:IS %b)
+ret %x
+}
+type :II=align 16 {l 2}
+export function :II $aggregate_abi_align16_II_echo(:II %p){
+@e
+ret %p
+}
+export function :II $aggregate_abi_align16_II_ret(l %p){
+@e
+ret %p
+}
+export function w $aggregate_abi_align16_II_send(l %p){
+@e
+%r =w call $aggregate_abi_align16_II_check(:II %p)
+ret %r
+}
+export function w $aggregate_abi_align16_II_roundtrip(l %p){
+@e
+%r =:II call $aggregate_abi_align16_II_make(l %p)
+%x =w call $aggregate_abi_align16_II_check(:II %r)
+ret %x
+}
+export function w $aggregate_abi_align16_II_mutate(:II %a,:II %b){
+@e
+storeb 0,%a
+%x =w call $aggregate_abi_align16_II_check(:II %b)
+ret %x
+}
+type :N=align 16 {:Child}
+export function :N $aggregate_abi_align16_N_echo(:N %p){
+@e
+ret %p
+}
+export function :N $aggregate_abi_align16_N_ret(l %p){
+@e
+ret %p
+}
+export function w $aggregate_abi_align16_N_send(l %p){
+@e
+%r =w call $aggregate_abi_align16_N_check(:N %p)
+ret %r
+}
+export function w $aggregate_abi_align16_N_roundtrip(l %p){
+@e
+%r =:N call $aggregate_abi_align16_N_make(l %p)
+%x =w call $aggregate_abi_align16_N_check(:N %r)
+ret %x
+}
+export function w $aggregate_abi_align16_N_mutate(:N %a,:N %b){
+@e
+storeb 0,%a
+%x =w call $aggregate_abi_align16_N_check(:N %b)
+ret %x
+}
+
+export function w $aggregate_abi_align16_pressure_gp(l %p){
+@e
+%after =d cast 9218888453225749180
+%r =w call $aggregate_abi_align16_pressure_gp_asm(l 1,l 2,l 3,l 4,l 5,l 6,l 7,:W %p,l 99,d %after)
+ret %r
+}
+export function w $aggregate_abi_align16_pressure_gp_incoming(l %g0,l %g1,l %g2,l %g3,l %g4,l %g5,l %spill,:W %v,l %final,d %after){
+@e
+%r =w call $aggregate_abi_align16_pressure_gp_check(l %g0,l %g1,l %g2,l %g3,l %g4,l %g5,l %spill,:W %v,l %final,d %after)
+ret %r
+}
+
+export function w $aggregate_abi_align16_pressure_ione(l %p){
+@e
+%after =d cast 9218888453225749180
+%r =w call $aggregate_abi_align16_pressure_ione_asm(l 1,l 2,l 3,l 4,l 5,:W %p,l 99,d %after)
+ret %r
+}
+export function w $aggregate_abi_align16_pressure_ione_incoming(l %g0,l %g1,l %g2,l %g3,l %g4,:W %v,l %final,d %after){
+@e
+%r =w call $aggregate_abi_align16_pressure_ione_check(l %g0,l %g1,l %g2,l %g3,l %g4,:W %v,l %final,d %after)
+ret %r
+}
+
+export function w $aggregate_abi_align16_pressure_sone(l %p){
+@e
+%d0 =d cast 4607182418800017408
+%d1 =d cast 4607182418800017409
+%d2 =d cast 4607182418800017410
+%d3 =d cast 4607182418800017411
+%d4 =d cast 4607182418800017412
+%d5 =d cast 4607182418800017413
+%d6 =d cast 4607182418800017414
+%after =d cast 9218888453225749180
+%r =w call $aggregate_abi_align16_pressure_sone_asm(d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,:S %p,d %after,l 99)
+ret %r
+}
+export function w $aggregate_abi_align16_pressure_sone_incoming(d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,:S %v,d %after,l %final){
+@e
+%r =w call $aggregate_abi_align16_pressure_sone_check(d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,:S %v,d %after,l %final)
+ret %r
+}
+
+export function w $aggregate_abi_align16_pressure_gpfail(l %p){
+@e
+%after =d cast 9218888453225749180
+%r =w call $aggregate_abi_align16_pressure_gpfail_asm(l 1,l 2,l 3,l 4,l 5,l 6,:SI %p,l 99,d %after)
+ret %r
+}
+export function w $aggregate_abi_align16_pressure_gpfail_incoming(l %g0,l %g1,l %g2,l %g3,l %g4,l %g5,:SI %v,l %final,d %after){
+@e
+%r =w call $aggregate_abi_align16_pressure_gpfail_check(l %g0,l %g1,l %g2,l %g3,l %g4,l %g5,:SI %v,l %final,d %after)
+ret %r
+}
+
+export function w $aggregate_abi_align16_pressure_ssefail(l %p){
+@e
+%d0 =d cast 4607182418800017408
+%d1 =d cast 4607182418800017409
+%d2 =d cast 4607182418800017410
+%d3 =d cast 4607182418800017411
+%d4 =d cast 4607182418800017412
+%d5 =d cast 4607182418800017413
+%d6 =d cast 4607182418800017414
+%d7 =d cast 4607182418800017415
+%after =d cast 9218888453225749180
+%r =w call $aggregate_abi_align16_pressure_ssefail_asm(d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,d %d7,:IS %p,d %after,l 99)
+ret %r
+}
+export function w $aggregate_abi_align16_pressure_ssefail_incoming(d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,d %d7,:IS %v,d %after,l %final){
+@e
+%r =w call $aggregate_abi_align16_pressure_ssefail_check(d %d0,d %d1,d %d2,d %d3,d %d4,d %d5,d %d6,d %d7,:IS %v,d %after,l %final)
+ret %r
+}
+export function w $aggregate_abi_align16_B_address(:B %p){
+@e
+%a =l and %p,15
+ret %a
+}
+export function w $aggregate_abi_align16_H_address(:H %p){
+@e
+%a =l and %p,15
+ret %a
+}
+export function w $aggregate_abi_align16_W_address(:W %p){
+@e
+%a =l and %p,15
+ret %a
+}
+export function w $aggregate_abi_align16_L_address(:L %p){
+@e
+%a =l and %p,15
+ret %a
+}
+export function w $aggregate_abi_align16_S_address(:S %p){
+@e
+%a =l and %p,15
+ret %a
+}
+export function w $aggregate_abi_align16_D_address(:D %p){
+@e
+%a =l and %p,15
+ret %a
+}
+export function w $aggregate_abi_align16_SS3_address(:SS3 %p){
+@e
+%a =l and %p,15
+ret %a
+}
+export function w $aggregate_abi_align16_SS4_address(:SS4 %p){
+@e
+%a =l and %p,15
+ret %a
+}
+export function w $aggregate_abi_align16_DD_address(:DD %p){
+@e
+%a =l and %p,15
+ret %a
+}
+export function w $aggregate_abi_align16_SI_address(:SI %p){
+@e
+%a =l and %p,15
+ret %a
+}
+export function w $aggregate_abi_align16_IS_address(:IS %p){
+@e
+%a =l and %p,15
+ret %a
+}
+export function w $aggregate_abi_align16_II_address(:II %p){
+@e
+%a =l and %p,15
+ret %a
+}
+export function w $aggregate_abi_align16_N_address(:N %p){
+@e
+%a =l and %p,15
+ret %a
+}
+
+type :M=align 16 {l 4}
+export function w $aggregate_abi_align16_dynamic(l %source){
+@e
+%a =l alloc16 33
+storeb 7,%a
+%r =:S call $aggregate_abi_align16_S_make(l %source)
+%b =l alloc16 4097
+storeb 9,%b
+%c =w call $aggregate_abi_align16_S_check(:S %r)
+%x =w loadub %a
+%y =w loadub %b
+%u =w ceqw %x,7
+%v =w ceqw %y,9
+%uv =w and %u,%v
+%align =l and %r,15
+%ok =w ceql %align,0
+%both =w and %uv,%ok
+%out =w and %both,%c
+ret %out
+}
+export function w $aggregate_abi_align16_sites(l %source){
+@e
+%a =:S call $aggregate_abi_align16_S_make(l %source)
+%b =:S call $aggregate_abi_align16_S_make(l %source)
+%x =w call $aggregate_abi_align16_S_check(:S %a)
+%y =w call $aggregate_abi_align16_S_check(:S %b)
+%distinct =w cnel %a,%b
+%v =w and %x,%y
+%out =w and %v,%distinct
+ret %out
+}
+export function :S $aggregate_abi_align16_recurse(:S %p,w %n){
+@e
+%done =w ceqw %n,0
+jnz %done,@base,@step
+@base
+ret %p
+@step
+%local =l alloc16 16
+blit %p,%local,16
+%next =w sub %n,1
+%r =:S call $aggregate_abi_align16_recurse(:S %local,w %next)
+ret %r
+}
+export function :M $aggregate_abi_align16_memory(l %source,:S %p){
+@e
+%ok =w call $aggregate_abi_align16_S_check(:S %p)
+jnz %ok,@good,@bad
+@good
+ret %source
+@bad
+ret 0
+}
+export function w $aggregate_abi_align16_memory_roundtrip(l %source,:S %p){
+@e
+%r =:M call $aggregate_abi_align16_memory_make(l %source,:S %p)
+%ok =w call $aggregate_abi_align16_memory_check(:M %r)
+%al =l and %r,15
+%aligned =w ceql %al,0
+%out =w and %ok,%aligned
+ret %out
+}
+
+export function w $aggregate_abi_align16_loop(l %source){
+@e
+jmp @loop
+@loop
+%i =w phi @e 0,@next %inc
+%previous =l phi @e 0,@next %r
+%r =:S call $aggregate_abi_align16_S_make(l %source)
+%first =w ceqw %i,0
+%same =w ceql %r,%previous
+%addressok =w or %first,%same
+%value =w call $aggregate_abi_align16_S_check(:S %r)
+%ok =w and %addressok,%value
+jnz %ok,@next,@bad
+@next
+%inc =w add %i,1
+%done =w ceqw %inc,8
+jnz %done,@out,@loop
+@bad
+ret 0
+@out
+ret 1
+}

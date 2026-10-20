@@ -146,13 +146,13 @@ def main():
         def normalized(source):
             return source.replace("{ @start ", "{\n@start\n").replace(" @dead ", "\n@dead\n").replace(" ret ", "\nret ").replace(" }\n", "\n}\n")
 
-        # Only these four approved SSE/native cases change expectation; all
+        # Only these five approved SSE/align16 native cases change expectation; all
         # remaining env/vararg/indirect/alignment/size boundaries stay negative.
-        for index in (0, 1, 2, 11):
+        for index in (0, 1, 2, 3, 11):
             il.write_text(normalized(invalid[index]))
             subprocess.run([*compiler, str(il), str(asm)], check=True, timeout=90)
-        print('4 individually approved SSE/dominance/unreachable native positive upgrades passed')
-        invalid = [source for index, source in enumerate(invalid) if index not in (0, 1, 2, 11)]
+        print('5 individually approved SSE/dominance/align16/unreachable native positive upgrades passed')
+        invalid = [source for index, source in enumerate(invalid) if index not in (0, 1, 2, 3, 11)]
         refusals = 0
         for source in invalid:
             source = normalized(source)

@@ -171,6 +171,13 @@ def main():
             'type :T={s}\nfunction w $f(l %p){\n@e\n%r =:T call $external(env %p)\nret 1\n}',
             'type :T=align 16 {s}\nfunction w $f(){\n@e\nret 1\n@dead\n%r =:T call $external()\nret 2\n}',
         ]
+        # The three individually approved align16 cases now have independent
+        # C/hand-ASM positive coverage. Other boundary expectations are unchanged.
+        for index in (0, 1, 9):
+            il.write_text(invalid[index])
+            subprocess.run([*compiler, str(il), str(asm)], check=True, timeout=90)
+        print('3 individually approved align16 native positive upgrades passed')
+        invalid = [text for index, text in enumerate(invalid) if index not in (0, 1, 9)]
         for text in invalid:
             il.write_text(text)
             sentinel = b'preserve existing output\n'
@@ -182,7 +189,7 @@ def main():
             run = subprocess.run([*compiler, str(il), str(asm)], capture_output=True, timeout=90)
             if run.returncode == 0 or b'UnsupportedAggregateAbi' not in run.stderr or asm.exists():
                 raise SystemExit('Refusal created output: '+repr(text))
-        print('20 explicit SSE/mixed refusal/pre-write output checks passed')
+        print(f'{len(invalid)*2} explicit SSE/mixed refusal/pre-write output checks passed')
 
 
 if __name__ == '__main__':

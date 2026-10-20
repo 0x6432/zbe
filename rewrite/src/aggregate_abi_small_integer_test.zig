@@ -92,14 +92,10 @@ test "aggregate_abi_small_integer old variants and generic metadata remain while
         var module = try parse(t.allocator, text);
         defer module.deinit();
         try @import("module_validation.zig").validate(t.allocator, &module);
-        if (index == 3) {
-            try t.expectError(error.UnsupportedAggregateAbi, amd64.emit(t.allocator, &module));
-        } else {
-            // s/d2/w+s are now explicitly positive, with independent runtime
-            // and exact INTEGER-dominance oracles in the new SSE harness.
-            const output = try amd64.emit(t.allocator, &module);
-            defer t.allocator.free(output);
-        }
+        // All four approved cases are positive: SSE/dominance and now align16
+        // have independent executed C/ASM expectations in their own harnesses.
+        const output = try amd64.emit(t.allocator, &module);
+        defer t.allocator.free(output);
     }
     var module = try parse(t.allocator, "type :Small={b}\ntype :Float={s}\ntype :Over=align 64 {l 2}\ntype :N={h,b}\ntype :Nested={:N 2,l}\nfunction :Nested $f(:Nested %p){\n@e\nret %p\n}");
     defer module.deinit();

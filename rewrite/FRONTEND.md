@@ -116,3 +116,8 @@ arithmetic/copy/phi classes or any aggregate interpreter execution.
 Small records containing s/d fields also have bounded native SSE/mixed-register
 transport, without new first-class aggregate operations or interpreter execution
 ([SMALL-SSE-ABI.md](SMALL-SSE-ABI.md)).
+
+Bounded regular align16 record calls/results omit padding-only NO_CLASS lanes
+without shrinking declared storage ([ALIGN16-ABI.md](ALIGN16-ABI.md)). This follows
+official SysV/C semantics, not pinned-QBE padding-lane oracle parity; aggregate
+interpreter and env/vararg/indirect refusals remain unchanged.

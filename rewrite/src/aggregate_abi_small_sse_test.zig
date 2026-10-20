@@ -203,7 +203,9 @@ test "aggregate_abi_small_sse retained interpreter guards and unsupported site r
     defer module.deinit();
     try t.expectError(error.UnsupportedAggregateAbi, interpreter.evaluate(t.allocator, module.functions.items[0], &.{}, .{ .max_call_depth = 0 }));
     try t.expectError(error.UnsupportedAggregateAbi, interpreter.evaluateModule(t.allocator, &module, id(0), &.{}, .{ .max_call_depth = 0, .internal_variadic_calls = true }));
-    for ([_][]const u8{ "type :T=align 16 {s}\nfunction :T $f(l %p){\n@e\nret %p\n}", "type :T={s}\nfunction :T $f(env %e,l %p){\n@e\nret %p\n}", "type :T={s}\nfunction :T $f(l %p,...){\n@e\nret %p\n}", "type :T={s}\nfunction $f(){\n@e\ncall 0(:T 0)\nret\n}" }) |text| {
+    // align16{s} is separately positive with active-lane and native C/ASM
+    // coverage; remaining env/variadic/indirect sites stay explicit refusals.
+    for ([_][]const u8{ "type :T={s}\nfunction :T $f(env %e,l %p){\n@e\nret %p\n}", "type :T={s}\nfunction :T $f(l %p,...){\n@e\nret %p\n}", "type :T={s}\nfunction $f(){\n@e\ncall 0(:T 0)\nret\n}" }) |text| {
         var rejected = try parse(t.allocator, text);
         defer rejected.deinit();
         try t.expectError(error.UnsupportedAggregateAbi, amd64.emit(t.allocator, &rejected));

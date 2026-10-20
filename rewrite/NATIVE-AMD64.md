@@ -170,3 +170,8 @@ Bounded direct MEMORY-record arguments/results are described in
 coverage. Integer-only small-register records are separately bounded by
 [SMALL-INTEGER-ABI.md](SMALL-INTEGER-ABI.md); SSE/mixed size1..16 records are separately supported in [SMALL-SSE-ABI.md](SMALL-SSE-ABI.md);
 other aggregate classes and aggregate interpreter execution remain unsupported.
+
+Bounded regular align16 record calls/results omit padding-only NO_CLASS lanes
+without shrinking declared storage ([ALIGN16-ABI.md](ALIGN16-ABI.md)). This follows
+official SysV/C semantics, not pinned-QBE padding-lane oracle parity; aggregate
+interpreter and env/vararg/indirect refusals remain unchanged.

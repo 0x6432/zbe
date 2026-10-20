@@ -274,7 +274,7 @@ const Class = enum { none, integer, sse };
 fn smallShapes(module: *const modules.Module) SmallShapes {
     var shapes: SmallShapes = @splat(.{});
     for (module.types.items, 0..) |record, index| {
-        if (record.size > 16 or record.alignment > 8) continue;
+        if (record.size > 16 or record.alignment > 16) continue;
         for (record.runs) |run| {
             // A valid supported parent has <=16 bytes and positive strides;
             // even a compact repeat cannot expand to more than16 members.
@@ -306,11 +306,15 @@ fn hasSse(shape: Shape, size: u64) bool {
 }
 fn registerResult(module: *const modules.Module, id: records.Id, shape: Shape) RegisterResult {
     const record = module.getRecord(id).?;
-    var result: RegisterResult = .{ .record_id = id, .declared_bytes = record.size, .alignment = record.alignment, .lane_count = if (record.size <= 8) 1 else 2, .lanes = @splat(.{ .offset = 0, .bytes = 0, .register = .{ .general = .rax } }) };
+    var result: RegisterResult = .{ .record_id = id, .declared_bytes = record.size, .alignment = record.alignment, .lane_count = 0, .lanes = @splat(.{ .offset = 0, .bytes = 0, .register = .{ .general = .rax } }) };
     var gp: u8 = 0;
     var sse: u8 = 0;
-    for (0..result.lane_count) |lane| {
-        result.lanes[lane] = .{
+    // Physical eightbyte offsets are not ABI register ordinals. Padding-only
+    // NO_CLASS consumes no register and is not loaded/stored. Declared size
+    // and alignment remain facts of the complete private/stack object.
+    for (0..@as(usize, if (record.size <= 8) 1 else 2)) |lane| {
+        if (laneClass(shape, lane) == .none) continue;
+        result.lanes[result.lane_count] = .{
             .offset = @intCast(lane * 8),
             .bytes = @intCast(@min(8, record.size - lane * 8)),
             .register = switch (laneClass(shape, lane)) {
@@ -324,22 +328,28 @@ fn registerResult(module: *const modules.Module, id: records.Id, shape: Shape) R
                     sse += 1;
                     break :vector .{ .vector = reg };
                 },
-                .none => unreachable, // complete target eligibility before allocation
+                .none => unreachable, // skipped above, never a default INTEGER/SSE
             },
         };
+        result.lane_count += 1;
     }
+    std.debug.assert(result.lane_count > 0);
     return result;
 }
 fn eligibleDescriptor(module: *const modules.Module, ty: ir.AbiDescriptor, shapes: *const SmallShapes) Error!void {
     if (ty == .record) {
         const record = module.getRecord(ty.record) orelse return error.InvalidAggregateType;
         if (record.size <= 16) {
-            if (record.size == 0 or record.alignment > 8) return error.UnsupportedAggregatePlan;
+            if (record.size == 0 or record.alignment > 16) return error.UnsupportedAggregatePlan;
             const shape = shapes[@backingInt(ty.record)];
             for (0..@as(usize, if (record.size <= 8) 1 else 2)) |lane| {
                 const class = laneClass(shape, lane);
                 const bytes = @min(8, record.size - lane * 8);
-                if (class == .none or (class == .sse and bytes != 4 and bytes != 8)) return error.UnsupportedAggregatePlan;
+                // A nonempty regular layout starts with a real field. Only the
+                // trailing eightbyte of an align16 object may be padding-only.
+                if (class == .none) {
+                    if (record.alignment != 16 or record.size != 16 or lane != 1) return error.UnsupportedAggregatePlan;
+                } else if (class == .sse and bytes != 4 and bytes != 8) return error.UnsupportedAggregatePlan;
             }
         } else if (record.size > 4096 or record.alignment > 16) return error.UnsupportedAggregatePlan;
     }
@@ -401,7 +411,7 @@ fn planSignature(allocator: std.mem.Allocator, module: *const modules.Module, vi
         .record => |id| result: {
             const record = module.getRecord(id) orelse return error.InvalidAggregateType;
             break :result if (record.size <= 16)
-                (if (hasSse(shapes[@backingInt(id)], record.size)) .{ .register_record = registerResult(module, id, shapes[@backingInt(id)]) } else .{ .integer_record = integerResult(module, id) })
+                (if (record.alignment > 8 or hasSse(shapes[@backingInt(id)], record.size)) .{ .register_record = registerResult(module, id, shapes[@backingInt(id)]) } else .{ .integer_record = integerResult(module, id) })
             else
                 .{ .memory = .{ .record_id = id, .declared_bytes = record.size, .alignment = record.alignment } };
         },
@@ -428,7 +438,7 @@ fn planSignature(allocator: std.mem.Allocator, module: *const modules.Module, vi
                     break :location .{ .vector = reg };
                 }
             }
-            if (ty == .record and payload <= 16 and hasSse(shapes[@backingInt(ty.record)], payload)) {
+            if (ty == .record and payload <= 16 and (module.getRecord(ty.record).?.alignment > 8 or hasSse(shapes[@backingInt(ty.record)], payload))) {
                 const record = registerResult(module, ty.record, shapes[@backingInt(ty.record)]);
                 var need_gp: u8 = 0;
                 var need_sse: u8 = 0;

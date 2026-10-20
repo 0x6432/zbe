@@ -9,7 +9,7 @@ Build on the separately verified bounded MEMORY endpoint, not a new scalar carri
 Linux AMD64 ELF SysV LP64 direct record signatures/calls, declared size1..16,
 effective alignment1/2/4/8, recursively only b/h/w/l fields in the existing owned
 record DAG. All occupied one/two eightbytes must classify INTEGER. Small floating/mixed records are now separately supported by
-[SMALL-SSE-ABI.md](SMALL-SSE-ABI.md); align16+, padding-only NO_CLASS lanes, vectors/opaque/union,
+[SMALL-SSE-ABI.md](SMALL-SSE-ABI.md), and align16/NO_CLASS by [ALIGN16-ABI.md](ALIGN16-ABI.md). Alignment32/64, vectors/opaque/union,
 record-bearing env/vararg/indirect sites and ALL interpreter record uses remain
 refused. Valid unused generic records remain metadata. Existing size17..4096 MEMORY
 support, including its permitted s/d leaves and align16, is not narrowed.

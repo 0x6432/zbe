@@ -44,6 +44,7 @@ jobs:
           python3 tools/aggregate_abi_representation_check.py --check
           python3 tools/aggregate_abi_native_check.py --check
           python3 tools/aggregate_abi_small_integer_check.py --check
+          python3 tools/aggregate_abi_align16_check.py --check
           python3 tools/aggregate_abi_small_sse_check.py --check
           python3 tools/generate_float_comparison_oracle.py --check
           python3 tools/generate_memory_oracle.py --check
@@ -69,6 +70,7 @@ jobs:
             python3 tools/aggregate_abi_representation_check.py $flags
             python3 tools/aggregate_abi_native_check.py $flags
             python3 tools/aggregate_abi_small_integer_check.py $flags
+            python3 tools/aggregate_abi_align16_check.py $flags
             python3 tools/aggregate_abi_small_sse_check.py $flags
             python3 tools/native_call_check.py $flags
             python3 tools/native_memory_check.py $flags

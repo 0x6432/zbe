@@ -134,3 +134,8 @@ This preserves existing public scalar-field mutation and error precedence. Parse
 record slots retain explicit nominal descriptors. Public descriptor builders still
 accept explicit scalar tags and validate their exact coherence; this is not a
 relaxation of contradictory-metadata checks.
+
+Bounded regular align16 record calls/results omit padding-only NO_CLASS lanes
+without shrinking declared storage ([ALIGN16-ABI.md](ALIGN16-ABI.md)). This follows
+official SysV/C semantics, not pinned-QBE padding-lane oracle parity; aggregate
+interpreter and env/vararg/indirect refusals remain unchanged.

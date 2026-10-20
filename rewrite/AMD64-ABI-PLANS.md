@@ -20,7 +20,8 @@ metadata still permits tiny, align32/64 and UINT64_MAX records; unused declarati
 do not trigger target refusal. The additional integer-only size1..16, align1/2/4/8 target subset has whole-argument
 GP tuples and RAX/RDX results; see [SMALL-INTEGER-ABI.md](SMALL-INTEGER-ABI.md).
 SSE/mixed size1..16 records now have tagged GP/XMM lane plans and atomic BOTH-bank
-assignment; see [SMALL-SSE-ABI.md](SMALL-SSE-ABI.md). No small align16+, vector, opaque,
+assignment; see [SMALL-SSE-ABI.md](SMALL-SSE-ABI.md). Align16 regular records use explicit-offset active-lane tuples, omitting NO_CLASS
+without reducing declared storage; see [ALIGN16-ABI.md](ALIGN16-ABI.md). No align32/64, vector, opaque,
 unaligned, C++ invisible-reference or non-SysV classification is provided.
 
 In this closed b/h/w/l/s/d record universe, a record larger than two eightbytes

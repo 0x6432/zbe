@@ -200,7 +200,7 @@ test "aggregate_abi_planner generic metadata limits target policy and module val
 test "aggregate_abi_planner complete eligibility scan wins over huge home geometry and unreachable site" {
     var module = Module.init(t.allocator);
     defer module.deinit();
-    const tiny = try module.addRecord("OveralignedFloat", 16, &.{.{ .element = .{ .scalar = .single } }});
+    const tiny = try module.addRecord("OveralignedFloat", 32, &.{.{ .element = .{ .scalar = .single } }});
     const f_id = try module.addFunction("f", null);
     const f = module.getFunction(f_id).?;
     for (0..8193) |_| _ = try f.addParameter(.long);

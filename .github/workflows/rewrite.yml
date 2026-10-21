@@ -46,6 +46,8 @@ jobs:
           python3 tools/aggregate_abi_small_integer_check.py --check
           python3 tools/aggregate_abi_align16_check.py --check
           python3 tools/aggregate_abi_variadic_check.py --check
+          python3 tools/aggregate_abi_union_check.py --check
+          python3 tools/aggregate_abi_union_upstream_check.py
           python3 tools/aggregate_abi_call_targets_check.py --check
           python3 tools/aggregate_abi_small_sse_check.py --check
           python3 tools/generate_float_comparison_oracle.py --check
@@ -74,6 +76,7 @@ jobs:
             python3 tools/aggregate_abi_small_integer_check.py $flags
             python3 tools/aggregate_abi_align16_check.py $flags
             python3 tools/aggregate_abi_variadic_check.py $flags
+            python3 tools/aggregate_abi_union_check.py $flags
             python3 tools/aggregate_abi_call_targets_check.py $flags
             python3 tools/aggregate_abi_small_sse_check.py $flags
             python3 tools/native_call_check.py $flags

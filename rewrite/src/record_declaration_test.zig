@@ -145,9 +145,18 @@ test "record_declaration product cursor member-alignment and final-round overflo
     }
 }
 
+test "record_declaration former union refusal now owns complete alternatives and scalar identity" {
+    var m = try parse(testing.allocator, "type :U = { { b } { w } }");
+    defer m.deinit();
+    try testing.expectEqual(@as(u64, 4), m.types.items[0].size);
+    try testing.expectEqual(@as(u8, 4), m.types.items[0].alignment);
+    try testing.expectEqual(@import("record_declaration.zig").Kind.union_type, m.types.items[0].kind);
+    try testing.expectEqual(@as(usize, 2), m.types.items[0].variants.len);
+    for (m.types.items[0].runs) |run| try testing.expectEqual(@as(u64, 0), run.offset);
+}
+
 test "record_declaration unsupported forms aggregate-use positions and bad counts remain refusals" {
     for ([_][]const u8{
-        "type :U = { { b } { w } }",
         "type :Opaque = align 16 { 32 }",
         "type :Empty = {}",
         "type :T = { b 0 }",

@@ -81,6 +81,34 @@ pub const Module = struct {
         return id;
     }
 
+    pub fn addUnion(self: *Module, name: []const u8, alignment: ?u8, alternatives: []const []const records.Field) (records.Error || error{TooManySymbols})!AggregateTypeId {
+        try self.validateRecords(self.allocator);
+        if (!records.validName(name)) return error.InvalidRecordName;
+        if (self.findRecord(name) != null) return error.DuplicateType;
+        if (self.types.items.len >= records.max_records) return error.RecordLimitExceeded;
+        if (alternatives.len == 0) return error.InvalidRecordLayout;
+        if (alternatives.len > records.max_record_runs) return error.RecordLimitExceeded;
+        var added: usize = 0;
+        for (alternatives) |fields| {
+            if (fields.len == 0) return error.InvalidRecordLayout;
+            added = std.math.add(usize, added, fields.len) catch return error.RecordLimitExceeded;
+            if (added > records.max_record_runs) return error.RecordLimitExceeded;
+        }
+        var total = added;
+        for (self.types.items) |record| total = std.math.add(usize, total, record.runs.len) catch return error.RecordLimitExceeded;
+        if (total > records.max_module_runs) return error.RecordLimitExceeded;
+        const name_id = try self.record_names.intern(name);
+        const record = try records.Record.createUnion(self.allocator, name_id, alignment, alternatives, self.types.items);
+        errdefer {
+            record.deinit();
+            self.allocator.destroy(record);
+        }
+        try self.types.ensureUnusedCapacity(self.allocator, 1);
+        const id: AggregateTypeId = @fromBackingInt(@as(u32, @intCast(self.types.items.len)));
+        self.types.appendAssumeCapacity(record);
+        return id;
+    }
+
     pub fn addFunction(self: *Module, name: []const u8, result: ?ir.ScalarType) !FunctionId {
         for (self.functions.items) |function| {
             if (std.mem.eql(u8, self.symbols.get(function.name).?, name)) return error.DuplicateFunction;

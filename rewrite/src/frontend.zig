@@ -140,11 +140,21 @@ const Parser = struct {
         }
         _ = try self.expect(.lbrace);
         self.skipLines();
-        // Empty, opaque and union forms are intentionally not this record slice.
+        if (self.peek().kind == .lbrace) return self.unionDefinition(name, name_token, alignment);
+        // Empty and opaque forms remain outside this aggregate slice.
         if (self.peek().kind != .identifier and self.peek().kind != .type_name)
             return self.fail(.unsupported_construct, self.peek());
         var fields: std.ArrayList(records.Field) = .empty;
         defer fields.deinit(self.allocator);
+        try self.recordFields(&fields, records.max_record_runs);
+        _ = self.module.addRecord(name, alignment, fields.items) catch |err| switch (err) {
+            error.DuplicateType => return self.fail(.duplicate_type, name_token),
+            error.InvalidRecordName => return self.fail(.invalid_name, name_token),
+            else => |resource| return resource,
+        };
+    }
+
+    fn recordFields(self: *Parser, fields: *std.ArrayList(records.Field), limit: usize) Error!void {
         while (true) {
             const token = self.advance();
             const element: records.Element = if (token.kind == .type_name) child: {
@@ -172,7 +182,7 @@ const Parser = struct {
                 if (count == 0 or count > records.max_repeat) return self.fail(.invalid_record_count, count_token);
                 self.skipLines();
             }
-            if (fields.items.len >= records.max_record_runs) return error.RecordLimitExceeded;
+            if (fields.items.len >= limit) return error.RecordLimitExceeded;
             try fields.append(self.allocator, .{ .element = element, .count = count });
             if (self.peek().kind != .comma) break;
             _ = self.advance();
@@ -180,7 +190,36 @@ const Parser = struct {
             if (self.peek().kind == .rbrace) break;
         }
         _ = try self.expect(.rbrace);
-        _ = self.module.addRecord(name, alignment, fields.items) catch |err| switch (err) {
+    }
+
+    fn unionDefinition(self: *Parser, name: []const u8, name_token: lex.Token, alignment: ?u8) Error!void {
+        if (self.module.types.items.len >= records.max_records) return error.RecordLimitExceeded;
+        var existing: usize = 0;
+        for (self.module.types.items) |record| existing = std.math.add(usize, existing, record.runs.len) catch return error.RecordLimitExceeded;
+        if (existing > records.max_module_runs) return error.RecordLimitExceeded;
+        const limit = @min(records.max_record_runs, records.max_module_runs - existing);
+        const Range = struct { first: usize, end: usize };
+        var fields: std.ArrayList(records.Field) = .empty;
+        defer fields.deinit(self.allocator);
+        var ranges: std.ArrayList(Range) = .empty;
+        defer ranges.deinit(self.allocator);
+        while (self.peek().kind == .lbrace) {
+            // Check logical temporary growth BEFORE any append/reallocation.
+            if (ranges.items.len >= records.max_record_runs or fields.items.len >= limit) return error.RecordLimitExceeded;
+            _ = self.advance();
+            self.skipLines();
+            if (self.peek().kind != .identifier and self.peek().kind != .type_name) return self.fail(.unsupported_construct, self.peek());
+            const first = fields.items.len;
+            try self.recordFields(&fields, limit);
+            try ranges.append(self.allocator, .{ .first = first, .end = fields.items.len });
+            self.skipLines();
+        }
+        _ = try self.expect(.rbrace);
+        // Build borrowed views only AFTER flat storage has stopped growing.
+        const alternatives = try self.allocator.alloc([]const records.Field, ranges.items.len);
+        defer self.allocator.free(alternatives);
+        for (ranges.items, alternatives) |range, *view| view.* = fields.items[range.first..range.end];
+        _ = self.module.addUnion(name, alignment, alternatives) catch |err| switch (err) {
             error.DuplicateType => return self.fail(.duplicate_type, name_token),
             error.InvalidRecordName => return self.fail(.invalid_name, name_token),
             else => |resource| return resource,

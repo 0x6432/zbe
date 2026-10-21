@@ -22,6 +22,7 @@ The independent build exports `zbe_native` without linking libc or importing the
 
 - Allocator-owned interned symbols, with stable string storage.
 - Bounded nonempty record declarations with owned checked layouts and earlier-record references; names live in a separate module-owned `record_names` pool, preserving scalar symbol IDs/assembly. The declaration layer does not itself classify target ABI uses ([RECORD-DECLARATIONS.md](RECORD-DECLARATIONS.md)).
+- Named nonempty unions with owned checked alternative layouts and bounded native INTEGER/SSE/MEMORY calls/returns across existing direct/indirect/ENV/variadic paths ([UNION-ABI.md](UNION-ABI.md)); no aggregate interpreter or aggregate `vaarg` execution.
 - Independent modules owning separately allocated functions and numeric/zero-fill data objects; pointers survive module-table growth (DATA.md).
 - Explicit scalar/record ABI descriptors retain nominal module type IDs and checked long pointer carriers in owned function/call metadata. The representation layer remains target-independent; bounded native INTEGER/SSE/MEMORY codegen is separate, while **all interpreter aggregate execution remains refused** ([AGGREGATE-ABI-REPRESENTATION.md](AGGREGATE-ABI-REPRESENTATION.md)).
 - Function-owned typed value/block IDs and growable instruction storage.

@@ -280,6 +280,8 @@ fn smallShapes(module: *const modules.Module) SmallShapes {
     var shapes: SmallShapes = @splat(.{});
     for (module.types.items, 0..) |record, index| {
         if (record.size > 16 or record.alignment > 16) continue;
+        // Union alternatives share origin zero in their checked flat run array.
+        // OR every arm at BYTE offsets, never select an active/first/last arm.
         for (record.runs) |run| {
             // A valid supported parent has <=16 bytes and positive strides;
             // even a compact repeat cannot expand to more than16 members.

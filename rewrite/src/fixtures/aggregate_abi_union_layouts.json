@@ -1,0 +1,305 @@
+{
+  "primary_oracle": "literal C sizeof/alignment/member offsets, field bytes only; all union alternatives merge per official SysV; no inactive C member value interpretation",
+  "types": [
+    {
+      "name": "U4",
+      "IL": "{{s}{w}}",
+      "C": "union{float s;uint32_t w;}",
+      "size": 4,
+      "alignment": 4,
+      "fields": [
+        [
+          "s",
+          0,
+          4
+        ]
+      ],
+      "classes": "I"
+    },
+    {
+      "name": "U4R",
+      "IL": "{{w}{s}}",
+      "C": "union{uint32_t w;float s;}",
+      "size": 4,
+      "alignment": 4,
+      "fields": [
+        [
+          "w",
+          0,
+          4
+        ]
+      ],
+      "classes": "I"
+    },
+    {
+      "name": "U8",
+      "IL": "{{s 2}{d}}",
+      "C": "union{float s[2];double d;}",
+      "size": 8,
+      "alignment": 8,
+      "fields": [
+        [
+          "s[0]",
+          0,
+          4
+        ],
+        [
+          "s[1]",
+          4,
+          4
+        ]
+      ],
+      "classes": "S"
+    },
+    {
+      "name": "U12",
+      "IL": "{{s 3}{w}}",
+      "C": "union{float s[3];uint32_t w;}",
+      "size": 12,
+      "alignment": 4,
+      "fields": [
+        [
+          "s[0]",
+          0,
+          4
+        ],
+        [
+          "s[1]",
+          4,
+          4
+        ],
+        [
+          "s[2]",
+          8,
+          4
+        ]
+      ],
+      "classes": "IS"
+    },
+    {
+      "name": "U16",
+      "IL": "{{s,l}{l,s}}",
+      "C": "union{struct{float s;uint64_t l;}a;struct{uint64_t l;float s;}b;}",
+      "size": 16,
+      "alignment": 8,
+      "fields": [
+        [
+          "a.s",
+          0,
+          4
+        ],
+        [
+          "a.l",
+          8,
+          8
+        ]
+      ],
+      "classes": "II"
+    },
+    {
+      "name": "UM",
+      "IL": "{{b 17}{d 2}}",
+      "C": "union{unsigned char b[17];double d[2];}",
+      "size": 24,
+      "alignment": 8,
+      "fields": [
+        [
+          "b",
+          0,
+          17
+        ]
+      ],
+      "classes": "M"
+    },
+    {
+      "name": "UN",
+      "IL": "align 16 {{s}{b}}",
+      "C": "union{_Alignas(16) float s;unsigned char b;}",
+      "size": 16,
+      "alignment": 16,
+      "fields": [
+        [
+          "s",
+          0,
+          4
+        ]
+      ],
+      "classes": "IN"
+    },
+    {
+      "name": "U3",
+      "IL": "{{b 3}{b}}",
+      "C": "union{unsigned char b[3];unsigned char one;}",
+      "size": 3,
+      "alignment": 1,
+      "fields": [
+        [
+          "b",
+          0,
+          3
+        ]
+      ],
+      "classes": "I"
+    },
+    {
+      "name": "U17",
+      "IL": "{{b 17}{b 3}}",
+      "C": "union{unsigned char b[17];unsigned char small[3];}",
+      "size": 17,
+      "alignment": 1,
+      "fields": [
+        [
+          "b",
+          0,
+          17
+        ]
+      ],
+      "classes": "M"
+    },
+    {
+      "name": "UDD",
+      "IL": "{{d 2}{s 4}}",
+      "C": "union{double d[2];float s[4];}",
+      "size": 16,
+      "alignment": 8,
+      "fields": [
+        [
+          "d[0]",
+          0,
+          8
+        ],
+        [
+          "d[1]",
+          8,
+          8
+        ]
+      ],
+      "classes": "SS"
+    },
+    {
+      "name": "USI",
+      "IL": "{{s,l}{s 2,l}}",
+      "C": "union{struct{float s;uint64_t l;}a;struct{float s[2];uint64_t l;}b;}",
+      "size": 16,
+      "alignment": 8,
+      "fields": [
+        [
+          "a.s",
+          0,
+          4
+        ],
+        [
+          "a.l",
+          8,
+          8
+        ]
+      ],
+      "classes": "SI"
+    },
+    {
+      "name": "QS",
+      "IL": "{{s,w}{s 2}}",
+      "C": "union{struct{float s;uint32_t w;}a;float s[2];}",
+      "size": 8,
+      "alignment": 4,
+      "fields": [
+        [
+          "a.s",
+          0,
+          4
+        ],
+        [
+          "a.w",
+          4,
+          4
+        ]
+      ],
+      "classes": "I"
+    },
+    {
+      "name": "PS",
+      "IL": "{s,:QS}",
+      "C": "struct{float s;QS q;}",
+      "size": 12,
+      "alignment": 4,
+      "fields": [
+        [
+          "s",
+          0,
+          4
+        ],
+        [
+          "q.a.s",
+          4,
+          4
+        ],
+        [
+          "q.a.w",
+          8,
+          4
+        ]
+      ],
+      "classes": "SI"
+    },
+    {
+      "name": "QR",
+      "IL": "{{w,s}{s 2}}",
+      "C": "union{struct{uint32_t w;float s;}a;float s[2];}",
+      "size": 8,
+      "alignment": 4,
+      "fields": [
+        [
+          "a.w",
+          0,
+          4
+        ],
+        [
+          "a.s",
+          4,
+          4
+        ]
+      ],
+      "classes": "I"
+    },
+    {
+      "name": "PR",
+      "IL": "{s,:QR}",
+      "C": "struct{float s;QR q;}",
+      "size": 12,
+      "alignment": 4,
+      "fields": [
+        [
+          "s",
+          0,
+          4
+        ],
+        [
+          "q.a.w",
+          4,
+          4
+        ],
+        [
+          "q.a.s",
+          8,
+          4
+        ]
+      ],
+      "classes": "IS"
+    },
+    {
+      "name": "U4096",
+      "IL": "{{b 4096}{d 2}}",
+      "C": "union{unsigned char b[4096];double d[2];}",
+      "size": 4096,
+      "alignment": 8,
+      "fields": [
+        [
+          "b",
+          0,
+          4096
+        ]
+      ],
+      "classes": "MEMORY"
+    }
+  ]
+}

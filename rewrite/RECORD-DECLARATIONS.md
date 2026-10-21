@@ -26,7 +26,7 @@ member align-ups and final rounding use checkedu64; representable UINT64_MAX-siz
 alignment1 layouts are accepted as compact metadata, without allocating their
 conceptual bytes. No Data payload cap applies to type sizes.
 
-Unions, opaque/dark/empty types, zero/negative repeats, forward/self/mutual
+Opaque/dark/empty types, zero/negative repeats, forward/self/mutual
 references, duplicate type names, ABI subword fields, quoted type names and type
 linkage attributes remain explicit refusals even when unused. The positive-count,
 alignment and duplicate policies are deliberately stricter than upstream's
@@ -89,3 +89,7 @@ publication-growth OOM retries and exhaustive allocation cleanup. Native tests
 run independent scalar expectations in PIE/non-PIE and preserve output files on
 invalid/unsupported input. Actual passes/final combined gates belong in the
 coordination result; this design does not itself claim completed verification.
+
+Named nonempty unions are now supported by the same owned declaration table and
+bounded native ABI endpoints. Their alternative partitions and max-layout rules
+are described in [UNION-ABI.md](UNION-ABI.md); regular-record APIs are unchanged.

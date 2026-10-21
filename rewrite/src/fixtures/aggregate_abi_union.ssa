@@ -1,0 +1,838 @@
+type :U4={{s}{w}}
+type :U4R={{w}{s}}
+type :U8={{s 2}{d}}
+type :U12={{s 3}{w}}
+type :U16={{s,l}{l,s}}
+type :UM={{b 17}{d 2}}
+type :UN=align 16 {{s}{b}}
+type :U3={{b 3}{b}}
+type :U17={{b 17}{b 3}}
+type :UDD={{d 2}{s 4}}
+type :USI={{s,l}{s 2,l}}
+type :QS={{s,w}{s 2}}
+type :PS={s,:QS}
+type :QR={{w,s}{s 2}}
+type :PR={s,:QR}
+export function :U4 $aggregate_abi_union_U4_identity(:U4 %p){
+@e
+ret %p
+}
+export function :U4 $aggregate_abi_union_U4_private(:U4 %p){
+@e
+call $aggregate_abi_union_U4_mutate(l %p)
+ret %p
+}
+export function :U4 $aggregate_abi_union_U4_direct(l %p){
+@e
+%r =:U4 call $aggregate_abi_union_U4_echo(:U4 %p)
+ret %r
+}
+export function :U4 $aggregate_abi_union_U4_indirect(l %fn,l %p){
+@e
+%r =:U4 call %fn(:U4 %p)
+ret %r
+}
+export function :U4 $aggregate_abi_union_U4_variadic(l %p){
+@e
+%r =:U4 call $aggregate_abi_union_U4_tail(w 77,...,:U4 %p,l 99,d d_1)
+ret %r
+}
+export function :U4 $aggregate_abi_union_U4_definition(:U4 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_union_scalar_check(w %tag,l %n,d %d)
+ret %p
+}
+export function :U4 $aggregate_abi_union_U4_definition_tail(:U4 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+call $aggregate_abi_union_U4_consume(l %list)
+%n =l vaarg %list
+call $aggregate_abi_union_after(l %n)
+ret %p
+}
+export function :U4R $aggregate_abi_union_U4R_identity(:U4R %p){
+@e
+ret %p
+}
+export function :U4R $aggregate_abi_union_U4R_private(:U4R %p){
+@e
+call $aggregate_abi_union_U4R_mutate(l %p)
+ret %p
+}
+export function :U4R $aggregate_abi_union_U4R_direct(l %p){
+@e
+%r =:U4R call $aggregate_abi_union_U4R_echo(:U4R %p)
+ret %r
+}
+export function :U4R $aggregate_abi_union_U4R_indirect(l %fn,l %p){
+@e
+%r =:U4R call %fn(:U4R %p)
+ret %r
+}
+export function :U4R $aggregate_abi_union_U4R_variadic(l %p){
+@e
+%r =:U4R call $aggregate_abi_union_U4R_tail(w 77,...,:U4R %p,l 99,d d_1)
+ret %r
+}
+export function :U4R $aggregate_abi_union_U4R_definition(:U4R %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_union_scalar_check(w %tag,l %n,d %d)
+ret %p
+}
+export function :U4R $aggregate_abi_union_U4R_definition_tail(:U4R %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+call $aggregate_abi_union_U4R_consume(l %list)
+%n =l vaarg %list
+call $aggregate_abi_union_after(l %n)
+ret %p
+}
+export function :U8 $aggregate_abi_union_U8_identity(:U8 %p){
+@e
+ret %p
+}
+export function :U8 $aggregate_abi_union_U8_private(:U8 %p){
+@e
+call $aggregate_abi_union_U8_mutate(l %p)
+ret %p
+}
+export function :U8 $aggregate_abi_union_U8_direct(l %p){
+@e
+%r =:U8 call $aggregate_abi_union_U8_echo(:U8 %p)
+ret %r
+}
+export function :U8 $aggregate_abi_union_U8_indirect(l %fn,l %p){
+@e
+%r =:U8 call %fn(:U8 %p)
+ret %r
+}
+export function :U8 $aggregate_abi_union_U8_variadic(l %p){
+@e
+%r =:U8 call $aggregate_abi_union_U8_tail(w 77,...,:U8 %p,l 99,d d_1)
+ret %r
+}
+export function :U8 $aggregate_abi_union_U8_definition(:U8 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_union_scalar_check(w %tag,l %n,d %d)
+ret %p
+}
+export function :U8 $aggregate_abi_union_U8_definition_tail(:U8 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+call $aggregate_abi_union_U8_consume(l %list)
+%n =l vaarg %list
+call $aggregate_abi_union_after(l %n)
+ret %p
+}
+export function :U12 $aggregate_abi_union_U12_identity(:U12 %p){
+@e
+ret %p
+}
+export function :U12 $aggregate_abi_union_U12_private(:U12 %p){
+@e
+call $aggregate_abi_union_U12_mutate(l %p)
+ret %p
+}
+export function :U12 $aggregate_abi_union_U12_direct(l %p){
+@e
+%r =:U12 call $aggregate_abi_union_U12_echo(:U12 %p)
+ret %r
+}
+export function :U12 $aggregate_abi_union_U12_indirect(l %fn,l %p){
+@e
+%r =:U12 call %fn(:U12 %p)
+ret %r
+}
+export function :U12 $aggregate_abi_union_U12_variadic(l %p){
+@e
+%r =:U12 call $aggregate_abi_union_U12_tail(w 77,...,:U12 %p,l 99,d d_1)
+ret %r
+}
+export function :U12 $aggregate_abi_union_U12_definition(:U12 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_union_scalar_check(w %tag,l %n,d %d)
+ret %p
+}
+export function :U12 $aggregate_abi_union_U12_definition_tail(:U12 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+call $aggregate_abi_union_U12_consume(l %list)
+%n =l vaarg %list
+call $aggregate_abi_union_after(l %n)
+ret %p
+}
+export function :U16 $aggregate_abi_union_U16_identity(:U16 %p){
+@e
+ret %p
+}
+export function :U16 $aggregate_abi_union_U16_private(:U16 %p){
+@e
+call $aggregate_abi_union_U16_mutate(l %p)
+ret %p
+}
+export function :U16 $aggregate_abi_union_U16_direct(l %p){
+@e
+%r =:U16 call $aggregate_abi_union_U16_echo(:U16 %p)
+ret %r
+}
+export function :U16 $aggregate_abi_union_U16_indirect(l %fn,l %p){
+@e
+%r =:U16 call %fn(:U16 %p)
+ret %r
+}
+export function :U16 $aggregate_abi_union_U16_variadic(l %p){
+@e
+%r =:U16 call $aggregate_abi_union_U16_tail(w 77,...,:U16 %p,l 99,d d_1)
+ret %r
+}
+export function :U16 $aggregate_abi_union_U16_definition(:U16 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_union_scalar_check(w %tag,l %n,d %d)
+ret %p
+}
+export function :U16 $aggregate_abi_union_U16_definition_tail(:U16 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+call $aggregate_abi_union_U16_consume(l %list)
+%n =l vaarg %list
+call $aggregate_abi_union_after(l %n)
+ret %p
+}
+export function :UM $aggregate_abi_union_UM_identity(:UM %p){
+@e
+ret %p
+}
+export function :UM $aggregate_abi_union_UM_private(:UM %p){
+@e
+call $aggregate_abi_union_UM_mutate(l %p)
+ret %p
+}
+export function :UM $aggregate_abi_union_UM_direct(l %p){
+@e
+%r =:UM call $aggregate_abi_union_UM_echo(:UM %p)
+ret %r
+}
+export function :UM $aggregate_abi_union_UM_indirect(l %fn,l %p){
+@e
+%r =:UM call %fn(:UM %p)
+ret %r
+}
+export function :UM $aggregate_abi_union_UM_variadic(l %p){
+@e
+%r =:UM call $aggregate_abi_union_UM_tail(w 77,...,:UM %p,l 99,d d_1)
+ret %r
+}
+export function :UM $aggregate_abi_union_UM_definition(:UM %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_union_scalar_check(w %tag,l %n,d %d)
+ret %p
+}
+export function :UM $aggregate_abi_union_UM_definition_tail(:UM %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+call $aggregate_abi_union_UM_consume(l %list)
+%n =l vaarg %list
+call $aggregate_abi_union_after(l %n)
+ret %p
+}
+export function :UN $aggregate_abi_union_UN_identity(:UN %p){
+@e
+ret %p
+}
+export function :UN $aggregate_abi_union_UN_private(:UN %p){
+@e
+call $aggregate_abi_union_UN_mutate(l %p)
+ret %p
+}
+export function :UN $aggregate_abi_union_UN_direct(l %p){
+@e
+%r =:UN call $aggregate_abi_union_UN_echo(:UN %p)
+ret %r
+}
+export function :UN $aggregate_abi_union_UN_indirect(l %fn,l %p){
+@e
+%r =:UN call %fn(:UN %p)
+ret %r
+}
+export function :UN $aggregate_abi_union_UN_variadic(l %p){
+@e
+%r =:UN call $aggregate_abi_union_UN_tail(w 77,...,:UN %p,l 99,d d_1)
+ret %r
+}
+export function :UN $aggregate_abi_union_UN_definition(:UN %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_union_scalar_check(w %tag,l %n,d %d)
+ret %p
+}
+export function :UN $aggregate_abi_union_UN_definition_tail(:UN %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+call $aggregate_abi_union_UN_consume(l %list)
+%n =l vaarg %list
+call $aggregate_abi_union_after(l %n)
+ret %p
+}
+export function :U3 $aggregate_abi_union_U3_identity(:U3 %p){
+@e
+ret %p
+}
+export function :U3 $aggregate_abi_union_U3_private(:U3 %p){
+@e
+call $aggregate_abi_union_U3_mutate(l %p)
+ret %p
+}
+export function :U3 $aggregate_abi_union_U3_direct(l %p){
+@e
+%r =:U3 call $aggregate_abi_union_U3_echo(:U3 %p)
+ret %r
+}
+export function :U3 $aggregate_abi_union_U3_indirect(l %fn,l %p){
+@e
+%r =:U3 call %fn(:U3 %p)
+ret %r
+}
+export function :U3 $aggregate_abi_union_U3_variadic(l %p){
+@e
+%r =:U3 call $aggregate_abi_union_U3_tail(w 77,...,:U3 %p,l 99,d d_1)
+ret %r
+}
+export function :U3 $aggregate_abi_union_U3_definition(:U3 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_union_scalar_check(w %tag,l %n,d %d)
+ret %p
+}
+export function :U3 $aggregate_abi_union_U3_definition_tail(:U3 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+call $aggregate_abi_union_U3_consume(l %list)
+%n =l vaarg %list
+call $aggregate_abi_union_after(l %n)
+ret %p
+}
+export function :U17 $aggregate_abi_union_U17_identity(:U17 %p){
+@e
+ret %p
+}
+export function :U17 $aggregate_abi_union_U17_private(:U17 %p){
+@e
+call $aggregate_abi_union_U17_mutate(l %p)
+ret %p
+}
+export function :U17 $aggregate_abi_union_U17_direct(l %p){
+@e
+%r =:U17 call $aggregate_abi_union_U17_echo(:U17 %p)
+ret %r
+}
+export function :U17 $aggregate_abi_union_U17_indirect(l %fn,l %p){
+@e
+%r =:U17 call %fn(:U17 %p)
+ret %r
+}
+export function :U17 $aggregate_abi_union_U17_variadic(l %p){
+@e
+%r =:U17 call $aggregate_abi_union_U17_tail(w 77,...,:U17 %p,l 99,d d_1)
+ret %r
+}
+export function :U17 $aggregate_abi_union_U17_definition(:U17 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_union_scalar_check(w %tag,l %n,d %d)
+ret %p
+}
+export function :U17 $aggregate_abi_union_U17_definition_tail(:U17 %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+call $aggregate_abi_union_U17_consume(l %list)
+%n =l vaarg %list
+call $aggregate_abi_union_after(l %n)
+ret %p
+}
+export function :UDD $aggregate_abi_union_UDD_identity(:UDD %p){
+@e
+ret %p
+}
+export function :UDD $aggregate_abi_union_UDD_private(:UDD %p){
+@e
+call $aggregate_abi_union_UDD_mutate(l %p)
+ret %p
+}
+export function :UDD $aggregate_abi_union_UDD_direct(l %p){
+@e
+%r =:UDD call $aggregate_abi_union_UDD_echo(:UDD %p)
+ret %r
+}
+export function :UDD $aggregate_abi_union_UDD_indirect(l %fn,l %p){
+@e
+%r =:UDD call %fn(:UDD %p)
+ret %r
+}
+export function :UDD $aggregate_abi_union_UDD_variadic(l %p){
+@e
+%r =:UDD call $aggregate_abi_union_UDD_tail(w 77,...,:UDD %p,l 99,d d_1)
+ret %r
+}
+export function :UDD $aggregate_abi_union_UDD_definition(:UDD %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_union_scalar_check(w %tag,l %n,d %d)
+ret %p
+}
+export function :UDD $aggregate_abi_union_UDD_definition_tail(:UDD %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+call $aggregate_abi_union_UDD_consume(l %list)
+%n =l vaarg %list
+call $aggregate_abi_union_after(l %n)
+ret %p
+}
+export function :USI $aggregate_abi_union_USI_identity(:USI %p){
+@e
+ret %p
+}
+export function :USI $aggregate_abi_union_USI_private(:USI %p){
+@e
+call $aggregate_abi_union_USI_mutate(l %p)
+ret %p
+}
+export function :USI $aggregate_abi_union_USI_direct(l %p){
+@e
+%r =:USI call $aggregate_abi_union_USI_echo(:USI %p)
+ret %r
+}
+export function :USI $aggregate_abi_union_USI_indirect(l %fn,l %p){
+@e
+%r =:USI call %fn(:USI %p)
+ret %r
+}
+export function :USI $aggregate_abi_union_USI_variadic(l %p){
+@e
+%r =:USI call $aggregate_abi_union_USI_tail(w 77,...,:USI %p,l 99,d d_1)
+ret %r
+}
+export function :USI $aggregate_abi_union_USI_definition(:USI %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_union_scalar_check(w %tag,l %n,d %d)
+ret %p
+}
+export function :USI $aggregate_abi_union_USI_definition_tail(:USI %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+call $aggregate_abi_union_USI_consume(l %list)
+%n =l vaarg %list
+call $aggregate_abi_union_after(l %n)
+ret %p
+}
+export function :QS $aggregate_abi_union_QS_identity(:QS %p){
+@e
+ret %p
+}
+export function :QS $aggregate_abi_union_QS_private(:QS %p){
+@e
+call $aggregate_abi_union_QS_mutate(l %p)
+ret %p
+}
+export function :QS $aggregate_abi_union_QS_direct(l %p){
+@e
+%r =:QS call $aggregate_abi_union_QS_echo(:QS %p)
+ret %r
+}
+export function :QS $aggregate_abi_union_QS_indirect(l %fn,l %p){
+@e
+%r =:QS call %fn(:QS %p)
+ret %r
+}
+export function :QS $aggregate_abi_union_QS_variadic(l %p){
+@e
+%r =:QS call $aggregate_abi_union_QS_tail(w 77,...,:QS %p,l 99,d d_1)
+ret %r
+}
+export function :QS $aggregate_abi_union_QS_definition(:QS %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_union_scalar_check(w %tag,l %n,d %d)
+ret %p
+}
+export function :QS $aggregate_abi_union_QS_definition_tail(:QS %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+call $aggregate_abi_union_QS_consume(l %list)
+%n =l vaarg %list
+call $aggregate_abi_union_after(l %n)
+ret %p
+}
+export function :PS $aggregate_abi_union_PS_identity(:PS %p){
+@e
+ret %p
+}
+export function :PS $aggregate_abi_union_PS_private(:PS %p){
+@e
+call $aggregate_abi_union_PS_mutate(l %p)
+ret %p
+}
+export function :PS $aggregate_abi_union_PS_direct(l %p){
+@e
+%r =:PS call $aggregate_abi_union_PS_echo(:PS %p)
+ret %r
+}
+export function :PS $aggregate_abi_union_PS_indirect(l %fn,l %p){
+@e
+%r =:PS call %fn(:PS %p)
+ret %r
+}
+export function :PS $aggregate_abi_union_PS_variadic(l %p){
+@e
+%r =:PS call $aggregate_abi_union_PS_tail(w 77,...,:PS %p,l 99,d d_1)
+ret %r
+}
+export function :PS $aggregate_abi_union_PS_definition(:PS %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_union_scalar_check(w %tag,l %n,d %d)
+ret %p
+}
+export function :PS $aggregate_abi_union_PS_definition_tail(:PS %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+call $aggregate_abi_union_PS_consume(l %list)
+%n =l vaarg %list
+call $aggregate_abi_union_after(l %n)
+ret %p
+}
+export function :QR $aggregate_abi_union_QR_identity(:QR %p){
+@e
+ret %p
+}
+export function :QR $aggregate_abi_union_QR_private(:QR %p){
+@e
+call $aggregate_abi_union_QR_mutate(l %p)
+ret %p
+}
+export function :QR $aggregate_abi_union_QR_direct(l %p){
+@e
+%r =:QR call $aggregate_abi_union_QR_echo(:QR %p)
+ret %r
+}
+export function :QR $aggregate_abi_union_QR_indirect(l %fn,l %p){
+@e
+%r =:QR call %fn(:QR %p)
+ret %r
+}
+export function :QR $aggregate_abi_union_QR_variadic(l %p){
+@e
+%r =:QR call $aggregate_abi_union_QR_tail(w 77,...,:QR %p,l 99,d d_1)
+ret %r
+}
+export function :QR $aggregate_abi_union_QR_definition(:QR %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_union_scalar_check(w %tag,l %n,d %d)
+ret %p
+}
+export function :QR $aggregate_abi_union_QR_definition_tail(:QR %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+call $aggregate_abi_union_QR_consume(l %list)
+%n =l vaarg %list
+call $aggregate_abi_union_after(l %n)
+ret %p
+}
+export function :PR $aggregate_abi_union_PR_identity(:PR %p){
+@e
+ret %p
+}
+export function :PR $aggregate_abi_union_PR_private(:PR %p){
+@e
+call $aggregate_abi_union_PR_mutate(l %p)
+ret %p
+}
+export function :PR $aggregate_abi_union_PR_direct(l %p){
+@e
+%r =:PR call $aggregate_abi_union_PR_echo(:PR %p)
+ret %r
+}
+export function :PR $aggregate_abi_union_PR_indirect(l %fn,l %p){
+@e
+%r =:PR call %fn(:PR %p)
+ret %r
+}
+export function :PR $aggregate_abi_union_PR_variadic(l %p){
+@e
+%r =:PR call $aggregate_abi_union_PR_tail(w 77,...,:PR %p,l 99,d d_1)
+ret %r
+}
+export function :PR $aggregate_abi_union_PR_definition(:PR %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $aggregate_abi_union_scalar_check(w %tag,l %n,d %d)
+ret %p
+}
+export function :PR $aggregate_abi_union_PR_definition_tail(:PR %p,w %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+call $aggregate_abi_union_PR_consume(l %list)
+%n =l vaarg %list
+call $aggregate_abi_union_after(l %n)
+ret %p
+}
+export function :U4 $aggregate_abi_union_U4_env(env %e,:U4 %p){
+@e
+call $aggregate_abi_union_U4_env_check(l %e,l %p)
+ret %p
+}
+export function :U4 $aggregate_abi_union_U4_env_indirect(l %fn,l %p,l %e){
+@e
+%r =:U4 call %fn(env %e,:U4 %p)
+ret %r
+}
+export function :U4R $aggregate_abi_union_U4R_env(env %e,:U4R %p){
+@e
+call $aggregate_abi_union_U4R_env_check(l %e,l %p)
+ret %p
+}
+export function :U4R $aggregate_abi_union_U4R_env_indirect(l %fn,l %p,l %e){
+@e
+%r =:U4R call %fn(env %e,:U4R %p)
+ret %r
+}
+export function :U8 $aggregate_abi_union_U8_env(env %e,:U8 %p){
+@e
+call $aggregate_abi_union_U8_env_check(l %e,l %p)
+ret %p
+}
+export function :U8 $aggregate_abi_union_U8_env_indirect(l %fn,l %p,l %e){
+@e
+%r =:U8 call %fn(env %e,:U8 %p)
+ret %r
+}
+export function :U12 $aggregate_abi_union_U12_env(env %e,:U12 %p){
+@e
+call $aggregate_abi_union_U12_env_check(l %e,l %p)
+ret %p
+}
+export function :U12 $aggregate_abi_union_U12_env_indirect(l %fn,l %p,l %e){
+@e
+%r =:U12 call %fn(env %e,:U12 %p)
+ret %r
+}
+export function :U16 $aggregate_abi_union_U16_env(env %e,:U16 %p){
+@e
+call $aggregate_abi_union_U16_env_check(l %e,l %p)
+ret %p
+}
+export function :U16 $aggregate_abi_union_U16_env_indirect(l %fn,l %p,l %e){
+@e
+%r =:U16 call %fn(env %e,:U16 %p)
+ret %r
+}
+export function :UM $aggregate_abi_union_UM_env(env %e,:UM %p){
+@e
+call $aggregate_abi_union_UM_env_check(l %e,l %p)
+ret %p
+}
+export function :UM $aggregate_abi_union_UM_env_indirect(l %fn,l %p,l %e){
+@e
+%r =:UM call %fn(env %e,:UM %p)
+ret %r
+}
+export function :UN $aggregate_abi_union_UN_env(env %e,:UN %p){
+@e
+call $aggregate_abi_union_UN_env_check(l %e,l %p)
+ret %p
+}
+export function :UN $aggregate_abi_union_UN_env_indirect(l %fn,l %p,l %e){
+@e
+%r =:UN call %fn(env %e,:UN %p)
+ret %r
+}
+export function :U3 $aggregate_abi_union_U3_env(env %e,:U3 %p){
+@e
+call $aggregate_abi_union_U3_env_check(l %e,l %p)
+ret %p
+}
+export function :U3 $aggregate_abi_union_U3_env_indirect(l %fn,l %p,l %e){
+@e
+%r =:U3 call %fn(env %e,:U3 %p)
+ret %r
+}
+export function :U17 $aggregate_abi_union_U17_env(env %e,:U17 %p){
+@e
+call $aggregate_abi_union_U17_env_check(l %e,l %p)
+ret %p
+}
+export function :U17 $aggregate_abi_union_U17_env_indirect(l %fn,l %p,l %e){
+@e
+%r =:U17 call %fn(env %e,:U17 %p)
+ret %r
+}
+export function :UDD $aggregate_abi_union_UDD_env(env %e,:UDD %p){
+@e
+call $aggregate_abi_union_UDD_env_check(l %e,l %p)
+ret %p
+}
+export function :UDD $aggregate_abi_union_UDD_env_indirect(l %fn,l %p,l %e){
+@e
+%r =:UDD call %fn(env %e,:UDD %p)
+ret %r
+}
+export function :USI $aggregate_abi_union_USI_env(env %e,:USI %p){
+@e
+call $aggregate_abi_union_USI_env_check(l %e,l %p)
+ret %p
+}
+export function :USI $aggregate_abi_union_USI_env_indirect(l %fn,l %p,l %e){
+@e
+%r =:USI call %fn(env %e,:USI %p)
+ret %r
+}
+export function :QS $aggregate_abi_union_QS_env(env %e,:QS %p){
+@e
+call $aggregate_abi_union_QS_env_check(l %e,l %p)
+ret %p
+}
+export function :QS $aggregate_abi_union_QS_env_indirect(l %fn,l %p,l %e){
+@e
+%r =:QS call %fn(env %e,:QS %p)
+ret %r
+}
+export function :PS $aggregate_abi_union_PS_env(env %e,:PS %p){
+@e
+call $aggregate_abi_union_PS_env_check(l %e,l %p)
+ret %p
+}
+export function :PS $aggregate_abi_union_PS_env_indirect(l %fn,l %p,l %e){
+@e
+%r =:PS call %fn(env %e,:PS %p)
+ret %r
+}
+export function :QR $aggregate_abi_union_QR_env(env %e,:QR %p){
+@e
+call $aggregate_abi_union_QR_env_check(l %e,l %p)
+ret %p
+}
+export function :QR $aggregate_abi_union_QR_env_indirect(l %fn,l %p,l %e){
+@e
+%r =:QR call %fn(env %e,:QR %p)
+ret %r
+}
+export function :PR $aggregate_abi_union_PR_env(env %e,:PR %p){
+@e
+call $aggregate_abi_union_PR_env_check(l %e,l %p)
+ret %p
+}
+export function :PR $aggregate_abi_union_PR_env_indirect(l %fn,l %p,l %e){
+@e
+%r =:PR call %fn(env %e,:PR %p)
+ret %r
+}
+
+export function :UM $aggregate_abi_union_pressure(l %fn,l %u,l %v,l %m){
+@e
+%dynamic =l alloc16 4097
+%r =:UM call %fn(l 1,l 2,l 3,l 4,l 5,:U12 %u,l 6,...,:U8 %v,l 99,:UM %m,l 101)
+ret %r
+}
+export function :UM $aggregate_abi_union_definition_pressure(l %a,l %b,l %c,l %d,l %e,:U12 %u,l %last,...){
+@e
+%list =l alloc8 24
+vastart %list
+%source =l call $aggregate_abi_union_pressure_consume(l %list,l %u,l %a,l %b,l %c,l %d,l %e,l %last)
+%n =l vaarg %list
+call $aggregate_abi_union_after(l %n)
+ret %source
+}
+
+type :U4096={{b 4096}{d 2}}
+export function :U4096 $aggregate_abi_union_limit_identity(:U4096 %p){
+@e
+ret %p
+}
+export function :U4096 $aggregate_abi_union_limit_direct(l %p){
+@e
+%r =:U4096 call $aggregate_abi_union_limit_echo(:U4096 %p)
+ret %r
+}
+
+export function :UM $aggregate_abi_union_pressure_B(l %fn,l %u,l %v,l %m){
+@e
+%dynamic =l alloc16 4113
+%r =:UM call %fn(d d_1,d d_2,d d_3,d d_4,d d_5,d d_6,d d_7,d d_8,:U12 %u,l 77,...,:U8 %v,l 99,:UM %m,l 101)
+ret %r
+}
+export function :UM $aggregate_abi_union_definition_pressure_B(d %a,d %b,d %c,d %d,d %e,d %f,d %g,d %h,:U12 %u,l %last,...){
+@e
+%list =l alloc8 24
+vastart %list
+%source =l call $aggregate_abi_union_pressure_B_consume(l %list,l %u,l %last,d %a,d %b,d %c,d %d,d %e,d %f,d %g,d %h)
+%n =l vaarg %list
+call $aggregate_abi_union_after(l %n)
+ret %source
+}

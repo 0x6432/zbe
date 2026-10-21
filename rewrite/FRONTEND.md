@@ -2,6 +2,10 @@
 
 `frontend.parse(allocator, Source, &diagnostic)` returns an owned `Module`. It borrows input only during the call; names that survive parsing are interned into the module. The caller deinitializes successful modules. Any failed parse frees tokens, name maps and all partially constructed functions, data and records. `InvalidInput` carries a typed diagnostic with a half-open source byte span; allocator/resource errors propagate separately. There is no process exit or CLI diagnostic rendering in this API.
 
+Bounded named unions also accept `{ { fields } { fields } ... }`, with owned
+all-alternative layouts and the existing native INTEGER/SSE/MEMORY endpoints;
+see [UNION-ABI.md](UNION-ABI.md). Aggregate interpreter/vaarg refusals are unchanged.
+
 ## Currently accepted subset
 
 Bounded nonempty `type :Name = [align A] { member [count], ... }` record
@@ -12,7 +16,7 @@ declarations leave scalar assembly byte-identical. Aggregate first-class values 
 Typed record signatures/call annotations are retained as generic owned metadata;
 bounded native uses are supported while aggregate interpreter use remains refused
 ([AGGREGATE-ABI-REPRESENTATION.md](AGGREGATE-ABI-REPRESENTATION.md)). Exact repeat/alignment/
-resource bounds and deferred union/opaque syntax are documented in
+resource bounds and deferred opaque syntax are documented in
 [RECORD-DECLARATIONS.md](RECORD-DECLARATIONS.md).
 
 ```text

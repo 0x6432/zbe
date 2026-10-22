@@ -27,6 +27,7 @@ pub const Module = @import("module.zig").Module;
 
 test {
     _ = @import("aggregate_abi_union_test.zig");
+    _ = @import("aggregate_abi_opaque_test.zig");
     _ = @import("aggregate_abi_variadic_test.zig");
     _ = @import("aggregate_abi_call_targets_test.zig");
     _ = @import("aggregate_abi_align16_test.zig");

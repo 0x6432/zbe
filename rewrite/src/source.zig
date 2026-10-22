@@ -43,6 +43,7 @@ pub const Diagnostic = struct {
         duplicate_type,
         unknown_type,
         invalid_record_count,
+        invalid_opaque_size,
         duplicate_function,
         duplicate_symbol,
         invalid_alignment,

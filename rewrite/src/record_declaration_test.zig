@@ -157,7 +157,6 @@ test "record_declaration former union refusal now owns complete alternatives and
 
 test "record_declaration unsupported forms aggregate-use positions and bad counts remain refusals" {
     for ([_][]const u8{
-        "type :Opaque = align 16 { 32 }",
         "type :Empty = {}",
         "type :T = { b 0 }",
         "type :T = { b -1 }",
@@ -482,4 +481,13 @@ test "record_declaration full alias assembly and global ordering remain identica
             try testing.expectEqualStrings(before, after);
         }
     }
+}
+
+test "aggregate_abi_opaque former declaration refusal now exact owned positive" {
+    var m = try parse(testing.allocator, "type :Opaque = align 16 { 32 }");
+    defer m.deinit();
+    try testing.expectEqual(records.Kind.@"opaque", m.types.items[0].kind);
+    try testing.expectEqual(@as(u64, 32), m.types.items[0].opaque_bytes.?);
+    try testing.expectEqual(@as(usize, 0), m.types.items[0].runs.len);
+    try m.validateRecords(testing.allocator);
 }

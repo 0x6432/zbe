@@ -115,3 +115,8 @@ now supported separately: [AGGREGATE-VARIADIC.md](AGGREGATE-VARIADIC.md). Earlie
 scalar/nonvariadic descriptions above describe their original slice, not a blanket
 refusal of this extension. IL vaarg remains scalar-only; ENV+varargs and aggregate
 interpretation remain refused. Raw stack end differs from rounded outgoing bytes.
+
+Opaque declarations and their separate forced-MEMORY native rules (including
+short opaques and large containing records) are now supported as specified in
+[OPAQUE-ABI.md](OPAQUE-ABI.md). This does not infer register layouts for small
+opaque-containing records; those uses remain explicit native refusals.

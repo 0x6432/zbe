@@ -13,6 +13,7 @@ pub const Error = std.mem.Allocator.Error || error{
     InvalidRecordRepeat,
     InvalidRecordAlignment,
     InvalidRecordLayout,
+    InvalidOpaqueSize,
     RecordLayoutOverflow,
     RecordLimitExceeded,
 };
@@ -35,7 +36,7 @@ pub const Scalar = enum {
 pub const Element = union(enum) { scalar: Scalar, record: Id };
 pub const Field = struct { element: Element, count: u32 = 1 };
 pub const Run = struct { field: Field, offset: u64, stride: u64 };
-pub const Kind = enum { regular, union_type };
+pub const Kind = enum { regular, union_type, @"opaque" };
 pub const Variant = struct { first_run: usize, run_count: usize, size: u64, alignment: u8 };
 pub const Record = struct {
     allocator: std.mem.Allocator,
@@ -46,6 +47,8 @@ pub const Record = struct {
     size: u64,
     runs: []Run,
     kind: Kind = .regular,
+    /// Authoritative exact declared bytes; never alignment-rounded.
+    opaque_bytes: ?u64 = null,
     /// Union alternatives partition runs, with each alternative offset relative to zero.
     variants: []Variant = &.{},
 
@@ -54,6 +57,15 @@ pub const Record = struct {
         self.allocator.free(self.variants);
         self.allocator.free(self.runs);
         self.* = undefined;
+    }
+
+    /// Compact owned declaration: no conceptual payload or synthetic fields.
+    pub fn createOpaque(allocator: std.mem.Allocator, name: symbols.Id, alignment: u8, bytes: u64) Error!*Record {
+        _ = try initialAlignment(alignment);
+        if (bytes == 0) return error.InvalidOpaqueSize;
+        const record = try allocator.create(Record);
+        record.* = .{ .allocator = allocator, .name = name, .explicit_alignment = alignment, .alignment = alignment, .size = bytes, .runs = &.{}, .kind = .@"opaque", .opaque_bytes = bytes };
+        return record;
     }
 
     /// Copies field structure; repeated conceptual bytes are never allocated.
@@ -168,12 +180,22 @@ pub fn validate(allocator: std.mem.Allocator, records: []const *Record, pool: *c
         const entry = try names.getOrPut(allocator, record.name);
         if (entry.found_existing) return error.DuplicateType;
         entry.value_ptr.* = {};
-        if (record.runs.len == 0) return error.InvalidRecordLayout;
+        if (record.kind == .@"opaque") {
+            const bytes = record.opaque_bytes orelse return error.InvalidRecordLayout;
+            const explicit = record.explicit_alignment orelse return error.InvalidRecordLayout;
+            // Contradictory public metadata is layout corruption, not a new declaration.
+            if (explicit == 0 or explicit > 64 or explicit & (explicit - 1) != 0 or
+                bytes == 0 or record.size != bytes or record.alignment != explicit or
+                record.runs.len != 0 or record.variants.len != 0) return error.InvalidRecordLayout;
+            continue;
+        }
+        if (record.opaque_bytes != null or record.runs.len == 0) return error.InvalidRecordLayout;
         if (record.runs.len > max_record_runs) return error.RecordLimitExceeded;
         total = std.math.add(usize, total, record.runs.len) catch return error.RecordLimitExceeded;
         if (total > max_module_runs) return error.RecordLimitExceeded;
         var alignment = try initialAlignment(record.explicit_alignment);
         switch (record.kind) {
+            .@"opaque" => unreachable,
             .regular => {
                 if (record.variants.len != 0) return error.InvalidRecordLayout;
                 var cursor: u64 = 0;

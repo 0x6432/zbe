@@ -39,7 +39,7 @@ static unsigned count;
 #define REQUIRE(x) do {++count;if(!(x)){fprintf(stderr,"record declaration native check %u failed\\n",count);abort();}}while(0)
 int main(void) {
 '''+ '\n'.join(checks)+ '\nif(count!=122) {return 3;} printf("%u record declaration scalar checks passed\\n",count);return 0;}\n'
-    declarations=['type :O = align 16 { 32 }','type :E = {}','type :T = { b 0 }','type :T = { b -1 }','type :T = { b 2147483648 }','type :T = { b 18446744073709551616 }','type :T = align 0 { b }','type :T = align 3 { b }','type :T = align 128 { b }','type :T = { sb }','type :T = { :T }','type :T = { :Later }\ntype :Later = { w }','type :A = { :B }\ntype :B = { :A }','type :T = { w }\ntype :T = { b }','export type :T = { b }']
+    declarations=['type :E = {}','type :T = { b 0 }','type :T = { b -1 }','type :T = { b 2147483648 }','type :T = { b 18446744073709551616 }','type :T = align 0 { b }','type :T = align 3 { b }','type :T = align 128 { b }','type :T = { sb }','type :T = { :T }','type :T = { :Later }\ntype :Later = { w }','type :A = { :B }\ntype :B = { :A }','type :T = { w }\ntype :T = { b }','export type :T = { b }']
     uses=[
         'function :T $f() {\n@e\nret\n}',
         'function $f(:T %x) {\n@e\nret\n}',
@@ -55,7 +55,7 @@ int main(void) {
     # malformed missing-value return and first-class aggregate syntax still fail.
     eligible=['type :T = { w }\n'+uses[i] for i in (1,3,4)]
     invalid=declarations+['type :T = { w }\n'+uses[i] for i in (0,2,5,6,7,8)]
-    assert len(invalid)==21
+    assert len(invalid)==20
     with tempfile.TemporaryDirectory(prefix='record_declaration_') as directory:
         path=Path(directory)
         il,asm,baseline,driver,exe=[path/name for name in ('input.ssa','output.s','baseline.s','driver.c','run')]
@@ -73,6 +73,11 @@ int main(void) {
             if asm.read_bytes()!=baseline.read_bytes():raise SystemExit('Unused union changed scalar assembly')
         print('2 former-union-refusal positive byte-identical scalar assemblies passed')
 
+        for text in ('type :O = align 16 { 32 }\n'+scalar, scalar+'\ntype :O = align 16 { 32 }\n'):
+            il.write_text(text)
+            subprocess.run([*compiler,str(il),str(asm)],check=True,timeout=90)
+            if asm.read_bytes()!=baseline.read_bytes():raise SystemExit('Unused opaque changed scalar assembly')
+        print('2 former-opaque-refusal positive byte-identical scalar assemblies passed')
         driver.write_text(c)
         for link in ('-pie','-no-pie'):
             subprocess.run([args.cc,'-std=c11','-O2','-Wall','-Wextra','-Werror','-fPIE',link,str(driver),str(asm),str(root/'src/fixtures/check-preserved.s'),'-o',str(exe)],check=True,timeout=90)

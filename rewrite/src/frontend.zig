@@ -141,7 +141,21 @@ const Parser = struct {
         _ = try self.expect(.lbrace);
         self.skipLines();
         if (self.peek().kind == .lbrace) return self.unionDefinition(name, name_token, alignment);
-        // Empty and opaque forms remain outside this aggregate slice.
+        if (self.peek().kind == .integer) {
+            const token = self.advance();
+            const explicit = alignment orelse return self.fail(.invalid_alignment, token);
+            const bytes = std.fmt.parseInt(u64, self.tokenText(token), 10) catch return self.fail(.invalid_opaque_size, token);
+            if (bytes == 0) return self.fail(.invalid_opaque_size, token);
+            self.skipLines();
+            _ = try self.expect(.rbrace);
+            _ = self.module.addOpaque(name, explicit, bytes) catch |err| switch (err) {
+                error.DuplicateType => return self.fail(.duplicate_type, name_token),
+                error.InvalidRecordName => return self.fail(.invalid_name, name_token),
+                else => |resource| return resource,
+            };
+            return;
+        }
+        // Empty declarations remain outside this aggregate slice.
         if (self.peek().kind != .identifier and self.peek().kind != .type_name)
             return self.fail(.unsupported_construct, self.peek());
         var fields: std.ArrayList(records.Field) = .empty;

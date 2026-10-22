@@ -118,3 +118,8 @@ four unaffected scalar fragments are compared, using64 immutable hashes generate
 by the published prior `2c5ce8f1f599effa1b1e62b0ac681c6e7ad75778` compiler, not
 the current implementation. `--baseline-compiler` also checks actual prior bytes.
 Whole scalar-module identity remains covered by the unchanged MEMORY harness.
+
+Opaque declarations and their separate forced-MEMORY native rules (including
+short opaques and large containing records) are now supported as specified in
+[OPAQUE-ABI.md](OPAQUE-ABI.md). This does not infer register layouts for small
+opaque-containing records; those uses remain explicit native refusals.

@@ -106,3 +106,8 @@ All compiler allocation failures (including final writer extraction) clean up an
 permit same-module retry. Parsing/validation/planning/emission refusal or OOM before
 driverwrite preserves a preexisting CLI output. The existing later writeFile is NOT
 an atomic replacement guarantee on filesystem/I/O failure.
+
+Opaque declarations and their separate forced-MEMORY native rules (including
+short opaques and large containing records) are now supported as specified in
+[OPAQUE-ABI.md](OPAQUE-ABI.md). This does not infer register layouts for small
+opaque-containing records; those uses remain explicit native refusals.

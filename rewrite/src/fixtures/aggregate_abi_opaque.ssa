@@ -1,0 +1,1000 @@
+type :B1=align 1 {1}
+export function :B1 $opaque_B1_id(:B1 %p,l %tag,d %d){
+@e
+call $opaque_scalars(l %tag,d %d)
+ret %p
+}
+export function :B1 $opaque_B1_private(:B1 %p,l %tag,d %d){
+@e
+call $opaque_scalars(l %tag,d %d)
+storeb 123, %p
+ret %p
+}
+export function :B1 $opaque_B1_known(l %p,l %fn,l %env){
+@e
+%r =:B1 call $opaque_B1_id(:B1 %p,l 77,d d_1)
+ret %r
+}
+export function :B1 $opaque_B1_direct(l %p,l %fn,l %env){
+@e
+%r =:B1 call $opaque_B1_asm(:B1 %p,l 77,d d_1)
+ret %r
+}
+export function :B1 $opaque_B1_indirect(l %p,l %fn,l %env){
+@e
+%r =:B1 call %fn(env %env,:B1 %p,l 77,d d_1)
+ret %r
+}
+export function :B1 $opaque_B1_var(l %p,l %fn,l %env){
+@e
+%r =:B1 call %fn(:B1 %p,l 77,...,d d_1)
+ret %r
+}
+export function :B1 $opaque_B1_dynamic(l %p,l %fn,l %env){
+@e
+%area =l alloc16 97
+storeb 33, %area
+%r =:B1 call %fn(env %env,:B1 %p,l 77,d d_1)
+%v =w loadub %area
+call $opaque_dynamic_check(w %v)
+ret %r
+}
+export function :B1 $opaque_B1_loop(l %p,l %fn,l %env){
+@e
+jmp @loop
+@loop
+%i =l phi @e 0, @again %next
+%target =l phi @e %fn, @again %target
+%en =l phi @e %env, @again %en
+%r =:B1 call %target(env %en,:B1 %p,l 77,d d_1)
+%next =l add %i, 1
+%more =w cultl %next, 2
+jnz %more, @again, @done
+@again
+call $opaque_clobber()
+jmp @loop
+@done
+ret %r
+}
+export function :B1 $opaque_B1_recursive(l %p,l %fn,l %env,l %depth){
+@e
+%z =w ceql %depth, 0
+jnz %z, @base, @rec
+@base
+%base =:B1 call %fn(env %env,:B1 %p,l 77,d d_1)
+ret %base
+@rec
+%depth2 =l sub %depth, 1
+%r =:B1 call $opaque_B1_recursive(l %p,l %fn,l %env,l %depth2)
+ret %r
+}
+type :A1=align 16 {1}
+export function :A1 $opaque_A1_id(:A1 %p,l %tag,d %d){
+@e
+call $opaque_scalars(l %tag,d %d)
+ret %p
+}
+export function :A1 $opaque_A1_private(:A1 %p,l %tag,d %d){
+@e
+call $opaque_scalars(l %tag,d %d)
+storeb 123, %p
+ret %p
+}
+export function :A1 $opaque_A1_known(l %p,l %fn,l %env){
+@e
+%r =:A1 call $opaque_A1_id(:A1 %p,l 77,d d_1)
+ret %r
+}
+export function :A1 $opaque_A1_direct(l %p,l %fn,l %env){
+@e
+%r =:A1 call $opaque_A1_asm(:A1 %p,l 77,d d_1)
+ret %r
+}
+export function :A1 $opaque_A1_indirect(l %p,l %fn,l %env){
+@e
+%r =:A1 call %fn(env %env,:A1 %p,l 77,d d_1)
+ret %r
+}
+export function :A1 $opaque_A1_var(l %p,l %fn,l %env){
+@e
+%r =:A1 call %fn(:A1 %p,l 77,...,d d_1)
+ret %r
+}
+export function :A1 $opaque_A1_dynamic(l %p,l %fn,l %env){
+@e
+%area =l alloc16 97
+storeb 33, %area
+%r =:A1 call %fn(env %env,:A1 %p,l 77,d d_1)
+%v =w loadub %area
+call $opaque_dynamic_check(w %v)
+ret %r
+}
+export function :A1 $opaque_A1_loop(l %p,l %fn,l %env){
+@e
+jmp @loop
+@loop
+%i =l phi @e 0, @again %next
+%target =l phi @e %fn, @again %target
+%en =l phi @e %env, @again %en
+%r =:A1 call %target(env %en,:A1 %p,l 77,d d_1)
+%next =l add %i, 1
+%more =w cultl %next, 2
+jnz %more, @again, @done
+@again
+call $opaque_clobber()
+jmp @loop
+@done
+ret %r
+}
+export function :A1 $opaque_A1_recursive(l %p,l %fn,l %env,l %depth){
+@e
+%z =w ceql %depth, 0
+jnz %z, @base, @rec
+@base
+%base =:A1 call %fn(env %env,:A1 %p,l 77,d d_1)
+ret %base
+@rec
+%depth2 =l sub %depth, 1
+%r =:A1 call $opaque_A1_recursive(l %p,l %fn,l %env,l %depth2)
+ret %r
+}
+type :B3=align 1 {3}
+export function :B3 $opaque_B3_id(:B3 %p,l %tag,d %d){
+@e
+call $opaque_scalars(l %tag,d %d)
+ret %p
+}
+export function :B3 $opaque_B3_private(:B3 %p,l %tag,d %d){
+@e
+call $opaque_scalars(l %tag,d %d)
+storeb 123, %p
+ret %p
+}
+export function :B3 $opaque_B3_known(l %p,l %fn,l %env){
+@e
+%r =:B3 call $opaque_B3_id(:B3 %p,l 77,d d_1)
+ret %r
+}
+export function :B3 $opaque_B3_direct(l %p,l %fn,l %env){
+@e
+%r =:B3 call $opaque_B3_asm(:B3 %p,l 77,d d_1)
+ret %r
+}
+export function :B3 $opaque_B3_indirect(l %p,l %fn,l %env){
+@e
+%r =:B3 call %fn(env %env,:B3 %p,l 77,d d_1)
+ret %r
+}
+export function :B3 $opaque_B3_var(l %p,l %fn,l %env){
+@e
+%r =:B3 call %fn(:B3 %p,l 77,...,d d_1)
+ret %r
+}
+export function :B3 $opaque_B3_dynamic(l %p,l %fn,l %env){
+@e
+%area =l alloc16 97
+storeb 33, %area
+%r =:B3 call %fn(env %env,:B3 %p,l 77,d d_1)
+%v =w loadub %area
+call $opaque_dynamic_check(w %v)
+ret %r
+}
+export function :B3 $opaque_B3_loop(l %p,l %fn,l %env){
+@e
+jmp @loop
+@loop
+%i =l phi @e 0, @again %next
+%target =l phi @e %fn, @again %target
+%en =l phi @e %env, @again %en
+%r =:B3 call %target(env %en,:B3 %p,l 77,d d_1)
+%next =l add %i, 1
+%more =w cultl %next, 2
+jnz %more, @again, @done
+@again
+call $opaque_clobber()
+jmp @loop
+@done
+ret %r
+}
+export function :B3 $opaque_B3_recursive(l %p,l %fn,l %env,l %depth){
+@e
+%z =w ceql %depth, 0
+jnz %z, @base, @rec
+@base
+%base =:B3 call %fn(env %env,:B3 %p,l 77,d d_1)
+ret %base
+@rec
+%depth2 =l sub %depth, 1
+%r =:B3 call $opaque_B3_recursive(l %p,l %fn,l %env,l %depth2)
+ret %r
+}
+type :A8=align 8 {8}
+export function :A8 $opaque_A8_id(:A8 %p,l %tag,d %d){
+@e
+call $opaque_scalars(l %tag,d %d)
+ret %p
+}
+export function :A8 $opaque_A8_private(:A8 %p,l %tag,d %d){
+@e
+call $opaque_scalars(l %tag,d %d)
+storeb 123, %p
+ret %p
+}
+export function :A8 $opaque_A8_known(l %p,l %fn,l %env){
+@e
+%r =:A8 call $opaque_A8_id(:A8 %p,l 77,d d_1)
+ret %r
+}
+export function :A8 $opaque_A8_direct(l %p,l %fn,l %env){
+@e
+%r =:A8 call $opaque_A8_asm(:A8 %p,l 77,d d_1)
+ret %r
+}
+export function :A8 $opaque_A8_indirect(l %p,l %fn,l %env){
+@e
+%r =:A8 call %fn(env %env,:A8 %p,l 77,d d_1)
+ret %r
+}
+export function :A8 $opaque_A8_var(l %p,l %fn,l %env){
+@e
+%r =:A8 call %fn(:A8 %p,l 77,...,d d_1)
+ret %r
+}
+export function :A8 $opaque_A8_dynamic(l %p,l %fn,l %env){
+@e
+%area =l alloc16 97
+storeb 33, %area
+%r =:A8 call %fn(env %env,:A8 %p,l 77,d d_1)
+%v =w loadub %area
+call $opaque_dynamic_check(w %v)
+ret %r
+}
+export function :A8 $opaque_A8_loop(l %p,l %fn,l %env){
+@e
+jmp @loop
+@loop
+%i =l phi @e 0, @again %next
+%target =l phi @e %fn, @again %target
+%en =l phi @e %env, @again %en
+%r =:A8 call %target(env %en,:A8 %p,l 77,d d_1)
+%next =l add %i, 1
+%more =w cultl %next, 2
+jnz %more, @again, @done
+@again
+call $opaque_clobber()
+jmp @loop
+@done
+ret %r
+}
+export function :A8 $opaque_A8_recursive(l %p,l %fn,l %env,l %depth){
+@e
+%z =w ceql %depth, 0
+jnz %z, @base, @rec
+@base
+%base =:A8 call %fn(env %env,:A8 %p,l 77,d d_1)
+ret %base
+@rec
+%depth2 =l sub %depth, 1
+%r =:A8 call $opaque_A8_recursive(l %p,l %fn,l %env,l %depth2)
+ret %r
+}
+type :B9=align 1 {9}
+export function :B9 $opaque_B9_id(:B9 %p,l %tag,d %d){
+@e
+call $opaque_scalars(l %tag,d %d)
+ret %p
+}
+export function :B9 $opaque_B9_private(:B9 %p,l %tag,d %d){
+@e
+call $opaque_scalars(l %tag,d %d)
+storeb 123, %p
+ret %p
+}
+export function :B9 $opaque_B9_known(l %p,l %fn,l %env){
+@e
+%r =:B9 call $opaque_B9_id(:B9 %p,l 77,d d_1)
+ret %r
+}
+export function :B9 $opaque_B9_direct(l %p,l %fn,l %env){
+@e
+%r =:B9 call $opaque_B9_asm(:B9 %p,l 77,d d_1)
+ret %r
+}
+export function :B9 $opaque_B9_indirect(l %p,l %fn,l %env){
+@e
+%r =:B9 call %fn(env %env,:B9 %p,l 77,d d_1)
+ret %r
+}
+export function :B9 $opaque_B9_var(l %p,l %fn,l %env){
+@e
+%r =:B9 call %fn(:B9 %p,l 77,...,d d_1)
+ret %r
+}
+export function :B9 $opaque_B9_dynamic(l %p,l %fn,l %env){
+@e
+%area =l alloc16 97
+storeb 33, %area
+%r =:B9 call %fn(env %env,:B9 %p,l 77,d d_1)
+%v =w loadub %area
+call $opaque_dynamic_check(w %v)
+ret %r
+}
+export function :B9 $opaque_B9_loop(l %p,l %fn,l %env){
+@e
+jmp @loop
+@loop
+%i =l phi @e 0, @again %next
+%target =l phi @e %fn, @again %target
+%en =l phi @e %env, @again %en
+%r =:B9 call %target(env %en,:B9 %p,l 77,d d_1)
+%next =l add %i, 1
+%more =w cultl %next, 2
+jnz %more, @again, @done
+@again
+call $opaque_clobber()
+jmp @loop
+@done
+ret %r
+}
+export function :B9 $opaque_B9_recursive(l %p,l %fn,l %env,l %depth){
+@e
+%z =w ceql %depth, 0
+jnz %z, @base, @rec
+@base
+%base =:B9 call %fn(env %env,:B9 %p,l 77,d d_1)
+ret %base
+@rec
+%depth2 =l sub %depth, 1
+%r =:B9 call $opaque_B9_recursive(l %p,l %fn,l %env,l %depth2)
+ret %r
+}
+type :A13=align 8 {13}
+export function :A13 $opaque_A13_id(:A13 %p,l %tag,d %d){
+@e
+call $opaque_scalars(l %tag,d %d)
+ret %p
+}
+export function :A13 $opaque_A13_private(:A13 %p,l %tag,d %d){
+@e
+call $opaque_scalars(l %tag,d %d)
+storeb 123, %p
+ret %p
+}
+export function :A13 $opaque_A13_known(l %p,l %fn,l %env){
+@e
+%r =:A13 call $opaque_A13_id(:A13 %p,l 77,d d_1)
+ret %r
+}
+export function :A13 $opaque_A13_direct(l %p,l %fn,l %env){
+@e
+%r =:A13 call $opaque_A13_asm(:A13 %p,l 77,d d_1)
+ret %r
+}
+export function :A13 $opaque_A13_indirect(l %p,l %fn,l %env){
+@e
+%r =:A13 call %fn(env %env,:A13 %p,l 77,d d_1)
+ret %r
+}
+export function :A13 $opaque_A13_var(l %p,l %fn,l %env){
+@e
+%r =:A13 call %fn(:A13 %p,l 77,...,d d_1)
+ret %r
+}
+export function :A13 $opaque_A13_dynamic(l %p,l %fn,l %env){
+@e
+%area =l alloc16 97
+storeb 33, %area
+%r =:A13 call %fn(env %env,:A13 %p,l 77,d d_1)
+%v =w loadub %area
+call $opaque_dynamic_check(w %v)
+ret %r
+}
+export function :A13 $opaque_A13_loop(l %p,l %fn,l %env){
+@e
+jmp @loop
+@loop
+%i =l phi @e 0, @again %next
+%target =l phi @e %fn, @again %target
+%en =l phi @e %env, @again %en
+%r =:A13 call %target(env %en,:A13 %p,l 77,d d_1)
+%next =l add %i, 1
+%more =w cultl %next, 2
+jnz %more, @again, @done
+@again
+call $opaque_clobber()
+jmp @loop
+@done
+ret %r
+}
+export function :A13 $opaque_A13_recursive(l %p,l %fn,l %env,l %depth){
+@e
+%z =w ceql %depth, 0
+jnz %z, @base, @rec
+@base
+%base =:A13 call %fn(env %env,:A13 %p,l 77,d d_1)
+ret %base
+@rec
+%depth2 =l sub %depth, 1
+%r =:A13 call $opaque_A13_recursive(l %p,l %fn,l %env,l %depth2)
+ret %r
+}
+type :A16=align 16 {16}
+export function :A16 $opaque_A16_id(:A16 %p,l %tag,d %d){
+@e
+call $opaque_scalars(l %tag,d %d)
+ret %p
+}
+export function :A16 $opaque_A16_private(:A16 %p,l %tag,d %d){
+@e
+call $opaque_scalars(l %tag,d %d)
+storeb 123, %p
+ret %p
+}
+export function :A16 $opaque_A16_known(l %p,l %fn,l %env){
+@e
+%r =:A16 call $opaque_A16_id(:A16 %p,l 77,d d_1)
+ret %r
+}
+export function :A16 $opaque_A16_direct(l %p,l %fn,l %env){
+@e
+%r =:A16 call $opaque_A16_asm(:A16 %p,l 77,d d_1)
+ret %r
+}
+export function :A16 $opaque_A16_indirect(l %p,l %fn,l %env){
+@e
+%r =:A16 call %fn(env %env,:A16 %p,l 77,d d_1)
+ret %r
+}
+export function :A16 $opaque_A16_var(l %p,l %fn,l %env){
+@e
+%r =:A16 call %fn(:A16 %p,l 77,...,d d_1)
+ret %r
+}
+export function :A16 $opaque_A16_dynamic(l %p,l %fn,l %env){
+@e
+%area =l alloc16 97
+storeb 33, %area
+%r =:A16 call %fn(env %env,:A16 %p,l 77,d d_1)
+%v =w loadub %area
+call $opaque_dynamic_check(w %v)
+ret %r
+}
+export function :A16 $opaque_A16_loop(l %p,l %fn,l %env){
+@e
+jmp @loop
+@loop
+%i =l phi @e 0, @again %next
+%target =l phi @e %fn, @again %target
+%en =l phi @e %env, @again %en
+%r =:A16 call %target(env %en,:A16 %p,l 77,d d_1)
+%next =l add %i, 1
+%more =w cultl %next, 2
+jnz %more, @again, @done
+@again
+call $opaque_clobber()
+jmp @loop
+@done
+ret %r
+}
+export function :A16 $opaque_A16_recursive(l %p,l %fn,l %env,l %depth){
+@e
+%z =w ceql %depth, 0
+jnz %z, @base, @rec
+@base
+%base =:A16 call %fn(env %env,:A16 %p,l 77,d d_1)
+ret %base
+@rec
+%depth2 =l sub %depth, 1
+%r =:A16 call $opaque_A16_recursive(l %p,l %fn,l %env,l %depth2)
+ret %r
+}
+type :B17=align 1 {17}
+export function :B17 $opaque_B17_id(:B17 %p,l %tag,d %d){
+@e
+call $opaque_scalars(l %tag,d %d)
+ret %p
+}
+export function :B17 $opaque_B17_private(:B17 %p,l %tag,d %d){
+@e
+call $opaque_scalars(l %tag,d %d)
+storeb 123, %p
+ret %p
+}
+export function :B17 $opaque_B17_known(l %p,l %fn,l %env){
+@e
+%r =:B17 call $opaque_B17_id(:B17 %p,l 77,d d_1)
+ret %r
+}
+export function :B17 $opaque_B17_direct(l %p,l %fn,l %env){
+@e
+%r =:B17 call $opaque_B17_asm(:B17 %p,l 77,d d_1)
+ret %r
+}
+export function :B17 $opaque_B17_indirect(l %p,l %fn,l %env){
+@e
+%r =:B17 call %fn(env %env,:B17 %p,l 77,d d_1)
+ret %r
+}
+export function :B17 $opaque_B17_var(l %p,l %fn,l %env){
+@e
+%r =:B17 call %fn(:B17 %p,l 77,...,d d_1)
+ret %r
+}
+export function :B17 $opaque_B17_dynamic(l %p,l %fn,l %env){
+@e
+%area =l alloc16 97
+storeb 33, %area
+%r =:B17 call %fn(env %env,:B17 %p,l 77,d d_1)
+%v =w loadub %area
+call $opaque_dynamic_check(w %v)
+ret %r
+}
+export function :B17 $opaque_B17_loop(l %p,l %fn,l %env){
+@e
+jmp @loop
+@loop
+%i =l phi @e 0, @again %next
+%target =l phi @e %fn, @again %target
+%en =l phi @e %env, @again %en
+%r =:B17 call %target(env %en,:B17 %p,l 77,d d_1)
+%next =l add %i, 1
+%more =w cultl %next, 2
+jnz %more, @again, @done
+@again
+call $opaque_clobber()
+jmp @loop
+@done
+ret %r
+}
+export function :B17 $opaque_B17_recursive(l %p,l %fn,l %env,l %depth){
+@e
+%z =w ceql %depth, 0
+jnz %z, @base, @rec
+@base
+%base =:B17 call %fn(env %env,:B17 %p,l 77,d d_1)
+ret %base
+@rec
+%depth2 =l sub %depth, 1
+%r =:B17 call $opaque_B17_recursive(l %p,l %fn,l %env,l %depth2)
+ret %r
+}
+type :A17=align 16 {17}
+export function :A17 $opaque_A17_id(:A17 %p,l %tag,d %d){
+@e
+call $opaque_scalars(l %tag,d %d)
+ret %p
+}
+export function :A17 $opaque_A17_private(:A17 %p,l %tag,d %d){
+@e
+call $opaque_scalars(l %tag,d %d)
+storeb 123, %p
+ret %p
+}
+export function :A17 $opaque_A17_known(l %p,l %fn,l %env){
+@e
+%r =:A17 call $opaque_A17_id(:A17 %p,l 77,d d_1)
+ret %r
+}
+export function :A17 $opaque_A17_direct(l %p,l %fn,l %env){
+@e
+%r =:A17 call $opaque_A17_asm(:A17 %p,l 77,d d_1)
+ret %r
+}
+export function :A17 $opaque_A17_indirect(l %p,l %fn,l %env){
+@e
+%r =:A17 call %fn(env %env,:A17 %p,l 77,d d_1)
+ret %r
+}
+export function :A17 $opaque_A17_var(l %p,l %fn,l %env){
+@e
+%r =:A17 call %fn(:A17 %p,l 77,...,d d_1)
+ret %r
+}
+export function :A17 $opaque_A17_dynamic(l %p,l %fn,l %env){
+@e
+%area =l alloc16 97
+storeb 33, %area
+%r =:A17 call %fn(env %env,:A17 %p,l 77,d d_1)
+%v =w loadub %area
+call $opaque_dynamic_check(w %v)
+ret %r
+}
+export function :A17 $opaque_A17_loop(l %p,l %fn,l %env){
+@e
+jmp @loop
+@loop
+%i =l phi @e 0, @again %next
+%target =l phi @e %fn, @again %target
+%en =l phi @e %env, @again %en
+%r =:A17 call %target(env %en,:A17 %p,l 77,d d_1)
+%next =l add %i, 1
+%more =w cultl %next, 2
+jnz %more, @again, @done
+@again
+call $opaque_clobber()
+jmp @loop
+@done
+ret %r
+}
+export function :A17 $opaque_A17_recursive(l %p,l %fn,l %env,l %depth){
+@e
+%z =w ceql %depth, 0
+jnz %z, @base, @rec
+@base
+%base =:A17 call %fn(env %env,:A17 %p,l 77,d d_1)
+ret %base
+@rec
+%depth2 =l sub %depth, 1
+%r =:A17 call $opaque_A17_recursive(l %p,l %fn,l %env,l %depth2)
+ret %r
+}
+type :A32=align 16 {32}
+export function :A32 $opaque_A32_id(:A32 %p,l %tag,d %d){
+@e
+call $opaque_scalars(l %tag,d %d)
+ret %p
+}
+export function :A32 $opaque_A32_private(:A32 %p,l %tag,d %d){
+@e
+call $opaque_scalars(l %tag,d %d)
+storeb 123, %p
+ret %p
+}
+export function :A32 $opaque_A32_known(l %p,l %fn,l %env){
+@e
+%r =:A32 call $opaque_A32_id(:A32 %p,l 77,d d_1)
+ret %r
+}
+export function :A32 $opaque_A32_direct(l %p,l %fn,l %env){
+@e
+%r =:A32 call $opaque_A32_asm(:A32 %p,l 77,d d_1)
+ret %r
+}
+export function :A32 $opaque_A32_indirect(l %p,l %fn,l %env){
+@e
+%r =:A32 call %fn(env %env,:A32 %p,l 77,d d_1)
+ret %r
+}
+export function :A32 $opaque_A32_var(l %p,l %fn,l %env){
+@e
+%r =:A32 call %fn(:A32 %p,l 77,...,d d_1)
+ret %r
+}
+export function :A32 $opaque_A32_dynamic(l %p,l %fn,l %env){
+@e
+%area =l alloc16 97
+storeb 33, %area
+%r =:A32 call %fn(env %env,:A32 %p,l 77,d d_1)
+%v =w loadub %area
+call $opaque_dynamic_check(w %v)
+ret %r
+}
+export function :A32 $opaque_A32_loop(l %p,l %fn,l %env){
+@e
+jmp @loop
+@loop
+%i =l phi @e 0, @again %next
+%target =l phi @e %fn, @again %target
+%en =l phi @e %env, @again %en
+%r =:A32 call %target(env %en,:A32 %p,l 77,d d_1)
+%next =l add %i, 1
+%more =w cultl %next, 2
+jnz %more, @again, @done
+@again
+call $opaque_clobber()
+jmp @loop
+@done
+ret %r
+}
+export function :A32 $opaque_A32_recursive(l %p,l %fn,l %env,l %depth){
+@e
+%z =w ceql %depth, 0
+jnz %z, @base, @rec
+@base
+%base =:A32 call %fn(env %env,:A32 %p,l 77,d d_1)
+ret %base
+@rec
+%depth2 =l sub %depth, 1
+%r =:A32 call $opaque_A32_recursive(l %p,l %fn,l %env,l %depth2)
+ret %r
+}
+type :A4096=align 16 {4096}
+export function :A4096 $opaque_A4096_id(:A4096 %p,l %tag,d %d){
+@e
+call $opaque_scalars(l %tag,d %d)
+ret %p
+}
+export function :A4096 $opaque_A4096_private(:A4096 %p,l %tag,d %d){
+@e
+call $opaque_scalars(l %tag,d %d)
+storeb 123, %p
+ret %p
+}
+export function :A4096 $opaque_A4096_known(l %p,l %fn,l %env){
+@e
+%r =:A4096 call $opaque_A4096_id(:A4096 %p,l 77,d d_1)
+ret %r
+}
+export function :A4096 $opaque_A4096_direct(l %p,l %fn,l %env){
+@e
+%r =:A4096 call $opaque_A4096_asm(:A4096 %p,l 77,d d_1)
+ret %r
+}
+export function :A4096 $opaque_A4096_indirect(l %p,l %fn,l %env){
+@e
+%r =:A4096 call %fn(env %env,:A4096 %p,l 77,d d_1)
+ret %r
+}
+export function :A4096 $opaque_A4096_var(l %p,l %fn,l %env){
+@e
+%r =:A4096 call %fn(:A4096 %p,l 77,...,d d_1)
+ret %r
+}
+export function :A4096 $opaque_A4096_dynamic(l %p,l %fn,l %env){
+@e
+%area =l alloc16 97
+storeb 33, %area
+%r =:A4096 call %fn(env %env,:A4096 %p,l 77,d d_1)
+%v =w loadub %area
+call $opaque_dynamic_check(w %v)
+ret %r
+}
+export function :A4096 $opaque_A4096_loop(l %p,l %fn,l %env){
+@e
+jmp @loop
+@loop
+%i =l phi @e 0, @again %next
+%target =l phi @e %fn, @again %target
+%en =l phi @e %env, @again %en
+%r =:A4096 call %target(env %en,:A4096 %p,l 77,d d_1)
+%next =l add %i, 1
+%more =w cultl %next, 2
+jnz %more, @again, @done
+@again
+call $opaque_clobber()
+jmp @loop
+@done
+ret %r
+}
+export function :A4096 $opaque_A4096_recursive(l %p,l %fn,l %env,l %depth){
+@e
+%z =w ceql %depth, 0
+jnz %z, @base, @rec
+@base
+%base =:A4096 call %fn(env %env,:A4096 %p,l 77,d d_1)
+ret %base
+@rec
+%depth2 =l sub %depth, 1
+%r =:A4096 call $opaque_A4096_recursive(l %p,l %fn,l %env,l %depth2)
+ret %r
+}
+
+export function :A1 $opaque_pressureA(l %a,l %b,l %c,l %d,l %e,:A1 %p,l %six,...){
+@e
+%list =l alloc8 24
+vastart %list
+call $opaque_namedA(l %a,l %b,l %c,l %d,l %e,l %six)
+call $opaque_consumeA(l %list)
+%last =l vaarg %list
+call $opaque_last(l %last)
+ret %p
+}
+export function :A1 $opaque_pressureA_driver(l %p,l %fn,l %env){
+@e
+%r =:A1 call %fn(l 1,l 2,l 3,l 4,l 5,:A1 %p,l 6,...,:A13 %p,d d_1,l 99,:A1 %p,l 101)
+ret %r
+}
+export function :A13 $opaque_pressureB(d %a,d %b,d %c,d %d,d %e,d %f,d %g,d %h,:B3 %p,l %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+call $opaque_namedB(d %a,d %b,d %c,d %d,d %e,d %f,d %g,d %h,l %tag)
+call $opaque_consumeB(l %list)
+%last =l vaarg %list
+call $opaque_last(l %last)
+ret %tag
+}
+export function :A13 $opaque_pressureB_driver(l %p,l %fn,l %env){
+@e
+%r =:A13 call %fn(d d_1,d d_2,d d_3,d d_4,d d_5,d d_6,d d_7,d d_8,:B3 %p,l %p,...,d d_2,l 99,:A17 %p,:A1 %p,l 101)
+ret %r
+}
+export function :B3 $opaque_B3_c_definition(:B3 %p,l %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+call $opaque_B3_c_consume(l %list)
+%last =l vaarg %list
+call $opaque_last(l %last)
+ret %p
+}
+export function :B3 $opaque_B3_c_driver(l %p,l %fn,l %env){
+@e
+%r =:B3 call $opaque_B3_c_read(:B3 %p,l 77,...,:B3 %p,l 99,d d_1)
+ret %r
+}
+export function :B9 $opaque_B9_c_definition(:B9 %p,l %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+call $opaque_B9_c_consume(l %list)
+%last =l vaarg %list
+call $opaque_last(l %last)
+ret %p
+}
+export function :B9 $opaque_B9_c_driver(l %p,l %fn,l %env){
+@e
+%r =:B9 call $opaque_B9_c_read(:B9 %p,l 77,...,:B9 %p,l 99,d d_1)
+ret %r
+}
+export function :A8 $opaque_A8_c_definition(:A8 %p,l %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+call $opaque_A8_c_consume(l %list)
+%last =l vaarg %list
+call $opaque_last(l %last)
+ret %p
+}
+export function :A8 $opaque_A8_c_driver(l %p,l %fn,l %env){
+@e
+%r =:A8 call $opaque_A8_c_read(:A8 %p,l 77,...,:A8 %p,l 99,d d_1)
+ret %r
+}
+export function :B17 $opaque_B17_c_definition(:B17 %p,l %tag,...){
+@e
+%list =l alloc8 24
+vastart %list
+call $opaque_B17_c_consume(l %list)
+%last =l vaarg %list
+call $opaque_last(l %last)
+ret %p
+}
+export function :B17 $opaque_B17_c_driver(l %p,l %fn,l %env){
+@e
+%r =:B17 call $opaque_B17_c_read(:B17 %p,l 77,...,:B17 %p,l 99,d d_1)
+ret %r
+}
+type :NestedRegular={:A13 2,b}
+type :NestedUnion={{:A1}{b 17}}
+export function :NestedRegular $opaque_nestedR(:NestedRegular %p){
+@e
+ret %p
+}
+export function :NestedUnion $opaque_nestedU(:NestedUnion %p){
+@e
+ret %p
+}
+export function :B1 $opaque_B1_env_id(env %e,:B1 %p,l %tag,d %d){
+@e
+call $opaque_env_check(l %e)
+call $opaque_scalars(l %tag,d %d)
+ret %p
+}
+export function :B1 $opaque_B1_knownenv(l %p,l %fn,l %env){
+@e
+%r =:B1 call $opaque_B1_env_id(env %env,:B1 %p,l 77,d d_1)
+ret %r
+}
+export function :A1 $opaque_A1_env_id(env %e,:A1 %p,l %tag,d %d){
+@e
+call $opaque_env_check(l %e)
+call $opaque_scalars(l %tag,d %d)
+ret %p
+}
+export function :A1 $opaque_A1_knownenv(l %p,l %fn,l %env){
+@e
+%r =:A1 call $opaque_A1_env_id(env %env,:A1 %p,l 77,d d_1)
+ret %r
+}
+export function :B3 $opaque_B3_env_id(env %e,:B3 %p,l %tag,d %d){
+@e
+call $opaque_env_check(l %e)
+call $opaque_scalars(l %tag,d %d)
+ret %p
+}
+export function :B3 $opaque_B3_knownenv(l %p,l %fn,l %env){
+@e
+%r =:B3 call $opaque_B3_env_id(env %env,:B3 %p,l 77,d d_1)
+ret %r
+}
+export function :A8 $opaque_A8_env_id(env %e,:A8 %p,l %tag,d %d){
+@e
+call $opaque_env_check(l %e)
+call $opaque_scalars(l %tag,d %d)
+ret %p
+}
+export function :A8 $opaque_A8_knownenv(l %p,l %fn,l %env){
+@e
+%r =:A8 call $opaque_A8_env_id(env %env,:A8 %p,l 77,d d_1)
+ret %r
+}
+export function :B9 $opaque_B9_env_id(env %e,:B9 %p,l %tag,d %d){
+@e
+call $opaque_env_check(l %e)
+call $opaque_scalars(l %tag,d %d)
+ret %p
+}
+export function :B9 $opaque_B9_knownenv(l %p,l %fn,l %env){
+@e
+%r =:B9 call $opaque_B9_env_id(env %env,:B9 %p,l 77,d d_1)
+ret %r
+}
+export function :A13 $opaque_A13_env_id(env %e,:A13 %p,l %tag,d %d){
+@e
+call $opaque_env_check(l %e)
+call $opaque_scalars(l %tag,d %d)
+ret %p
+}
+export function :A13 $opaque_A13_knownenv(l %p,l %fn,l %env){
+@e
+%r =:A13 call $opaque_A13_env_id(env %env,:A13 %p,l 77,d d_1)
+ret %r
+}
+export function :A16 $opaque_A16_env_id(env %e,:A16 %p,l %tag,d %d){
+@e
+call $opaque_env_check(l %e)
+call $opaque_scalars(l %tag,d %d)
+ret %p
+}
+export function :A16 $opaque_A16_knownenv(l %p,l %fn,l %env){
+@e
+%r =:A16 call $opaque_A16_env_id(env %env,:A16 %p,l 77,d d_1)
+ret %r
+}
+export function :B17 $opaque_B17_env_id(env %e,:B17 %p,l %tag,d %d){
+@e
+call $opaque_env_check(l %e)
+call $opaque_scalars(l %tag,d %d)
+ret %p
+}
+export function :B17 $opaque_B17_knownenv(l %p,l %fn,l %env){
+@e
+%r =:B17 call $opaque_B17_env_id(env %env,:B17 %p,l 77,d d_1)
+ret %r
+}
+export function :A17 $opaque_A17_env_id(env %e,:A17 %p,l %tag,d %d){
+@e
+call $opaque_env_check(l %e)
+call $opaque_scalars(l %tag,d %d)
+ret %p
+}
+export function :A17 $opaque_A17_knownenv(l %p,l %fn,l %env){
+@e
+%r =:A17 call $opaque_A17_env_id(env %env,:A17 %p,l 77,d d_1)
+ret %r
+}
+export function :A32 $opaque_A32_env_id(env %e,:A32 %p,l %tag,d %d){
+@e
+call $opaque_env_check(l %e)
+call $opaque_scalars(l %tag,d %d)
+ret %p
+}
+export function :A32 $opaque_A32_knownenv(l %p,l %fn,l %env){
+@e
+%r =:A32 call $opaque_A32_env_id(env %env,:A32 %p,l 77,d d_1)
+ret %r
+}
+export function :A4096 $opaque_A4096_env_id(env %e,:A4096 %p,l %tag,d %d){
+@e
+call $opaque_env_check(l %e)
+call $opaque_scalars(l %tag,d %d)
+ret %p
+}
+export function :A4096 $opaque_A4096_knownenv(l %p,l %fn,l %env){
+@e
+%r =:A4096 call $opaque_A4096_env_id(env %env,:A4096 %p,l 77,d d_1)
+ret %r
+}
+export function l $opaque_scalar_var(l %p,...){
+@e
+%list =l alloc8 24
+vastart %list
+%n =l vaarg %list
+%d =d vaarg %list
+call $opaque_scalars(l %n,d %d)
+%r =:A1 call $opaque_A1_asm(:A1 %p,l 77,d d_1)
+%v =w loadub %r
+%x =l extuw %v
+ret %x
+}

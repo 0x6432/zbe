@@ -16,7 +16,7 @@ declarations leave scalar assembly byte-identical. Aggregate first-class values 
 Typed record signatures/call annotations are retained as generic owned metadata;
 bounded native uses are supported while aggregate interpreter use remains refused
 ([AGGREGATE-ABI-REPRESENTATION.md](AGGREGATE-ABI-REPRESENTATION.md)). Exact repeat/alignment/
-resource bounds and deferred opaque syntax are documented in
+resource bounds and opaque syntax are documented in
 [RECORD-DECLARATIONS.md](RECORD-DECLARATIONS.md).
 
 ```text
@@ -133,3 +133,10 @@ now use the existing typed Linux AMD64 SysV record plans, with late target
 parking and ENV-last marshalling. Aggregate variadics and aggregate interpreter
 execution remain refused. See [AGGREGATE-CALL-TARGETS.md](AGGREGATE-CALL-TARGETS.md)
 for caller contracts, resource/output boundaries and independent oracles.
+
+## Opaque declarations
+
+Mandatory-alignment `type :O = align A { N }` declarations preserve exact unrounded
+bytes and owned opaque metadata. Bounded native direct-opaque MEMORY and large
+containing-record transport, strict small-containing refusal, parser diagnostics
+and independent authority limits are specified in [OPAQUE-ABI.md](OPAQUE-ABI.md).

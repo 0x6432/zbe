@@ -273,13 +273,20 @@ fn recordRelevant(function: *const ir.Function) bool {
 /// Two occupied-byte masks, NOT shifted cached eightbyte classes. A child may
 /// start at offset4 and split differently in its parent. Padding contributes no
 /// class. Generic validation precedes every table access and bounded shift.
-const Shape = struct { integer_bytes: u16 = 0, sse_bytes: u16 = 0 };
+const Shape = struct { integer_bytes: u16 = 0, sse_bytes: u16 = 0, contains_opaque: bool = false };
 const SmallShapes = [records.max_records]Shape;
 const Class = enum { none, integer, sse };
 fn smallShapes(module: *const modules.Module) SmallShapes {
     var shapes: SmallShapes = @splat(.{});
     for (module.types.items, 0..) |record, index| {
-        if (record.size > 16 or record.alignment > 16) continue;
+        // Earlier-only provenance follows every run once, with no expansion,
+        // recursion, allocation, or persistent module cache, even for large types.
+        shapes[index].contains_opaque = record.kind == .@"opaque";
+        for (record.runs) |run| switch (run.field.element) {
+            .record => |id| shapes[index].contains_opaque = shapes[index].contains_opaque or shapes[@backingInt(id)].contains_opaque,
+            .scalar => {},
+        };
+        if (record.size > 16 or record.alignment > 16 or shapes[index].contains_opaque) continue;
         // Union alternatives share origin zero in their checked flat run array.
         // OR every arm at BYTE offsets, never select an active/first/last arm.
         for (record.runs) |run| {
@@ -346,7 +353,10 @@ fn registerResult(module: *const modules.Module, id: records.Id, shape: Shape) R
 fn eligibleDescriptor(module: *const modules.Module, ty: ir.AbiDescriptor, shapes: *const SmallShapes) Error!void {
     if (ty == .record) {
         const record = module.getRecord(ty.record) orelse return error.InvalidAggregateType;
+        if (record.size == 0 or record.size > 4096 or record.alignment > 16) return error.UnsupportedAggregatePlan;
+        if (record.kind == .@"opaque") return;
         if (record.size <= 16) {
+            if (shapes[@backingInt(ty.record)].contains_opaque) return error.UnsupportedAggregatePlan;
             if (record.size == 0 or record.alignment > 16) return error.UnsupportedAggregatePlan;
             const shape = shapes[@backingInt(ty.record)];
             for (0..@as(usize, if (record.size <= 8) 1 else 2)) |lane| {
@@ -415,7 +425,7 @@ fn planSignature(allocator: std.mem.Allocator, module: *const modules.Module, vi
         .scalar => |scalar| .{ .scalar = scalar },
         .record => |id| result: {
             const record = module.getRecord(id) orelse return error.InvalidAggregateType;
-            break :result if (record.size <= 16)
+            break :result if (record.kind != .@"opaque" and record.size <= 16)
                 (if (record.alignment > 8 or hasSse(shapes[@backingInt(id)], record.size)) .{ .register_record = registerResult(module, id, shapes[@backingInt(id)]) } else .{ .integer_record = integerResult(module, id) })
             else
                 .{ .memory = .{ .record_id = id, .declared_bytes = record.size, .alignment = record.alignment } };
@@ -443,7 +453,7 @@ fn planSignature(allocator: std.mem.Allocator, module: *const modules.Module, vi
                     break :location .{ .vector = reg };
                 }
             }
-            if (ty == .record and payload <= 16 and (module.getRecord(ty.record).?.alignment > 8 or hasSse(shapes[@backingInt(ty.record)], payload))) {
+            if (ty == .record and module.getRecord(ty.record).?.kind != .@"opaque" and payload <= 16 and (module.getRecord(ty.record).?.alignment > 8 or hasSse(shapes[@backingInt(ty.record)], payload))) {
                 const record = registerResult(module, ty.record, shapes[@backingInt(ty.record)]);
                 var need_gp: u8 = 0;
                 var need_sse: u8 = 0;
@@ -472,7 +482,7 @@ fn planSignature(allocator: std.mem.Allocator, module: *const modules.Module, vi
                     }
                     break :location .{ .register_record = tuple };
                 }
-            } else if (ty == .record and payload <= 16) {
+            } else if (ty == .record and module.getRecord(ty.record).?.kind != .@"opaque" and payload <= 16) {
                 const integer = integerResult(module, ty.record);
                 // Atomic whole-argument bank assignment: failed tuples consume
                 // NO register; a following one-lane/scalar may use the last GP.
@@ -483,7 +493,7 @@ fn planSignature(allocator: std.mem.Allocator, module: *const modules.Module, vi
                 }
             }
             const offset = try stackAlign(cursor, alignment);
-            const extent = if (ty == .scalar) 8 else try stackAlign(payload, 8);
+            const extent = if (ty == .scalar) 8 else try stackAlign(payload, if (module.getRecord(ty.record).?.kind == .@"opaque") alignment else 8);
             const incoming = try incomingOffset(offset, payload, ty == .record);
             cursor = std.math.add(u64, offset, extent) catch return error.StackArgumentsTooLarge;
             break :location .{ .stack = .{ .offset = offset, .extent = extent, .alignment = alignment, .incoming = incoming } };
@@ -590,4 +600,16 @@ test "aggregate_abi_planner checked byte geometry independent inclusive overflow
     try t.expectEqual(@as(u64, 64), first);
     try t.expectEqual(@as(u64, 96), second);
     try t.expectEqual(@as(u64, 176), try finishFrame(second, 80));
+}
+
+test "aggregate_abi_opaque exact declared last byte and aligned occupied extent overflow bounds" {
+    const t = std.testing;
+    try t.expectEqual(@as(i32, 2147483647), try incomingOffset(2147483631, 1, true));
+    try t.expectError(error.StackArgumentsTooLarge, incomingOffset(2147483632, 1, true));
+    try t.expectEqual(@as(i32, 2147483631), try incomingOffset(2147483615, 17, true));
+    try t.expectError(error.StackArgumentsTooLarge, incomingOffset(2147483616, 17, true));
+    try t.expectEqual(@as(u64, 16), try stackAlign(1, 16));
+    try t.expectEqual(@as(u64, 32), try stackAlign(17, 16));
+    try t.expectError(error.StackArgumentsTooLarge, stackAlign(std.math.maxInt(u64) - 7, 16));
+    try t.expectError(error.StackArgumentsTooLarge, stackAlign(std.math.maxInt(u64), 8));
 }

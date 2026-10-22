@@ -130,3 +130,8 @@ modules. Paired references prove exact symbol strings/IDs and function ordinals;
 no impossible prior whole-SSE-module differential or self-generated compiler
 oracle is claimed. `--baseline-compiler` compares actual prior4dac bytes too.
 Old whole-scalar, INTEGER and MEMORY harnesses remain separate mandatory checks.
+
+Opaque declarations and their separate forced-MEMORY native rules (including
+short opaques and large containing records) are now supported as specified in
+[OPAQUE-ABI.md](OPAQUE-ABI.md). This does not infer register layouts for small
+opaque-containing records; those uses remain explicit native refusals.

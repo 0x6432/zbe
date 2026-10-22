@@ -14,8 +14,8 @@ first-class SSA classes, phis and data groups remain unsupported.
 Pinned QBE e786f06032fefa2e3790d6b1c9e31ed138f475a6 parse.c/findtyp/parsefields/
 parsetyp and doc/il.txt establish the included semantics. Scalar size and natural
 alignment are1/2/4/8 for b/h/w,s/l,d. Each field run aligns the cursor to its
-member's alignment, then adds count×member-size. Child stride includes its entire
-padded size. Final record size rounds to max(member alignments, explicit A).
+member's alignment, then adds count×member-size. Child stride uses its exact declared size (padded for regular/union
+children, unrounded for opaque children). Final record size rounds to max(member alignments, explicit A).
 A smaller explicit alignment is a minimum, not packing: align2{d,b} is size16/
 alignment8. These are QBE declared record layout facts, never host Zig/C layout,
 HFA/eightbyte register classes, bitfield rules or platform ABI promises.
@@ -26,7 +26,7 @@ member align-ups and final rounding use checkedu64; representable UINT64_MAX-siz
 alignment1 layouts are accepted as compact metadata, without allocating their
 conceptual bytes. No Data payload cap applies to type sizes.
 
-Opaque/dark/empty types, zero/negative repeats, forward/self/mutual
+Empty types, zero/negative repeats, forward/self/mutual
 references, duplicate type names, ABI subword fields, quoted type names and type
 linkage attributes remain explicit refusals even when unused. The positive-count,
 alignment and duplicate policies are deliberately stricter than upstream's
@@ -93,3 +93,7 @@ coordination result; this design does not itself claim completed verification.
 Named nonempty unions are now supported by the same owned declaration table and
 bounded native ABI endpoints. Their alternative partitions and max-layout rules
 are described in [UNION-ABI.md](UNION-ABI.md); regular-record APIs are unchanged.
+
+Named bounded opaque/dark declarations and forced native MEMORY transport are
+supported as described in [OPAQUE-ABI.md](OPAQUE-ABI.md). Unlike regular/union
+children, opaque child strides are the exact unrounded declared size.

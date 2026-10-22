@@ -81,6 +81,24 @@ pub const Module = struct {
         return id;
     }
 
+    /// Failure publishes no type ID. Interned names/capacity may be retained.
+    pub fn addOpaque(self: *Module, name: []const u8, alignment: u8, bytes: u64) (records.Error || error{TooManySymbols})!AggregateTypeId {
+        try self.validateRecords(self.allocator);
+        if (!records.validName(name)) return error.InvalidRecordName;
+        if (self.findRecord(name) != null) return error.DuplicateType;
+        if (self.types.items.len >= records.max_records) return error.RecordLimitExceeded;
+        const name_id = try self.record_names.intern(name);
+        const record = try records.Record.createOpaque(self.allocator, name_id, alignment, bytes);
+        errdefer {
+            record.deinit();
+            self.allocator.destroy(record);
+        }
+        try self.types.ensureUnusedCapacity(self.allocator, 1);
+        const id: AggregateTypeId = @fromBackingInt(@as(u32, @intCast(self.types.items.len)));
+        self.types.appendAssumeCapacity(record);
+        return id;
+    }
+
     pub fn addUnion(self: *Module, name: []const u8, alignment: ?u8, alternatives: []const []const records.Field) (records.Error || error{TooManySymbols})!AggregateTypeId {
         try self.validateRecords(self.allocator);
         if (!records.validName(name)) return error.InvalidRecordName;

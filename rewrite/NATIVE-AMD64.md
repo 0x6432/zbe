@@ -175,3 +175,18 @@ Bounded regular align16 record calls/results omit padding-only NO_CLASS lanes
 without shrinking declared storage ([ALIGN16-ABI.md](ALIGN16-ABI.md)). This follows
 official SysV/C semantics, not pinned-QBE padding-lane oracle parity; aggregate
 interpreter and env/vararg/indirect refusals remain unchanged.
+
+## Opaque MEMORY endpoint
+
+See [OPAQUE-ABI.md](OPAQUE-ABI.md). Focused native commands (serialize compiler/
+native work using the shared flock when coordinating concurrent work):
+
+```sh
+python3 tools/aggregate_abi_opaque_check.py --check
+python3 tools/aggregate_abi_opaque_check.py --mutation-controls
+python3 tools/aggregate_abi_opaque_upstream_check.py
+```
+
+The normal harness accepts the same three feature flags as all existing native
+harnesses and is registered in every CI configuration. The pinned-QBE positive
+check is secondary; arbitrary small C byte arrays are not opaque MEMORY oracles.

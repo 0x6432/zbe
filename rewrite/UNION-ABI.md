@@ -2,9 +2,9 @@
 
 The frontend accepts `type :U = [align A] { { members } { members } ... }`.
 Every alternative is nonempty; fields are b/h/w/l/s/d or an earlier named
-regular record/union, with positive repeats. There are no commas between arms;
+regular record/union/opaque declaration, with positive repeats. There are no commas between arms;
 commas within an arm and a trailing field comma follow regular-record syntax.
-No anonymous inline unions, forward/self references, opaque/empty types or
+No anonymous inline unions, forward/self references, empty types or
 first-class aggregate arithmetic/phi/copy are added.
 
 ## Owned checked layout
@@ -13,7 +13,7 @@ first-class aggregate arithmetic/phi/copy are added.
 records retain their existing flat `runs` API and empty `variants`. A union owns
 one flat run array plus `Variant { first_run, run_count, size, alignment }`
 headers. Headers partition every run exactly once. Each arm starts at byte zero,
-uses normal member alignment/padded child stride, and has its own checked size.
+uses normal member alignment/exact declared child stride, and has its own checked size.
 The union takes maximum arm size/alignment and rounds to effective alignment;
 explicit alignment is a minimum. This is not a host-language layout guess.
 
@@ -75,3 +75,8 @@ classification support the bounded semantics, but its fixed expanded-field
 representation, unchecked layout limits and suspected padding-only-lane issue
 are NOT claimed as full oracle parity. This does not assert an unexecuted
 upstream crash or preserve that padding-class discrepancy.
+
+Opaque child strides are unrounded declared bytes, unlike padded regular/union
+children. See [OPAQUE-ABI.md](OPAQUE-ABI.md) for owned payload validation and forced
+MEMORY transport. Small unions transitively containing opaque members refuse
+native ABI use, even when another arm has ordinary INTEGER/SSE fields.

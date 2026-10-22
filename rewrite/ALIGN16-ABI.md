@@ -101,3 +101,8 @@ unaffected scalar fragments. Exhaustive allocation failures/retries, maximum
 4096-record DAG with unused UINT64_MAX metadata, detached facts, tampered unused
 layout rejection and a literal65536 frame cap exercise the ownership boundary.
 No full-C/QBE/target parity or interpreter execution is implied.
+
+Opaque declarations and their separate forced-MEMORY native rules (including
+short opaques and large containing records) are now supported as specified in
+[OPAQUE-ABI.md](OPAQUE-ABI.md). This does not infer register layouts for small
+opaque-containing records; those uses remain explicit native refusals.

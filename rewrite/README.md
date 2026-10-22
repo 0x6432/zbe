@@ -1,6 +1,6 @@
 # Zig-native backend rewrite
 
-**Status: experimental scalar and bounded INTEGER/SSE/MEMORY-record Linux AMD64 compiler slice, plus scalar interpreter. Not a complete QBE backend.** This directory is a new implementation, not a wrapper around or a mechanical cleanup of the existing C-shaped port. Its parser accepts the documented scalar subset plus bounded nonempty record declarations with owned layout metadata; first-class aggregate values remain refused; bounded native MEMORY-record calls/returns ([AMD64-MEMORY-ABI.md](AMD64-MEMORY-ABI.md)) and integer-only size1..16 record calls/returns ([SMALL-INTEGER-ABI.md](SMALL-INTEGER-ABI.md)) are supported. The experimental driver emits Linux AMD64 integer and single/double scalar assembly. Most IL/ABI/target support, optimizations and full register allocation are still missing. An opt-in conservative integer constant folder is implemented, not a complete optimizer. Passing its tests does not establish QBE compatibility or replace the legacy backend.
+**Status: experimental scalar and bounded INTEGER/SSE/MEMORY-record Linux AMD64 compiler slice, plus scalar interpreter. Not a complete QBE backend.** This directory is a new implementation, not a wrapper around or a mechanical cleanup of the existing C-shaped port. Its parser accepts the documented scalar subset plus bounded nonempty regular/union and mandatory-alignment opaque declarations with owned layout metadata; first-class aggregate values remain refused; bounded native MEMORY-record calls/returns ([AMD64-MEMORY-ABI.md](AMD64-MEMORY-ABI.md)) and integer-only size1..16 record calls/returns ([SMALL-INTEGER-ABI.md](SMALL-INTEGER-ABI.md)) are supported. The experimental driver emits Linux AMD64 integer and single/double scalar assembly. Most IL/ABI/target support, optimizations and full register allocation are still missing. An opt-in conservative integer constant folder is implemented, not a complete optimizer. Passing its tests does not establish QBE compatibility or replace the legacy backend.
 
 Work lives on `rewrite/zig-native`. The existing compiler, build and regression suite remain the reference implementation and are unchanged by this foundation.
 
@@ -118,3 +118,8 @@ for caller contracts, resource/output boundaries and independent oracles.
 Native marked record calls and record-bearing variadic definitions/vastart use
 checked raw stack ends and the176-byte save area (AGGREGATE-VARIADIC.md).
 IL vaarg remains scalar-only; ENV+varargs and aggregate interpretation stay refused.
+
+Bounded opaque declarations plus forced native MEMORY argument/result transport
+(including short opaque objects and record-bearing variadics) are documented in
+[OPAQUE-ABI.md](OPAQUE-ABI.md). Small regular/union containers with opaque children
+remain native refusals; valid unused opaque metadata does not affect old assembly.

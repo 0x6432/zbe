@@ -21,7 +21,7 @@ chk() {
   out=$("$@" 2>&1); rc=$?
   last=$(printf '%s\n' "$out" | grep -v '^\s*$' | tail -1)
   if [ $rc -eq 0 ] && printf '%s\n' "$out" | grep -Eq "$pat"; then st=PASS
-  else st=FAIL; fail=$((fail+1)); echo "::group::$name output (rc=$rc)"; printf '%s\n' "$out" | tail -80; echo "::endgroup::"
+  else st=FAIL; fail=$((fail+1)); echo "::group::$name output (rc=$rc)"; printf '%s\n' "$out"; echo "::endgroup::"
   fi
   echo "[$st] $name: $last"
   printf '| %s | %s | %s |\n' "$name" "$st" "$(printf '%s' "$last" | tr '|' '/')" >> $SUM

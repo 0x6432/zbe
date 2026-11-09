@@ -8,10 +8,10 @@ import resource
 import subprocess
 import tempfile
 
-IL = '''export function l $get_data() {\n@entry\nret extern $external_data\n}\nexport function l $get_fn() {\n@entry\nret extern $external_fn\n}\nexport function l $invoke(l %x) {\n@entry\n%r =l call extern $external_fn(l %x)\nret %r\n}\n'''
-PROVIDER = '''#include <stdint.h>\nuint64_t external_data = BASE;\nuint64_t external_fn(uint64_t x) { return x + BASE; }\n'''
+IL = '''type :Small = { l 2 }\ntype :Big = { l 3 }\nexport function l $get_data() {\n@entry\nret extern $external_data\n}\nexport function l $get_fn() {\n@entry\nret extern $external_fn\n}\nexport function l $invoke(l %x) {\n@entry\n%r =l call extern $external_fn(l %x)\nret %r\n}\nexport function :Small $invoke_small(:Small %arg) {\n@entry\n%r =:Small call extern $external_small(:Small %arg)\nret %r\n}\nexport function :Big $invoke_big(:Big %arg) {\n@entry\n%r =:Big call extern $external_big(:Big %arg)\nret %r\n}\n'''
+PROVIDER = '''#include <stdint.h>\nuint64_t external_data = BASE;\nuint64_t external_fn(uint64_t x) { return x + BASE; }\nstruct small { uint64_t a,b; }; struct big { uint64_t a,b,c; };\nstruct small external_small(struct small x) { x.a+=BASE; x.b+=BASE+1; return x; }\nstruct big external_big(struct big x) { x.a+=BASE; x.b+=BASE+1; x.c+=BASE+2; return x; }\n'''
 MAIN = '''#define _GNU_SOURCE
-#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <dlfcn.h>\nextern uint64_t get_data(void),get_fn(void),invoke(uint64_t);\nint main(int argc,char **argv) {\n if(argc!=2) return 20; uint64_t expect=strtoull(argv[1],0,10);\n uint64_t *p=(uint64_t *)(uintptr_t)get_data();\n void *data=dlsym(RTLD_DEFAULT,"external_data");\n void *fn=dlsym(RTLD_DEFAULT,"external_fn");\n if(!p || p!=data || get_fn()!=(uintptr_t)fn) return 21;\n if(*p!=expect || invoke(17)!=expect+17) return 22;\n return 0;\n}\n'''
+#include <stdint.h>\n#include <stdio.h>\n#include <stdlib.h>\n#include <dlfcn.h>\nextern uint64_t get_data(void),get_fn(void),invoke(uint64_t);\nstruct small { uint64_t a,b; }; struct big { uint64_t a,b,c; };\nextern struct small invoke_small(struct small); extern struct big invoke_big(struct big);\nint main(int argc,char **argv) {\n if(argc!=2) return 20; uint64_t expect=strtoull(argv[1],0,10);\n uint64_t *p=(uint64_t *)(uintptr_t)get_data();\n void *data=dlsym(RTLD_DEFAULT,"external_data");\n void *fn=dlsym(RTLD_DEFAULT,"external_fn");\n if(!p || p!=data || get_fn()!=(uintptr_t)fn) return 21;\n if(*p!=expect || invoke(17)!=expect+17) return 22;\n struct small s=invoke_small((struct small){3,5}); struct big b=invoke_big((struct big){7,11,13});\n if(s.a!=expect+3 || s.b!=expect+6 || b.a!=expect+7 || b.b!=expect+12 || b.c!=expect+15) return 23;\n return 0;\n}\n'''
 
 
 def main():
@@ -43,7 +43,7 @@ def main():
                 run([args.cc,'-shared','-fPIC',*linker,'generated.s','-L.','-Wl,--no-as-needed','-lprovider','-Wl,-rpath,$ORIGIN','-o','libsubject.so'])
                 run([args.cc,'main.c','-L.','-Wl,--no-as-needed','-lsubject','-Wl,-rpath,$ORIGIN','-ldl','-o','check'])
                 reloc=run(['readelf','-rW','libsubject.so'])
-                for symbol in ('external_data','external_fn'):
+                for symbol in ('external_data','external_fn','external_small','external_big'):
                     if not any('GLOB_DAT' in line and symbol in line for line in reloc.splitlines()):
                         raise RuntimeError(f'missing dynamic GOT relocation for {symbol}')
                 if 'COPY' in reloc or 'COPY' in run(['readelf','-rW','check']):

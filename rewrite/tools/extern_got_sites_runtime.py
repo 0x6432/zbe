@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Unverified, bounded N11 operand-site runtime probe for Linux x86-64 ELF.
+"""Bounded N11 operand-site runtime probe for Linux x86-64 ELF.
 
-Run only after hosted CI is inactive and local execution is authorized. Supply
-an already-built zbe-native with --compiler. Default and --full are individual
+For local execution follow the repository's verification coordination policy.
+Supply an already-built zbe-native with --compiler. Default and --full are individual
 configurations, not the N11 all-options/PIE matrix. Uses a shared nonblocking
 verification lock. Builds two independent C provider DSOs, one IL subject DSO,
 and a separate C client in a fresh temporary directory; runs normal and preload

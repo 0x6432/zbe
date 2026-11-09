@@ -87,6 +87,7 @@ test {
     _ = @import("extern_frontier_test.zig");
     _ = @import("extern_identity_test.zig");
     _ = @import("extern_sites_test.zig");
+    _ = @import("extern_o04_retry_test.zig");
     _ = @import("ir.zig");
     _ = @import("module.zig");
 }

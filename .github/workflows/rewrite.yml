@@ -126,6 +126,23 @@ jobs:
             printf "Extern options: %s\n" "$flags"
             python3 tools/extern_got_record_smoke.py --compiler zig-out/bin/zbe-native $flags
           done
+      - name: Extern GOT call scheduling smoke
+        working-directory: rewrite
+        run: |
+          for flags in "" "--fold-integers" "--reuse-stack-homes" "--fold-integers --reuse-stack-homes" "--callee-saved-homes" "--fold-integers --callee-saved-homes" "--reuse-stack-homes --callee-saved-homes" "--fold-integers --reuse-stack-homes --callee-saved-homes"; do
+            python3 tools/extern_got_schedule_smoke.py --compiler zig-out/bin/zbe-native $flags
+          done
+      - name: Extern GOT guarded record smoke
+        working-directory: rewrite
+        run: |
+          for flags in "" "--fold-integers" "--reuse-stack-homes" "--fold-integers --reuse-stack-homes" "--callee-saved-homes" "--fold-integers --callee-saved-homes" "--reuse-stack-homes --callee-saved-homes" "--fold-integers --reuse-stack-homes --callee-saved-homes"; do
+            python3 tools/extern_got_record_guard.py --compiler zig-out/bin/zbe-native $flags
+          done
+      - name: Extern GOT operand runtime smoke
+        working-directory: rewrite
+        run: |
+          python3 tools/extern_got_sites_runtime.py --compiler zig-out/bin/zbe-native --lock "$RUNNER_TEMP/zbe-extern.lock"
+          python3 tools/extern_got_sites_runtime.py --compiler zig-out/bin/zbe-native --lock "$RUNNER_TEMP/zbe-extern.lock" --full
       - name: Extern GOT CLI output smoke
         working-directory: rewrite
         run: |

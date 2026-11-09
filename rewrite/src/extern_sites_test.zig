@@ -1,4 +1,5 @@
-//! U05: one parse/IR/validation/assembly witness per compatible operand site.
+//! U05: selected parse/IR/validation/assembly witnesses for operand sites.
+//! Call-target forms have separate coverage in extern_operand_test.zig.
 //! These are static witnesses, not a linked or executed native-runtime oracle.
 //! In particular, the allocation-size witness is in an unreachable block:
 //! a GOT-resolved address must never be used as an actual allocation length.
@@ -141,7 +142,7 @@ fn checkCase(case: Case) !void {
     try t.expect(std.mem.indexOf(u8, assembly, "movq target@GOTPCREL(%rip)") != null);
 }
 
-test "U05 extern operand sites retain GOT identity and emit a relocation" {
+test "U05 extern operand sites retain GOT identity and emit GOTPCREL assembly" {
     for (cases) |case| {
         checkCase(case) catch |err| {
             std.debug.print("U05 witness failed: {s}\n", .{case.name});

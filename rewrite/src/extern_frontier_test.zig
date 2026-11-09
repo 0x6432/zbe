@@ -118,13 +118,15 @@ fn callRetry(allocator: std.mem.Allocator, ordinal: ?usize, wrapped: bool) !usiz
     var module = Module.init(failing.allocator());
     defer module.deinit();
     const target = try module.symbols.intern("external_target");
+    const argument = try module.symbols.intern("external_argument");
+    const environment = try module.symbols.intern("external_environment");
     const function_id = try module.addFunction("caller", .long);
     const f = module.getFunction(function_id).?;
     const block = try f.addBlock(null);
     const result = try f.declareValue(.long);
     const callee: ir.CallTarget = if (wrapped) .{ .address = .{ .got_symbol = target } } else .{ .extern_symbol = target };
-    var args = [_]ir.CallArgument{.{ .scalar_type = .long, .operand = .{ .got_symbol = target } }};
-    const options: ir.CallOptions = .{ .environment = .{ .got_symbol = target } };
+    var args = [_]ir.CallArgument{.{ .scalar_type = .long, .operand = .{ .got_symbol = argument } }};
+    const options: ir.CallOptions = .{ .environment = .{ .got_symbol = environment } };
     const start = failing.alloc_index;
     if (ordinal) |n| {
         failing.fail_index = start + n;
@@ -139,8 +141,8 @@ fn callRetry(allocator: std.mem.Allocator, ordinal: ?usize, wrapped: bool) !usiz
     args[0].operand = .{ .constant = .{ .long = 99 } };
     const call = f.blocks.items[0].instructions.items[0].call;
     try t.expectEqual(target, call.callee.symbolicIdentity().?);
-    try t.expectEqual(target, call.arguments[0].operand.got_symbol);
-    try t.expectEqual(target, call.environment.?.got_symbol);
+    try t.expectEqual(argument, call.arguments[0].operand.got_symbol);
+    try t.expectEqual(environment, call.environment.?.got_symbol);
     const backlink = f.values.items[@backingInt(result)].definition.instruction;
     try t.expectEqual(block, backlink.block);
     try t.expectEqual(@as(usize, 0), backlink.index);

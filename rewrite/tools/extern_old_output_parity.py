@@ -39,7 +39,7 @@ FIXTURES = {
     'aggregate_abi_call_targets.ssa': 'b441027b3a7a75159d9ae51833914e879704e83563a92c62af9d24bdde305d76',
     'aggregate_abi_variadic.ssa': '530a9b187e7a22e572a8b596a57c86a80a8939e5478d78097ad0891ace253256',
     'aggregate_abi_union.ssa': '34f7619143be1a6ccfceea59ed9ee20ba57d96ea429619ca54f08180426632e6',
-    'aggregate_abi_opaque.ssa': 'a88fd2de52045496e750621b122c4081b5936a961b0196ad7fa80611c534353f',
+    'aggregate_abi_opaque.ssa': 'a88fd2de52045496a750621b122c4081b5936a961b0196ad7fa80611c534353f',
     'environment-calls.ssa': 'd155b614f9ec4160562d34c932c9e42b8b74712b0f6c91a5577644cca0b71e63',
     'variadic-calls.ssa': '708c029586982aa6120059d54f8dfb51fa0d8ebe35a2a97695f800924b96340b',
     'variadic-functions.ssa': 'eeb333d6764d88418752ca7d28d0e5d5ae7ec17fa81e1cf910655e08f7fb0910',

@@ -106,5 +106,6 @@ jobs:
           python3 tools/native_environment_check.py $flags
           python3 tools/native_quoted_global_check.py $flags
           python3 tools/extern_got_abi_smoke.py --compiler zig-out/bin/zbe-native $flags
+          python3 tools/extern_got_cli_smoke.py --compiler zig-out/bin/zbe-native $flags
           done
           python3 tools/extern_got_smoke.py --compiler zig-out/bin/zbe-native

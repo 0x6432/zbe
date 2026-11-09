@@ -25,8 +25,10 @@ def main():
     compiler=args.compiler.resolve(strict=True)
     with tempfile.TemporaryDirectory(prefix='zbe-extern-smoke-') as tmp:
         d=Path(tmp); (d/'input.ssa').write_text(IL); (d/'provider.c').write_text(PROVIDER); (d/'main.c').write_text(MAIN)
+        clean={k:os.environ[k] for k in ('PATH','HOME','TMPDIR') if k in os.environ}
+        clean['LC_ALL']='C'
         def run(argv, env=None):
-            proc=subprocess.run([str(x) for x in argv], cwd=d, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=90)
+            proc=subprocess.run([str(x) for x in argv], cwd=d, env=clean if env is None else env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=90)
             if proc.returncode:
                 raise RuntimeError(f"command {argv!r} exited {proc.returncode}: {proc.stderr.decode(errors='replace')}")
             return proc.stdout.decode(errors='replace')
@@ -50,7 +52,6 @@ def main():
                     raise RuntimeError('COPY relocation invalidates smoke preemption evidence')
                 if 'TEXTREL' in run(['readelf','-dW','libsubject.so']):
                     raise RuntimeError('TEXTREL invalidates smoke preemption evidence')
-                clean={k:v for k,v in os.environ.items() if k not in ('LD_PRELOAD','LD_LIBRARY_PATH','LD_AUDIT')}
                 run(['./check','10'],env=clean);checks+=1
                 preload=dict(clean,LD_PRELOAD=str(d/'liboverride.so'))
                 run(['./check','200'],env=preload);checks+=1

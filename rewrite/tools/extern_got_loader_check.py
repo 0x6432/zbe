@@ -142,9 +142,11 @@ def main():
     compiler = args.compiler.resolve(strict=True)
     tools = {name: Path(shutil.which(name) or '').resolve(strict=True) for name in (args.cc, 'readelf', 'objdump', 'as', 'ld.bfd')}
     d = args.evidence_dir.absolute()
+    # Open the lock first: a bad lock path must not strand an empty evidence directory.
+    lock = open(args.lock, 'a')
     d.mkdir(parents=False, exist_ok=False)
-    # Do not propagate loader overrides or log arbitrary potentially secret environment.
-    env = {k: v for k, v in os.environ.items() if not k.startswith('LD_')}
+    # Inherit only explicit non-secret tool-discovery environment.
+    env = {k: os.environ[k] for k in ('PATH', 'HOME', 'TMPDIR') if k in os.environ}
     env['LC_ALL'] = 'C'
     os.sched_setaffinity(0, sorted(os.sched_getaffinity(0))[:2])
     cap = 4 * 1024**3
@@ -186,7 +188,6 @@ def main():
             if re.search(r'\(SYMBOLIC\)|\(FLAGS\).*SYMBOLIC', dy):
                 raise RuntimeError(f'symbolic binding: {path}')
         return r, s
-    lock = open(args.lock, 'a')
     start = time.monotonic()
     try:
         while True:
@@ -318,7 +319,9 @@ def main():
             run(['./check-ordinary', '200'], expect=31)
             record['ordinary_lea_control'] = 'preemption identity rejected at runtime'
         else:
-            record['ordinary_lea_control'] = 'shared link rejected; no runtime witness'
+            if not re.search(r'R_X86_64_PC32.*external_data.*(?:can not|cannot) be used when making a shared object', result.stderr):
+                raise RuntimeError('ordinary LEA link failed for an unrelated or unrecognized reason')
+            record['ordinary_lea_control'] = 'expected PC32 shared-link rejection; no runtime witness'
         record['result'] = f'{total} loader cases passed; slot-LEA mutant rejected under DT_NEEDED override'
         print(record['result'])
         print('ordinary LEA:', record['ordinary_lea_control'])

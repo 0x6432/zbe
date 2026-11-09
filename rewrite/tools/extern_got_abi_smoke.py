@@ -28,6 +28,11 @@ export function l $invoke_env() {
 %r =l call extern $external_env(env 37, l 11)
 ret %r
 }
+export function l $invoke_capture() {
+@entry
+%r =l call extern $external_capture(l 7, ..., d d_1.0, d d_2.0, d d_3.0, d d_4.0, d d_5.0, d d_6.0, d d_7.0, d d_8.0, d d_9.0)
+ret %r
+}
 export function d $invoke_var() {
 @entry
 %r =d call extern $external_var(l 7, ..., d d_1.0, d d_2.0, d d_3.0, d d_4.0, d d_5.0, d d_6.0, d d_7.0, d d_8.0, d d_9.0)
@@ -49,11 +54,59 @@ external_env:
  addq $BASE, %rax
  ret
 .size external_env, .-external_env
+.globl external_capture
+.type external_capture, @function
+external_capture:
+ cmpb $8, %al
+ jne .Lcapture_bad
+ cmpq $7, %rdi
+ jne .Lcapture_bad
+ movq %xmm0, %r10
+ movabsq $0x3ff0000000000000, %r11
+ cmpq %r11, %r10
+ jne .Lcapture_bad
+ movq %xmm1, %r10
+ movabsq $0x4000000000000000, %r11
+ cmpq %r11, %r10
+ jne .Lcapture_bad
+ movq %xmm2, %r10
+ movabsq $0x4008000000000000, %r11
+ cmpq %r11, %r10
+ jne .Lcapture_bad
+ movq %xmm3, %r10
+ movabsq $0x4010000000000000, %r11
+ cmpq %r11, %r10
+ jne .Lcapture_bad
+ movq %xmm4, %r10
+ movabsq $0x4014000000000000, %r11
+ cmpq %r11, %r10
+ jne .Lcapture_bad
+ movq %xmm5, %r10
+ movabsq $0x4018000000000000, %r11
+ cmpq %r11, %r10
+ jne .Lcapture_bad
+ movq %xmm6, %r10
+ movabsq $0x401c000000000000, %r11
+ cmpq %r11, %r10
+ jne .Lcapture_bad
+ movq %xmm7, %r10
+ movabsq $0x4020000000000000, %r11
+ cmpq %r11, %r10
+ jne .Lcapture_bad
+ movabsq $0x4022000000000000, %r11
+ cmpq %r11, 8(%rsp)
+ jne .Lcapture_bad
+ movl $1, %eax
+ ret
+.Lcapture_bad:
+ xorl %eax, %eax
+ ret
+.size external_capture, .-external_capture
 .section .note.GNU-stack,"",@progbits
 '''
 MAIN = '''#include <stdint.h>
 #include <stdlib.h>
-extern uint64_t invoke_gp(void),invoke_env(void);
+extern uint64_t invoke_gp(void),invoke_env(void),invoke_capture(void);
 extern double invoke_fp(void),invoke_var(void),invoke_mixed(void);
 int main(int argc,char **argv) {
  if(argc!=2) return 20;
@@ -63,6 +116,7 @@ int main(int argc,char **argv) {
  if(invoke_var()!=(double)(base+292)) return 23;
  if(invoke_mixed()!=(double)(base+425)) return 24;
  if(invoke_env()!=base+59) return 25;
+ if(invoke_capture()!=1) return 26;
  return 0;
 }
 '''
@@ -81,31 +135,35 @@ def main():
     with tempfile.TemporaryDirectory(prefix='zbe-got-abi-') as tmp:
         d=Path(tmp)
         (d/'input.ssa').write_text(IL); (d/'provider.c').write_text(PROVIDER); (d/'provider_asm.S').write_text(ASM); (d/'main.c').write_text(MAIN)
+        clean={k:os.environ[k] for k in ('PATH','HOME','TMPDIR') if k in os.environ}
+        clean['LC_ALL']='C'
         def run(argv,env=None):
-            p=subprocess.run([str(x) for x in argv], cwd=d, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=90)
+            p=subprocess.run([str(x) for x in argv], cwd=d, env=clean if env is None else env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=90)
             if p.returncode:
                 raise RuntimeError(f'{argv!r}: exit {p.returncode}: {p.stderr.decode(errors="replace")}')
             return p.stdout.decode(errors='replace')
         flags=[flag for enabled,flag in ((args.fold_integers,'--fold-integers'),(args.reuse_stack_homes,'--reuse-stack-homes'),(args.callee_saved_homes,'--callee-saved-homes')) if enabled]
         run([compiler,*flags,'input.ssa','generated.s'])
         asm=(d/'generated.s').read_text()
-        for sym in ('external_gp','external_fp','external_var','external_mixed','external_env'):
+        for sym in ('external_gp','external_fp','external_var','external_mixed','external_env','external_capture'):
             if f'{sym}@GOTPCREL' not in asm: raise RuntimeError(f'missing GOT target {sym}')
-        if 'movb $8, %al' not in asm: raise RuntimeError('variadic call lacks expected SSE-count AL')
         run(['cc','-shared','-fPIC','-DBASE=10','provider.c','provider_asm.S','-o','libprovider.so'])
         run(['cc','-shared','-fPIC','-DBASE=200','provider.c','provider_asm.S','-o','liboverride.so'])
         run(['cc','-shared','-fPIC','-Wl,--no-relax','generated.s','-L.','-Wl,--no-as-needed','-lprovider','-Wl,-rpath,$ORIGIN','-o','libsubject.so'])
         run(['cc','main.c','-L.','-Wl,--no-as-needed','-lsubject','-Wl,-rpath,$ORIGIN','-o','check'])
-        clean={k:v for k,v in os.environ.items() if k not in ('LD_PRELOAD','LD_LIBRARY_PATH','LD_AUDIT')}
         run(['./check','10'],env=clean)
         run(['./check','200'],env=dict(clean,LD_PRELOAD=str(d/'liboverride.so')))
-        # Negative control must execute: zero AL loses floating varargs save state.
-        mutated=asm.replace('movb $8, %al','movb $0, %al')
-        if mutated == asm: raise RuntimeError('AL mutant failed to match')
+        # Probe the AL-count mutation only with a purpose-built assembly callee:
+        # unlike va_arg, it reads the actual AL and incoming registers safely.
+        begin=asm.index('invoke_capture:')
+        end=asm.index('.size invoke_capture, .-invoke_capture',begin)
+        function=asm[begin:end]
+        if function.count('movb $8, %al') != 1: raise RuntimeError('capture AL control did not match exactly once')
+        mutated=asm[:begin]+function.replace('movb $8, %al','movb $0, %al')+asm[end:]
         (d/'mutant.s').write_text(mutated)
         run(['cc','-shared','-fPIC','-Wl,--no-relax','mutant.s','-L.','-Wl,--no-as-needed','-lprovider','-Wl,-rpath,$ORIGIN','-o','libsubject.so'])
         p=subprocess.run(['./check','10'],cwd=d,env=clean,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=90)
-        if p.returncode != 23: raise RuntimeError(f'AL mutant expected variadic assertion exit 23, got {p.returncode}')
+        if p.returncode != 26: raise RuntimeError(f'AL mutant expected assembly capture exit 26, got {p.returncode}')
         # Independent control: corrupt the final ENV by loading the GOT target
         # after ENV setup, while preserving R11 so the call itself still runs.
         good='\tmovq external_env@GOTPCREL(%rip), %rax\n\tmovq %rax, %r11\n\tmovabsq $0x25, %rax'

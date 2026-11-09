@@ -30,7 +30,8 @@ def main():
     flags=[flag for enabled,flag in ((args.fold_integers,'--fold-integers'),(args.reuse_stack_homes,'--reuse-stack-homes'),(args.callee_saved_homes,'--callee-saved-homes')) if enabled]
     with tempfile.TemporaryDirectory(prefix='zbe-extern-cli-') as tmp:
         d=Path(tmp); source=d/'input.ssa'; out=d/'output.s'
-        clean={k:v for k,v in os.environ.items() if k not in ('LD_PRELOAD','LD_LIBRARY_PATH','LD_AUDIT')}
+        clean={k:os.environ[k] for k in ('PATH','HOME','TMPDIR') if k in os.environ}
+        clean['LC_ALL']='C'
         for name,text,expected in CASES:
             source.write_text(text)
             for exists in (False,True):

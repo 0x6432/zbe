@@ -103,7 +103,8 @@ uint64_t n11_sink[2] = { UINT64_C(0x9182736455463728), UINT64_C(0xabcdef01234567
 # independent loader oracle, and avoids executable COPY relocations. All
 # integer arithmetic is unsigned modulo 2^64; pointer-to-uintptr_t conversion
 # is the Linux x86-64 ABI convention under examination, not pointer arithmetic.
-CLIENT = r'''#include <dlfcn.h>
+CLIENT = r'''#define _GNU_SOURCE
+#include <dlfcn.h>
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -117,7 +118,7 @@ extern uint64_t site_load(void);
 extern void site_store_value(uint64_t *), site_store_address(uint64_t);
 extern void site_blit_source(void *), site_blit_destination(const void *);
 
-#define CHECK(x) do { if (!(x)) { fprintf(stderr, "FAIL line %d: %s\n", __LINE__, #x); return 1; } } while (0)
+#define CHECK(x) do { if (!(x)) { printf("FAIL line %d: %s\n", __LINE__, #x); return 1; } } while (0)
 struct guarded { uint64_t before, value, after; };
 int main(int argc, char **argv) {
     CHECK(argc == 2);

@@ -112,7 +112,6 @@ int main(int argc,char **argv) {
             'function l $f() {\n@e\nret $target+2147483648\n}',
             'function l $f() {\n@e\nret $""\n}',
             'function l $f() {\n@e\nret thread $target\n}',
-            'function l $f() {\n@e\nret extern $target\n}',
             'data $target = { w $other }',
             'function $f() {\n@e\ncall $callee(w $target)\nret\n}',
         )
@@ -124,7 +123,17 @@ int main(int argc,char **argv) {
                 result=subprocess.run([str(args.compiler.resolve()),*flags,str(src),str(asm)],capture_output=True,timeout=30)
                 if result.returncode==0:raise SystemExit('Invalid/unsupported symbolic input accepted')
                 if (exists and asm.read_text()!='preserve-symbol-output') or (not exists and asm.exists()):raise SystemExit('Rejected symbolic input changed output')
-        print('16 symbol rejection/output-preservation checks passed')
+        print('14 symbol rejection/output-preservation checks passed')
+        # Extern values were previously rejected here; they are now a supported
+        # long-valued GOT load. Check both fresh and preexisting output paths.
+        src.write_text('function l $f() {\n@e\nret extern $target\n}')
+        for exists in (False, True):
+            if asm.exists(): asm.unlink()
+            if exists: asm.write_text('preserve-symbol-output')
+            subprocess.run([str(args.compiler.resolve()), *flags, str(src), str(asm)], check=True, timeout=30)
+            if 'target@GOTPCREL(%rip)' not in asm.read_text():
+                raise SystemExit('Supported extern symbol did not emit GOT relocation')
+        print('2 extern symbol acceptance/output checks passed')
 
 
 if __name__=='__main__':main()

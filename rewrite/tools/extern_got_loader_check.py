@@ -140,7 +140,12 @@ def main():
     if platform.system() != 'Linux' or platform.machine() not in ('x86_64', 'amd64'):
         parser.error('requires Linux x86-64 ELF')
     compiler = args.compiler.resolve(strict=True)
-    tools = {name: Path(shutil.which(name) or '').resolve(strict=True) for name in (args.cc, 'readelf', 'objdump', 'as', 'ld.bfd')}
+    tools = {}
+    for name in (args.cc, 'readelf', 'objdump', 'as', 'ld.bfd'):
+        executable = shutil.which(name)
+        if executable is None:
+            parser.error(f'required tool not found: {name}')
+        tools[name] = Path(executable).resolve(strict=True)
     d = args.evidence_dir.absolute()
     # Open the lock first: a bad lock path must not strand an empty evidence directory.
     lock = open(args.lock, 'a')

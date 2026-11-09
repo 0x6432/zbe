@@ -24,6 +24,12 @@ jobs:
       - uses: mlugg/setup-zig@v2
         with:
           version: 0.18.0-dev.35+5e754304d
+      - name: Native toolchain preflight
+        run: |
+          for tool in cc gcc readelf objdump as ld.bfd; do
+            command -v "$tool"
+            "$tool" --version
+          done
       - name: Formatting
         working-directory: rewrite
         run: zig fmt --check build.zig src
@@ -105,10 +111,31 @@ jobs:
           python3 tools/native_varfn_check.py $flags
           python3 tools/native_environment_check.py $flags
           python3 tools/native_quoted_global_check.py $flags
-          python3 tools/extern_got_abi_smoke.py --compiler zig-out/bin/zbe-native $flags
-          python3 tools/extern_got_record_smoke.py --compiler zig-out/bin/zbe-native $flags
-          python3 tools/extern_got_cli_smoke.py --compiler zig-out/bin/zbe-native $flags
           done
+      - name: Extern GOT scalar ABI smoke
+        working-directory: rewrite
+        run: |
+          for flags in "" "--fold-integers" "--reuse-stack-homes" "--fold-integers --reuse-stack-homes" "--callee-saved-homes" "--fold-integers --callee-saved-homes" "--reuse-stack-homes --callee-saved-homes" "--fold-integers --reuse-stack-homes --callee-saved-homes"; do
+            printf "Extern options: %s\n" "$flags"
+            python3 tools/extern_got_abi_smoke.py --compiler zig-out/bin/zbe-native $flags
+          done
+      - name: Extern GOT record ABI smoke
+        working-directory: rewrite
+        run: |
+          for flags in "" "--fold-integers" "--reuse-stack-homes" "--fold-integers --reuse-stack-homes" "--callee-saved-homes" "--fold-integers --callee-saved-homes" "--reuse-stack-homes --callee-saved-homes" "--fold-integers --reuse-stack-homes --callee-saved-homes"; do
+            printf "Extern options: %s\n" "$flags"
+            python3 tools/extern_got_record_smoke.py --compiler zig-out/bin/zbe-native $flags
+          done
+      - name: Extern GOT CLI output smoke
+        working-directory: rewrite
+        run: |
+          for flags in "" "--fold-integers" "--reuse-stack-homes" "--fold-integers --reuse-stack-homes" "--callee-saved-homes" "--fold-integers --callee-saved-homes" "--reuse-stack-homes --callee-saved-homes" "--fold-integers --reuse-stack-homes --callee-saved-homes"; do
+            printf "Extern options: %s\n" "$flags"
+            python3 tools/extern_got_cli_smoke.py --compiler zig-out/bin/zbe-native $flags
+          done
+      - name: Extern GOT loader smoke
+        working-directory: rewrite
+        run: |
           python3 tools/extern_got_smoke.py --compiler zig-out/bin/zbe-native
           python3 tools/extern_got_loader_check.py --compiler zig-out/bin/zbe-native --lock "$RUNNER_TEMP/zbe-extern.lock" --evidence-dir "$RUNNER_TEMP/zbe-extern-loader-default"
           python3 tools/extern_got_loader_check.py --compiler zig-out/bin/zbe-native --full --lock "$RUNNER_TEMP/zbe-extern.lock" --evidence-dir "$RUNNER_TEMP/zbe-extern-loader-full"

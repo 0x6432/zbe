@@ -29,6 +29,7 @@ def main():
             proc=subprocess.run([str(x) for x in argv], cwd=d, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=90)
             if proc.returncode:
                 raise RuntimeError(f"command {argv!r} exited {proc.returncode}: {proc.stderr.decode(errors='replace')}")
+            return proc.stdout.decode(errors='replace')
         run([args.cc,'-fPIC','-shared','-DBASE=10','provider.c','-o','libprovider.so'])
         run([args.cc,'-fPIC','-shared','-DBASE=200','provider.c','-o','liboverride.so'])
         checks=0
@@ -41,6 +42,14 @@ def main():
                 linker=[] if relax else ['-Wl,--no-relax']
                 run([args.cc,'-shared','-fPIC',*linker,'generated.s','-L.','-Wl,--no-as-needed','-lprovider','-Wl,-rpath,$ORIGIN','-o','libsubject.so'])
                 run([args.cc,'main.c','-L.','-Wl,--no-as-needed','-lsubject','-Wl,-rpath,$ORIGIN','-ldl','-o','check'])
+                reloc=run(['readelf','-rW','libsubject.so'])
+                for symbol in ('external_data','external_fn'):
+                    if not any('GLOB_DAT' in line and symbol in line for line in reloc.splitlines()):
+                        raise RuntimeError(f'missing dynamic GOT relocation for {symbol}')
+                if 'COPY' in reloc or 'COPY' in run(['readelf','-rW','check']):
+                    raise RuntimeError('COPY relocation invalidates smoke preemption evidence')
+                if 'TEXTREL' in run(['readelf','-dW','libsubject.so']):
+                    raise RuntimeError('TEXTREL invalidates smoke preemption evidence')
                 clean={k:v for k,v in os.environ.items() if k not in ('LD_PRELOAD','LD_LIBRARY_PATH','LD_AUDIT')}
                 run(['./check','10'],env=clean);checks+=1
                 preload=dict(clean,LD_PRELOAD=str(d/'liboverride.so'))

@@ -135,3 +135,17 @@ test "GOT target is parked after scalar arguments and before variadic AL" {
     const call = std.mem.indexOf(u8, assembly, "call *%r11").?;
     try testing.expect(arg < target and target < al and al < call);
 }
+
+fn exerciseExternAllocation(allocator: std.mem.Allocator) !void {
+    var diagnostic: ?@import("source.zig").Diagnostic = null;
+    var module = try frontend.parse(allocator, .{ .name = "extern-oom", .text = "function l $f() {\n@e\n%p =l copy extern $external_data\n%r =l call extern $external_fn(l %p)\nret %r\n}" }, &diagnostic);
+    defer module.deinit();
+    try validation.validate(allocator, &module);
+    const assembly = try amd64.emit(allocator, &module);
+    defer allocator.free(assembly);
+    try testing.expect(std.mem.indexOf(u8, assembly, "external_fn@GOTPCREL") != null);
+}
+
+test "extern parse validation and emission clean up at every allocation failure" {
+    try @import("test_support.zig").checkAllocationFailures(exerciseExternAllocation);
+}

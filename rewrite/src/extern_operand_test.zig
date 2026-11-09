@@ -222,3 +222,38 @@ test "extern call refusal precedes arguments, environment and dispatch depth" {
         try testing.expectError(error.UnsupportedIndirectCall, interpreter.evaluateModule(testing.allocator, &module, entry, &.{}, .{ .global_memory = .{} }));
     }
 }
+
+// D08 applies at the type-declaration name boundary, without reserving :extern.
+test "extern type declaration boundary preserves namespace and diagnostics" {
+    var module = try parse("type :extern = { l }\nfunction l $f(:extern %p) {\n@e\nret 1\n}");
+    defer module.deinit();
+    try testing.expect(module.findRecord("extern") != null);
+    try validation.validate(testing.allocator, &module);
+
+    const Case = struct { text: []const u8, code: @import("source.zig").Diagnostic.Code, start: usize, end: usize };
+    const cases = [_]Case{
+        .{ .text = "type nope = { l }", .code = .unexpected_token, .start = 5, .end = 9 },
+        .{ .text = "type $x = { l }", .code = .unexpected_token, .start = 5, .end = 7 },
+        .{ .text = "type extern $x = { l }", .code = .unsupported_construct, .start = 5, .end = 11 },
+        .{ .text = "type\nextern $x = { l }", .code = .unsupported_construct, .start = 5, .end = 11 },
+        .{ .text = "type\r\nextern $x = { l }", .code = .unsupported_construct, .start = 6, .end = 12 },
+        .{ .text = "type #comment\nextern $x = { l }", .code = .unsupported_construct, .start = 14, .end = 20 },
+        .{ .text = "type", .code = .unexpected_token, .start = 4, .end = 4 },
+        .{ .text = "type externally = { l }", .code = .unexpected_token, .start = 5, .end = 15 },
+        .{ .text = "type extern $x = { l }\n?", .code = .invalid_character, .start = 23, .end = 24 },
+    };
+    for (cases) |case| {
+        var diagnostic: ?@import("source.zig").Diagnostic = null;
+        if (frontend.parse(testing.allocator, .{ .name = "type-boundary", .text = case.text }, &diagnostic)) |parsed| {
+            var owned = parsed;
+            owned.deinit();
+            return error.TestUnexpectedResult;
+        } else |err| {
+            try testing.expectEqual(error.InvalidInput, err);
+        }
+        const got = diagnostic orelse return error.TestUnexpectedResult;
+        try testing.expectEqual(case.code, got.code);
+        try testing.expectEqual(case.start, got.span.start);
+        try testing.expectEqual(case.end, got.span.end);
+    }
+}

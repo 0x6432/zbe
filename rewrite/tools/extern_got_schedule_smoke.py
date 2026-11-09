@@ -268,10 +268,16 @@ def main():
         if not (computed.index('movq %rax, %r11') < computed.index('sched_data_a@GOTPCREL') < computed.index('call *%r11')):
             raise RuntimeError('computed scalar target not captured before argument GOT loads')
         _, _, record = body('run_record')
-        target = record.index('sched_record@GOTPCREL')
-        hidden = list(re.finditer(r'leaq -[0-9]+\(%rbp\), %rdi', record))
-        if not (record.rindex('rep movsb') < target < record.index('call *%r11') and
-                hidden and hidden[-1].start() < target and record.index('movq %rax, %r11') < target):
+        call = record.index('call *%r11')
+        before_call = record[:call]
+        target = before_call.index('sched_record@GOTPCREL')
+        copies = list(re.finditer(r'\brep movsb\b', before_call))
+        hidden = list(re.finditer(r'leaq -[0-9]+\(%rbp\), %rdi', before_call))
+        pack = before_call.index('movq %rax, %r11')
+        # The result also uses rep movsb after the call; only the two argument
+        # copies belong to the pre-call schedule being asserted here.
+        if not (len(copies) == 2 and copies[-1].start() < pack and hidden and
+                pack < hidden[-1].start() < target):
             raise RuntimeError('record target not after copies, packing and hidden RDI')
         for base, lib in ((10, 'libprovider.so'), (200, 'liboverride.so')):
             run([args.cc, '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-fPIC', '-shared',

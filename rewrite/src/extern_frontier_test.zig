@@ -393,3 +393,285 @@ test "extern quoted parse sweeps measured allocation failures from fresh state" 
         try t.expectEqual(failing.allocated_bytes, failing.freed_bytes);
     }
 }
+
+// Multiple initialized call signatures and multiple initialized FunctionPlans
+// must be destroyed when a later allocation fails. The middle scalar function
+// also checks that ModulePlans preserves a null entry between owned plans.
+const multi_plan_source =
+    \\type :R={l, d}
+    \\type :M={b 23}
+    \\function :R $register_caller(:R %p) {
+    \\@e
+    \\%a =:R call extern $reg_first(:R extern $reg_data)
+    \\%b =:R call extern $reg_second(:R %a)
+    \\ret %b
+    \\}
+    \\function l $scalar_caller() {
+    \\@e
+    \\%n =l add 1, 2
+    \\%v =l call extern $scalar_target(l %n)
+    \\ret %v
+    \\}
+    \\function :M $memory_caller(:M %p) {
+    \\@e
+    \\%a =:M call extern $mem_first(:M extern $mem_data)
+    \\%b =:M call extern $mem_second(:M %a)
+    \\ret %b
+    \\}
+;
+
+const MultiMode = enum { detached_register, detached_memory, whole, emit };
+
+// Save identities before folding, then check the actual target representations
+// and operands both before and after folding rather than comparing a plan only
+// with whatever IR happens to survive.
+fn checkMultiIr(module: *const Module, targets: [2][2]SymbolId, data: [2]SymbolId, scalar_target: SymbolId, fold: bool) !void {
+    for ([_]usize{ 0, 2 }, 0..) |index, family| {
+        const instructions = module.functions.items[index].blocks.items[0].instructions.items;
+        try t.expectEqual(@as(usize, 2), instructions.len);
+        for (instructions, 0..) |instruction, i| {
+            try t.expect(instruction == .call);
+            const call = instruction.call;
+            try checkTarget(call.callee, i == 1, targets[family][i]);
+            try t.expect(call.result != null);
+            try t.expectEqual(@as(u32, @intCast(i + 1)), @backingInt(call.result.?));
+            try t.expectEqual(@as(usize, 1), call.arguments.len);
+            if (i == 0) {
+                try t.expect(call.arguments[0].operand == .got_symbol);
+                try t.expectEqual(data[family], call.arguments[0].operand.got_symbol);
+            } else {
+                try t.expect(call.arguments[0].operand == .value);
+                try t.expectEqual(@as(u32, 1), @backingInt(call.arguments[0].operand.value));
+            }
+        }
+    }
+    const scalar = module.functions.items[1].blocks.items[0].instructions.items;
+    try t.expectEqual(@as(usize, 2), scalar.len);
+    if (fold) {
+        try t.expect(scalar[0] == .copy);
+        try t.expectEqual(@as(u32, 0), @backingInt(scalar[0].copy.result));
+        try t.expect(scalar[0].copy.operand == .constant);
+        try t.expect(scalar[0].copy.operand.constant == .long);
+        try t.expectEqual(@as(u64, 3), scalar[0].copy.operand.constant.long);
+    } else {
+        try t.expect(scalar[0] == .binary);
+        try t.expectEqual(ir.BinaryOp.add, scalar[0].binary.op);
+        try t.expectEqual(@as(u32, 0), @backingInt(scalar[0].binary.result));
+    }
+    try t.expect(scalar[1] == .call);
+    const call = scalar[1].call;
+    try checkTarget(call.callee, false, scalar_target);
+    try t.expect(call.result != null);
+    try t.expectEqual(@as(u32, 1), @backingInt(call.result.?));
+    try t.expectEqual(@as(usize, 1), call.arguments.len);
+    try t.expect(call.arguments[0].operand == .value);
+    try t.expectEqual(@as(u32, 0), @backingInt(call.arguments[0].operand.value));
+}
+
+fn checkMultiPlan(plan: *const planner.FunctionPlan, module: *const Module, index: usize) !void {
+    const function = module.functions.items[index];
+    const expected_record: @import("record_declaration.zig").Id = @fromBackingInt(@as(u32, if (index == 0) 0 else 1));
+    try t.expectEqual(@as(u32, @intCast(index)), @backingInt(plan.function_id));
+    try t.expectEqual(@as(usize, 2), plan.calls.len);
+    try t.expectEqual(@as(usize, 2), plan.pads.len);
+    try t.expectEqual(@as(usize, if (index == 0) 1 else 0), plan.parameter_objects.len);
+    for (plan.calls, 0..) |site, i| {
+        try t.expect(function.blocks.items[0].instructions.items[i] == .call);
+        const call = function.blocks.items[0].instructions.items[i].call;
+        try t.expectEqual(i, site.instruction);
+        try t.expectEqual(call.result, site.result_value);
+        try t.expect(site.result_value != null);
+        try t.expectEqual(@as(u32, @intCast(i + 1)), @backingInt(site.result_value.?));
+        try checkTarget(site.target, i == 1, call.callee.symbolicIdentity().?);
+        const expected_name = if (index == 0)
+            (if (i == 0) "reg_first" else "reg_second")
+        else
+            (if (i == 0) "mem_first" else "mem_second");
+        try t.expectEqualStrings(expected_name, module.symbols.get(site.target.symbolicIdentity().?).?);
+        try t.expectEqual(@as(?usize, i), site.pad_index);
+        try t.expectEqual(i, plan.pads[i].call_index);
+        try t.expectEqual(@as(usize, 1), site.signature.arguments.len);
+        const arg = site.signature.arguments[0];
+        try t.expect(arg.descriptor == .record);
+        try t.expectEqual(expected_record, arg.descriptor.record);
+        try t.expectEqual(expected_record, plan.pads[i].record_id);
+        const maybe_call_result = try call.resultAbi(function);
+        try t.expect(maybe_call_result != null);
+        const call_result = maybe_call_result.?;
+        try t.expect(call_result == .record);
+        try t.expectEqual(expected_record, call_result.record);
+        if (i == 0) {
+            try t.expect(call.arguments[0].operand == .got_symbol);
+            try t.expectEqualStrings(if (index == 0) "reg_data" else "mem_data", module.symbols.get(call.arguments[0].operand.got_symbol).?);
+        } else {
+            try t.expect(call.arguments[0].operand == .value);
+            try t.expectEqual(function.blocks.items[0].instructions.items[0].call.result.?, call.arguments[0].operand.value);
+        }
+        if (index == 0) {
+            try t.expect(site.signature.result == .register_record);
+            const result = site.signature.result.register_record;
+            try t.expectEqual(arg.descriptor.record, result.record_id);
+            try t.expectEqual(@as(u64, 16), result.declared_bytes);
+            try t.expectEqual(@as(u8, 2), result.lane_count);
+            try t.expect(result.lanes[0].register == .general);
+            try t.expect(result.lanes[1].register == .vector);
+            try t.expectEqual(planner.ResultGeneral.rax, result.lanes[0].register.general);
+            try t.expectEqual(planner.ResultVector.xmm0, result.lanes[1].register.vector);
+            try t.expectEqual(@as(u8, 0), result.lanes[0].offset);
+            try t.expectEqual(@as(u8, 8), result.lanes[1].offset);
+            try t.expectEqual(@as(u8, 8), result.lanes[0].bytes);
+            try t.expectEqual(@as(u8, 8), result.lanes[1].bytes);
+            try t.expect(arg.location == .register_record);
+            const lanes = arg.location.register_record;
+            try t.expectEqual(@as(u8, 2), lanes.lane_count);
+            try t.expect(lanes.lanes[0].register == .general);
+            try t.expect(lanes.lanes[1].register == .vector);
+            try t.expectEqual(General.rdi, lanes.lanes[0].register.general);
+            try t.expectEqual(@import("abi_amd64.zig").Vector.xmm0, lanes.lanes[1].register.vector);
+            try t.expectEqual(@as(u8, 0), lanes.lanes[0].offset);
+            try t.expectEqual(@as(u8, 8), lanes.lanes[1].offset);
+            try t.expectEqual(@as(u8, 8), lanes.lanes[0].bytes);
+            try t.expectEqual(@as(u8, 8), lanes.lanes[1].bytes);
+            try t.expectEqual(@as(u64, 0), site.signature.stack_bytes);
+            try t.expectEqual(@as(u64, 0), site.signature.outgoing_bytes);
+            try t.expectEqual(@as(u64, 16), plan.pads[i].declared_bytes);
+        } else {
+            try t.expect(site.signature.result == .memory and arg.location == .stack);
+            try t.expectEqual(arg.descriptor.record, site.signature.result.memory.record_id);
+            try t.expectEqual(General.rdi, site.signature.result.memory.hidden);
+            try t.expectEqual(@as(u64, 23), site.signature.result.memory.declared_bytes);
+            try t.expectEqual(@as(u64, 0), arg.location.stack.offset);
+            try t.expectEqual(@as(u64, 24), arg.location.stack.extent);
+            try t.expectEqual(@as(u8, 8), arg.location.stack.alignment);
+            try t.expectEqual(@as(i32, 16), arg.location.stack.incoming);
+            try t.expectEqual(@as(u64, 24), site.signature.stack_bytes);
+            try t.expectEqual(@as(u64, 32), site.signature.outgoing_bytes);
+            try t.expectEqual(@as(u64, 23), plan.pads[i].declared_bytes);
+        }
+        try t.expectEqual(@as(u8, 8), plan.pads[i].alignment);
+        try t.expectEqual(@as(u64, 0), plan.pads[i].end % 8);
+        try t.expect(plan.pads[i].end >= plan.pads[i].declared_bytes);
+        try t.expect(plan.pads[i].end <= plan.frame.fixed_prefix_bytes);
+    }
+    // Coordinates are positive distances below RBP: the second pad starts
+    // at end-size, so distinct end coordinates alone do not prove separation.
+    try t.expect(plan.pads[0].end <= plan.pads[1].end - plan.pads[1].declared_bytes);
+    try t.expect(plan.frame.fixed_prefix_bytes + plan.frame.outgoing_bytes <= plan.frame.bytes);
+    try t.expectEqual(@as(u64, if (index == 0) 0 else 32), plan.frame.outgoing_bytes);
+    try t.expectEqual(@as(usize, 1), plan.signature.arguments.len);
+    try t.expect(plan.signature.arguments[0].descriptor == .record);
+    try t.expectEqual(expected_record, plan.signature.arguments[0].descriptor.record);
+    if (index == 0) {
+        try t.expect(plan.signature.result == .register_record);
+        try t.expectEqual(expected_record, plan.signature.result.register_record.record_id);
+        try t.expect(plan.signature.arguments[0].location == .register_record);
+        try t.expectEqual(@as(usize, 0), plan.parameter_objects[0].position);
+        try t.expectEqual(expected_record, plan.parameter_objects[0].record_id);
+        try t.expectEqual(@as(u64, 16), plan.parameter_objects[0].declared_bytes);
+        try t.expect(plan.parameter_objects[0].end <= plan.pads[0].end - plan.pads[0].declared_bytes);
+        try t.expect(plan.frame.hidden_return_end == null);
+    } else {
+        try t.expect(plan.signature.result == .memory);
+        try t.expectEqual(expected_record, plan.signature.result.memory.record_id);
+        try t.expect(plan.frame.hidden_return_end != null);
+        try t.expect(plan.frame.hidden_return_end.? <= plan.pads[0].end - plan.pads[0].declared_bytes);
+    }
+}
+
+fn multiTransaction(mode: MultiMode, allocator: std.mem.Allocator, module: *const Module, options: planner.Options, expected: []const u8) !void {
+    switch (mode) {
+        .detached_register, .detached_memory => {
+            const index: usize = if (mode == .detached_register) 0 else 2;
+            var plan = try planner.FunctionPlan.init(allocator, module, @fromBackingInt(@as(u32, @intCast(index))), options);
+            defer plan.deinit();
+            try checkMultiPlan(&plan, module, index);
+        },
+        .whole => {
+            var plans = try planner.ModulePlans.init(allocator, module, options);
+            defer plans.deinit();
+            try t.expectEqual(@as(usize, 3), plans.functions.len);
+            try t.expect(plans.get(1) == null);
+            try checkMultiPlan(plans.get(0).?, module, 0);
+            try checkMultiPlan(plans.get(2).?, module, 2);
+        },
+        .emit => {
+            const text = try amd64.emitWithOptions(allocator, module, .{ .reuse_stack_homes = options.reuse_stack_homes, .callee_saved_homes = options.callee_saved_homes });
+            defer allocator.free(text);
+            // Same-emitter equality is a retry/ownership oracle, not ABI proof.
+            try t.expectEqualStrings(expected, text);
+            for ([_][]const u8{
+                "\tmovq reg_first@GOTPCREL(%rip), %rax\n\tmovq %rax, %r11\n\tcall *%r11\n",
+                "\tmovq reg_second@GOTPCREL(%rip), %rax\n\tmovq %rax, %r11\n\tcall *%r11\n",
+                "\tmovq scalar_target@GOTPCREL(%rip), %rax\n\tmovq %rax, %r11\n\tcall *%r11\n",
+                "\tmovq mem_first@GOTPCREL(%rip), %rax\n\tmovq %rax, %r11\n\tcall *%r11\n",
+                "\tmovq mem_second@GOTPCREL(%rip), %rax\n\tmovq %rax, %r11\n\tcall *%r11\n",
+                "\tmovq reg_data@GOTPCREL(%rip), %rax\n\tmovq %rax, %r11\n",
+                "\tmovq mem_data@GOTPCREL(%rip), %rax\n\tmovq %rax, %rsi\n",
+            }) |needle| {
+                try t.expect(std.mem.indexOf(u8, text, needle) != null);
+            }
+        },
+    }
+}
+
+test "extern multi-function multi-call plans retry every moving-allocation OOM" {
+    for ([_]bool{ false, true }) |fold| {
+        var diagnostic: ?@import("source.zig").Diagnostic = null;
+        var module = try frontend.parse(t.allocator, .{ .name = "multi-plan-frontier", .text = multi_plan_source }, &diagnostic);
+        defer module.deinit();
+        // Exercise both target representations together, before optimization.
+        var targets: [2][2]SymbolId = undefined;
+        var data: [2]SymbolId = undefined;
+        for ([_]usize{ 0, 2 }, 0..) |index, family| {
+            const instructions = module.functions.items[index].blocks.items[0].instructions.items;
+            try t.expectEqual(@as(usize, 2), instructions.len);
+            for (instructions, 0..) |*instruction, i| {
+                try t.expect(instruction.* == .call);
+                const call = &instruction.call;
+                try t.expect(call.callee == .extern_symbol);
+                targets[family][i] = call.callee.extern_symbol;
+                if (i == 0) {
+                    try t.expectEqual(@as(usize, 1), call.arguments.len);
+                    try t.expect(call.arguments[0].operand == .got_symbol);
+                    data[family] = call.arguments[0].operand.got_symbol;
+                } else {
+                    call.callee = .{ .address = .{ .got_symbol = targets[family][i] } };
+                }
+            }
+        }
+        const scalar_instructions = module.functions.items[1].blocks.items[0].instructions.items;
+        try t.expectEqual(@as(usize, 2), scalar_instructions.len);
+        try t.expect(scalar_instructions[1] == .call);
+        try t.expect(scalar_instructions[1].call.callee == .extern_symbol);
+        const scalar_target = scalar_instructions[1].call.callee.extern_symbol;
+        try t.expectEqualStrings("scalar_target", module.symbols.get(scalar_target).?);
+        try checkMultiIr(&module, targets, data, scalar_target, false);
+        if (fold) {
+            var folded: usize = 0;
+            for (module.functions.items) |function| folded += try @import("optimize.zig").foldIntegerConstants(t.allocator, function);
+            try t.expectEqual(@as(usize, 1), folded);
+        }
+        try checkMultiIr(&module, targets, data, scalar_target, fold);
+        for ([_]planner.Options{ .{}, .{ .reuse_stack_homes = true }, .{ .callee_saved_homes = true }, .{ .reuse_stack_homes = true, .callee_saved_homes = true } }) |options| {
+            const expected = try amd64.emitWithOptions(t.allocator, &module, .{ .reuse_stack_homes = options.reuse_stack_homes, .callee_saved_homes = options.callee_saved_homes });
+            defer t.allocator.free(expected);
+            for ([_]MultiMode{ .detached_register, .detached_memory, .whole, .emit }) |mode| {
+                var measure = t.FailingAllocator.init(t.allocator, .{ .resize_fail_index = 0 });
+                try multiTransaction(mode, measure.allocator(), &module, options, expected);
+                const attempts = measure.alloc_index;
+                try t.expect(attempts > 0);
+                try t.expectEqual(measure.allocated_bytes, measure.freed_bytes);
+                std.debug.print("extern-multi-frontier fold={} reuse={} callee={} mode={s} attempts={d}\n", .{ fold, options.reuse_stack_homes, options.callee_saved_homes, @tagName(mode), attempts });
+                for (0..attempts) |ordinal| {
+                    var failing = t.FailingAllocator.init(t.allocator, .{ .fail_index = ordinal, .resize_fail_index = 0 });
+                    try t.expectError(error.OutOfMemory, multiTransaction(mode, failing.allocator(), &module, options, expected));
+                    try t.expect(failing.has_induced_failure);
+                    try t.expectEqual(failing.allocated_bytes, failing.freed_bytes);
+                    failing.fail_index = std.math.maxInt(usize);
+                    try multiTransaction(mode, failing.allocator(), &module, options, expected);
+                    try t.expectEqual(failing.allocated_bytes, failing.freed_bytes);
+                }
+            }
+        }
+    }
+}

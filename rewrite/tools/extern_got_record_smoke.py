@@ -164,8 +164,10 @@ def main():
         d = Path(tmp)
         for name, text in (('input.ssa',IL), ('provider.c',PROVIDER), ('provider.S',ASM), ('main.c',MAIN)):
             (d/name).write_text(text)
+        clean = {k:os.environ[k] for k in ('PATH','HOME','TMPDIR') if k in os.environ}
+        clean['LC_ALL'] = 'C'
         def run(argv, env=None, expected=0):
-            proc = subprocess.run([str(x) for x in argv], cwd=d, env=env, capture_output=True, text=True, timeout=90)
+            proc = subprocess.run([str(x) for x in argv], cwd=d, env=clean if env is None else env, capture_output=True, text=True, timeout=90)
             if proc.returncode != expected:
                 raise RuntimeError(f'{argv!r}: expected {expected}, got {proc.returncode}; stdout={proc.stdout!r} stderr={proc.stderr!r}')
             return proc.stdout
@@ -181,7 +183,6 @@ def main():
             run([a.cc,'-shared','-fPIC','-Wl,--no-relax',source,'-L.','-Wl,--no-as-needed','-lprovider','-Wl,-rpath,$ORIGIN','-o','libsubject.so'])
         link_subject('generated.s')
         run([a.cc,'-std=c11','-O2','-Wall','-Wextra','-Werror','main.c','-L.','-Wl,--no-as-needed','-lsubject','-Wl,-rpath,$ORIGIN','-o','check'])
-        clean = {k:v for k,v in os.environ.items() if k not in ('LD_PRELOAD','LD_LIBRARY_PATH','LD_AUDIT')}
         run(['./check','10'],env=clean)
         run(['./check','200'],env=dict(clean,LD_PRELOAD=str(d/'liboverride.so')))
         # Corrupt only the first SSE result lane *after* the real call, so the

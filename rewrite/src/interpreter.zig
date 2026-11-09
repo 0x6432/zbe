@@ -203,7 +203,8 @@ fn execute(allocator: std.mem.Allocator, module: ?*const Module, function: *cons
                 const owner = module orelse return error.UnsupportedCall;
                 const symbol = switch (call.callee) {
                     .symbol => |symbol| symbol,
-                    .address => return error.UnsupportedIndirectCall,
+                    .extern_symbol => return error.UnsupportedExternalCall,
+                    .address => |operand| if (operand == .got_symbol) return error.UnsupportedExternalCall else return error.UnsupportedIndirectCall,
                 };
                 const callee = module_validation.findFunction(owner, symbol) orelse return error.UnsupportedExternalCall;
                 if (callee.variadic and !options.internal_variadic_calls) return error.UnsupportedVariadicCall;

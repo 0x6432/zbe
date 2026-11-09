@@ -309,12 +309,23 @@ pub const CallArgument = struct {
 /// Symbol targets use the module pool; address operands use function-scoped IDs.
 pub const CallTarget = union(enum) {
     symbol: SymbolId,
+    /// Dynamic GOT-resolved target. It shares semantic identity with a direct
+    /// address(.got_symbol) wrapper for validation and use iteration.
+    extern_symbol: SymbolId,
     address: Operand,
 
     pub fn addressOperand(self: CallTarget) ?Operand {
         return switch (self) {
             .symbol => null,
+            .extern_symbol => |symbol| .{ .got_symbol = symbol },
             .address => |operand| operand,
+        };
+    }
+
+    pub fn symbolicIdentity(self: CallTarget) ?SymbolId {
+        return switch (self) {
+            .symbol, .extern_symbol => |symbol| symbol,
+            .address => |operand| if (operand == .got_symbol) operand.got_symbol else null,
         };
     }
 };

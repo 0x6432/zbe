@@ -48,3 +48,54 @@ test "GOT eligibility scans scalar module including unreachable blocks before ea
     f.blocks.items[1].terminator.?.return_value = .{ .got_symbol = bad };
     try testing.expectError(error.InvalidSymbol, plan.ModulePlans.init(testing.allocator, &module, .{}));
 }
+
+test "dedicated and wrapped GOT targets share identity and signature checks" {
+    var module = try parse("function l $f() {\n@e\n%r =l call $g()\nret %r\n}\nfunction l $g() {\n@e\nret 1\n}");
+    defer module.deinit();
+    const f = module.functions.items[0];
+    const call = &f.blocks.items[0].instructions.items[0].call;
+    const symbol = call.callee.symbol;
+    for ([_]ir.CallTarget{ .{ .extern_symbol = symbol }, .{ .address = .{ .got_symbol = symbol } } }) |target| {
+        call.callee = target;
+        try testing.expectEqual(symbol, target.symbolicIdentity().?);
+        try testing.expectEqualDeep(ir.Operand{ .got_symbol = symbol }, target.addressOperand().?);
+        try validation.validate(testing.allocator, &module);
+        try testing.expectError(error.UnsupportedExternalCall, interpreter.evaluateModule(testing.allocator, &module, @fromBackingInt(@as(u32, 0)), &.{}, .{}));
+        try testing.expectError(error.UnsupportedExternSymbol, amd64.emit(testing.allocator, &module));
+    }
+    const unknown = try module.symbols.intern("unknown_external");
+    call.callee = .{ .address = .{ .got_symbol = unknown } };
+    try validation.validate(testing.allocator, &module);
+    try testing.expectError(error.UnsupportedExternalCall, interpreter.evaluateModule(testing.allocator, &module, @fromBackingInt(@as(u32, 0)), &.{}, .{}));
+    try testing.expect((ir.CallTarget{ .address = .{ .symbol = symbol } }).symbolicIdentity() == null);
+}
+
+test "contextual extern values and calls preserve owned symbolic identity" {
+    var module = try parse("function l $f() {\n@e\n%p =l copy extern $target\n%r =l call extern $callee(l %p)\nret %r\n}");
+    defer module.deinit();
+    const f = module.functions.items[0];
+    const operand = f.blocks.items[0].instructions.items[0].copy.operand;
+    const call = f.blocks.items[0].instructions.items[1].call;
+    try testing.expect(operand == .got_symbol);
+    try testing.expectEqualStrings("target", module.symbols.get(operand.got_symbol).?);
+    try testing.expect(call.callee == .extern_symbol);
+    try testing.expectEqualStrings("callee", module.symbols.get(call.callee.extern_symbol).?);
+    try validation.validate(testing.allocator, &module);
+    try testing.expectError(error.UnsupportedExternSymbol, amd64.emit(testing.allocator, &module));
+}
+
+fn expectDiagnostic(text: []const u8, code: @import("source.zig").Diagnostic.Code, bad: []const u8) !void {
+    var diagnostic: ?@import("source.zig").Diagnostic = null;
+    try testing.expectError(error.InvalidInput, frontend.parse(testing.allocator, .{ .name = "extern-diagnostic", .text = text }, &diagnostic));
+    try testing.expectEqual(code, diagnostic.?.code);
+    try testing.expectEqualStrings(bad, text[diagnostic.?.span.start..diagnostic.?.span.end]);
+}
+
+test "extern grammar rejects addends, newlines, stacked modifiers and non-long values" {
+    try expectDiagnostic("function l $f() {\n@e\nret extern $x+0\n}", .unsupported_construct, "+");
+    try expectDiagnostic("function l $f() {\n@e\nret extern\n$x\n}", .unexpected_token, "\n");
+    try expectDiagnostic("function l $f() {\n@e\nret extern extern $x\n}", .unsupported_construct, "extern");
+    try expectDiagnostic("function l $f() {\n@e\nret extern thread $x\n}", .unsupported_construct, "thread");
+    try expectDiagnostic("function w $f() {\n@e\nret extern $x\n}", .type_mismatch, "extern");
+    try expectDiagnostic("data $x = { l extern $other }", .unsupported_construct, "extern");
+}

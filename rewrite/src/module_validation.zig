@@ -53,10 +53,7 @@ pub fn validate(allocator: std.mem.Allocator, module: *const Module) Error!void 
     }
     for (module.functions.items) |function| for (function.blocks.items) |block| for (block.instructions.items) |instruction| switch (instruction) {
         .call => |call| {
-            const symbol = switch (call.callee) {
-                .symbol => |symbol| symbol,
-                .address => continue,
-            };
+            const symbol = call.callee.symbolicIdentity() orelse continue;
             _ = module.symbols.get(symbol) orelse return error.InvalidSymbol;
             for (module.data.items) |object| if (object.name == symbol) return error.CalledDataSymbol;
             const callee = findFunction(module, symbol) orelse continue;

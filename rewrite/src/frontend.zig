@@ -288,6 +288,7 @@ const Parser = struct {
             var count: usize = 0;
             while (self.peek().kind != .comma and self.peek().kind != .rbrace) {
                 const token = self.advance();
+                if (token.kind == .identifier and std.mem.eql(u8, self.tokenText(token), "extern")) return self.fail(.unsupported_construct, token);
                 if (token.kind == .string) {
                     if (kind != 'b') return self.fail(.unsupported_construct, token);
                     const bytes = @import("byte_strings.zig").decode(self.allocator, self.tokenText(token), data.max_object_bytes - object.byte_len) catch |err| switch (err) {
@@ -567,6 +568,11 @@ const Parser = struct {
                 break :symbol .{ .symbol = try self.module.symbols.intern(try self.globalName(token)) };
             },
             .temporary, .integer => .{ .address = try self.readOperand(.long) },
+            .identifier => external: {
+                if (!self.word("extern")) return self.fail(.unsupported_construct, self.peek());
+                const prefix = self.advance();
+                break :external .{ .extern_symbol = try self.readExternSymbol(prefix) };
+            },
             else => return self.fail(.unsupported_construct, self.peek()),
         };
         _ = try self.expect(.lparen);
@@ -648,6 +654,10 @@ const Parser = struct {
                 const addend = std.fmt.parseInt(i32, self.tokenText(offset), 10) catch return self.fail(.invalid_integer, offset);
                 break :symbolic .{ .symbol_offset = .{ .symbol = symbol, .addend = addend } };
             },
+            .identifier => external: {
+                if (!std.mem.eql(u8, self.tokenText(token), "extern")) return self.fail(.unexpected_token, token);
+                break :external .{ .got_symbol = try self.readExternSymbol(token) };
+            },
             .type_name, .string => return self.fail(.unsupported_construct, token),
             else => return self.fail(.unexpected_token, token),
         };
@@ -659,6 +669,22 @@ const Parser = struct {
             return self.fail(.type_mismatch, token);
         };
         return result;
+    }
+
+    /// `extern` is contextual and may not cross a logical line. Decode/intern
+    /// before rejecting a plus so existing global-name errors keep precedence.
+    fn readExternSymbol(self: *Parser, prefix: lex.Token) Error!@import("symbols.zig").Id {
+        std.debug.assert(prefix.kind == .identifier and std.mem.eql(u8, self.tokenText(prefix), "extern"));
+        if (self.peek().kind == .identifier) {
+            const text = self.tokenText(self.peek());
+            if (std.mem.eql(u8, text, "extern") or std.mem.eql(u8, text, "thread") or
+                std.mem.eql(u8, text, "export") or std.mem.eql(u8, text, "common") or std.mem.eql(u8, text, "section"))
+                return self.fail(.unsupported_construct, self.peek());
+        }
+        const global = try self.expect(.global);
+        const symbol = try self.module.symbols.intern(try self.globalName(global));
+        if (self.peek().kind == .plus) return self.fail(.unsupported_construct, self.peek());
+        return symbol;
     }
 
     fn target(self: *Parser) Error!ir.BlockId {

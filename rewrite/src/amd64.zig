@@ -67,7 +67,7 @@ pub fn emitWithOptions(allocator: std.mem.Allocator, module: *const Module, opti
         for (function.blocks.items) |block| for (block.instructions.items) |instruction| switch (instruction) {
             .call => |call| switch (call.callee) {
                 .symbol => |symbol| if (!validSymbol(module.symbols.get(symbol).?)) return error.InvalidSymbol,
-                .address => {},
+                .extern_symbol, .address => {},
             },
             else => {},
         };
@@ -445,7 +445,7 @@ const Emitter = struct {
                     if (call.variadic_start != null) try self.print("\tmovb ${d}, %al\n", .{cursor.vector_used});
                     switch (call.callee) {
                         .symbol => |symbol| try self.print("\tcall {f}\n", .{try self.symbolReference(symbol)}),
-                        .address => try self.print("\tcall *%r11\n", .{}),
+                        .extern_symbol, .address => try self.print("\tcall *%r11\n", .{}),
                     }
                     if (call.result) |result| {
                         const ty = f.values.items[@backingInt(result)].scalar_type;
@@ -685,7 +685,7 @@ const Emitter = struct {
         if (call.variadic_start != null) try self.print("\tmovb ${d}, %al\n", .{site.signature.vector_used});
         switch (call.callee) {
             .symbol => |symbol| try self.print("\tcall {f}\n", .{try self.symbolReference(symbol)}),
-            .address => try self.print("\tcall *%r11\n", .{}),
+            .extern_symbol, .address => try self.print("\tcall *%r11\n", .{}),
         }
         if (call.result) |result| {
             if (site.pad_index) |index| {

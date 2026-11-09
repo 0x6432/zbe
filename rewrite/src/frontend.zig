@@ -256,6 +256,7 @@ const Parser = struct {
         }
         _ = self.advance(); // Contextual `data` dispatch established by parse.
         self.skipLines();
+        if (self.word("extern")) return self.fail(.unsupported_construct, self.peek());
         const name_token = try self.expect(.global);
         self.skipLines();
         const id = self.module.addData(try self.globalName(name_token)) catch |err| switch (err) {
@@ -361,6 +362,7 @@ const Parser = struct {
         if (!self.word("function")) return self.fail(.unsupported_construct, self.peek());
         _ = self.advance();
         const result = if (self.peek().kind == .global) null else try self.takeAbiType();
+        if (self.word("extern")) return self.fail(.unsupported_construct, self.peek());
         const name_token = try self.expect(.global);
         const name = try self.globalName(name_token);
         // Parsed scalar ABI annotations keep the established legacy fields as

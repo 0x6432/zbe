@@ -62,7 +62,7 @@ test "dedicated and wrapped GOT targets share identity and signature checks" {
         try testing.expectEqual(symbol, target.symbolicIdentity().?);
         try testing.expectEqualDeep(ir.Operand{ .got_symbol = symbol }, target.addressOperand().?);
         try validation.validate(testing.allocator, &module);
-        try testing.expectError(error.UnsupportedExternalCall, interpreter.evaluateModule(testing.allocator, &module, @fromBackingInt(@as(u32, 0)), &.{}, .{}));
+        try testing.expectError(error.UnsupportedIndirectCall, interpreter.evaluateModule(testing.allocator, &module, @fromBackingInt(@as(u32, 0)), &.{}, .{}));
         const assembly = try amd64.emit(testing.allocator, &module);
         defer testing.allocator.free(assembly);
         try testing.expect(std.mem.indexOf(u8, assembly, "movq g@GOTPCREL(%rip), %rax") != null);
@@ -71,7 +71,7 @@ test "dedicated and wrapped GOT targets share identity and signature checks" {
     const unknown = try module.symbols.intern("unknown_external");
     call.callee = .{ .address = .{ .got_symbol = unknown } };
     try validation.validate(testing.allocator, &module);
-    try testing.expectError(error.UnsupportedExternalCall, interpreter.evaluateModule(testing.allocator, &module, @fromBackingInt(@as(u32, 0)), &.{}, .{}));
+    try testing.expectError(error.UnsupportedIndirectCall, interpreter.evaluateModule(testing.allocator, &module, @fromBackingInt(@as(u32, 0)), &.{}, .{}));
     try testing.expect((ir.CallTarget{ .address = .{ .symbol = symbol } }).symbolicIdentity() == null);
 }
 
@@ -148,4 +148,77 @@ fn exerciseExternAllocation(allocator: std.mem.Allocator) !void {
 
 test "extern parse validation and emission clean up at every allocation failure" {
     try @import("test_support.zig").checkAllocationFailures(exerciseExternAllocation);
+}
+
+// Frozen half-open byte spans and precedence, independent of token contents.
+test "extern diagnostics have exact spans and stable precedence" {
+    const Case = struct { name: []const u8, text: []const u8, code: @import("source.zig").Diagnostic.Code, start: usize, end: usize };
+    const cases = [_]Case{
+        .{ .name = "EOF", .text = "function l $f() {\n@e\nret extern", .code = .unexpected_token, .start = 31, .end = 31 },
+        .{ .name = "temporary", .text = "function l $f() {\n@e\nret extern %x\n}", .code = .unexpected_token, .start = 32, .end = 34 },
+        .{ .name = "integer", .text = "function l $f() {\n@e\nret extern 42\n}", .code = .unexpected_token, .start = 32, .end = 34 },
+        .{ .name = "punctuation", .text = "function l $f() {\n@e\nret extern ,\n}", .code = .unexpected_token, .start = 32, .end = 33 },
+        .{ .name = "identifier", .text = "function l $f() {\n@e\nret extern nonsense\n}", .code = .unexpected_token, .start = 32, .end = 40 },
+        .{ .name = "LF", .text = "function l $f() {\n@e\nret extern\n$x\n}", .code = .unexpected_token, .start = 31, .end = 32 },
+        .{ .name = "CRLF", .text = "function l $f() {\n@e\nret extern\r\n$x\n}", .code = .unexpected_token, .start = 31, .end = 33 },
+        .{ .name = "comment newline", .text = "function l $f() {\n@e\nret extern # comment\n$x\n}", .code = .unexpected_token, .start = 32, .end = 42 },
+        .{ .name = "stacked extern", .text = "function l $f() {\n@e\nret extern extern $x\n}", .code = .unsupported_construct, .start = 32, .end = 38 },
+        .{ .name = "stacked thread", .text = "function l $f() {\n@e\nret extern thread $x\n}", .code = .unsupported_construct, .start = 32, .end = 38 },
+        .{ .name = "stacked export", .text = "function l $f() {\n@e\nret extern export $x\n}", .code = .unsupported_construct, .start = 32, .end = 38 },
+        .{ .name = "stacked common", .text = "function l $f() {\n@e\nret extern common $x\n}", .code = .unsupported_construct, .start = 32, .end = 38 },
+        .{ .name = "stacked section", .text = "function l $f() {\n@e\nret extern section $x\n}", .code = .unsupported_construct, .start = 32, .end = 39 },
+        .{ .name = "suffix $x+0", .text = "function l $f() {\n@e\nret extern $x+0\n}", .code = .unsupported_construct, .start = 34, .end = 35 },
+        .{ .name = "suffix $x + 0", .text = "function l $f() {\n@e\nret extern $x + 0\n}", .code = .unsupported_construct, .start = 35, .end = 36 },
+        .{ .name = "suffix $x +", .text = "function l $f() {\n@e\nret extern $x +\n}", .code = .unsupported_construct, .start = 35, .end = 36 },
+        .{ .name = "suffix $x + 2147483648", .text = "function l $f() {\n@e\nret extern $x + 2147483648\n}", .code = .unsupported_construct, .start = 35, .end = 36 },
+        .{ .name = "type w", .text = "function w $f() {\n@e\nret extern $x\n}", .code = .type_mismatch, .start = 25, .end = 31 },
+        .{ .name = "type s", .text = "function s $f() {\n@e\nret extern $x\n}", .code = .type_mismatch, .start = 25, .end = 31 },
+        .{ .name = "type d", .text = "function d $f() {\n@e\nret extern $x\n}", .code = .type_mismatch, .start = 25, .end = 31 },
+        .{ .name = "type plus precedence", .text = "function w $f() {\n@e\nret extern $x+0\n}", .code = .unsupported_construct, .start = 34, .end = 35 },
+        .{ .name = "data initializer", .text = "data $x = { l extern $other }", .code = .unsupported_construct, .start = 14, .end = 20 },
+        .{ .name = "data declaration", .text = "data extern $x = { l 1 }", .code = .unsupported_construct, .start = 5, .end = 11 },
+        .{ .name = "export data declaration", .text = "export data extern $x = { l 1 }", .code = .unsupported_construct, .start = 12, .end = 18 },
+        .{ .name = "common data declaration", .text = "common data extern $x = { z 8 }", .code = .unsupported_construct, .start = 12, .end = 18 },
+        .{ .name = "typed function declaration", .text = "function l extern $f() {\n@e\nret 1\n}", .code = .unsupported_construct, .start = 11, .end = 17 },
+        .{ .name = "export function declaration", .text = "export function l extern $f() {\n@e\nret 1\n}", .code = .unsupported_construct, .start = 18, .end = 24 },
+        .{ .name = "untyped function declaration", .text = "function extern $f() {\n@e\nret\n}", .code = .unsupported_construct, .start = 9, .end = 15 },
+        .{ .name = "declaration modifier", .text = "extern function l $f() {\n@e\nret 0\n}", .code = .unsupported_construct, .start = 0, .end = 6 },
+        .{ .name = "malformed quoted global before plus", .text = "function l $f() {\n@e\nret extern $\"bad\\q\"+0\n}", .code = .unsupported_construct, .start = 32, .end = 40 },
+        .{ .name = "whole input lexer precedence", .text = "function l $f() {\n@e\nret extern $x+0\n?\n}", .code = .invalid_character, .start = 37, .end = 38 },
+    };
+    for (cases) |case| {
+        var diagnostic: ?@import("source.zig").Diagnostic = null;
+        if (frontend.parse(testing.allocator, .{ .name = case.name, .text = case.text }, &diagnostic)) |module| {
+            var owned = module;
+            owned.deinit();
+            std.debug.print("unexpected parse success: {s}\n", .{case.name});
+            return error.TestUnexpectedResult;
+        } else |err| {
+            try testing.expectEqual(error.InvalidInput, err);
+        }
+        const got = diagnostic orelse return error.TestUnexpectedResult;
+        if (got.code != case.code or got.span.start != case.start or got.span.end != case.end) {
+            std.debug.print("{s}: got {s} [{d},{d}), expected {s} [{d},{d})\n", .{ case.name, @tagName(got.code), got.span.start, got.span.end, @tagName(case.code), case.start, case.end });
+            return error.TestUnexpectedResult;
+        }
+    }
+}
+
+test "extern call refusal precedes arguments, environment and dispatch depth" {
+    var module = try parse("function l $f() {\n@e\n%r =l call extern $external_fn(env extern $poison_env, l extern $poison_arg)\nret %r\n}");
+    defer module.deinit();
+    const f = module.functions.items[0];
+    const call = &f.blocks.items[0].instructions.items[0].call;
+    const target = call.callee.extern_symbol;
+    const entry: @import("module.zig").FunctionId = @fromBackingInt(@as(u32, 0));
+    for ([_]ir.CallTarget{ .{ .extern_symbol = target }, .{ .address = .{ .got_symbol = target } } }) |form| {
+        call.callee = form;
+        try validation.validate(testing.allocator, &module);
+        try testing.expectError(error.UnsupportedCall, interpreter.evaluate(testing.allocator, f, &.{}, .{}));
+        try testing.expectError(error.InvalidFunction, interpreter.evaluateModule(testing.allocator, &module, @fromBackingInt(std.math.maxInt(u32)), &.{}, .{}));
+        try testing.expectError(error.CallDepthLimitExceeded, interpreter.evaluateModule(testing.allocator, &module, entry, &.{}, .{ .max_call_depth = 0 }));
+        try testing.expectError(error.StepLimitExceeded, interpreter.evaluateModule(testing.allocator, &module, entry, &.{}, .{ .max_steps = 0 }));
+        try testing.expectError(error.UnsupportedIndirectCall, interpreter.evaluateModule(testing.allocator, &module, entry, &.{}, .{ .max_call_depth = 1, .max_steps = 1 }));
+        try testing.expectError(error.UnsupportedIndirectCall, interpreter.evaluateModule(testing.allocator, &module, entry, &.{}, .{ .global_memory = .{} }));
+    }
 }

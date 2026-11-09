@@ -274,6 +274,8 @@ fn resolve(space: *const evaluation_memory.Space, values: []const ?ir.Constant, 
         .constant => |constant| constant,
         .symbol => |symbol| .{ .long = try space.symbolAddress(symbol, 0) },
         .symbol_offset => |address| .{ .long = try space.symbolAddress(address.symbol, address.addend) },
+        // Dynamic linker lookup is outside the interpreter contract.
+        .got_symbol => error.UnsupportedSymbolAddress,
         .value => |value| values[@backingInt(value)] orelse error.UninitializedValue,
         .low_word => |value| if (values[@backingInt(value)]) |constant| .{ .word = @truncate(constant.long) } else error.UninitializedValue,
     };

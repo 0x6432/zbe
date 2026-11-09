@@ -191,7 +191,7 @@ fn matches(operand: ir.Operand, value: ir.ValueId) bool {
     return switch (operand) {
         .value => |reference| reference == value,
         .low_word => |reference| reference == value,
-        .constant, .symbol, .symbol_offset => false,
+        .constant, .symbol, .symbol_offset, .got_symbol => false,
     };
 }
 fn instructionUses(instruction: ir.Instruction, value: ir.ValueId) bool {

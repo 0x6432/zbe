@@ -138,17 +138,19 @@ pub const Operand = union(enum) {
     /// Module-pool symbol address, always long; not a function-local value.
     symbol: SymbolId,
     symbol_offset: SymbolOffset,
+    /// Dynamic external address loaded from the ELF GOT; never an SSA value.
+    got_symbol: SymbolId,
 
     pub fn referencedValue(self: Operand) ?ValueId {
         return switch (self) {
             .value, .low_word => |value| value,
-            .constant, .symbol, .symbol_offset => null,
+            .constant, .symbol, .symbol_offset, .got_symbol => null,
         };
     }
 
     pub fn referencedSymbol(self: Operand) ?SymbolId {
         return switch (self) {
-            .symbol => |symbol| symbol,
+            .symbol, .got_symbol => |symbol| symbol,
             .symbol_offset => |address| address.symbol,
             .value, .low_word, .constant => null,
         };
@@ -846,7 +848,7 @@ pub const Function = struct {
     pub fn operandType(self: *const Function, operand: Operand) ValidationError!ScalarType {
         return switch (operand) {
             .constant => |constant| constant.scalarType(),
-            .symbol, .symbol_offset => .long,
+            .symbol, .symbol_offset, .got_symbol => .long,
             .low_word => |id| if (@backingInt(id) >= self.values.items.len)
                 error.InvalidValue
             else if (self.values.items[@backingInt(id)].scalar_type != .long)

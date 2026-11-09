@@ -5,7 +5,7 @@ const abi_plan = @import("abi_amd64_plan.zig");
 const module_validation = @import("module_validation.zig");
 const stack_homes = @import("stack_homes.zig");
 const Module = @import("module.zig").Module;
-pub const Error = stack_homes.Error || abi.Error || module_validation.Error || abi_plan.Error || error{ FrameTooLarge, UnsupportedAggregateAbi };
+pub const Error = stack_homes.Error || abi.Error || module_validation.Error || abi_plan.Error || error{ FrameTooLarge, UnsupportedAggregateAbi, UnsupportedExternSymbol };
 
 /// x86-64 qword immediate arithmetic sign-extends imm32. Never silently truncate
 /// a long constant, commute operands or infer facts for nonliteral operands.
@@ -901,6 +901,9 @@ const Emitter = struct {
                 if (!try self.loadCommonAddress(symbol, 0, target))
                     try self.print("\tleaq {f}(%rip), {s}\n", .{ try self.symbolReference(symbol), target });
             },
+            // Fail closed until extern eligibility, call identity and GOT codegen
+            // are implemented together and verified.
+            .got_symbol => return error.UnsupportedExternSymbol,
             .symbol_offset => |address| {
                 if (try self.loadCommonAddress(address.symbol, address.addend, target)) return;
                 const name = try self.symbolReference(address.symbol);

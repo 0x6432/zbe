@@ -71,7 +71,7 @@ fn integerBits(constant: ?ir.Constant) ?u64 {
 fn known(facts: []const ?ir.Constant, operand: ir.Operand) ?ir.Constant {
     return switch (operand) {
         .constant => |c| c,
-        .symbol, .symbol_offset => null,
+        .symbol, .symbol_offset, .got_symbol => null,
         .value => |v| facts[@backingInt(v)],
         .low_word => |v| if (facts[@backingInt(v)]) |constant| .{ .word = @truncate(constant.long) } else null,
     };

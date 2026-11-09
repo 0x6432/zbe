@@ -7,7 +7,7 @@ const modules = @import("module.zig");
 const records = @import("record_declaration.zig");
 const validation = @import("module_validation.zig");
 const homes = @import("stack_homes.zig");
-pub const Error = validation.Error || homes.Error || error{ InvalidFunction, UnsupportedAggregatePlan, StackArgumentsTooLarge, FrameTooLarge };
+pub const Error = validation.Error || homes.Error || error{ InvalidFunction, UnsupportedAggregatePlan, UnsupportedExternSymbol, StackArgumentsTooLarge, FrameTooLarge };
 pub const Options = struct { reuse_stack_homes: bool = false, callee_saved_homes: bool = false };
 pub const Stack = struct { offset: u64, extent: u64, alignment: u8, incoming: i32 };
 pub const IntegerRegisters = struct {
@@ -136,6 +136,7 @@ pub const FunctionPlan = struct {
         // or geometry check. Generic module validation above may itself allocate.
         const shapes = smallShapes(module);
         try eligibleFunction(module, function, &shapes);
+        try @import("extern_names.zig").validateFunction(module, function);
         return build(allocator, module, id, options, &shapes);
     }
 
@@ -237,9 +238,16 @@ pub const ModulePlans = struct {
         for (module.functions.items) |function| if (recordRelevant(function)) {
             needed = true;
         };
+        // Aggregate eligibility for the whole module precedes the extern pass.
+        // The extern pass must also run for scalar-only modules before the
+        // existing allocation-free early return.
+        if (needed) {
+            const aggregate_shapes = smallShapes(module);
+            for (module.functions.items) |function| try eligibleFunction(module, function, &aggregate_shapes);
+        }
+        for (module.functions.items) |function| try @import("extern_names.zig").validateFunction(module, function);
         if (!needed) return .{ .allocator = allocator, .functions = &.{} };
         const shapes = smallShapes(module);
-        for (module.functions.items) |function| try eligibleFunction(module, function, &shapes);
         const functions = try allocator.alloc(?FunctionPlan, module.functions.items.len);
         @memset(functions, null);
         errdefer {

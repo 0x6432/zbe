@@ -81,6 +81,8 @@ test {
     _ = @import("lexer.zig");
     _ = @import("frontend.zig");
     _ = @import("symbols.zig");
+    _ = @import("extern_names.zig");
+    _ = @import("extern_operand_test.zig");
     _ = @import("ir.zig");
     _ = @import("module.zig");
 }

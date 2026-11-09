@@ -109,3 +109,5 @@ jobs:
           python3 tools/extern_got_cli_smoke.py --compiler zig-out/bin/zbe-native $flags
           done
           python3 tools/extern_got_smoke.py --compiler zig-out/bin/zbe-native
+          python3 tools/extern_got_loader_check.py --compiler zig-out/bin/zbe-native --lock "$RUNNER_TEMP/zbe-extern.lock" --evidence-dir "$RUNNER_TEMP/zbe-extern-loader-default"
+          python3 tools/extern_got_loader_check.py --compiler zig-out/bin/zbe-native --full --lock "$RUNNER_TEMP/zbe-extern.lock" --evidence-dir "$RUNNER_TEMP/zbe-extern-loader-full"

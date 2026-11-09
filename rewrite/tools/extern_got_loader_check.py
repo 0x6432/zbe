@@ -3,7 +3,7 @@
 
 Run with --compiler and a NEW --evidence-dir. The script serializes itself using
 /data/zbe-coordination/full-verification.lock, caps inherited CPU affinity to two
-and virtual address space to 4 GiB. --full selects the three optimization flags;
+and virtual address space to 4 GiB. The lock path is configurable for CI. --full selects the three optimization flags;
 without it the default compiler configuration is tested. Evidence is retained.
 Uses GCC/GNU binutils and the startup loader, not dlopen or dlsym. Unsupported
 linker behavior fails closed. The ordinary-LEA shared-link negative is recorded,
@@ -134,6 +134,7 @@ def main():
     parser.add_argument('--compiler', type=Path, required=True)
     parser.add_argument('--evidence-dir', type=Path, required=True, help='new directory; retained even on failure')
     parser.add_argument('--cc', default='gcc')
+    parser.add_argument('--lock', type=Path, default=Path('/data/zbe-coordination/full-verification.lock'), help='shared verification lock path')
     parser.add_argument('--full', action='store_true', help='enable all three compiler optimizations')
     args = parser.parse_args()
     if platform.system() != 'Linux' or platform.machine() not in ('x86_64', 'amd64'):
@@ -185,7 +186,7 @@ def main():
             if re.search(r'\(SYMBOLIC\)|\(FLAGS\).*SYMBOLIC', dy):
                 raise RuntimeError(f'symbolic binding: {path}')
         return r, s
-    lock = open('/data/zbe-coordination/full-verification.lock', 'a')
+    lock = open(args.lock, 'a')
     start = time.monotonic()
     try:
         while True:

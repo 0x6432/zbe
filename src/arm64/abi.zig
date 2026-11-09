@@ -448,7 +448,7 @@ fn selcall(f: *Fn, args: []Ins, i_1: *Ins, ilp: *?*Insl) all.Error!void {
             // spill & rega expect calls to be
             // followed by copies from regs,
             // so we emit a dummy
-            cty |= 1 << 13 | 1;
+            cty |= (1 << 13) | 1;
             emit(.copy, .w, R, tmpRef(R0), R);
         } else {
             sttmps(&tmp, &cr.cls, cr.nreg, i_1.to, f);

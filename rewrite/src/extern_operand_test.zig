@@ -107,3 +107,31 @@ test "extern grammar rejects addends, newlines, stacked modifiers and non-long v
     try expectDiagnostic("function w $f() {\n@e\nret extern $x\n}", .type_mismatch, "extern");
     try expectDiagnostic("data $x = { l extern $other }", .unsupported_construct, "extern");
 }
+
+test "GOT target forms reject called data and mismatched known signatures" {
+    var module = try parse("data $notfn = { l 3 }\nfunction l $f() {\n@e\n%r =l call $g()\nret %r\n}\nfunction l $g(l %arg) {\n@e\nret %arg\n}");
+    defer module.deinit();
+    const call = &module.functions.items[0].blocks.items[0].instructions.items[0].call;
+    const g = call.callee.symbol;
+    const data = module.data.items[0].name;
+    for ([_]ir.CallTarget{ .{ .extern_symbol = g }, .{ .address = .{ .got_symbol = g } } }) |target| {
+        call.callee = target;
+        try testing.expectError(error.CallSignatureMismatch, validation.validate(testing.allocator, &module));
+    }
+    for ([_]ir.CallTarget{ .{ .extern_symbol = data }, .{ .address = .{ .got_symbol = data } } }) |target| {
+        call.callee = target;
+        try testing.expectError(error.CalledDataSymbol, validation.validate(testing.allocator, &module));
+    }
+}
+
+test "GOT target is parked after scalar arguments and before variadic AL" {
+    var module = try parse("function l $f() {\n@e\n%r =l call extern $external_fn(l extern $external_data, ..., d d_1.5)\nret %r\n}");
+    defer module.deinit();
+    const assembly = try amd64.emit(testing.allocator, &module);
+    defer testing.allocator.free(assembly);
+    const arg = std.mem.indexOf(u8, assembly, "movq external_data@GOTPCREL").?;
+    const target = std.mem.indexOf(u8, assembly, "movq external_fn@GOTPCREL").?;
+    const al = std.mem.indexOf(u8, assembly, "movb $1, %al").?;
+    const call = std.mem.indexOf(u8, assembly, "call *%r11").?;
+    try testing.expect(arg < target and target < al and al < call);
+}

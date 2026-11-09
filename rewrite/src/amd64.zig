@@ -424,8 +424,13 @@ const Emitter = struct {
                         continue;
                     }
                     if (call.callee.addressOperand()) |address| {
-                        try self.load(address, .accumulator);
-                        try self.print("\tmovq %rax, %r11\n", .{});
+                        // Preserve the old early schedule for pre-existing
+                        // computed targets; new symbolic GOT targets are
+                        // deliberately parked after argument materialization.
+                        if (address != .got_symbol) {
+                            try self.load(address, .accumulator);
+                            try self.print("\tmovq %rax, %r11\n", .{});
+                        }
                     }
                     var cursor: abi.ArgumentCursor = .{};
                     for (call.arguments) |argument| {
@@ -437,6 +442,12 @@ const Emitter = struct {
                             .general => |reg| try self.print("\tmov{c} {s}, {s}\n", .{ suffix(ty), register(ty, .accumulator), reg.name(if (ty == .word) .word else .long) }),
                             .vector => |reg| try self.print("\tmov{c} {s}, {s}\n", .{ sseMove(ty), register(ty, .accumulator), reg.name() }),
                             .stack => |slot| try self.print("\tmov{c} {s}, {d}(%rsp)\n", .{ suffix(ty), register(ty, .accumulator), try slot.incomingOffset() - 16 }),
+                        }
+                    }
+                    if (call.callee.addressOperand()) |address| {
+                        if (address == .got_symbol) {
+                            try self.load(address, .accumulator);
+                            try self.print("\tmovq %rax, %r11\n", .{});
                         }
                     }
                     // AL counts occupied SSE argument registers, including named
@@ -901,9 +912,9 @@ const Emitter = struct {
                 if (!try self.loadCommonAddress(symbol, 0, target))
                     try self.print("\tleaq {f}(%rip), {s}\n", .{ try self.symbolReference(symbol), target });
             },
-            // Fail closed until extern eligibility, call identity and GOT codegen
-            // are implemented together and verified.
-            .got_symbol => return error.UnsupportedExternSymbol,
+            // Load the resolved address stored in the GOT, not the address of
+            // the slot and not a non-preemptible direct symbol LEA.
+            .got_symbol => |symbol| try self.print("\tmovq {f}@GOTPCREL(%rip), {s}\n", .{ try self.symbolReference(symbol), target }),
             .symbol_offset => |address| {
                 if (try self.loadCommonAddress(address.symbol, address.addend, target)) return;
                 const name = try self.symbolReference(address.symbol);

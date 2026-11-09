@@ -1,5 +1,5 @@
-//! Initial GOT operand foundation: explicitly fail closed until the complete
-//! parser, planning, call-target and emitter endpoint is integrated.
+//! Initial GOT operand, parser and native assembly coverage. Full runtime,
+//! loader, mutation and compatibility validation is still outstanding.
 const std = @import("std");
 const testing = std.testing;
 const ir = @import("ir.zig");
@@ -13,7 +13,7 @@ fn parse(text: []const u8) !@import("module.zig").Module {
     return frontend.parse(testing.allocator, .{ .name = "got-foundation", .text = text }, &diagnostic);
 }
 
-test "GOT operand owns its symbol identity and remains unsupported by execution" {
+test "GOT operand owns its symbol identity and interpreter refuses execution" {
     var module = try parse("function l $f() {\n@e\n%p =l copy $target\nret %p\n}");
     defer module.deinit();
     const f = module.functions.items[0];
@@ -27,7 +27,9 @@ test "GOT operand owns its symbol identity and remains unsupported by execution"
     _ = try @import("optimize.zig").foldIntegerConstants(testing.allocator, f);
     try testing.expect(copy.operand == .got_symbol);
     try testing.expectError(error.UnsupportedSymbolAddress, interpreter.evaluate(testing.allocator, f, &.{}, .{}));
-    try testing.expectError(error.UnsupportedExternSymbol, amd64.emit(testing.allocator, &module));
+    const assembly = try amd64.emit(testing.allocator, &module);
+    defer testing.allocator.free(assembly);
+    try testing.expect(std.mem.indexOf(u8, assembly, "movq target@GOTPCREL(%rip), %rax") != null);
     copy.operand = .{ .got_symbol = @fromBackingInt(std.math.maxInt(u32)) };
     try testing.expectError(error.InvalidSymbol, validation.validate(testing.allocator, &module));
     try testing.expectError(error.InvalidSymbol, amd64.emit(testing.allocator, &module));
@@ -61,7 +63,10 @@ test "dedicated and wrapped GOT targets share identity and signature checks" {
         try testing.expectEqualDeep(ir.Operand{ .got_symbol = symbol }, target.addressOperand().?);
         try validation.validate(testing.allocator, &module);
         try testing.expectError(error.UnsupportedExternalCall, interpreter.evaluateModule(testing.allocator, &module, @fromBackingInt(@as(u32, 0)), &.{}, .{}));
-        try testing.expectError(error.UnsupportedExternSymbol, amd64.emit(testing.allocator, &module));
+        const assembly = try amd64.emit(testing.allocator, &module);
+        defer testing.allocator.free(assembly);
+        try testing.expect(std.mem.indexOf(u8, assembly, "movq g@GOTPCREL(%rip), %rax") != null);
+        try testing.expect(std.mem.indexOf(u8, assembly, "call *%r11") != null);
     }
     const unknown = try module.symbols.intern("unknown_external");
     call.callee = .{ .address = .{ .got_symbol = unknown } };
@@ -81,7 +86,10 @@ test "contextual extern values and calls preserve owned symbolic identity" {
     try testing.expect(call.callee == .extern_symbol);
     try testing.expectEqualStrings("callee", module.symbols.get(call.callee.extern_symbol).?);
     try validation.validate(testing.allocator, &module);
-    try testing.expectError(error.UnsupportedExternSymbol, amd64.emit(testing.allocator, &module));
+    const assembly = try amd64.emit(testing.allocator, &module);
+    defer testing.allocator.free(assembly);
+    try testing.expect(std.mem.indexOf(u8, assembly, "movq target@GOTPCREL(%rip), %rax") != null);
+    try testing.expect(std.mem.indexOf(u8, assembly, "movq callee@GOTPCREL(%rip), %rax") != null);
 }
 
 fn expectDiagnostic(text: []const u8, code: @import("source.zig").Diagnostic.Code, bad: []const u8) !void {

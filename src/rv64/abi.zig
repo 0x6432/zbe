@@ -367,7 +367,7 @@ fn argsclass(ins: []const Ins, carg: []Class, retptr: bool) all.Error!i32 {
     }
     const ngpu: i32 = @intCast(gp);
     const nfpu: i32 = @intCast(fp);
-    return envc << 12 | ngpu << 4 | nfpu << 8;
+    return (envc << 12) | (ngpu << 4) | (nfpu << 8);
 }
 
 fn stkblob(r: Ref, t: *Typ, f: *Fn, ilp: *?*Insl) void {

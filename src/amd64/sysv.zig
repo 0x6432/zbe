@@ -566,7 +566,7 @@ fn selpar(f: *Fn, ins: []Ins) all.Error!i32 {
     if (!req(R, env))
         emit(.copy, .l, env, tmpRef(RAX), R);
 
-    return fa | (s * 4) << 12;
+    return fa | ((s * 4) << 12);
 }
 
 fn split(f: *Fn, b: *Blk) *Blk {

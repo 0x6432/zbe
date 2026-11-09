@@ -86,7 +86,7 @@ fn imm(c: *Con, k: Cls, pn: *i64) i32 {
 pub fn arm64_logimm(x_: u64, k: i32) bool {
     var x = x_;
     if (k == Cls.w.int())
-        x = (x & 0xffffffff) | x << 32;
+        x = (x & 0xffffffff) | (x << 32);
     if ((x & 1) != 0)
         x = ~x;
     if (x == 0)

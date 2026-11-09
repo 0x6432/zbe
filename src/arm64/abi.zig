@@ -358,7 +358,7 @@ fn argsclass(ins: []const Ins, carg: []Class) all.Error!i32 {
     const nfpu: i32 = @intCast(fp);
     st.va_ngp = 8 - ngp;
     st.va_nfp = 8 - nfp;
-    return envc << 14 | ngpu << 5 | nfpu << 9;
+    return (envc << 14) | (ngpu << 5) | (nfpu << 9);
 }
 
 pub fn arm64_retregs(r: Ref, p: ?*[2]i32) bits {

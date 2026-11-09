@@ -83,6 +83,7 @@ test {
     _ = @import("symbols.zig");
     _ = @import("extern_names.zig");
     _ = @import("extern_operand_test.zig");
+    _ = @import("extern_safety_test.zig");
     _ = @import("ir.zig");
     _ = @import("module.zig");
 }

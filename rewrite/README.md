@@ -29,6 +29,7 @@ The independent build exports `zbe_native` without linking libc or importing the
 - Explicit low-word operand projections normalize QBE long-to-word subtyping without changing source definitions or guessing reverse extension (LOW-WORD.md).
 - Tagged scalar constants and operands, typed copy/phi, integer/floating arithmetic subset, integer bitwise/extension operations and negation, typed shifts, signed/unsigned integer comparisons and ordered/unordered floating comparisons, branch/jump/return and explicit program-termination (`hlt`) terminators.
 - Source spans, typed diagnostics, allocation-free lexer and transactional scalar parser with forward block resolution.
+- Experimental contextual extern/GOT operands and indirect targets are documented in [EXTERN-GOT.md](EXTERN-GOT.md); this draft is not yet a completed or accepted compatibility endpoint.
 - Typed long symbol-address operands with full-width executable AMD64 address materialization and explicit interpreter refusal (SYMBOL-ADDRESSES.md); bounded packed numeric/zero-fill data definitions are supported (DATA.md), with typed long symbolic initializers (DATA-RELOCATIONS.md) and owned b-group byte strings (DATA-STRINGS.md); exact all-zero objects use ELF BSS (DATA-BSS.md).
 - Allocation-free scalar instruction-use iteration with copied fixed operands and explicitly borrowed call argument tails; production analyses share it while independent oracles remain separate (OPERANDS.md).
 - Structural/type checks, owned CFG snapshots, dominators and explicit scalar SSA use/phi-edge validation.

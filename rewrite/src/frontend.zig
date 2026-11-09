@@ -123,6 +123,8 @@ const Parser = struct {
     fn recordDefinition(self: *Parser) Error!void {
         _ = self.advance(); // Contextual `type`, without linkage flags.
         self.skipLines();
+        // Extern is not a type-declaration modifier or name.
+        if (self.word("extern")) return self.fail(.unsupported_construct, self.peek());
         const name_token = try self.expect(.type_name);
         const name = self.nameText(name_token);
         self.skipLines();

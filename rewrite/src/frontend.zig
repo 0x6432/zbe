@@ -97,10 +97,24 @@ pub fn parse(allocator: Allocator, input: source.Source, diagnostic: *?source.Di
     parser.skipLines();
     while (parser.peek().kind != .eof) {
         const start = parser.index;
+        var saw_export = false;
+        var saw_common = false;
+        var duplicate_flag = false;
         while (parser.word("export") or parser.word("common")) {
+            if (parser.word("export")) {
+                duplicate_flag = duplicate_flag or saw_export;
+                saw_export = true;
+            } else {
+                duplicate_flag = duplicate_flag or saw_common;
+                saw_common = true;
+            }
             _ = parser.advance();
             parser.skipLines();
         }
+        // The function fallback otherwise rejects `common` before seeing an
+        // extern in linkage position. Preserve old duplicate-flag precedence.
+        if (saw_common and !duplicate_flag and parser.word("extern"))
+            return parser.fail(.unsupported_construct, parser.peek());
         const is_data = parser.word("data");
         parser.index = start;
         if (parser.word("type")) try parser.recordDefinition() else if (is_data) try parser.dataDefinition() else try parser.function();

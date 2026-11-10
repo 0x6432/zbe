@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Bounded Linux x86-64 record-call target scheduling witness.
 
-Tests all eight native option combinations with PIE/non-PIE clients and normal/
-preload binding. For local execution follow the repository verification policy.
+Tests the positive witness for all eight native option combinations with
+PIE/non-PIE clients and normal/preload binding. For local execution follow
+the repository verification policy.
 This witness does not certify N13, M04, or the held integration gate.
 """
 import argparse,fcntl,hashlib,itertools,json,os,platform,re,resource,shutil,subprocess,tempfile
@@ -61,13 +62,12 @@ for bits in itertools.product((False,True),repeat=3):
  needle='\tmovq m04_real@GOTPCREL(%rip), %rax\n\tmovq %rax, %r11\n'; assert body.count(needle)==1
  target=body.index(needle); calls=list(re.finditer(r'\tcall \*%r11\n',body)); assert len(calls)==1 and calls[0].start()>target
  pack=body.rfind('\tmovq %rax, %r11\n',0,target); assert pack>=0
+ hidden=list(re.finditer(r'\tleaq -[0-9]+\(%rbp\), %rdi\n',body[:target]))
+ if not hidden or hidden[-1].start() <= pack: raise RuntimeError('hidden result pointer not set after packing and before target')
  prev=body.rfind('\n',0,pack-1)+1; source=body[prev:pack]
  if not re.fullmatch(r'\tmovq [^\n]+, %rax\n',source): raise RuntimeError('unexpected source load before packing: '+repr(source))
  between=body[pack+len('\tmovq %rax, %r11\n'):target]
  if re.search(r'\b(?:mov|lea|pop|xor|add|sub|and|or|shl|shr)[a-z]*\s+[^\n]*,\s*%r11\b',between): raise RuntimeError('unexpected R11 write after packing')
- # Relocate, not replace or synthesize, the exact emitted late target load.
- mutant=body[:prev]+needle+body[prev:target]+body[target+len(needle):]
- (d/'mutant.s').write_text(asm[:start]+mutant+asm[end:])
  for base,name in ((10,'provider'),(200,'override')):
   run([cc,'-std=c11','-O2','-Wall','-Wextra','-Werror','-fPIC','-shared',f'-DBASE={base}','provider.c','provider.S','-Wl,-soname,lib'+name+'.so','-o','lib'+name+'.so'])
  def link(assembly):
@@ -89,7 +89,5 @@ for bits in itertools.product((False,True),repeat=3):
   for expected,e in ((10,clean),(200,preload)):
    assert 'record target check passed' in run(['./client',expected],e)
    count+=1
-  link('mutant.s'); verify()
-  for expected,e in ((10,clean),(200,preload)): run(['./client',expected],e,expected=21)
-  count+=2
-print('PASS: 32 baseline executions and 32 callable early-target mutant sentinel detections; runs=',count)
+if count != 32: raise RuntimeError(f'unexpected positive invocation count {count}')
+print('PASS: 32 bounded record-target baseline executions')

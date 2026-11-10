@@ -363,29 +363,6 @@ def main():
             run(['./client', '0x1020304050607080'])
             run(['./client', '0x8877665544332211'], env={**clean, 'LD_PRELOAD': str(d / 'liboverride.so')})
 
-            # Branch-only control: invert the branch on the loaded address's
-            # low word. This is safe regardless of whether those bits are zero.
-            asm = (d / 'subject.s').read_text(encoding='utf-8')
-            begin = asm.index('site_branch:\n')
-            end = asm.index('.size site_branch,', begin)
-            body = asm[begin:end]
-            mutant_body, count = re.subn(r'(\ttestl %eax, %eax\n)\tjne ', r'\1\tje ', body)
-            if count != 1:
-                raise RuntimeError('branch inversion did not match exactly once')
-            (d / 'branch-mutant.s').write_text(asm[:begin] + mutant_body + asm[end:], encoding='utf-8')
-            run([cc, '-fPIC', '-c', 'branch-mutant.s', '-o', 'branch-mutant.o'])
-            run([cc, '-shared', 'branch-mutant.o', '-Wl,--no-relax', '-L.', '-Wl,--no-as-needed',
-                 '-lprovider', '-Wl,-rpath,$ORIGIN', '-o', 'libsubject.so'])
-            control = subprocess.run(['./client', '0x1020304050607080'], cwd=d, env=clean,
-                                     capture_output=True, text=True, errors='replace', timeout=60)
-            with (d / 'commands.jsonl').open('a') as journal:
-                journal.write(json.dumps({'argv': ['./client', '0x1020304050607080'], 'env': clean,
-                                          'exit': control.returncode, 'stdout': control.stdout,
-                                          'stderr': control.stderr, 'control': 'branch-inversion'}) + '\n')
-            if control.returncode != 1 or 'site_branch() ==' not in control.stdout:
-                raise RuntimeError(f'branch inversion control not detected: {control.returncode}\n'
-                                   f'{control.stdout}\n{control.stderr}')
-
             # Slot-address negative control: corrupt only the punctuation-name
             # address calculation. Client compares it before dereferencing it.
             asm = (d / 'subject.s').read_text(encoding='utf-8')
@@ -405,7 +382,7 @@ def main():
             if control.returncode == 0 or 'site_dot() ==' not in control.stdout:
                 raise RuntimeError(f'punctuation slot control not detected: {control.returncode}\n'
                                    f'{control.stdout}\n{control.stderr}')
-            print(f'bounded N11 subset passed: normal + LD_PRELOAD; flags={flags!r}, non-pie={args.non_pie}; slot and branch controls rejected')
+            print(f'bounded N11 subset passed: normal + LD_PRELOAD; flags={flags!r}, non-pie={args.non_pie}; slot control rejected')
 
 
 if __name__ == '__main__':

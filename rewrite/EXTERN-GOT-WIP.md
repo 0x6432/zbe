@@ -1,5 +1,7 @@
 # Extern/GOT foundation — work in progress
 
+> **Continuation update (2026-11-10):** Later draft work and CI evidence are recorded in `continuation/continuation-a8c42fd.md`. The integration gate remains HELD. The text below is a historical snapshot; its older CI-status statements do not describe later commits.
+
 This is an unreviewed draft, based on integration draft `3890562118b85be550dcc19f6c400414d3f8672a`. That base has not passed its fresh local integration gate or terminal audit. Its exact-commit rewrite and standard CI passed, but nightly failed in Zig-master and programs jobs. This branch is not production acceptance or a complete extern/GOT implementation.
 
 Draft rewrite CI on `cbf14a5eb64ac5405da17b937fc27fecba950e89` failed in all three compiler modes in the combined native-execution step. Public job status does not identify the failing command. In a local Debug reproduction of that exact commit, `native_symbol_check.py` failed because it still expected the newly supported `extern $target` syntax to be rejected; this is a reproduced cause locally, not authenticated hosted-log evidence. The draft updates that check, splits the new smoke steps for diagnosis and improves missing-tool reporting; these changes have not yet passed CI.

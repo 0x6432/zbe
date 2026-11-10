@@ -1,5 +1,7 @@
 # ZBE draft continuation handoff
 
+> **Continuation update (2026-11-10):** Later draft work and CI evidence are recorded in `continuation/continuation-a8c42fd.md`. The integration gate remains HELD. The text below is a historical snapshot; its older CI-status statements do not describe later commits.
+
 ## Scope and status
 
 This branch is an experimental extern/GOT draft, not a completed or accepted ZBE release. Its base integration draft `3890562118b85be550dcc19f6c400414d3f8672a` remains unaccepted. Do not advance canonical branches or claim that all implementation or gates are complete. The applicable proposed design and coverage ledger is preserved at `rewrite/continuation/next-design-revised.md`.

@@ -132,6 +132,9 @@ jobs:
           for flags in "" "--fold-integers" "--reuse-stack-homes" "--fold-integers --reuse-stack-homes" "--callee-saved-homes" "--fold-integers --callee-saved-homes" "--reuse-stack-homes --callee-saved-homes" "--fold-integers --reuse-stack-homes --callee-saved-homes"; do
             python3 tools/extern_got_schedule_smoke.py --compiler zig-out/bin/zbe-native $flags
           done
+      - name: Extern GOT record target scheduling witness
+        working-directory: rewrite
+        run: python3 tools/extern_got_record_target_runtime.py --compiler zig-out/bin/zbe-native --lock "$RUNNER_TEMP/zbe-extern.lock"
       - name: Extern GOT guarded record smoke
         working-directory: rewrite
         run: |

@@ -1,0 +1,7 @@
+type :Pair = { l 2 }
+type :Big = { l 3 }
+export function :Big $run_record_early(l %source) {
+@entry
+%r =:Big call extern $m04_real(:Pair %source)
+ret %r
+}

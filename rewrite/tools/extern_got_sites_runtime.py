@@ -6,8 +6,8 @@ Supply an already-built zbe-native with --compiler. Each invocation selects one
 option combination and client mode, not the full N11 bundle. Uses a shared nonblocking
 verification lock. Builds two independent C provider DSOs, one IL subject DSO,
 and a separate C client in a fresh temporary directory; runs normal and preload
-bindings. It does not implement or certify N11/U05, or run allocation-size,
-GOT call-argument/ENV/vaarg cases or the complete N11 matrix.
+bindings. It does not implement or certify N11/U05, or execute allocation-size, cover every call-argument/ENV/vaarg case,
+or implement the complete N11 matrix.
 """
 import argparse
 from contextlib import ExitStack
@@ -23,7 +23,8 @@ import shutil
 import subprocess
 import tempfile
 
-IL = '''export function l $site_dot() {
+IL = '''type :N11Pair = { l 2 }
+export function l $site_dot() {
 @entry
 ret extern $n11.dot
 }
@@ -48,6 +49,40 @@ export function l $site_fn_call(l %x) {
 %p =l copy extern $"n11.func"
 %r =l call %p(l %x)
 ret %r
+}
+export function l $site_record_argument() {
+@entry
+%r =l call extern $n11_record_sink(:N11Pair extern $n11_target)
+ret %r
+}
+export function w $site_branch() {
+@entry
+jnz extern $n11_target, @yes, @no
+@yes
+ret 1
+@no
+ret 0
+}
+export function w $site_low_word() {
+@entry
+%p =l copy extern $n11_target
+%x =w copy %p
+ret %x
+}
+export function w $site_load_word() {
+@entry
+%x =w loadw extern $n11_target
+ret %x
+}
+export function s $site_load_single() {
+@entry
+%x =s loads extern $n11_target
+ret %x
+}
+export function d $site_load_double() {
+@entry
+%x =d loadd extern $n11_target
+ret %x
 }
 export function l $site_return() {
 @entry
@@ -128,6 +163,8 @@ uint64_t n11_target[2] = { MARKER, UINT64_C(0x39485766758493a2) };
 uint64_t n11_sink[2] = { UINT64_C(0x9182736455463728), UINT64_C(0xabcdef0123456789) };
 uint64_t n11_dot[2] __asm__("n11.dot") = { MARKER, UINT64_C(0x123456789abcdef0) };
 uint64_t n11_dollar[2] __asm__("n11$dollar") = { MARKER, UINT64_C(0xfedcba9876543210) };
+struct n11_pair { uint64_t a, b; };
+uint64_t n11_record_sink(struct n11_pair x) { return x.a ^ x.b; }
 uint64_t n11_func(uint64_t x) __asm__("n11.func");
 uint64_t n11_func(uint64_t x) { return x ^ MARKER; }
 '''
@@ -145,6 +182,10 @@ CLIENT = r'''#define _GNU_SOURCE
 #include <string.h>
 
 extern uint64_t site_return(void), site_quote(void), site_copy(void);
+extern uint64_t site_record_argument(void);
+extern uint32_t site_branch(void), site_low_word(void), site_load_word(void);
+extern float site_load_single(void);
+extern double site_load_double(void);
 extern uint64_t site_dot(void), site_dot_quoted(void), site_dollar(void), site_dollar_quoted(void);
 extern uint64_t site_fn_address(void), site_fn_call(uint64_t);
 extern uint64_t site_phi(uint32_t), site_sub_left(uint64_t), site_sub_right(uint64_t);
@@ -177,6 +218,17 @@ int main(int argc, char **argv) {
     CHECK(sink[0] == UINT64_C(0x9182736455463728));
     CHECK(sink[1] == UINT64_C(0xabcdef0123456789));
     const uint64_t addr = (uint64_t)(uintptr_t)p;
+    CHECK(site_record_argument() == (marker ^ UINT64_C(0x39485766758493a2)));
+    CHECK(site_branch() == ((uint32_t)addr != 0));
+    CHECK(site_low_word() == (uint32_t)addr);
+    uint32_t word_bits, single_bits;
+    uint64_t double_bits;
+    memcpy(&word_bits, p, sizeof word_bits);
+    float single_value = site_load_single();
+    double double_value = site_load_double();
+    memcpy(&single_bits, &single_value, sizeof single_bits);
+    memcpy(&double_bits, &double_value, sizeof double_bits);
+    CHECK(site_load_word() == word_bits && single_bits == word_bits && double_bits == marker);
     CHECK(site_return() == addr);
     CHECK(site_quote() == addr);
     CHECK(site_copy() == addr);
@@ -298,7 +350,7 @@ def main():
                  '-Wl,-rpath,$ORIGIN', '-Wl,-rpath-link,.', '-ldl', '-o', 'client'])
 
             reloc = run([readelf, '-rW', 'libsubject.so'])
-            for symbol in ('n11_target', 'n11_sink', 'n11.dot', 'n11$dollar', 'n11.func'):
+            for symbol in ('n11_target', 'n11_sink', 'n11.dot', 'n11$dollar', 'n11.func', 'n11_record_sink'):
                 if not any('R_X86_64_GLOB_DAT' in line and re.search(r'(?<![A-Za-z0-9_.$])' + re.escape(symbol) + r'(?![A-Za-z0-9_.$])', line)
                            for line in reloc.splitlines()):
                     raise RuntimeError(f'missing dynamic GOT relocation for {symbol}')
@@ -310,6 +362,29 @@ def main():
                     raise RuntimeError(f'TEXTREL or SYMBOLIC in {binary}')
             run(['./client', '0x1020304050607080'])
             run(['./client', '0x8877665544332211'], env={**clean, 'LD_PRELOAD': str(d / 'liboverride.so')})
+
+            # Branch-only control: invert the branch on the loaded address's
+            # low word. This is safe regardless of whether those bits are zero.
+            asm = (d / 'subject.s').read_text(encoding='utf-8')
+            begin = asm.index('site_branch:\n')
+            end = asm.index('.size site_branch,', begin)
+            body = asm[begin:end]
+            mutant_body, count = re.subn(r'(\ttestl %eax, %eax\n)\tjne ', r'\1\tje ', body)
+            if count != 1:
+                raise RuntimeError('branch inversion did not match exactly once')
+            (d / 'branch-mutant.s').write_text(asm[:begin] + mutant_body + asm[end:], encoding='utf-8')
+            run([cc, '-fPIC', '-c', 'branch-mutant.s', '-o', 'branch-mutant.o'])
+            run([cc, '-shared', 'branch-mutant.o', '-Wl,--no-relax', '-L.', '-Wl,--no-as-needed',
+                 '-lprovider', '-Wl,-rpath,$ORIGIN', '-o', 'libsubject.so'])
+            control = subprocess.run(['./client', '0x1020304050607080'], cwd=d, env=clean,
+                                     capture_output=True, text=True, errors='replace', timeout=60)
+            with (d / 'commands.jsonl').open('a') as journal:
+                journal.write(json.dumps({'argv': ['./client', '0x1020304050607080'], 'env': clean,
+                                          'exit': control.returncode, 'stdout': control.stdout,
+                                          'stderr': control.stderr, 'control': 'branch-inversion'}) + '\n')
+            if control.returncode != 1 or 'site_branch() ==' not in control.stdout:
+                raise RuntimeError(f'branch inversion control not detected: {control.returncode}\n'
+                                   f'{control.stdout}\n{control.stderr}')
 
             # Slot-address negative control: corrupt only the punctuation-name
             # address calculation. Client compares it before dereferencing it.
@@ -330,7 +405,7 @@ def main():
             if control.returncode == 0 or 'site_dot() ==' not in control.stdout:
                 raise RuntimeError(f'punctuation slot control not detected: {control.returncode}\n'
                                    f'{control.stdout}\n{control.stderr}')
-            print(f'bounded N11 subset passed: normal + LD_PRELOAD; flags={flags!r}, non-pie={args.non_pie}; slot control rejected')
+            print(f'bounded N11 subset passed: normal + LD_PRELOAD; flags={flags!r}, non-pie={args.non_pie}; slot and branch controls rejected')
 
 
 if __name__ == '__main__':

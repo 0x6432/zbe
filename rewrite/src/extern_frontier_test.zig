@@ -675,3 +675,240 @@ test "extern multi-function multi-call plans retry every moving-allocation OOM" 
         }
     }
 }
+
+// Observe the allocator boundary rather than assuming the last allocation is
+// final extraction. With remaps refused, Allocating.toOwnedSlice first attempts
+// a shrink remap, then allocates exactly the written length and frees the old
+// writer buffer. The address/length trace below verifies that sequence.
+const WriterTrace = struct {
+    const Kind = enum { alloc, resize, remap, free };
+    const Event = struct {
+        kind: Kind,
+        old_ptr: usize = 0,
+        old_len: usize = 0,
+        new_len: usize = 0,
+        result_ptr: usize = 0,
+        alloc_ordinal: usize = 0,
+    };
+    backing: std.mem.Allocator,
+    allow_remap: bool,
+    events: [2048]Event = undefined,
+    count: usize = 0,
+    alloc_attempts: usize = 0,
+    fail_ordinal: ?usize = null,
+    induced: bool = false,
+
+    fn allocator(self: *WriterTrace) std.mem.Allocator {
+        return .{ .ptr = self, .vtable = &.{ .alloc = alloc, .resize = resize, .remap = remap, .free = free } };
+    }
+    fn push(self: *WriterTrace, event: Event) void {
+        // A truncated trace cannot establish the identity of the final slice.
+        if (self.count == self.events.len) @panic("writer allocation trace overflow");
+        self.events[self.count] = event;
+        self.count += 1;
+    }
+    fn alloc(ctx: *anyopaque, len: usize, alignment: std.mem.Alignment, ra: usize) ?[*]u8 {
+        const self: *WriterTrace = @ptrCast(@alignCast(ctx));
+        const ordinal = self.alloc_attempts;
+        self.alloc_attempts += 1;
+        const result = if (self.fail_ordinal == ordinal) blk: {
+            self.induced = true;
+            break :blk null;
+        } else self.backing.rawAlloc(len, alignment, ra);
+        self.push(.{ .kind = .alloc, .new_len = len, .result_ptr = if (result) |p| @intFromPtr(p) else 0, .alloc_ordinal = ordinal });
+        return result;
+    }
+    fn resize(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, len: usize, ra: usize) bool {
+        const self: *WriterTrace = @ptrCast(@alignCast(ctx));
+        const ok = self.allow_remap and self.backing.rawResize(memory, alignment, len, ra);
+        self.push(.{ .kind = .resize, .old_ptr = @intFromPtr(memory.ptr), .old_len = memory.len, .new_len = len, .result_ptr = if (ok) @intFromPtr(memory.ptr) else 0 });
+        return ok;
+    }
+    fn remap(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, len: usize, ra: usize) ?[*]u8 {
+        const self: *WriterTrace = @ptrCast(@alignCast(ctx));
+        const result = if (self.allow_remap) self.backing.rawRemap(memory, alignment, len, ra) else null;
+        self.push(.{ .kind = .remap, .old_ptr = @intFromPtr(memory.ptr), .old_len = memory.len, .new_len = len, .result_ptr = if (result) |p| @intFromPtr(p) else 0 });
+        return result;
+    }
+    fn free(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, ra: usize) void {
+        const self: *WriterTrace = @ptrCast(@alignCast(ctx));
+        self.push(.{ .kind = .free, .old_ptr = @intFromPtr(memory.ptr), .old_len = memory.len });
+        self.backing.rawFree(memory, alignment, ra);
+    }
+};
+
+fn findFree(trace: *const WriterTrace, start: usize, ptr: usize, len: usize) bool {
+    for (trace.events[start..trace.count]) |event| {
+        if (event.kind == .free and event.old_ptr == ptr and event.old_len == len) return true;
+    }
+    return false;
+}
+
+test "extern emission final owned slice OOM cleans writer and retries" {
+    var diagnostic: ?@import("source.zig").Diagnostic = null;
+    var module = try frontend.parse(t.allocator, .{ .name = "final-slice", .text = success_scalar }, &diagnostic);
+    defer module.deinit();
+
+    // The accounting allocator is also backed by testing.allocator's leak check.
+    var accounting = t.FailingAllocator.init(t.allocator, .{});
+    var baseline: WriterTrace = .{ .backing = accounting.allocator(), .allow_remap = false };
+    {
+        const expected = try amd64.emit(baseline.allocator(), &module);
+        defer baseline.allocator().free(expected);
+        try t.expect(expected.len > 0);
+        const owned_ptr = @intFromPtr(expected.ptr);
+        var extraction: ?usize = null;
+        for (baseline.events[0..baseline.count], 0..) |event, i| {
+            if (event.kind == .alloc and event.result_ptr == owned_ptr) extraction = i;
+        }
+        const i = extraction orelse return error.FinalAllocationNotObserved;
+        try t.expect(i > 0);
+        const allocation = baseline.events[i];
+        const shrink = baseline.events[i - 1];
+        try t.expectEqual(WriterTrace.Kind.remap, shrink.kind);
+        try t.expectEqual(@as(usize, 0), shrink.result_ptr);
+        try t.expect(shrink.old_len > expected.len);
+        try t.expectEqual(expected.len, shrink.new_len);
+        try t.expectEqual(expected.len, allocation.new_len);
+        std.debug.print("\nfinal copy: alloc ordinal {d} of {d}; writer capacity {d}, output {d} bytes\n", .{ allocation.alloc_ordinal, baseline.alloc_attempts, shrink.old_len, expected.len });
+        try t.expect(findFree(&baseline, i + 1, shrink.old_ptr, shrink.old_len));
+        try t.expect(!findFree(&baseline, i + 1, owned_ptr, expected.len));
+
+        // Re-run the identical trace, fail exactly the identified extraction, and
+        // prove that the old writer buffer was freed on the error path. The normal
+        // success retry uses the same module and same allocator instance.
+        var failed_accounting = t.FailingAllocator.init(t.allocator, .{});
+        var failed: WriterTrace = .{ .backing = failed_accounting.allocator(), .allow_remap = false, .fail_ordinal = allocation.alloc_ordinal };
+        try t.expectError(error.OutOfMemory, amd64.emit(failed.allocator(), &module));
+        try t.expect(failed.induced);
+        try t.expectEqual(i + 1, blk: {
+            for (failed.events[0..failed.count], 0..) |event, j| {
+                if (event.kind == .alloc and event.alloc_ordinal == allocation.alloc_ordinal) break :blk j + 1;
+            }
+            return error.FailedAllocationNotObserved;
+        });
+        const failed_shrink = failed.events[i - 1];
+        try t.expectEqual(WriterTrace.Kind.remap, failed_shrink.kind);
+        try t.expectEqual(shrink.old_len, failed_shrink.old_len);
+        try t.expectEqual(expected.len, failed_shrink.new_len);
+        try t.expectEqual(@as(usize, 0), failed.events[i].result_ptr);
+        try t.expectEqual(expected.len, failed.events[i].new_len);
+        try t.expect(findFree(&failed, i + 1, failed_shrink.old_ptr, failed_shrink.old_len));
+        try t.expectEqual(failed_accounting.allocated_bytes, failed_accounting.freed_bytes);
+        failed.fail_ordinal = null;
+        {
+            const retry = try amd64.emit(failed.allocator(), &module);
+            defer failed.allocator().free(retry);
+            try t.expectEqualStrings(expected, retry);
+        }
+        try t.expectEqual(failed_accounting.allocated_bytes, failed_accounting.freed_bytes);
+    }
+    try t.expectEqual(accounting.allocated_bytes, accounting.freed_bytes);
+}
+
+// A bounded test allocator reserves extra backing bytes per allocation, so it
+// can truthfully grow and shrink in place while preserving the allocator API's
+// logical lengths. Backing blocks are freed at their actual reserved lengths.
+const InPlaceAllocator = struct {
+    const Slot = struct { ptr: [*]u8, logical: usize, capacity: usize, alignment: std.mem.Alignment };
+    backing: std.mem.Allocator,
+    slots: [512]?Slot = @splat(null),
+
+    fn allocator(self: *InPlaceAllocator) std.mem.Allocator {
+        return .{ .ptr = self, .vtable = &.{ .alloc = alloc, .resize = resize, .remap = remap, .free = free } };
+    }
+    fn slot(self: *InPlaceAllocator, memory: []u8, alignment: std.mem.Alignment) *Slot {
+        for (&self.slots) |*entry| {
+            if (entry.*) |*s| {
+                if (s.ptr == memory.ptr) {
+                    if (s.logical != memory.len or s.alignment != alignment) @panic("invalid logical allocation");
+                    return s;
+                }
+            }
+        }
+        @panic("unknown allocation");
+    }
+    fn alloc(ctx: *anyopaque, len: usize, alignment: std.mem.Alignment, ra: usize) ?[*]u8 {
+        const self: *InPlaceAllocator = @ptrCast(@alignCast(ctx));
+        const capacity = std.math.add(usize, std.math.mul(usize, len, 2) catch return null, 1024) catch return null;
+        for (&self.slots) |*entry| if (entry.* == null) {
+            const ptr = self.backing.rawAlloc(capacity, alignment, ra) orelse return null;
+            entry.* = .{ .ptr = ptr, .logical = len, .capacity = capacity, .alignment = alignment };
+            return ptr;
+        };
+        @panic("in-place allocator slots exhausted");
+    }
+    fn resize(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, len: usize, _: usize) bool {
+        const self: *InPlaceAllocator = @ptrCast(@alignCast(ctx));
+        const s = self.slot(memory, alignment);
+        if (len > s.capacity) return false;
+        s.logical = len;
+        return true;
+    }
+    fn remap(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, len: usize, ra: usize) ?[*]u8 {
+        if (!resize(ctx, memory, alignment, len, ra)) return null;
+        return memory.ptr;
+    }
+    fn free(ctx: *anyopaque, memory: []u8, alignment: std.mem.Alignment, ra: usize) void {
+        const self: *InPlaceAllocator = @ptrCast(@alignCast(ctx));
+        const s = self.slot(memory, alignment);
+        const ptr = s.ptr;
+        const capacity = s.capacity;
+        for (&self.slots) |*entry| {
+            if (entry.*) |v| if (v.ptr == ptr) {
+                entry.* = null;
+                self.backing.rawFree(ptr[0..capacity], alignment, ra);
+                return;
+            };
+        }
+        unreachable;
+    }
+};
+
+test "extern emission in-place final remap and allocation failures retry" {
+    var diagnostic: ?@import("source.zig").Diagnostic = null;
+    var module = try frontend.parse(t.allocator, .{ .name = "in-place-final", .text = success_scalar }, &diagnostic);
+    defer module.deinit();
+    var accounting = t.FailingAllocator.init(t.allocator, .{});
+    var in_place: InPlaceAllocator = .{ .backing = accounting.allocator() };
+    var baseline: WriterTrace = .{ .backing = in_place.allocator(), .allow_remap = true };
+    {
+        const expected = try amd64.emit(baseline.allocator(), &module);
+        defer baseline.allocator().free(expected);
+        const owned_ptr = @intFromPtr(expected.ptr);
+        var final_remap: ?usize = null;
+        for (baseline.events[0..baseline.count], 0..) |event, i| {
+            if (event.kind == .remap and event.result_ptr == owned_ptr and event.new_len == expected.len) final_remap = i;
+        }
+        const i = final_remap orelse return error.FinalRemapNotObserved;
+        const event = baseline.events[i];
+        try t.expectEqual(owned_ptr, event.old_ptr);
+        try t.expect(event.old_len > event.new_len);
+        try t.expect(!findFree(&baseline, i + 1, owned_ptr, expected.len));
+        var saw_growth = false;
+        for (baseline.events[0..i]) |prior| {
+            if ((prior.kind == .remap or prior.kind == .resize) and prior.result_ptr == prior.old_ptr and prior.new_len > prior.old_len) saw_growth = true;
+        }
+        try t.expect(saw_growth);
+        const attempts = baseline.alloc_attempts;
+        try t.expect(attempts > 0);
+        std.debug.print("\nin-place final shrink: {d} to {d} bytes; {d} allocation ordinals\n", .{ event.old_len, event.new_len, attempts });
+        for (0..attempts) |ordinal| {
+            var failed_accounting = t.FailingAllocator.init(t.allocator, .{});
+            var failed_in_place: InPlaceAllocator = .{ .backing = failed_accounting.allocator() };
+            var trace: WriterTrace = .{ .backing = failed_in_place.allocator(), .allow_remap = true, .fail_ordinal = ordinal };
+            try t.expectError(error.OutOfMemory, amd64.emit(trace.allocator(), &module));
+            try t.expect(trace.induced);
+            try t.expectEqual(failed_accounting.allocated_bytes, failed_accounting.freed_bytes);
+            trace.fail_ordinal = null;
+            trace.count = 0;
+            {
+                const retry = try amd64.emit(trace.allocator(), &module);
+                defer trace.allocator().free(retry);
+                try t.expectEqualStrings(expected, retry);
+            }
+            try t.expectEqual(failed_accounting.allocated_bytes, failed_accounting.freed_bytes);
+        }
+    }
+    try t.expectEqual(accounting.allocated_bytes, accounting.freed_bytes);
+}

@@ -2,7 +2,7 @@ name: Zig-native rewrite
 
 on:
   push:
-    branches: [rewrite/zig-native]
+    branches: [rewrite/zig-native, draft/extern-got-continuation-055301d-20261110]
     paths: ['rewrite/**', '.github/workflows/rewrite.yml']
   workflow_dispatch:
 
@@ -141,8 +141,10 @@ jobs:
       - name: Extern GOT operand runtime smoke
         working-directory: rewrite
         run: |
-          python3 tools/extern_got_sites_runtime.py --compiler zig-out/bin/zbe-native --lock "$RUNNER_TEMP/zbe-extern.lock"
-          python3 tools/extern_got_sites_runtime.py --compiler zig-out/bin/zbe-native --lock "$RUNNER_TEMP/zbe-extern.lock" --full
+          for flags in "" "--fold-integers" "--reuse-stack-homes" "--fold-integers --reuse-stack-homes" "--callee-saved-homes" "--fold-integers --callee-saved-homes" "--reuse-stack-homes --callee-saved-homes" "--fold-integers --reuse-stack-homes --callee-saved-homes"; do
+            python3 tools/extern_got_sites_runtime.py --compiler zig-out/bin/zbe-native --lock "$RUNNER_TEMP/zbe-extern.lock" $flags
+            python3 tools/extern_got_sites_runtime.py --compiler zig-out/bin/zbe-native --lock "$RUNNER_TEMP/zbe-extern.lock" --non-pie $flags
+          done
       - name: Extern GOT guarded varargs runtime smoke
         working-directory: rewrite
         run: python3 tools/extern_got_varargs_runtime.py --compiler zig-out/bin/zbe-native --lock "$RUNNER_TEMP/zbe-extern.lock"

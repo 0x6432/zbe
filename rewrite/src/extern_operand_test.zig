@@ -257,3 +257,43 @@ test "extern type declaration boundary preserves namespace and diagnostics" {
         try testing.expectEqual(case.end, got.span.end);
     }
 }
+
+// D08 is contextual: a single sequence of ordinary declaration flags may be
+// followed by extern, while malformed old-only inputs retain their diagnostics.
+test "extern after declaration linkage flags has exact span and old precedence" {
+    const Case = struct { text: []const u8, code: @import("source.zig").Diagnostic.Code, start: usize, end: usize };
+    const cases = [_]Case{
+        .{ .text = "common extern data $x = { z 8 }", .code = .unsupported_construct, .start = 7, .end = 13 },
+        .{ .text = "export common extern data $x = { z 8 }", .code = .unsupported_construct, .start = 14, .end = 20 },
+        .{ .text = "common export extern data $x = { z 8 }", .code = .unsupported_construct, .start = 14, .end = 20 },
+        .{ .text = "common\r\n# comment\nextern data $x = { z 8 }", .code = .unsupported_construct, .start = 18, .end = 24 },
+        .{ .text = "export extern function $f() { @e ret }", .code = .unsupported_construct, .start = 7, .end = 13 },
+        // Existing refusal points win for repeated flags and unrelated tokens.
+        .{ .text = "common common extern data $x = { z 8 }", .code = .unsupported_construct, .start = 0, .end = 6 },
+        .{ .text = "export export extern data $x = { z 8 }", .code = .unsupported_construct, .start = 7, .end = 13 },
+        .{ .text = "export common nope", .code = .unsupported_construct, .start = 7, .end = 13 },
+        .{ .text = "common nope", .code = .unsupported_construct, .start = 0, .end = 6 },
+        .{ .text = "thread extern data $x = { z 8 }", .code = .unsupported_construct, .start = 0, .end = 6 },
+        // Whole-input lexing still precedes the new contextual diagnostic.
+        .{ .text = "common extern data $x = { z 8 }\n?", .code = .invalid_character, .start = 32, .end = 33 },
+    };
+    for (cases) |case| {
+        var diagnostic: ?@import("source.zig").Diagnostic = null;
+        if (frontend.parse(testing.allocator, .{ .name = "linkage-boundary", .text = case.text }, &diagnostic)) |parsed| {
+            var owned = parsed;
+            owned.deinit();
+            return error.TestUnexpectedResult;
+        } else |err| {
+            try testing.expectEqual(error.InvalidInput, err);
+        }
+        const got = diagnostic orelse return error.TestUnexpectedResult;
+        if (got.code != case.code or got.span.start != case.start or got.span.end != case.end) {
+            std.debug.print("{s}: got {s} [{d},{d}), expected {s} [{d},{d})\n", .{ case.text, @tagName(got.code), got.span.start, got.span.end, @tagName(case.code), case.start, case.end });
+            return error.TestUnexpectedResult;
+        }
+    }
+    var module = try parse("type :extern = { l }\ncommon data $extern = { z 8 }\nexport function l $f() {\n@e\nret $extern\n}");
+    defer module.deinit();
+    try testing.expect(module.findRecord("extern") != null);
+    try validation.validate(testing.allocator, &module);
+}

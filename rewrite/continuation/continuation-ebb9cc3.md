@@ -1,0 +1,13 @@
+# Continuation from ebb9cc3 — draft diagnostic fix
+
+Base `ebb9cc33e3fa4cf9fdeb4b7aacda9cf530c4a149` is a draft, not an accepted baseline. The integration gate remains **HELD**, and no gate or independent terminal audit was run. The design remains unratified.
+
+## Declaration/linkage boundary
+
+The focused D08 change recognizes `extern` after a nonduplicated linkage flag sequence containing `common`, before function fallback can reject `common` instead. For `common extern data $x = { z 8 }` the baseline diagnostic was `unsupported_construct` at byte span `[0,6)`; the draft now reports the same code at `extern`, `[7,13)`. Repeated flags preserve their existing dispatch/diagnostic behavior. This is a contextual new-syntax change: ordinary inputs without `extern` continue through the old dispatch, and whole-input lexer failures still take precedence.
+
+The regression test checks exact spans for both flag orderings, CRLF/comment separation, duplicate flags, unrelated and reversed tokens, lexical precedence, and continued legal use of `:extern` and `$extern`. On the baseline, the new focused test failed at the first example as expected. With the patch, the `extern_operand_test.zig` suite reported 168/168 passing in each of Debug, ReleaseSafe and ReleaseFast with pinned Zig `0.18.0-dev.35+5e754304d`, the shared verification lock, two CPUs and a 4 GiB address-space cap. This is focused coverage, not acceptance or a terminal audit. A separate independent review was attempted but the session tool failed; no independent review is claimed.
+
+A bounded local differential compared 540 generated ordinary declaration inputs across source-built ReleaseSafe baseline and patched compilers: all exit codes, stdout, stderr, and produced bytes matched; 41 cases succeeded. It varied flag sequences up to three tokens, whitespace/newline/comment separators and 12 declaration/malformed tails. It does not prove universal compatibility. Baseline compiler SHA-256 `b20d578aefb19681f393ab14ef34696f14d6fa76c4fd06fa9debc79e6930c1f2`, patched `b62de60176b9a8bc78d3105e39eb477675eef035718c24e41d6d347b1fbc3394`, comparison script `baac54e683a601df6816cbcd90bedcfe4d2bbe90bdc16e8f81fa287488f4ea21`, result JSON `f786fc34d3a946b49d7684beaf38aa478fb4bc29476b4cd3aaa4b610e7a5082f`; artifacts were kept outside the repository under `/data/zbe-d08-comparison`.
+
+The separate P1/P3 validation-order conflict is not changed or resolved. The Valgrind evidence-authorship and protected-handoff blocker, K07 calibration, published predecessor evidence, complete ledgers, hosted CI for the new tip and independent audit remain open. Do not advance canonical branches or assert gate acceptance.

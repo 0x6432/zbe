@@ -1,0 +1,9 @@
+# Continuation from 5eea38f — focused fold-identity coverage
+
+Base `5eea38f42c0e9b38a5483e76815eeadab3502bd2` is a draft, not accepted. The gate remains **HELD** and the design remains unratified.
+
+`extern_safety_test.zig` now explicitly checks the operand tag before accessing its GOT payload and adds three independent neutral-fold identity tests: extern as left add operand, extern as right add operand, and extern as the value of a zero shift. Each checks one fold, exact GOT symbol identity, validation, interpreter refusal, and GOTPCREL text after folding. The full focused file reported 170/170 passing in each of Debug, ReleaseSafe and ReleaseFast with pinned Zig, the shared lock, two CPUs and a 4 GiB virtual-memory cap. These are local tests, not complete U10 or ABI/loader certification.
+
+As a bounded M07 negative control, a separate disposable worktree changed the neutral rewrite so a GOT operand became the corresponding ordinary symbol. Baseline and mutant both compiled successfully in all three modes. The three new baseline tests passed; all three mutant tests failed at the explicit GOT-tag assertion in each mode. The original mutation and logs remain outside the repository, under `/data/zbe-m07-evidence`. This establishes detection of this specific fold-identity defect, not all M07 mutants. No separate independent reviewer completed a review.
+
+Additional isolated controls at the same base covered M08–M10 and two M11 shapes; their raw evidence and limitations remain outside the repository. In particular, the M11 argument-first mutant did not independently test an ENV-first-only mutant. M01 ordinary-LEA runtime calibration, the full acceptance ledger, Valgrind evidence authorship and protected handoff, an independent terminal audit, and hosted rewrite CI for any later tip remain open. Do not advance canonical refs or claim gate acceptance.

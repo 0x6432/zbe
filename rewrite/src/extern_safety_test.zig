@@ -205,10 +205,42 @@ test "extern_safety neutral fold retains reached GOT and native relocation" {
     try t.expectError(error.UnsupportedSymbolAddress, interpreter.evaluateModule(t.allocator, &module, id(0), &.{}, .{}));
     try t.expectEqual(@as(usize, 1), try @import("optimize.zig").foldIntegerConstants(t.allocator, f));
     const operand = f.blocks.items[0].instructions.items[0].copy.operand;
+    try t.expect(operand == .got_symbol);
     try t.expectEqual(symbol, operand.got_symbol);
     try t.expect(operand.referencedValue() == null);
     try t.expectError(error.UnsupportedSymbolAddress, interpreter.evaluateModule(t.allocator, &module, id(0), &.{}, .{}));
     const after = try amd64.emit(t.allocator, &module);
     defer t.allocator.free(after);
     try t.expect(std.mem.indexOf(u8, after, "target@GOTPCREL") != null);
+}
+
+// Independent neutral-form cases: each preserves the dynamically resolved
+// identity rather than replacing it with an ordinary symbol or a constant.
+fn expectExternNeutralIdentity(text: []const u8) !void {
+    var module = try parse(text);
+    defer module.deinit();
+    const f = module.functions.items[0];
+    const symbol = try module.symbols.intern("target");
+    try validation.validate(t.allocator, &module);
+    try t.expectError(error.UnsupportedSymbolAddress, interpreter.evaluateModule(t.allocator, &module, id(0), &.{}, .{}));
+    try t.expectEqual(@as(usize, 1), try @import("optimize.zig").foldIntegerConstants(t.allocator, f));
+    const instruction = f.blocks.items[0].instructions.items[0];
+    try t.expect(instruction == .copy);
+    try t.expect(instruction.copy.operand == .got_symbol);
+    try t.expectEqual(symbol, instruction.copy.operand.got_symbol);
+    try validation.validate(t.allocator, &module);
+    try t.expectError(error.UnsupportedSymbolAddress, interpreter.evaluateModule(t.allocator, &module, id(0), &.{}, .{}));
+    const assembly = try @import("amd64.zig").emit(t.allocator, &module);
+    defer t.allocator.free(assembly);
+    try t.expect(std.mem.indexOf(u8, assembly, "target@GOTPCREL") != null);
+}
+
+test "extern neutral identity left add" {
+    try expectExternNeutralIdentity("function l $f() {\n@e\n%x =l add extern $target, 0\nret %x\n}");
+}
+test "extern neutral identity right add" {
+    try expectExternNeutralIdentity("function l $f() {\n@e\n%x =l add 0, extern $target\nret %x\n}");
+}
+test "extern neutral identity zero shift" {
+    try expectExternNeutralIdentity("function l $f() {\n@e\n%x =l shl extern $target, 0\nret %x\n}");
 }

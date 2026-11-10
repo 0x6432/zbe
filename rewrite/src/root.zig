@@ -90,6 +90,8 @@ test {
     _ = @import("extern_o04_retry_test.zig");
     _ = @import("extern_o09_retry_test.zig");
     _ = @import("extern_o05_retry_test.zig");
+    _ = @import("extern_o03_retry_test.zig");
+    _ = @import("extern_u07_invalid_test.zig");
     _ = @import("ir.zig");
     _ = @import("module.zig");
 }

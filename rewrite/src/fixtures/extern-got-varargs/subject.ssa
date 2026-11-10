@@ -1,0 +1,31 @@
+export function l $got_va_address() {
+@e
+ret extern $n11_vlist
+}
+export function w $got_va_word() {
+@e
+%v =w vaarg extern $n11_vlist
+ret %v
+}
+export function l $got_va_long() {
+@e
+%v =l vaarg extern $n11_vlist
+ret %v
+}
+export function d $got_va_double() {
+@e
+%v =d vaarg extern $n11_vlist
+ret %v
+}
+export function l $got_va_start(w %tag, ...) {
+@e
+vastart extern $n11_vlist
+%a =w vaarg extern $n11_vlist
+%b =l vaarg extern $n11_vlist
+%c =d vaarg extern $n11_vlist
+%aw =l extuw %a
+%cl =l dtoui %c
+%sum =l add %aw, %b
+%total =l add %sum, %cl
+ret %total
+}

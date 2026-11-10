@@ -143,6 +143,9 @@ jobs:
         run: |
           python3 tools/extern_got_sites_runtime.py --compiler zig-out/bin/zbe-native --lock "$RUNNER_TEMP/zbe-extern.lock"
           python3 tools/extern_got_sites_runtime.py --compiler zig-out/bin/zbe-native --lock "$RUNNER_TEMP/zbe-extern.lock" --full
+      - name: Extern GOT guarded varargs runtime smoke
+        working-directory: rewrite
+        run: python3 tools/extern_got_varargs_runtime.py --compiler zig-out/bin/zbe-native --lock "$RUNNER_TEMP/zbe-extern.lock"
       - name: Extern GOT CLI output smoke
         working-directory: rewrite
         run: |

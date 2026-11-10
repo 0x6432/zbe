@@ -1,6 +1,6 @@
 # ZBE draft continuation handoff
 
-> **Continuation update (2026-11-10):** Continue from the current tip of `draft/extern-got-continuation-055301d-20261110`, not the older branch named below. Later draft work and CI evidence are recorded in `continuation/continuation-ee4b6ba.md`. The integration gate remains HELD. The text below is a historical snapshot; its older branch and CI-status statements do not describe later commits.
+> **Continuation update (2026-11-10):** Continue from the current tip of `draft/extern-got-continuation-055301d-20261110`, not the older branch named below. Later draft work and CI evidence are recorded in `continuation/continuation-532f1a5.md` and `continuation/continuation-ee4b6ba.md`. The integration gate remains HELD. The text below is a historical snapshot; its older branch and CI-status statements do not describe later commits.
 
 ## Scope and status
 
